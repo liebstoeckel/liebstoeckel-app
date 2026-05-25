@@ -41,6 +41,8 @@ One authoritative `Y.Doc` per session:
 
 - on **join**, the newcomer gets the full state (`Y.encodeStateAsUpdate`) — late joiners catch up.
 - each incoming update is applied and **broadcast to every other peer** (via `doc.on("update", origin)`; the sender isn't echoed). Server-plugin mutations broadcast to all.
+- **per-send guard:** each peer's `send` is wrapped — a failing (dead/closing) socket is dropped, never starving the broadcast to the rest.
+- **keepalive:** with `{ keepaliveMs }` the Hub sends a benign no-op frame to every peer on an interval (default 25 s in `startServer`), so quiet sessions still surface a "message" on the client (driving its watchdog) and dead peers get pruned. Bun's WS `idleTimeout` + auto-pings detect dead clients server-side too.
 - **resilience:** `Hub.recv` wraps `Y.applyUpdate` in try/catch and the WS handler drops oversized frames (4 MB cap), so a malformed/garbage frame can't crash the relay.
 
 The doc holds the `deck` map (`index`/`step`/`total`) and each plugin's `plugin:<id>` map.

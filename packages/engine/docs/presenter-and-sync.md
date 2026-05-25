@@ -52,7 +52,7 @@ The elapsed timer is **per-window** (the presenter's own clock) with a reset but
 
 ## Reconnect & late join
 
-`connectLive` (the live WebSocket client) **auto-reconnects** with capped exponential backoff and re-pushes local state on reopen, so a wifi blip mid-talk recovers without a reload. The server hands any newcomer the **full current state**, so opening a link mid-session lands on the current slide with current plugin state.
+`connectLive` (the live WebSocket client) **auto-reconnects** with capped exponential backoff and re-pushes local state on reopen, so a wifi blip mid-talk recovers without a reload. A **liveness watchdog** force-reconnects if no frame arrives within `staleMs` (the server sends a periodic keepalive), catching silently-dead **half-open** sockets the browser won't `close`. The server hands any newcomer the **full current state**, so opening a link mid-session lands on the current slide with current plugin state.
 
 ## Transports at a glance
 

@@ -46,7 +46,7 @@ describe("connectLive (mock WS)", () => {
     } as unknown as typeof WebSocket;
 
     let connected = false;
-    const conn = connectLive(info, "p9", { WS });
+    const conn = connectLive(info, "p9", { WS, staleMs: 0 });
     conn.onStatus((c) => (connected = c));
     const sock = created[0]!;
 
@@ -75,7 +75,7 @@ describe("connectLive (mock WS)", () => {
       created.push(s);
       return s;
     } as unknown as typeof WebSocket;
-    const conn = connectLive(info, "p", { WS });
+    const conn = connectLive(info, "p", { WS, staleMs: 0 });
     created[0]!.open();
     expect(() => created[0]!.deliver(new Uint8Array([1, 2, 3, 255, 99]))).not.toThrow();
     conn.close();
@@ -89,7 +89,7 @@ describe("connectLive (mock WS)", () => {
       return s;
     } as unknown as typeof WebSocket;
 
-    const conn = connectLive(info, "p", { WS, reconnectBaseMs: 10, reconnectMaxMs: 20 });
+    const conn = connectLive(info, "p", { WS, reconnectBaseMs: 10, reconnectMaxMs: 20, staleMs: 0 });
     created[0]!.open();
     expect(created.length).toBe(1);
 
@@ -102,5 +102,20 @@ describe("connectLive (mock WS)", () => {
     created[countAfterClose - 1]!.close();
     await Bun.sleep(40);
     expect(created.length).toBe(countAfterClose); // no further reconnect attempts
+  });
+
+  test("watchdog force-reconnects a half-open socket (no frames within staleMs)", async () => {
+    const created: MockWS[] = [];
+    const WS = function (url: string) {
+      const s = new MockWS(url);
+      created.push(s);
+      return s;
+    } as unknown as typeof WebSocket;
+
+    const conn = connectLive(info, "p", { WS, reconnectBaseMs: 10, reconnectMaxMs: 20, staleMs: 60 });
+    created[0]!.open(); // connected, but no frames ever arrive (half-open)
+    await Bun.sleep(180);
+    expect(created.length).toBeGreaterThanOrEqual(2); // watchdog closed the stale socket → reconnect
+    conn.close();
   });
 });

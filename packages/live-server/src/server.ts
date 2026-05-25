@@ -43,7 +43,7 @@ const MAX_FRAME_BYTES = 4 * 1024 * 1024;
  *  Yjs over `/sync`. */
 export async function startServer(opts: ServeOptions): Promise<LiveServer> {
   const session = createSession();
-  const hub = new Hub();
+  const hub = new Hub({ keepaliveMs: 25_000 });
   const cleanups: Array<() => void> = [];
   const serverPlugins: string[] = [];
 
@@ -89,6 +89,9 @@ export async function startServer(opts: ServeOptions): Promise<LiveServer> {
       return new Response("not found", { status: 404 });
     },
     websocket: {
+      // Bun auto-sends pings (sendPings default) and closes connections idle past
+      // this window — so a dead client is detected and its peer cleaned up.
+      idleTimeout: 120,
       open(ws) {
         ws.data.peer = hub.join((d) => ws.send(d));
       },
