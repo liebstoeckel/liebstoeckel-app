@@ -1,83 +1,64 @@
 # Presenter view & sync
 
-## Opening it
+present-it syncs slide navigation (and follow-along) over **two transports**, chosen automatically:
 
-Press **P** in the audience window. The engine opens a second window at the same URL plus `#presenter`; `Present` renders `PresenterView` there. Both windows share the same origin, so they sync automatically (below).
+- **standalone** (`.html`, no server) → `BroadcastChannel` between windows on one machine.
+- **live** (`bunx present-it`) → a shared **Yjs** document over WebSocket, across devices.
 
-## What the presenter shows
+See the [state model](../../../docs/state-model.md) for the whole picture; this page is the navigation/presenter detail.
 
-- **On screen** — a live thumbnail of the current slide (the same `ScaledStage`, so it's pixel-accurate).
-- **Next up** — a preview of the next slide (shrinks first when space is tight).
-- **Speaker notes** — the current slide's `notes`, always visible and scrollable (it keeps a guaranteed minimum height; long notes scroll).
-- **Clock** (wall time) and **Elapsed** timer, with a **Reset**.
-- **Prev / Next** buttons, plus full keyboard control.
+## Opening the presenter view
 
-The layout is responsive: thumbnails are flexible boxes that yield height so the notes panel is never pushed off-screen.
+Press **P**. The deck opens a second window at the same URL **plus `#presenter`**, preserving the query string (so a live presenter window keeps its `?t=<token>` and authenticates):
 
-## Keyboard
+```
+http://host/path?t=<token>#presenter
+```
 
-Both views use `useDeckNav`, so the same keys work whether the audience or presenter window is focused:
+`Present` renders `PresenterView` whenever the hash contains `presenter` (standalone *or* live). It shows: the current slide, a next-slide preview, the slide's **speaker notes**, a step counter, an elapsed timer + wall clock, and Prev/Next.
 
-| Key | Action |
-|-----|--------|
-| `→` `Space` `PageDown` | next |
-| `←` `PageUp` | previous |
-| `Home` / `End` | first / last |
-| `P` | open presenter (audience only) |
-| `T` | cycle brand (if multiple) |
-| `?` `h` / right-click | shortcuts overlay (audience) |
+## How the index syncs
 
-A clicker that emits arrow keys works out of the box from the presenter window.
-
-## How sync works
-
-State lives in `useDeckSync(count)`, called independently by each window. There is no server and no leader — the windows are peers talking over a `BroadcastChannel("present-it")`.
-
-### Shared state
+Both `Deck` (audience) and `PresenterView` build the **same controller** and call `next()` / `prev()` / `setIndex()`:
 
 ```ts
-type DeckState = { index: number; startedAt: number };
+const liveCtx = useLive();
+const sync     = useDeckSync(count);                              // standalone (BroadcastChannel)
+const liveDeck = useLiveDeck(liveCtx?.doc, count, canDrive);      // live (shared Yjs "deck" map)
+const ctrl     = liveCtx?.live ? liveDeck : sync;
 ```
 
-- `index` — current slide
-- `startedAt` — timestamp the timer began; elapsed is `now - startedAt`, so both windows agree on the time, regardless of when each opened.
+- **standalone — `useDeckSync`** broadcasts `{ index, step, total, startedAt }` on `BroadcastChannel("present-it")`. New windows send `request`; others reply, so the presenter window snaps to the live slide.
+- **live — `useLiveDeck`** stores `{ index, step, total }` in a Yjs `deck` map. The presenter role drives (writes); **viewers follow** (`canDrive = false` → writes are no-ops). `next()`/`prev()` read the freshest doc state, so rapid keypresses never act on a stale step.
 
-### Messages
+A live `Deck` shows a `● live · <role>` badge.
 
-```ts
-type Msg =
-  | { type: "state"; index: number; startedAt: number }
-  | { type: "request" };
-```
+## Roles (live)
 
-### Protocol
+Role comes from the URL token, resolved server-side:
 
-1. **Drive.** `setIndex` (from a key or a Prev/Next button) updates local state *and* posts a `state` message. `resetTimer` posts a fresh `startedAt` the same way.
-2. **Adopt.** Each window's `onmessage` copies an incoming `state` into its own state. An equality guard skips no-op updates, which also prevents echo loops.
-3. **Handshake.** On mount a window posts `request`; any existing window replies with its current state. That's why opening the presenter mid-talk snaps straight to the live slide instead of slide 1.
+- **presenter** — drives navigation and can perform presenter-only plugin actions (e.g. close a poll).
+- **viewer** — follows the presenter's slide and may still interact with plugin state (vote), but cannot drive nav.
 
-```
-  audience ──[state {index:4}]──▶ presenter   (adopts → both on slide 5)
-  presenter ──[Next → state {index:5}]──▶ audience
-  new window ──[request]──▶ existing ──[state]──▶ new window (snaps to live)
-```
+The **presenter link** opens the audience `Deck` as the presenter (drive it / project it); pressing **P** there opens the confidence monitor. Both connect to the same session and stay in step. (Driving step reveals requires the audience `Deck` to be open — it owns the `<Step>` rendering and writes `total`; a monitor-only window degrades to slide-level advance.)
 
-A `useRef` mirror of state lets the once-created message handler answer `request` with the latest values (no stale closure).
+## Steps
 
-### Hook surface
+`<Step>` reveals appear one at a time as you advance; once past the last step the slide advances. The **step count (`total`) and current `step`** are part of the synced controller state, so the **presenter view shows `step n/total`** while the audience just sees the reveals. (See [`api-reference`](./api-reference.md) for `Step` / `StepsProvider`.)
 
-```ts
-const { index, startedAt, setIndex, resetTimer } = useDeckSync(slideCount);
-setIndex(4);                 // jump
-setIndex((n) => n + 1);      // relative
-resetTimer();                // restart elapsed (broadcast)
-```
+## Timer
 
-## What is *not* synced (by design)
+The elapsed timer is **per-window** (the presenter's own clock) with a reset button — it is not shared across devices.
 
-- **Brand** — each window sets its own `data-brand`. Single-brand decks therefore match; sync it yourself if you want multi-brand parity across windows.
-- **Help overlay** — purely local UI.
+## Reconnect & late join
 
-## Limits
+`connectLive` (the live WebSocket client) **auto-reconnects** with capped exponential backoff and re-pushes local state on reopen, so a wifi blip mid-talk recovers without a reload. The server hands any newcomer the **full current state**, so opening a link mid-session lands on the current slide with current plugin state.
 
-`BroadcastChannel` is **same-origin, same browser profile**: it syncs tabs and windows on one machine, not across devices. Remote control (drive from a phone) would need a WebSocket/server layer feeding the same `setIndex`.
+## Transports at a glance
+
+| | standalone | live |
+|---|---|---|
+| transport | `BroadcastChannel` | Yjs over WebSocket (via the live server) |
+| reach | one machine, one browser profile | across devices on the network (LAN now; tunnel later) |
+| presenter view | local confidence monitor | confidence monitor, in sync with all clients |
+| plugins | fallback only | full shared-state interaction |

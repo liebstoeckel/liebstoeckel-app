@@ -115,3 +115,38 @@ buildDeck(opts?: {
 The Bun plugin compiling `.mdx` → JS. Reference it in a deck's `bunfig.toml` for the dev server; `buildDeck` includes it automatically.
 
 See [Building & dev](./building.md).
+
+## Live session & plugins
+
+These power the live, multi-device layer. Also exported from `@present-it/engine/live`. See the [state model](../../../docs/state-model.md), [presenter & sync](./presenter-and-sync.md), and [plugins](../../plugin-sdk/docs/README.md).
+
+### `Plugin({ id, props?, components? })`
+Places a plugin in a slide. Renders the plugin's `Slide` when a server is connected, else its `fallback`. `props` is per-instance author config; `components` overrides named surfaces.
+
+### `LiveProvider({ value, children })` / `useLive()`
+Context carrying `{ live, role, participant, doc, theme, viewerUrl, plugins }`. `Present` provides it; `useLive()` reads it (null outside).
+
+### `detectLive(): LiveInfo | null`
+Reads the server-injected `window.__PRESENT_IT_LIVE__` (`{ ws, session, role, token, viewer }`); `null` → standalone.
+
+### `connectLive(info, participant, opts?): LiveConnection`
+Connects a Yjs `doc` to the server over WebSocket with **auto-reconnect** (capped backoff) and a guarded message path. `opts`: `{ WS?, reconnectBaseMs?, reconnectMaxMs? }`. Returns `{ doc, onStatus(cb), close() }`.
+
+### `useLiveDeck(doc, count, canDrive): DeckController`
+Live nav state backed by the shared `deck` map: `{ index, step, total, canDrive, setIndex, setStep, setTotal, next, prev }`. `canDrive=false` (viewer) makes writes no-ops → follow-along. `next`/`prev` read the freshest doc state.
+
+### `getParticipantId(storage?)`
+Stable per-browser-session id (sessionStorage), with a non-secure-context fallback.
+
+### `getDeckIndex(doc)` / `setDeckIndex(doc, n)` / `mergeUi(base, over?)`
+Low-level helpers (shared-doc index access; surface-override merge).
+
+## Live delivery
+
+### `Step` / `StepsProvider` — _from `@present-it/engine`_
+Progressive reveals. `<Step>` hides until the deck's `step` reaches its order. `StepsProvider` (rendered by `Deck`) counts the steps and reports `total` (gated by slide index, via layout effects, so a fast keypress can't skip a slide's builds).
+
+### `delivery` helpers — _from `@present-it/engine`_
+Pure nav logic: `stepForward(step, total)`, `stepBack(step)`, `accumulateDigits(buffer, key)` (jump-to-slide), `clampIndex`, `fullscreenAction` / `toggleFullscreen(el)`.
+
+Deck keys: `→`/`Space` next (reveal step) · `←` prev · `Home`/`End` · `0-9`↵ jump · `O` overview · `F` fullscreen · `B` blur-screen · `Q` join-QR · `P` presenter · `?` help.

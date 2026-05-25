@@ -6,10 +6,12 @@ The runtime for a present-it deck: slide routing, the audience view, the present
 
 - [Concepts](./concepts.md) — the mental model: `Present` routing, the fixed canvas, peer sync, single-file output.
 - [Slides & notes](./slides-and-notes.md) — authoring slides in TSX/MDX and attaching speaker notes.
-- [Presenter view & sync](./presenter-and-sync.md) — the presenter window, keyboard control, and how `BroadcastChannel` keeps windows in step.
+- [Presenter view & sync](./presenter-and-sync.md) — the presenter window, roles, and the standalone (BroadcastChannel) **and** live (Yjs) sync paths.
 - [Persistent elements](./persistent-elements.md) — `Slot` / `PersistentLayer` for iframes, video, and live apps that travel between slides without reloading.
 - [Building & dev](./building.md) — `buildDeck`, the dev server, single-file output, and the Bun/visx gotchas.
 - [API reference](./api-reference.md) — every export, with signatures.
+
+**Cross-package:** [State model](../../../docs/state-model.md) (where every piece of state lives) · [Plugins](../../plugin-sdk/docs/README.md) · [Live server](../../live-server/docs/README.md).
 
 ## 30-second tour
 

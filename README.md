@@ -3,6 +3,8 @@
 Code-first presentations that are **real software** — authored in MDX + React, animated with Motion, themed from a single token file, and shipped as **one self-contained `.html`**. Built on Bun + React 19 + Tailwind v4.
 
 > See [`DESIGN.md`](./DESIGN.md) for the architecture and the validated engineering findings.
+>
+> **Docs:** [State model](./docs/state-model.md) (with [diagram](./docs/state-handling.drawio.svg)) · [Engine](./packages/engine/docs/README.md) · [Plugins](./packages/plugin-sdk/docs/README.md) · [Live server](./packages/live-server/docs/README.md)
 
 ## Quickstart
 
