@@ -3,6 +3,7 @@ import { statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import QRCode from "qrcode";
 import { startServer } from "./server";
+import { buildLinks } from "./session";
 
 export type TargetKind = "html" | "project" | "unknown";
 
@@ -51,12 +52,15 @@ async function main() {
   const html = await loadDeckHtml(arg);
   const live = await startServer({ html });
 
+  const local = buildLinks(`http://localhost:${live.port}`, live.session);
   const qr = await QRCode.toString(live.links.viewer, { type: "terminal", small: true });
   console.log(`\n▶  present-it live — session ${live.session.id}\n`);
-  console.log(`   audience (read-only):  ${live.links.viewer}`);
-  console.log(`   presenter:             ${live.links.presenter}`);
-  if (live.serverPlugins.length) console.log(`   server plugins:        ${live.serverPlugins.join(", ")}`);
-  console.log(`\n   scan to follow along:\n${qr}`);
+  console.log(`   on this machine   presenter  ${local.presenter}`);
+  console.log(`                     audience   ${local.viewer}`);
+  console.log(`   on the network    presenter  ${live.links.presenter}`);
+  console.log(`                     audience   ${live.links.viewer}`);
+  if (live.serverPlugins.length) console.log(`\n   server plugins:   ${live.serverPlugins.join(", ")}`);
+  console.log(`\n   scan to follow along (network):\n${qr}`);
 
   const shutdown = () => {
     live.stop();
