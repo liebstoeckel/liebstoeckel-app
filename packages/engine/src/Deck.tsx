@@ -43,6 +43,7 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
   const sync = useDeckSync(count);
   const liveDeck = useLiveDeck(liveCtx?.doc ?? fallbackDoc, count, liveCtx?.role !== "viewer");
   const isLive = !!liveCtx?.live;
+  const role = isLive ? liveCtx?.role : undefined;
   const ctrl = isLive ? liveDeck : sync;
   const { index, step, total } = ctrl;
 
@@ -140,19 +141,33 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
               {String(index + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
             </div>
 
-            {isLive && (
-              <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-accent">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent shadow-[0_0_8px_var(--brand-accent)]" />
-                live · {liveCtx?.role}
-              </div>
-            )}
-
+            {/* role-aware help affordance: ? (standalone) · eye (viewer) · screen (presenter) */}
             <button
               onClick={() => setHelp(true)}
-              title="Shortcuts (? or right-click)"
-              className="absolute bottom-5 left-8 flex h-7 w-7 items-center justify-center rounded-full border border-border font-mono text-xs text-muted/50 opacity-60 transition hover:border-text hover:text-text hover:opacity-100"
+              title={
+                isLive
+                  ? `${role} · shortcuts (? or right-click)`
+                  : "Shortcuts (? or right-click)"
+              }
+              className={`absolute bottom-4 left-8 flex h-7 w-7 items-center justify-center rounded-full border transition ${
+                isLive
+                  ? "border-accent/50 text-accent opacity-80 hover:opacity-100"
+                  : "border-border text-muted/50 opacity-60 hover:border-text hover:text-text hover:opacity-100"
+              }`}
             >
-              ?
+              {!isLive ? (
+                <span className="font-mono text-xs">?</span>
+              ) : role === "viewer" ? (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="13" rx="1.5" />
+                  <path d="M12 17v3M8.5 20h7" />
+                </svg>
+              )}
             </button>
 
             {/* jump-to-number buffer */}
@@ -169,7 +184,7 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
               )}
             </AnimatePresence>
 
-            <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} />
+            <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} />
             <QrOverlay open={qr} url={liveCtx?.viewerUrl} onClose={() => setQr(false)} />
           </div>
 
