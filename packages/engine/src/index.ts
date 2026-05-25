@@ -6,11 +6,7 @@ export { HelpOverlay } from "./HelpOverlay";
 export { useDeckSync } from "./useDeckSync";
 export { useDeckNav } from "./nav";
 export { normalizeSlides, type SlideInput } from "./slides";
-export { CaptureView } from "./CaptureView";
-export { readThumbnails, type ThumbnailSet } from "./thumbnails";
-export { Step, StepsProvider, useRevealState } from "./steps";
-export { CodeMagic } from "./CodeMagic";
-export type { TokenizedStep, CodeToken } from "./code/types";
+export { Step, StepsProvider } from "./steps";
 export {
   fullscreenAction,
   toggleFullscreen,
@@ -25,7 +21,7 @@ export {
   Slot,
   type PersistentItem,
 } from "./PersistentLayer";
-export { Magic, Atmosphere } from "@liebstoeckel/components";
+export { Magic, Atmosphere } from "@present-it/components";
 export {
   Plugin,
   LiveProvider,

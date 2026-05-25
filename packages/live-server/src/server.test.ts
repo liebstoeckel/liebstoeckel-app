@@ -29,7 +29,7 @@ describe("startServer HTTP gating", () => {
     const ok = await fetch(`${live.baseUrl}/?t=${live.session.viewerToken}`);
     const body = await ok.text();
     expect(ok.status).toBe(200);
-    expect(body).toContain("window.__LIEBSTOECKEL_LIVE__");
+    expect(body).toContain("window.__PRESENT_IT_LIVE__");
     expect(body).toContain('"role":"viewer"');
     expect(body).toContain('"viewer":"http'); // read-only link for the QR
 

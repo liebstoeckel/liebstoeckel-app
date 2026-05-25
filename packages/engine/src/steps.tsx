@@ -1,27 +1,19 @@
 import { createContext, useContext, useId, useLayoutEffect, useState, type ReactNode } from "react";
 import { motion } from "motion/react";
 
-interface Entry {
-  id: string;
-  weight: number;
-}
-
 interface StepsApi {
   step: number;
-  /** Claim `weight` consecutive reveal slots (default 1). Idempotent per id. */
-  register(id: string, weight?: number): void;
+  register(id: string): void;
   unregister(id: string): void;
-  /** 1-based index of the first slot this id occupies, or 0 until registered. */
-  startOf(id: string): number;
+  orderOf(id: string): number; // 1-based, or 0 until registered
 }
 
 const StepsCtx = createContext<StepsApi | null>(null);
 
-/** Wraps the active slide; tracks the total reveal slots it contains (sum of each
- *  consumer's weight) and the current reveal index. Reports `total` via onTotal
- *  *with its slide index* so the deck can ignore a slide that's exiting (the
- *  AnimatePresence overlap). Uses layout effects so `total` is set before any
- *  keypress can advance the slide. */
+/** Wraps the active slide; tracks how many <Step>s it contains and the current
+ *  reveal index. Reports `total` via onTotal *with its slide index* so the deck
+ *  can ignore a slide that's exiting (AnimatePresence overlap). Uses layout
+ *  effects so `total` is set before any keypress can advance the slide. */
 export function StepsProvider({
   step,
   slideIndex,
@@ -33,47 +25,31 @@ export function StepsProvider({
   onTotal?: (slideIndex: number, total: number) => void;
   children: ReactNode;
 }) {
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [ids, setIds] = useState<string[]>([]);
   const api: StepsApi = {
     step,
-    register: (id, weight = 1) =>
-      setEntries((arr) => {
-        const i = arr.findIndex((e) => e.id === id);
-        if (i === -1) return [...arr, { id, weight }];
-        if (arr[i]!.weight === weight) return arr;
-        const copy = arr.slice();
-        copy[i] = { id, weight };
-        return copy;
-      }),
-    unregister: (id) => setEntries((arr) => arr.filter((e) => e.id !== id)),
-    startOf: (id) => {
-      let acc = 0;
-      for (const e of entries) {
-        if (e.id === id) return acc + 1;
-        acc += e.weight;
-      }
-      return 0;
-    },
+    register: (id) => setIds((arr) => (arr.includes(id) ? arr : [...arr, id])),
+    unregister: (id) => setIds((arr) => arr.filter((x) => x !== id)),
+    orderOf: (id) => ids.indexOf(id) + 1,
   };
-  const total = entries.reduce((s, e) => s + e.weight, 0);
   useLayoutEffect(() => {
-    onTotal?.(slideIndex, total);
-  }, [total, slideIndex, onTotal]);
+    onTotal?.(slideIndex, ids.length);
+  }, [ids.length, slideIndex, onTotal]);
   return <StepsCtx.Provider value={api}>{children}</StepsCtx.Provider>;
 }
 
-/** A progressive reveal. Hidden until the deck's step reaches its slot (its
+/** A progressive reveal. Hidden until the deck's step reaches its order (its
  *  position among siblings). Outside a StepsProvider it's always shown. */
 export function Step({ children, className }: { children?: ReactNode; className?: string }) {
   const ctx = useContext(StepsCtx);
   const id = useId();
   useLayoutEffect(() => {
-    ctx?.register(id, 1);
+    ctx?.register(id);
     return () => ctx?.unregister(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const start = ctx ? ctx.startOf(id) : 1;
-  const shown = !ctx ? true : start > 0 && ctx.step >= start;
+  const order = ctx ? ctx.orderOf(id) : 1;
+  const shown = !ctx ? true : order > 0 && ctx.step >= order;
   return (
     <motion.div
       className={className}
@@ -85,23 +61,4 @@ export function Step({ children, className }: { children?: ReactNode; className?
       {children}
     </motion.div>
   );
-}
-
-/** For a multi-state reveal (e.g. animated code): claims `count - 1` reveal slots
- *  and returns the active state index (0…count-1) as the deck steps through them.
- *  Outside a provider (thumbnail capture / standalone) it resolves to the final
- *  state so a static render shows the finished result. */
-export function useRevealState(count: number): number {
-  const ctx = useContext(StepsCtx);
-  const id = useId();
-  const weight = Math.max(0, count - 1);
-  useLayoutEffect(() => {
-    ctx?.register(id, weight);
-    return () => ctx?.unregister(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weight]);
-  if (!ctx) return Math.max(0, count - 1);
-  const start = ctx.startOf(id);
-  if (start === 0) return 0; // not registered on this render yet
-  return Math.max(0, Math.min(count - 1, ctx.step - start + 1));
 }

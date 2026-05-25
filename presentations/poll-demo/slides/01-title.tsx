@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Step } from "@liebstoeckel/engine";
+import { Step } from "@present-it/engine";
 
 export const notes = (
   <div>
@@ -20,7 +20,7 @@ export default function Title() {
         className="mb-5 flex items-center gap-3 font-mono text-sm uppercase tracking-[0.35em] text-accent"
       >
         <span className="h-px w-8 bg-accent" />
-        liebstoeckel · live
+        present-it · live
       </motion.div>
       <h1
         className="font-heading text-[92px] font-semibold leading-[0.95] tracking-[-0.03em] text-text"

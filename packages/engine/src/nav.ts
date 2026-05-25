@@ -1,47 +1,4 @@
 import { useEffect } from "react";
-import { resolveTouchGesture, NO_NAV_SELECTOR } from "./mobile";
-
-/** Touch navigation: horizontal swipe + edge tap-zones, resolved by the pure
- *  `resolveTouchGesture`. Reuses `onNext`/`onPrev` so step-reveals still run before
- *  a slide change. Enable only where navigation is the user's job (standalone +
- *  presenter) — a live viewer follows the presenter. Gestures on interactive
- *  elements (buttons, the plugin region) are ignored. */
-export function useTouchNav(opts: { enabled: boolean; onNext: () => void; onPrev: () => void }) {
-  const { enabled, onNext, onPrev } = opts;
-  useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
-    let sx = 0;
-    let sy = 0;
-    let onInteractive = false;
-    const onStart = (e: TouchEvent) => {
-      const t = e.changedTouches[0];
-      if (!t) return;
-      sx = t.clientX;
-      sy = t.clientY;
-      const el = e.target as Element | null;
-      onInteractive = !!el?.closest?.(NO_NAV_SELECTOR);
-    };
-    const onEnd = (e: TouchEvent) => {
-      const t = e.changedTouches[0];
-      if (!t) return;
-      const move = resolveTouchGesture({
-        dx: t.clientX - sx,
-        dy: t.clientY - sy,
-        x: sx,
-        width: window.innerWidth,
-        onInteractive,
-      });
-      if (move === "next") onNext();
-      else if (move === "prev") onPrev();
-    };
-    window.addEventListener("touchstart", onStart, { passive: true });
-    window.addEventListener("touchend", onEnd, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onStart);
-      window.removeEventListener("touchend", onEnd);
-    };
-  }, [enabled, onNext, onPrev]);
-}
 
 // Keyboard navigation. `onNext`/`onPrev` let the deck intercept for step reveals;
 // they fall back to slide nav. Slide index lives in the deck controller (synced).

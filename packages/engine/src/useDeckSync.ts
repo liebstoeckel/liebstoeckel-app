@@ -7,7 +7,7 @@ import { stepForward, stepBack } from "./delivery";
 export type DeckState = { index: number; step: number; total: number; startedAt: number };
 type Msg = ({ type: "state" } & DeckState) | { type: "request" };
 
-const CHANNEL = "liebstoeckel";
+const CHANNEL = "present-it";
 
 export function useDeckSync(count: number) {
   const [state, setState] = useState<DeckState>(() => ({ index: 0, step: 0, total: 0, startedAt: Date.now() }));

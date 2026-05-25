@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ThemeTokens } from "@liebstoeckel/plugin-sdk";
+import type { ThemeTokens } from "@present-it/plugin-sdk";
 
 export type { ThemeTokens };
 

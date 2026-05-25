@@ -7,11 +7,11 @@ import { getDeckIndex, setDeckIndex } from "./deckIndex";
 
 describe("detectLive", () => {
   test("reads the injected global, null otherwise", () => {
-    const g = globalThis as { __LIEBSTOECKEL_LIVE__?: unknown };
+    const g = globalThis as { __PRESENT_IT_LIVE__?: unknown };
     expect(detectLive()).toBeNull();
-    g.__LIEBSTOECKEL_LIVE__ = { ws: "ws://x/sync?t=1", session: "s", role: "viewer", token: "1" };
+    g.__PRESENT_IT_LIVE__ = { ws: "ws://x/sync?t=1", session: "s", role: "viewer", token: "1" };
     expect(detectLive()?.role).toBe("viewer");
-    delete g.__LIEBSTOECKEL_LIVE__;
+    delete g.__PRESENT_IT_LIVE__;
   });
 });
 

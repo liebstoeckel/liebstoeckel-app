@@ -4,9 +4,6 @@ node_modules/
 # build output (single-file decks are generated)
 dist/
 
-# astro docs cache
-.astro/
-
 # logs / scratch
 *.log
 _shot.png

@@ -1,6 +1,0 @@
-# Keep build contexts small (local bootstrap + in-cluster buildkitd).
-.git
-**/node_modules
-**/dist
-**/.astro
-*.log

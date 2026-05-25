@@ -1,10 +1,10 @@
 {
-  "name": "@liebstoeckel/plugin-poll",
+  "name": "@present-it/plugin-poll",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "keywords": ["liebstoeckel-plugin"],
-  "liebstoeckel": {
+  "keywords": ["present-it-plugin"],
+  "presentIt": {
     "client": "./src/client.tsx"
   },
   "exports": {
@@ -12,7 +12,7 @@
     "./logic": "./src/logic.ts"
   },
   "dependencies": {
-    "@liebstoeckel/plugin-sdk": "workspace:*",
-    "@liebstoeckel/plugin-ui": "workspace:*"
+    "@present-it/plugin-sdk": "workspace:*",
+    "@present-it/plugin-ui": "workspace:*"
   }
 }

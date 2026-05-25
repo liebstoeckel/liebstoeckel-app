@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { MDXProvider } from "@mdx-js/react";
-import { mdxComponents } from "@liebstoeckel/components";
+import { mdxComponents } from "@present-it/components";
 import * as Y from "yjs";
-import type { PluginDef } from "@liebstoeckel/plugin-sdk";
-import { useDeckNav, useTouchNav } from "./nav";
-import { PortraitHint } from "./MobileHint";
+import type { PluginDef } from "@present-it/plugin-sdk";
+import { useDeckNav } from "./nav";
 import { useDeckSync } from "./useDeckSync";
 import { useLive } from "./live/Plugin";
 import { useLiveDeck } from "./live/deckIndex";
 import { PersistentProvider, PersistentLayer, type PersistentItem } from "./PersistentLayer";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { DeckThumb } from "./Thumb";
-import { readThumbnails } from "./thumbnails";
 import { HelpOverlay } from "./HelpOverlay";
 import { QrOverlay } from "./QrOverlay";
 import { StepsProvider } from "./steps";
@@ -31,14 +29,12 @@ export type DeckProps = {
 function openPresenter() {
   // preserve the query (incl. ?t=<token>) so a live presenter window authenticates
   const url = location.origin + location.pathname + location.search + "#presenter";
-  window.open(url, "liebstoeckel-presenter", "width=1366,height=860");
+  window.open(url, "present-it-presenter", "width=1366,height=860");
 }
 
 export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   const count = norm.length;
-  // Pre-rendered overview thumbnails (build-time), if the deck embedded them.
-  const thumbs = useMemo(() => readThumbnails(), []);
 
   // Index/step source: shared Yjs doc in a live session (viewers follow), else
   // BroadcastChannel across local windows. Both hooks run; we select one.
@@ -47,7 +43,6 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
   const sync = useDeckSync(count);
   const liveDeck = useLiveDeck(liveCtx?.doc ?? fallbackDoc, count, liveCtx?.role !== "viewer");
   const isLive = !!liveCtx?.live;
-  const role = isLive ? liveCtx?.role : undefined;
   const ctrl = isLive ? liveDeck : sync;
   const { index, step, total } = ctrl;
 
@@ -107,10 +102,6 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
     onDigit,
   });
 
-  // Touch nav for everyone who drives their own deck (standalone + presenter); a
-  // live viewer follows the presenter, so it isn't bound for them.
-  useTouchNav({ enabled: role !== "viewer", onNext: ctrl.next, onPrev: ctrl.prev });
-
   const Current = norm[index]?.Component ?? (() => null);
 
   return (
@@ -149,33 +140,19 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
               {String(index + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
             </div>
 
-            {/* role-aware help affordance: ? (standalone) · eye (viewer) · screen (presenter) */}
+            {isLive && (
+              <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2 font-mono text-xs uppercase tracking-[0.25em] text-accent">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent shadow-[0_0_8px_var(--brand-accent)]" />
+                live · {liveCtx?.role}
+              </div>
+            )}
+
             <button
               onClick={() => setHelp(true)}
-              title={
-                isLive
-                  ? `${role} · shortcuts (? or right-click)`
-                  : "Shortcuts (? or right-click)"
-              }
-              className={`absolute bottom-4 left-8 flex h-7 w-7 items-center justify-center rounded-full border transition ${
-                isLive
-                  ? "border-accent/50 text-accent opacity-80 hover:opacity-100"
-                  : "border-border text-muted/50 opacity-60 hover:border-text hover:text-text hover:opacity-100"
-              }`}
+              title="Shortcuts (? or right-click)"
+              className="absolute bottom-5 left-8 flex h-7 w-7 items-center justify-center rounded-full border border-border font-mono text-xs text-muted/50 opacity-60 transition hover:border-text hover:text-text hover:opacity-100"
             >
-              {!isLive ? (
-                <span className="font-mono text-xs">?</span>
-              ) : role === "viewer" ? (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="13" rx="1.5" />
-                  <path d="M12 17v3M8.5 20h7" />
-                </svg>
-              )}
+              ?
             </button>
 
             {/* jump-to-number buffer */}
@@ -192,9 +169,8 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
               )}
             </AnimatePresence>
 
-            <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} />
+            <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} />
             <QrOverlay open={qr} url={liveCtx?.viewerUrl} onClose={() => setQr(false)} />
-            <PortraitHint />
           </div>
 
           {/* blur-screen overlay */}
@@ -238,7 +214,7 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
                         i === index ? "border-primary" : "border-border hover:border-text"
                       }`}
                     >
-                      <DeckThumb Component={s.Component} src={thumbs?.get(i)} alt={`Slide ${i + 1}`} />
+                      <DeckThumb Component={s.Component} />
                       <span className="absolute bottom-1 right-2 font-mono text-xs text-muted">{i + 1}</span>
                     </button>
                   ))}

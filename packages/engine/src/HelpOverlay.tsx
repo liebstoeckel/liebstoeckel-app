@@ -1,16 +1,11 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { Role } from "@liebstoeckel/plugin-sdk";
 
-type Shortcut = { keys: string[]; label: string; presenterOnly?: boolean };
+type Shortcut = { keys: string[]; label: string };
 
-function Kbd({ children, dim }: { children: string; dim?: boolean }) {
+function Kbd({ children }: { children: string }) {
   return (
-    <kbd
-      className={`inline-flex min-w-[1.9rem] items-center justify-center rounded-md border px-2 py-1 font-mono text-sm shadow-sm ${
-        dim ? "border-border/50 bg-bg/40 text-muted" : "border-border bg-bg text-text"
-      }`}
-    >
+    <kbd className="inline-flex min-w-[1.9rem] items-center justify-center rounded-md border border-border bg-bg px-2 py-1 font-mono text-sm text-text shadow-sm">
       {children}
     </kbd>
   );
@@ -20,13 +15,10 @@ export function HelpOverlay({
   open,
   onClose,
   showBrand,
-  role,
 }: {
   open: boolean;
   onClose: () => void;
   showBrand?: boolean;
-  /** live role; undefined = standalone (everything enabled) */
-  role?: Role;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -37,13 +29,11 @@ export function HelpOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const isViewer = role === "viewer";
-
   const shortcuts: Shortcut[] = [
-    { keys: ["→", "Space"], label: "Next / reveal step", presenterOnly: true },
-    { keys: ["←"], label: "Previous / hide step", presenterOnly: true },
-    { keys: ["Home", "End"], label: "First / last slide", presenterOnly: true },
-    { keys: ["0-9", "↵"], label: "Jump to slide", presenterOnly: true },
+    { keys: ["→", "Space"], label: "Next / reveal step" },
+    { keys: ["←"], label: "Previous / hide step" },
+    { keys: ["Home", "End"], label: "First / last slide" },
+    { keys: ["0-9", "↵"], label: "Jump to slide" },
     { keys: ["O"], label: "Overview grid" },
     { keys: ["F"], label: "Fullscreen" },
     { keys: ["B"], label: "Blur screen" },
@@ -81,44 +71,22 @@ export function HelpOverlay({
           >
             <div className="mb-5 flex items-baseline justify-between">
               <span className="font-heading text-2xl font-semibold text-text">Shortcuts</span>
-              {role ? (
-                <span className="font-mono text-[11px] uppercase tracking-[0.25em] text-accent">
-                  ● live · {role}
-                </span>
-              ) : (
-                <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-muted">keyboard</span>
-              )}
+              <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-muted">keyboard</span>
             </div>
-            {isViewer && (
-              <p className="mb-4 font-body text-sm text-muted">
-                You're following as a <span className="text-text">viewer</span> — the presenter drives
-                navigation. You can still interact (e.g. vote).
-              </p>
-            )}
             <ul className="space-y-3">
-              {shortcuts.map((s) => {
-                const disabled = isViewer && s.presenterOnly;
-                return (
-                  <li
-                    key={s.label}
-                    className={`flex items-center justify-between gap-4 ${disabled ? "opacity-40" : ""}`}
-                    title={disabled ? "Presenter only" : undefined}
-                  >
-                    <span className="font-body text-lg text-text/85">
-                      {s.label}
-                      {disabled && <span className="ml-2 font-mono text-[10px] uppercase tracking-wider text-muted">presenter</span>}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      {s.keys.map((k, i) => (
-                        <span key={k} className="flex items-center gap-1.5">
-                          {i > 0 && <span className="font-mono text-xs text-muted">/</span>}
-                          <Kbd dim={disabled}>{k}</Kbd>
-                        </span>
-                      ))}
-                    </span>
-                  </li>
-                );
-              })}
+              {shortcuts.map((s) => (
+                <li key={s.label} className="flex items-center justify-between gap-4">
+                  <span className="font-body text-lg text-text/85">{s.label}</span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {s.keys.map((k, i) => (
+                      <span key={k} className="flex items-center gap-1.5">
+                        {i > 0 && <span className="font-mono text-xs text-muted">/</span>}
+                        <Kbd>{k}</Kbd>
+                      </span>
+                    ))}
+                  </span>
+                </li>
+              ))}
             </ul>
             <div className="mt-6 border-t border-border pt-4 text-center font-mono text-[11px] uppercase tracking-[0.25em] text-muted">
               right-click anywhere to toggle

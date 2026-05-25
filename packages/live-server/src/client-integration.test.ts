@@ -1,5 +1,5 @@
 import { test, expect, describe, afterEach } from "bun:test";
-import { connectLive } from "@liebstoeckel/engine/live";
+import { connectLive } from "@present-it/engine/live";
 import { startServer, type LiveServer } from "./server";
 
 // End-to-end: the engine client (connectLive) talking to the real live server.

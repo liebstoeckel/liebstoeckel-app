@@ -22,10 +22,3 @@ export {
   type DiscoveredPlugin,
 } from "./discovery";
 export { classifyTargetPath, loadDeckHtml } from "./cli";
-export {
-  uploadDeck,
-  endSession,
-  runServerPluginsViaRelay,
-  type RelaySessionInfo,
-  type RunnerHandle,
-} from "./relay-client";

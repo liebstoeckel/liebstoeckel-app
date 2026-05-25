@@ -1,4 +1,4 @@
-import type { Role } from "@liebstoeckel/plugin-sdk";
+import type { Role } from "@present-it/plugin-sdk";
 
 export interface LiveInfo {
   ws: string;
@@ -12,6 +12,6 @@ export interface LiveInfo {
 
 /** Read the bootstrap the live server injects. Absent → standalone (.html). */
 export function detectLive(): LiveInfo | null {
-  const g = globalThis as { __LIEBSTOECKEL_LIVE__?: LiveInfo };
-  return g.__LIEBSTOECKEL_LIVE__ ?? null;
+  const g = globalThis as { __PRESENT_IT_LIVE__?: LiveInfo };
+  return g.__PRESENT_IT_LIVE__ ?? null;
 }

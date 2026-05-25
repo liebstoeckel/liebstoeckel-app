@@ -1,4 +1,4 @@
-import { Plugin } from "@liebstoeckel/engine";
+import { Plugin } from "@present-it/engine";
 
 export const notes = (
   <div>
@@ -29,7 +29,7 @@ export default function PollSlide() {
         <Plugin
           id="poll"
           props={{
-            question: "What should liebstoeckel build next?",
+            question: "What should present-it build next?",
             options: ["On-slide annotation", "Theme marketplace", "Multi-deck linking", "Audience Q&A"],
           }}
         />

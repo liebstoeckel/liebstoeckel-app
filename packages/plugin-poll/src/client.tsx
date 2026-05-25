@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
-import { Bar, Button, Card, Eyebrow, Stack } from "@liebstoeckel/plugin-ui";
+import { definePlugin, type ClientProps } from "@present-it/plugin-sdk";
+import { Bar, Button, Card, Eyebrow, Stack } from "@present-it/plugin-ui";
 import { pollSchema, tally, totalVotes, myVote, leader, type PollState } from "./logic";
 
 // Seed the question/options from author props once (presenter owns init).
@@ -43,7 +43,7 @@ function PollSlide(p: ClientProps<PollState>) {
     if (!snapshot.closed) state.recordSet("votes", participantId, option);
   };
   return (
-    <Card style={{ width: "100%", maxWidth: 460 }}>
+    <Card style={{ minWidth: 420 }}>
       <Eyebrow>Live poll · {totalVotes(snapshot)} votes</Eyebrow>
       <div style={{ fontFamily: "var(--brand-font-heading, serif)", fontSize: "1.9rem", fontWeight: 600, marginBottom: "1.1rem" }}>
         {snapshot.question || "…"}
@@ -80,23 +80,16 @@ function PollPresenter(p: ClientProps<PollState>) {
   );
 }
 
-/** No live server → static preview. Prefers the author's configured question /
- *  options (props), then any seeded snapshot, then a generic placeholder — so the
- *  standalone .html and the build-time thumbnail both show the real poll. */
-function PollFallback({ snapshot, props = {} }: { snapshot: PollState; props?: Record<string, unknown> }) {
-  const question = snapshot.question || (props.question as string) || "Live poll";
-  const options =
-    (snapshot.options.length && snapshot.options) ||
-    (props.options as string[] | undefined) ||
-    ["Option A", "Option B"];
+/** No live server → static preview from whatever seed exists. */
+function PollFallback({ snapshot }: { snapshot: PollState }) {
   return (
     <Card>
       <Eyebrow>Poll · offline preview</Eyebrow>
       <div style={{ fontFamily: "var(--brand-font-heading, serif)", fontSize: "1.6rem", marginBottom: "0.8rem" }}>
-        {question}
+        {snapshot.question || "Live poll"}
       </div>
       <Stack gap="0.5rem">
-        {options.map((o) => (
+        {(snapshot.options.length ? snapshot.options : ["Option A", "Option B"]).map((o) => (
           <Button key={o} disabled>
             {o}
           </Button>

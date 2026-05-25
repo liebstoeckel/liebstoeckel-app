@@ -1,5 +1,5 @@
 {
-  "name": "@liebstoeckel/demo",
+  "name": "@present-it/demo",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,11 +8,8 @@
     "build": "bun run build.ts"
   },
   "dependencies": {
-    "@liebstoeckel/engine": "workspace:*",
-    "@liebstoeckel/components": "workspace:*",
-    "@liebstoeckel/theme": "workspace:*"
-  },
-  "devDependencies": {
-    "@liebstoeckel/thumbnails": "workspace:*"
+    "@present-it/engine": "workspace:*",
+    "@present-it/components": "workspace:*",
+    "@present-it/theme": "workspace:*"
   }
 }

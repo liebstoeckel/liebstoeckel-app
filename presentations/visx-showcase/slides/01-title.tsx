@@ -30,7 +30,7 @@ export default function Title() {
           className="mb-6 flex items-center gap-3 font-mono text-sm uppercase tracking-[0.4em] text-accent"
         >
           <span className="h-px w-10 bg-accent" />
-          visx × liebstoeckel
+          visx × present-it
         </motion.div>
 
         <motion.h1

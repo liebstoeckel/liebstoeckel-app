@@ -1,5 +1,5 @@
 {
-  "name": "@liebstoeckel/plugin-ui",
+  "name": "@present-it/plugin-ui",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@liebstoeckel/plugin-sdk": "workspace:*"
+    "@present-it/plugin-sdk": "workspace:*"
   }
 }

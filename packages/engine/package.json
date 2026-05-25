@@ -1,5 +1,5 @@
 {
-  "name": "@liebstoeckel/engine",
+  "name": "@present-it/engine",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,18 +7,13 @@
     ".": "./src/index.ts",
     "./live": "./src/live/index.ts",
     "./build": "./src/build/buildDeck.ts",
-    "./build/thumbnails": "./src/build/thumbnails.ts",
-    "./build/capture-protocol": "./src/build/capture-protocol.ts",
-    "./mdx-plugin": "./src/build/mdx-plugin.ts",
-    "./code": "./src/code/macro.ts"
+    "./mdx-plugin": "./src/build/mdx-plugin.ts"
   },
   "dependencies": {
-    "@liebstoeckel/components": "workspace:*",
-    "@liebstoeckel/plugin-sdk": "workspace:*",
-    "@liebstoeckel/plugin-ui": "workspace:*",
-    "@shikijs/rehype": "^3.0.0",
+    "@present-it/components": "workspace:*",
+    "@present-it/plugin-sdk": "workspace:*",
+    "@present-it/plugin-ui": "workspace:*",
     "qrcode": "^1.5.4",
-    "shiki": "^3.0.0",
     "yjs": "^13.6.30"
   }
 }

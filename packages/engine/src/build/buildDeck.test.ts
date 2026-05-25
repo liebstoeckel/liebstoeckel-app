@@ -2,8 +2,8 @@ import { test, expect, describe } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { rehydrateServerBundle } from "@liebstoeckel/plugin-sdk/manifest";
-import { buildServerBundle, buildPluginManifest, escapeInlineModuleScript } from "./buildDeck";
+import { rehydrateServerBundle } from "@present-it/plugin-sdk/manifest";
+import { buildServerBundle, buildPluginManifest } from "./buildDeck";
 
 describe("buildServerBundle", () => {
   test("bundles a server entry (target:bun) → base64 that rehydrates & runs with ctx", async () => {
@@ -23,23 +23,5 @@ describe("buildServerBundle", () => {
 describe("buildPluginManifest", () => {
   test("returns null when package.json is missing", async () => {
     expect(await buildPluginManifest("/no/such/package.json")).toBeNull();
-  });
-});
-
-describe("escapeInlineModuleScript", () => {
-  test("escapes </script> inside the module bundle, keeps the real terminator", () => {
-    const html = '<body><script type="module">const s="<div></script></body></html>";doStuff()</script></body></html>';
-    const out = escapeInlineModuleScript(html);
-    // only the </script token is neutralised (</body>, </html> untouched);
-    // `<\/script>` is an identical JS string value but no longer a tag terminator
-    expect(out).toContain('const s="<div><\\/script></body></html>";');
-    // exactly one literal </script> remains in the document — the real terminator
-    expect(out.match(/<\/script>/g)?.length).toBe(1);
-    expect(out.endsWith("</script></body></html>")).toBe(true);
-  });
-
-  test("no-op when there is no inline module script", () => {
-    const html = '<body><script src="x.js"></script></body>';
-    expect(escapeInlineModuleScript(html)).toBe(html);
   });
 });

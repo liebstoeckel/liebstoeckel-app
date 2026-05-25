@@ -1,4 +1,4 @@
-import { schema, t, type Infer } from "@liebstoeckel/plugin-sdk";
+import { schema, t, type Infer } from "@present-it/plugin-sdk";
 
 // Shared state: the question's options + one vote per participant (keyed by id).
 export const pollSchema = schema({

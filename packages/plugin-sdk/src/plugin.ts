@@ -35,15 +35,10 @@ export interface PluginClient<T> {
   Slide: ClientComponent<T>;
   /** optional presenter-only panel */
   Presenter?: ClientComponent<T>;
-  /** shown when no server is connected (standalone .html + thumbnail capture);
-   *  receives the current snapshot and the author `props` from `<Plugin props>`. */
-  fallback?: ComponentType<{ snapshot: T; props: Record<string, unknown> }> | (() => ReactNode);
+  /** shown when no server is connected */
+  fallback?: ComponentType<{ snapshot: T }> | (() => ReactNode);
   /** named override surfaces an author may replace per slide */
   surfaces?: readonly string[];
-  /** does the slide take user input? Controls the touch "tap to interact" breakout
-   *  on small / coarse-pointer screens. Defaults to true; set false for display-only
-   *  plugins so they don't show a misleading affordance. */
-  interactive?: boolean;
 }
 
 /** Context handed to a plugin's optional server part. */

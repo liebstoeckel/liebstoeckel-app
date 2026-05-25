@@ -13,10 +13,10 @@
     "skipLibCheck": true,
     "types": ["bun", "react", "react-dom"],
     "paths": {
-      "@liebstoeckel/engine": ["./packages/engine/src/index.ts"],
-      "@liebstoeckel/engine/*": ["./packages/engine/src/*"],
-      "@liebstoeckel/components": ["./packages/components/src/index.ts"],
-      "@liebstoeckel/theme": ["./packages/theme/src/index.ts"]
+      "@present-it/engine": ["./packages/engine/src/index.ts"],
+      "@present-it/engine/*": ["./packages/engine/src/*"],
+      "@present-it/components": ["./packages/components/src/index.ts"],
+      "@present-it/theme": ["./packages/theme/src/index.ts"]
     }
   }
 }

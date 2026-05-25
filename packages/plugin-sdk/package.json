@@ -1,5 +1,5 @@
 {
-  "name": "@liebstoeckel/plugin-sdk",
+  "name": "@present-it/plugin-sdk",
   "version": "0.0.0",
   "private": true,
   "type": "module",
