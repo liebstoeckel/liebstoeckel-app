@@ -3,8 +3,9 @@ import * as Y from "yjs";
 import { MDXProvider } from "@mdx-js/react";
 import { mdxComponents } from "@present-it/components";
 import { useDeckSync } from "./useDeckSync";
-import { useDeckNav } from "./nav";
+import { useDeckNav, useTouchNav } from "./nav";
 import { useLive } from "./live/Plugin";
+import { BreakoutAllowedContext } from "./live/breakout";
 import { useLiveDeck } from "./live/deckIndex";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { PersistentProvider } from "./PersistentLayer";
@@ -44,9 +45,11 @@ function Thumb({ Component }: { Component?: ComponentType }) {
     <div className="relative h-full w-full overflow-hidden rounded-2xl border border-border bg-bg shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]">
       <MDXProvider components={mdxComponents}>
         <PersistentProvider>
-          <ScaledStage className="absolute inset-0">
-            <SlideFrame still>{Component ? <Component /> : null}</SlideFrame>
-          </ScaledStage>
+          <BreakoutAllowedContext.Provider value={false}>
+            <ScaledStage className="absolute inset-0">
+              <SlideFrame still>{Component ? <Component /> : null}</SlideFrame>
+            </ScaledStage>
+          </BreakoutAllowedContext.Provider>
         </PersistentProvider>
       </MDXProvider>
     </div>
@@ -107,6 +110,7 @@ export function PresenterView({ slides, brands = ["default"], title = "present-i
   const ctrl = live ? liveDeck : sync;
   const { index, step, total, setIndex, next, prev } = ctrl;
   useDeckNav({ count: norm.length, setIndex, onNext: next, onPrev: prev });
+  useTouchNav({ enabled: true, onNext: next, onPrev: prev });
   const now = useNow();
   // the presenter's own elapsed timer (per-window)
   const [startedAt, setStartedAt] = useState(() => Date.now());
@@ -124,19 +128,19 @@ export function PresenterView({ slides, brands = ["default"], title = "present-i
   return (
     <div className="flex h-screen w-screen flex-col bg-bg font-body text-text">
       {/* top bar */}
-      <header className="flex items-center justify-between border-b border-border px-8 py-4">
+      <header className="flex items-center justify-between border-b border-border px-4 py-3 lg:px-8 lg:py-4">
         <div className="flex items-baseline gap-3">
-          <span className="font-heading text-2xl font-semibold tracking-tight text-text">{title}</span>
-          <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-muted">presenter</span>
+          <span className="font-heading text-xl font-semibold tracking-tight text-text lg:text-2xl">{title}</span>
+          <span className="hidden font-mono text-[11px] uppercase tracking-[0.3em] text-muted sm:inline">presenter</span>
         </div>
-        <div className="flex items-center gap-8">
-          <div className="text-right">
+        <div className="flex items-center gap-4 lg:gap-8">
+          <div className="hidden text-right sm:block">
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">clock</div>
             <div className="font-mono text-lg tabular-nums text-text">{wall}</div>
           </div>
           <div className="text-right">
             <div className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">elapsed</div>
-            <div className="font-mono text-3xl font-medium tabular-nums text-primary">{fmtElapsed(now - startedAt)}</div>
+            <div className="font-mono text-2xl font-medium tabular-nums text-primary lg:text-3xl">{fmtElapsed(now - startedAt)}</div>
           </div>
           <button
             onClick={resetTimer}
@@ -150,13 +154,13 @@ export function PresenterView({ slides, brands = ["default"], title = "present-i
       {/* main: flex row; each column is a min-h-0 flex-col so inner regions can
           shrink. Thumbnails get capped/flexible heights; the notes panel always
           keeps a guaranteed, scrollable minimum. */}
-      <div className="flex min-h-0 flex-1 gap-7 p-7">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 p-5 lg:flex-row lg:gap-7 lg:p-7">
         {/* current */}
-        <section className="flex min-h-0 min-w-0 flex-[1.55] flex-col gap-3">
+        <section className="flex min-h-0 min-w-0 flex-col gap-3 lg:flex-[1.55]">
           <Label dot>
             On screen · {String(index + 1).padStart(2, "0")} / {String(norm.length).padStart(2, "0")}
           </Label>
-          <div className="min-h-0 min-w-0 flex-1">
+          <div className="h-[30vh] min-h-0 min-w-0 lg:h-auto lg:flex-1">
             <Thumb Component={Current} />
           </div>
           {total > 0 && <StepIndicator step={step} total={total} />}
@@ -178,10 +182,12 @@ export function PresenterView({ slides, brands = ["default"], title = "present-i
 
         {/* next + notes */}
         <aside className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-          <Label>{Next ? "Next up" : "End of deck"}</Label>
-          {/* next preview: shrinkable, capped so it can't crowd out the notes */}
-          <div className="min-h-[64px] min-w-0 shrink basis-[34%] opacity-80">
-            {Next ? <Thumb Component={Next} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
+          {/* next preview hidden on phones to give notes the room */}
+          <div className="hidden min-h-0 flex-col gap-3 lg:flex">
+            <Label>{Next ? "Next up" : "End of deck"}</Label>
+            <div className="min-h-[64px] min-w-0 shrink basis-[34%] opacity-80">
+              {Next ? <Thumb Component={Next} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
+            </div>
           </div>
 
           <Label>Speaker notes</Label>

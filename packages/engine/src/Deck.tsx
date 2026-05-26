@@ -4,7 +4,8 @@ import { MDXProvider } from "@mdx-js/react";
 import { mdxComponents } from "@present-it/components";
 import * as Y from "yjs";
 import type { PluginDef } from "@present-it/plugin-sdk";
-import { useDeckNav } from "./nav";
+import { useDeckNav, useTouchNav } from "./nav";
+import { PortraitHint } from "./MobileHint";
 import { useDeckSync } from "./useDeckSync";
 import { useLive } from "./live/Plugin";
 import { useLiveDeck } from "./live/deckIndex";
@@ -106,6 +107,10 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
     onDigit,
   });
 
+  // Touch nav for everyone who drives their own deck (standalone + presenter); a
+  // live viewer follows the presenter, so it isn't bound for them.
+  useTouchNav({ enabled: role !== "viewer", onNext: ctrl.next, onPrev: ctrl.prev });
+
   const Current = norm[index]?.Component ?? (() => null);
 
   return (
@@ -189,6 +194,7 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
 
             <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} />
             <QrOverlay open={qr} url={liveCtx?.viewerUrl} onClose={() => setQr(false)} />
+            <PortraitHint />
           </div>
 
           {/* blur-screen overlay */}
