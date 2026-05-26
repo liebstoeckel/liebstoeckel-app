@@ -79,3 +79,16 @@
 .sl-markdown-content :is(h1, h2, h3) {
   letter-spacing: -0.02em;
 }
+
+/* ---- Cards: one consistent brand chip, not Starlight's rainbow rotation ----
+   Starlight's <CardGrid> cycles each card's icon chip through purple/orange/
+   green/red/blue (per nth-child). Pin every chip to the gold accent so the
+   grid reads as one brand. (customCss is unlayered, so it wins over the
+   layered component defaults regardless of specificity.) */
+.card {
+  --sl-card-border: var(--sl-color-accent);
+  --sl-card-bg: var(--sl-color-accent-low);
+}
+.card .icon {
+  color: var(--sl-color-accent);
+}
