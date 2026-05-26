@@ -1,5 +1,5 @@
 /* liebstoeckel docs theme — "Noir, all-grotesk".
-   Maps Starlight's token system onto the brand palette (see brand-explorations/BRAND.md).
+   Maps Starlight's token system onto the brand palette (mirrors the house brand in packages/theme/src/brands/liebstoeckel.ts).
    Dark-first (forest-charcoal + gold + sage); light pairing derived for readers who prefer it. */
 
 @import "@fontsource-variable/schibsted-grotesk";

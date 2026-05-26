@@ -2,7 +2,7 @@ import { defineTheme } from "../defineTheme";
 
 // "liebstoeckel" — the house brand. Noir, all-grotesk: forest-charcoal ground,
 // warm gold primary, sage secondary; a single confident grotesk for display + body,
-// monospace for labels/code. See brand-explorations/BRAND.md.
+// monospace for labels/code. The tokens below are the canonical brand spec.
 export const liebstoeckel = defineTheme({
   name: "liebstoeckel",
   colors: {
