@@ -67,15 +67,20 @@ const STUB = `<!doctype html><html><head><meta charset=utf-8></head><body>
 </script></body></html>`;
 
 describe.skipIf(!hasChromium)("captureThumbnails (headless)", () => {
-  test("drives the capture protocol and returns JPEG data-URIs", async () => {
+  test("drives the capture protocol and returns WebP data-URIs (default)", async () => {
     const m = await captureThumbnails(STUB, { width: 160, quality: 70, scale: 1, settleMs: 0 });
     expect(Object.keys(m.thumbs).length).toBe(3);
     expect(m.w).toBe(160);
     expect(m.h).toBe(90);
     for (const uri of Object.values(m.thumbs)) {
-      expect(uri.startsWith("data:image/jpeg;base64,")).toBe(true);
-      expect(uri.length).toBeGreaterThan(200); // a real, non-empty image
+      expect(uri.startsWith("data:image/webp;base64,")).toBe(true);
+      expect(uri.length).toBeGreaterThan(100); // a real, non-empty image (WebP packs a flat frame tiny)
     }
+  }, 30_000);
+
+  test("honors an explicit format (jpeg)", async () => {
+    const m = await captureThumbnails(STUB, { width: 160, scale: 1, settleMs: 0, format: "jpeg" });
+    expect(m.thumbs[0]!.startsWith("data:image/jpeg;base64,")).toBe(true);
   }, 30_000);
 
   const BUILT = join(import.meta.dir, "../../../presentations/poll-demo/dist/index.html");
@@ -83,6 +88,6 @@ describe.skipIf(!hasChromium)("captureThumbnails (headless)", () => {
     const html = await Bun.file(BUILT).text();
     const m = await captureThumbnails(html, { width: 320, settleMs: 50 });
     expect(Object.keys(m.thumbs).length).toBe(3); // title, poll, outro
-    expect(m.thumbs[0]!.startsWith("data:image/jpeg;base64,")).toBe(true);
+    expect(m.thumbs[0]!.startsWith("data:image/webp;base64,")).toBe(true);
   }, 45_000);
 });

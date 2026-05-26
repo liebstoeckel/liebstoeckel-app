@@ -31,9 +31,11 @@ It's **opt-in / prod-only** (needs a browser). The demo build runs it when
 2. It reads `__PRESENT_IT_SLIDE_COUNT__`, then for each slide dispatches a
    `present-it:capture` event and waits for `__PRESENT_IT_CAPTURE_READY__` to match
    before screenshotting the viewport (sized to the thumbnail × `scale`).
-3. Each frame is a JPEG data-URI; all of them go into a
-   `<script type="application/json" data-present-it-thumbnails>` block via
-   `embedThumbnails` (re-running strips the prior block).
+3. The browser yields a lossless PNG (Playwright only screenshots PNG/JPEG);
+   **`Bun.Image`** (Bun's built-in codec — no `sharp`) transcodes it to a **WebP**
+   data-URI (≈ half a JPEG; `format: "webp" | "jpeg" | "png"` is selectable). All of
+   them go into a `<script type="application/json" data-present-it-thumbnails>` block
+   via `embedThumbnails` (re-running strips the prior block).
 
 ## Chromium
 

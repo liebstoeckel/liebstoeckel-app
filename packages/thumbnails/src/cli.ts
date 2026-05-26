@@ -2,6 +2,7 @@
 import { resolve } from "node:path";
 import { statSync } from "node:fs";
 import { addThumbnailsToFile } from "./index";
+import type { ThumbnailFormat } from "./capture";
 
 function flagNum(argv: string[], name: string): number | undefined {
   const i = argv.indexOf(name);
@@ -10,11 +11,17 @@ function flagNum(argv: string[], name: string): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+function flagFormat(argv: string[]): ThumbnailFormat | undefined {
+  const i = argv.indexOf("--format");
+  const v = i >= 0 ? argv[i + 1] : undefined;
+  return v === "webp" || v === "jpeg" || v === "png" ? v : undefined;
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const file = argv.find((a) => !a.startsWith("-"));
   if (!file) {
-    console.error("usage: present-it-thumbnails <built-deck.html> [--width 320] [--quality 80] [--scale 2]");
+    console.error("usage: present-it-thumbnails <built-deck.html> [--format webp|jpeg|png] [--width 320] [--quality 80] [--scale 2]");
     process.exit(1);
   }
   const abs = resolve(file);
@@ -28,12 +35,14 @@ async function main() {
   const width = flagNum(argv, "--width");
   const quality = flagNum(argv, "--quality");
   const scale = flagNum(argv, "--scale");
+  const format = flagFormat(argv);
 
   process.stderr.write(`▶  capturing thumbnails for ${file}\n`);
   const manifest = await addThumbnailsToFile(abs, {
     width,
     quality,
     scale,
+    format,
     onSlide: (i, n) => process.stderr.write(`\r   slide ${i + 1}/${n}   `),
   });
   process.stderr.write("\n");

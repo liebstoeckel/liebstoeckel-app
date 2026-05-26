@@ -7,11 +7,15 @@ import {
 } from "@present-it/engine/build/capture-protocol";
 import type { ThumbnailManifest } from "@present-it/engine/build/thumbnails";
 
+export type ThumbnailFormat = "webp" | "jpeg" | "png";
+
 export interface CaptureOptions {
   /** thumbnail width in CSS px (height derived 16:9 unless given) */
   width?: number;
   height?: number;
-  /** JPEG quality 0–100 */
+  /** output image format (default "webp" — ~half a JPEG, alpha, no extra deps) */
+  format?: ThumbnailFormat;
+  /** lossy quality 0–100 (ignored for png) */
   quality?: number;
   /** device scale factor — renders at 2× for crisp text, stored at w*scale */
   scale?: number;
@@ -24,6 +28,25 @@ export interface CaptureOptions {
   /** per-step timeout */
   timeoutMs?: number;
   onSlide?(index: number, total: number): void;
+}
+
+// Bun's built-in image codec (Bun.Image) — not yet in @types/bun, so typed here.
+// Lets us transcode the browser's PNG screenshot to WebP natively (no `sharp`).
+interface BunImageChain {
+  webp(o?: { quality?: number }): BunImageChain;
+  jpeg(o?: { quality?: number }): BunImageChain;
+  png(): BunImageChain;
+  dataurl(): Promise<string>;
+}
+type BunImageCtor = new (data: Uint8Array | ArrayBuffer) => BunImageChain;
+const BunImage = (Bun as unknown as { Image: BunImageCtor }).Image;
+
+/** Transcode a PNG screenshot to a `data:` URI in the requested format. */
+function encodeDataUri(png: Uint8Array, format: ThumbnailFormat, quality: number): Promise<string> {
+  const img = new BunImage(png);
+  if (format === "png") return img.png().dataurl();
+  if (format === "jpeg") return img.jpeg({ quality }).dataurl();
+  return img.webp({ quality }).dataurl();
 }
 
 // Container-friendly flags. The full Chromium (not chrome-headless-shell, which
@@ -63,11 +86,12 @@ function injectCaptureFlag(html: string): string {
 }
 
 /** Render a built single-file deck in a headless browser and screenshot each slide
- *  as a JPEG data-URI. Returns a thumbnails manifest (embed it with
- *  `embedThumbnails`). The deck must use the engine's `Present`/`CaptureView`. */
+ *  as a data-URI (WebP by default, via Bun.Image). Returns a thumbnails manifest
+ *  (embed it with `embedThumbnails`). The deck must use `Present`/`CaptureView`. */
 export async function captureThumbnails(html: string, opts: CaptureOptions = {}): Promise<ThumbnailManifest> {
   const width = opts.width ?? 320;
   const height = opts.height ?? Math.round((width * 9) / 16);
+  const format = opts.format ?? "webp";
   const quality = opts.quality ?? 80;
   const scale = opts.scale ?? 2;
   const settleMs = opts.settleMs ?? 250;
@@ -100,8 +124,9 @@ export async function captureThumbnails(html: string, opts: CaptureOptions = {})
         { timeout },
       );
       if (settleMs > 0) await page.waitForTimeout(settleMs);
-      const buf = await page.screenshot({ type: "jpeg", quality });
-      thumbs[i] = `data:image/jpeg;base64,${Buffer.from(buf).toString("base64")}`;
+      // PNG (lossless) from the browser → transcode natively to the target format
+      const png = await page.screenshot({ type: "png" });
+      thumbs[i] = await encodeDataUri(png, format, quality);
     }
     return { v: 1, w: Math.round(width * scale), h: Math.round(height * scale), thumbs };
   } finally {

@@ -1,7 +1,7 @@
 import { captureThumbnails, type CaptureOptions } from "./capture";
 import { embedThumbnails, type ThumbnailManifest } from "@present-it/engine/build/thumbnails";
 
-export { captureThumbnails, resolveChromium, type CaptureOptions } from "./capture";
+export { captureThumbnails, resolveChromium, type CaptureOptions, type ThumbnailFormat } from "./capture";
 export {
   embedThumbnails,
   extractThumbnails,
