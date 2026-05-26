@@ -103,7 +103,7 @@ describe.skipIf(!hasChromium)("captureThumbnails (headless)", () => {
   test.skipIf(!existsSync(BUILT))("captures the real built poll deck (engine CaptureView)", async () => {
     const html = await Bun.file(BUILT).text();
     const m = await captureThumbnails(html, { width: 320, settleMs: 50 });
-    expect(Object.keys(m.thumbs).length).toBe(3); // title, poll, outro
+    expect(Object.keys(m.thumbs).length).toBe(5); // title, poll, qa, reactions, outro
     expect(m.thumbs[0]!.startsWith("data:image/webp;base64,")).toBe(true);
   }, 45_000);
 });

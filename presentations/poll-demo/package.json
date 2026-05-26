@@ -10,7 +10,9 @@
   "dependencies": {
     "@present-it/engine": "workspace:*",
     "@present-it/theme": "workspace:*",
-    "@present-it/plugin-poll": "workspace:*"
+    "@present-it/plugin-poll": "workspace:*",
+    "@present-it/plugin-qa": "workspace:*",
+    "@present-it/plugin-reactions": "workspace:*"
   },
   "devDependencies": {
     "@present-it/thumbnails": "workspace:*"

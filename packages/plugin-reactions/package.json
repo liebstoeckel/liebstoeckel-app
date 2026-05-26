@@ -1,0 +1,19 @@
+{
+  "name": "@present-it/plugin-reactions",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "keywords": ["present-it-plugin"],
+  "presentIt": {
+    "client": "./src/client.tsx"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./logic": "./src/logic.ts"
+  },
+  "dependencies": {
+    "@present-it/plugin-sdk": "workspace:*",
+    "@present-it/plugin-ui": "workspace:*",
+    "motion": "12.40.0"
+  }
+}
