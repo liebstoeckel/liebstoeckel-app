@@ -54,6 +54,17 @@
       "name": "@present-it/components",
       "version": "0.0.0",
     },
+    "packages/e2e": {
+      "name": "@present-it/e2e",
+      "version": "0.0.0",
+      "dependencies": {
+        "@present-it/engine": "workspace:*",
+        "@present-it/live-server": "workspace:*",
+        "@present-it/plugin-poll": "workspace:*",
+        "@present-it/theme": "workspace:*",
+        "playwright-core": "1.60.0",
+      },
+    },
     "packages/engine": {
       "name": "@present-it/engine",
       "version": "0.0.0",
@@ -234,6 +245,8 @@
     "@present-it/components": ["@present-it/components@workspace:packages/components"],
 
     "@present-it/demo": ["@present-it/demo@workspace:presentations/demo"],
+
+    "@present-it/e2e": ["@present-it/e2e@workspace:packages/e2e"],
 
     "@present-it/engine": ["@present-it/engine@workspace:packages/engine"],
 

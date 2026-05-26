@@ -122,6 +122,7 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
       }}
     >
       <motion.div
+        data-pi-breakout
         onClick={(e) => e.stopPropagation()}
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
