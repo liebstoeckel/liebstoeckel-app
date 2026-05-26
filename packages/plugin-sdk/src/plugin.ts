@@ -40,6 +40,10 @@ export interface PluginClient<T> {
   fallback?: ComponentType<{ snapshot: T; props: Record<string, unknown> }> | (() => ReactNode);
   /** named override surfaces an author may replace per slide */
   surfaces?: readonly string[];
+  /** does the slide take user input? Controls the touch "tap to interact" breakout
+   *  on small / coarse-pointer screens. Defaults to true; set false for display-only
+   *  plugins so they don't show a misleading affordance. */
+  interactive?: boolean;
 }
 
 /** Context handed to a plugin's optional server part. */

@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { AnimatePresence } from "motion/react";
 import type * as Y from "yjs";
 import { pluginState, type PluginDef, type Role, type ThemeTokens } from "@present-it/plugin-sdk";
 import { mergeUi } from "./ui";
+import { GlowTap, BreakoutSheet, useBreakoutEligible } from "./breakout";
 
 export interface LiveContextValue {
   live: boolean;
@@ -41,6 +43,10 @@ export function Plugin({
     [ctx?.doc, id, def],
   );
   const [snap, setSnap] = useState<unknown>(() => state?.snapshot());
+  const [open, setOpen] = useState(false);
+  // hooks run unconditionally (before any early return)
+  const interactive = def?.client.interactive !== false;
+  const eligible = useBreakoutEligible(interactive);
 
   useEffect(() => {
     if (!state) return;
@@ -56,8 +62,9 @@ export function Plugin({
   }
 
   const Slide = def.client.Slide;
-  return (
+  const slide = (key: string) => (
     <Slide
+      key={key}
       doc={ctx.doc}
       state={state}
       snapshot={snap as never}
@@ -68,5 +75,19 @@ export function Plugin({
       ui={mergeUi({}, components)}
       props={props}
     />
+  );
+
+  // Desktop / fine pointer: inline, as today.
+  if (!eligible) return slide("inline");
+
+  // Touch + shrunk stage: a tappable glowing preview (non-interactive) that opens
+  // the same plugin full-size in a sheet outside the scaled canvas.
+  return (
+    <>
+      <GlowTap label={id} onOpen={() => setOpen(true)}>
+        {slide("preview")}
+      </GlowTap>
+      <AnimatePresence>{open && <BreakoutSheet label={id} onClose={() => setOpen(false)}>{slide("sheet")}</BreakoutSheet>}</AnimatePresence>
+    </>
   );
 }

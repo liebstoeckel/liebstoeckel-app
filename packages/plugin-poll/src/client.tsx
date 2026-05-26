@@ -43,7 +43,7 @@ function PollSlide(p: ClientProps<PollState>) {
     if (!snapshot.closed) state.recordSet("votes", participantId, option);
   };
   return (
-    <Card style={{ minWidth: 420 }}>
+    <Card style={{ width: "100%", maxWidth: 460 }}>
       <Eyebrow>Live poll · {totalVotes(snapshot)} votes</Eyebrow>
       <div style={{ fontFamily: "var(--brand-font-heading, serif)", fontSize: "1.9rem", fontWeight: 600, marginBottom: "1.1rem" }}>
         {snapshot.question || "…"}

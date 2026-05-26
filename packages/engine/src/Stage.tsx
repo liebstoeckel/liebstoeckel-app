@@ -1,10 +1,14 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Atmosphere } from "@present-it/components";
 
 // Logical canvas. Everything is authored at this size and scaled to fit, so the
 // audience view and presenter thumbnails are pixel-identical (just different scale).
 export const STAGE_W = 1280;
 export const STAGE_H = 720;
+
+/** The factor the canvas is scaled by to fit its parent (1 = unscaled). Consumers
+ *  (e.g. plugins) read it to decide when inline controls are too small to tap. */
+export const StageScaleContext = createContext(1);
 
 /** Fits a fixed STAGE_W×STAGE_H canvas into its parent, centered + letterboxed. */
 export function ScaledStage({ children, className }: { children: ReactNode; className?: string }) {
@@ -27,12 +31,14 @@ export function ScaledStage({ children, className }: { children: ReactNode; clas
     // no hardcoded `position`: consumers pass `h-screen w-screen` (block) or
     // `absolute inset-0` (fill a relative parent, e.g. presenter thumbnails).
     <div ref={ref} className={`flex items-center justify-center overflow-hidden bg-bg ${className ?? ""}`}>
-      <div
-        style={{ width: STAGE_W, height: STAGE_H, transform: `scale(${scale})`, visibility: scale ? "visible" : "hidden" }}
-        className="relative shrink-0"
-      >
-        {children}
-      </div>
+      <StageScaleContext.Provider value={scale || 1}>
+        <div
+          style={{ width: STAGE_W, height: STAGE_H, transform: `scale(${scale})`, visibility: scale ? "visible" : "hidden" }}
+          className="relative shrink-0"
+        >
+          {children}
+        </div>
+      </StageScaleContext.Provider>
     </div>
   );
 }

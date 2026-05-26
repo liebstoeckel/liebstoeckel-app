@@ -68,7 +68,7 @@ function ReactionsSlide(p: ClientProps<ReactionsState>) {
   }, [snapshot, state]);
 
   return (
-    <Card style={{ position: "relative", minWidth: 360, overflow: "visible" }}>
+    <Card style={{ position: "relative", width: "100%", maxWidth: 420, overflow: "visible" }}>
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden", borderRadius: "1rem" }}>
         <div style={{ position: "absolute", left: "50%", bottom: "5.5rem", transform: "translateX(-50%)", display: "flex" }}>
           <AnimatePresence>
@@ -110,7 +110,7 @@ function ReactionsSlide(p: ClientProps<ReactionsState>) {
 /** No live server → a static, disabled row of the palette with a hint. */
 function ReactionsFallback() {
   return (
-    <Card style={{ minWidth: 360 }}>
+    <Card style={{ width: "100%", maxWidth: 420 }}>
       <Eyebrow>React · offline preview</Eyebrow>
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         {EMOJI.map((e) => (

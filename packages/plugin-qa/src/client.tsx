@@ -143,7 +143,7 @@ function QaSlide(p: ClientProps<QaState>) {
   };
 
   return (
-    <Card style={{ minWidth: 460 }}>
+    <Card style={{ width: "100%", maxWidth: 520 }}>
       <Eyebrow>Audience Q&amp;A · {ranked.length} open</Eyebrow>
       <div style={{ fontFamily: v("font-heading", "serif"), fontSize: "1.9rem", fontWeight: 600, marginBottom: "1.1rem" }}>
         {prompt}
@@ -238,7 +238,7 @@ function QaFallback({ snapshot, props = {} }: { snapshot: QaState; props?: Recor
           { id: "ex2", text: "Will the slides be shared afterwards?", author: "anonymous", ts: 1, votes: 5, answered: false },
         ];
   return (
-    <Card style={{ minWidth: 460 }}>
+    <Card style={{ width: "100%", maxWidth: 520 }}>
       <Eyebrow>Audience Q&amp;A · offline preview</Eyebrow>
       <div style={{ fontFamily: v("font-heading", "serif"), fontSize: "1.7rem", fontWeight: 600, marginBottom: "1rem" }}>
         {prompt}
