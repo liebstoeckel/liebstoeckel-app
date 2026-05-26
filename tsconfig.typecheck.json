@@ -25,6 +25,7 @@
       "@present-it/plugin-poll/*": ["./packages/plugin-poll/src/*"],
       "@present-it/live-server": ["./packages/live-server/src/index.ts"],
       "@present-it/thumbnails": ["./packages/thumbnails/src/index.ts"],
+      "@present-it/thumbnails/*": ["./packages/thumbnails/src/*"],
       "present-relay": ["./packages/present-relay/src/index.ts"]
     }
   },

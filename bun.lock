@@ -126,6 +126,9 @@
         "@present-it/engine": "workspace:*",
         "@present-it/theme": "workspace:*",
       },
+      "devDependencies": {
+        "@present-it/thumbnails": "workspace:*",
+      },
     },
     "presentations/poll-demo": {
       "name": "@present-it/poll-demo",
@@ -146,6 +149,9 @@
         "@present-it/components": "workspace:*",
         "@present-it/engine": "workspace:*",
         "@present-it/theme": "workspace:*",
+      },
+      "devDependencies": {
+        "@present-it/thumbnails": "workspace:*",
       },
     },
   },

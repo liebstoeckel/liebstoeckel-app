@@ -14,8 +14,22 @@ large deck.
 
 ## Use
 
+In a deck's `build.ts`, use the drop-in build helper — it builds **and** embeds
+thumbnails by default:
+
+```ts
+import { buildDeckWithThumbnails } from "@present-it/thumbnails/build";
+
+await buildDeckWithThumbnails({ entry: "./index.html", outdir: "./dist" });
+```
+
+Thumbnails are **on by default** and skip gracefully — **never failing the
+build** — when `PRESENT_IT_NO_THUMBS=1` is set or no Chromium is available. The
+browser only launches at build time, never in dev.
+
+Lower-level entry points:
+
 ```bash
-# build the deck first, then capture into it (idempotent, in place)
 bunx present-it-thumbnails dist/index.html            # --format webp --width 640 --quality 80 --scale 2
 ```
 
@@ -25,9 +39,6 @@ import { addThumbnailsToFile, captureThumbnails } from "@present-it/thumbnails";
 await addThumbnailsToFile("dist/index.html");          // capture + embed in place
 const manifest = await captureThumbnails(html);        // or just get the manifest
 ```
-
-It's **opt-in / prod-only** (needs a browser). The demo build runs it when
-`PRESENT_IT_THUMBS=1` is set.
 
 ## How it works
 

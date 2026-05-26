@@ -76,6 +76,30 @@ export function resolveChromium(opts: CaptureOptions = {}): string {
   }
 }
 
+/** Whether a Chromium is available for capture (cheap — resolves a path, no launch). */
+export function hasChromium(opts: CaptureOptions = {}): boolean {
+  try {
+    resolveChromium(opts);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Decide whether to capture thumbnails: on by default, opt out with
+ *  `PRESENT_IT_NO_THUMBS`, and skipped (not failed) when no Chromium is available.
+ *  Pure — `env`/`chromium` are injectable for tests. */
+export function thumbnailsEnabled(
+  env: Record<string, string | undefined> = process.env,
+  chromium = hasChromium(),
+): { enabled: boolean; reason?: string } {
+  if (env.PRESENT_IT_NO_THUMBS) return { enabled: false, reason: "PRESENT_IT_NO_THUMBS is set" };
+  if (!chromium) {
+    return { enabled: false, reason: "no Chromium (run `bunx playwright install chromium` or set PRESENT_IT_CHROMIUM)" };
+  }
+  return { enabled: true };
+}
+
 /** Inject the capture flag as a classic (non-deferred) inline script so it runs
  *  before the deck's deferred module bundle boots → Present renders CaptureView. */
 function injectCaptureFlag(html: string): string {
@@ -109,7 +133,11 @@ export async function captureThumbnails(html: string, opts: CaptureOptions = {})
     await page.setContent(injectCaptureFlag(html), { waitUntil: "load", timeout });
     // fonts affect layout/metrics; wait once before stepping through slides
     await page.evaluate(() => (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts?.ready);
-    await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key] != null, SLIDE_COUNT, { timeout });
+    try {
+      await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key] != null, SLIDE_COUNT, { timeout });
+    } catch {
+      throw new Error("deck never entered capture mode — ensure it renders <Present> (no __PRESENT_IT_SLIDE_COUNT__)");
+    }
     const count = (await page.evaluate((key) => (window as unknown as Record<string, unknown>)[key], SLIDE_COUNT)) as number;
 
     const thumbs: Record<number, string> = {};

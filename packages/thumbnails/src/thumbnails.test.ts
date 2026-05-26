@@ -7,7 +7,7 @@ import {
   stripThumbnails,
   type ThumbnailManifest,
 } from "@present-it/engine/build/thumbnails";
-import { captureThumbnails, resolveChromium } from "./capture";
+import { captureThumbnails, resolveChromium, thumbnailsEnabled } from "./capture";
 
 describe("thumbnails manifest (pure)", () => {
   const m: ThumbnailManifest = { v: 1, w: 640, h: 360, thumbs: { 0: "data:image/jpeg;base64,AAA", 1: "data:image/jpeg;base64,BBB" } };
@@ -34,6 +34,22 @@ describe("thumbnails manifest (pure)", () => {
   test("extract returns null when absent or invalid", () => {
     expect(extractThumbnails("<html></html>")).toBeNull();
     expect(extractThumbnails(`<script type="application/json" data-present-it-thumbnails>{bad</script>`)).toBeNull();
+  });
+});
+
+describe("thumbnailsEnabled (default-on gating)", () => {
+  test("enabled by default when a browser is available", () => {
+    expect(thumbnailsEnabled({}, true)).toEqual({ enabled: true });
+  });
+  test("opt out with PRESENT_IT_NO_THUMBS", () => {
+    const r = thumbnailsEnabled({ PRESENT_IT_NO_THUMBS: "1" }, true);
+    expect(r.enabled).toBe(false);
+    expect(r.reason).toContain("PRESENT_IT_NO_THUMBS");
+  });
+  test("skips (does not fail) when no Chromium is available", () => {
+    const r = thumbnailsEnabled({}, false);
+    expect(r.enabled).toBe(false);
+    expect(r.reason).toContain("Chromium");
   });
 });
 

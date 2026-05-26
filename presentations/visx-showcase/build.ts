@@ -1,4 +1,4 @@
-import { buildDeck } from "@present-it/engine/build";
+import { buildDeckWithThumbnails } from "@present-it/thumbnails/build";
 
-await buildDeck({ entry: "./index.html", outdir: "./dist" });
-console.log("✓ built dist/index.html");
+// Single self-contained file + slide thumbnails (skip with PRESENT_IT_NO_THUMBS=1).
+await buildDeckWithThumbnails({ entry: "./index.html", outdir: "./dist" });
