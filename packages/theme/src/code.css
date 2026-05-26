@@ -1,0 +1,100 @@
+/* Code views. Static fenced blocks are highlighted at build time by Shiki using
+   its css-variables theme, which emits color:var(--shiki-token-*). We bind those
+   variables to the active brand below, so code is on-palette and re-skins with
+   [data-brand] — no hand-maintained per-brand syntax theme. CodeMagic (animated)
+   reuses the same token colors. */
+[data-brand] {
+  --shiki-foreground: var(--brand-text);
+  --shiki-background: transparent;
+  --shiki-token-keyword: var(--brand-primary);
+  --shiki-token-function: var(--brand-accent);
+  --shiki-token-string: var(--brand-accent);
+  --shiki-token-string-expression: var(--brand-accent);
+  --shiki-token-constant: var(--brand-accent2, var(--brand-accent));
+  --shiki-token-parameter: color-mix(in srgb, var(--brand-text) 80%, var(--brand-accent));
+  --shiki-token-comment: color-mix(in srgb, var(--brand-muted) 88%, transparent);
+  --shiki-token-punctuation: color-mix(in srgb, var(--brand-text) 52%, transparent);
+  --shiki-token-link: var(--brand-accent);
+}
+
+/* shared block surface treatment */
+.shiki,
+.pi-code {
+  border: 1px solid var(--brand-border, color-mix(in srgb, var(--brand-text) 14%, transparent));
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--brand-surface) 78%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--brand-text) 6%, transparent),
+    0 30px 70px -34px rgba(0, 0, 0, 0.75);
+}
+
+/* static fenced code (rehype-shiki output) */
+.shiki {
+  margin: 0;
+  padding: 1.3rem 1.6rem;
+  overflow: auto;
+  font-family: var(--brand-font-mono);
+  font-size: 1.02rem;
+  line-height: 1.7;
+  tab-size: 2;
+  color: var(--shiki-foreground);
+}
+
+/* animated CodeMagic: a chromed card with a title bar */
+.pi-code {
+  overflow: hidden;
+  max-width: 100%;
+}
+.pi-code-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.7rem 1.15rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-text) 9%, transparent);
+  font-family: var(--brand-font-mono);
+}
+.pi-code-dots {
+  display: inline-flex;
+  gap: 0.42rem;
+}
+.pi-code-dots i {
+  display: block;
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-text) 20%, transparent);
+}
+.pi-code-dots i:nth-child(1) { background: color-mix(in srgb, var(--brand-primary) 75%, transparent); }
+.pi-code-dots i:nth-child(2) { background: color-mix(in srgb, var(--brand-accent) 75%, transparent); }
+.pi-code-dots i:nth-child(3) { background: color-mix(in srgb, var(--brand-accent2, var(--brand-accent)) 75%, transparent); }
+.pi-code-title {
+  font-size: 0.82rem;
+  color: var(--brand-muted);
+  letter-spacing: 0.01em;
+}
+.pi-code-lang {
+  margin-left: auto;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  color: var(--brand-accent);
+}
+.pi-codemagic {
+  margin: 0;
+  padding: 1.35rem 1.6rem;
+  overflow: auto;
+  background: transparent;
+  font-family: var(--brand-font-mono);
+  font-size: 1.02rem;
+  line-height: 1.7;
+  tab-size: 2;
+  color: var(--shiki-foreground, var(--brand-text));
+}
+.pi-codemagic code {
+  display: block;
+  font: inherit;
+}
+.pi-code-line {
+  white-space: pre;
+  min-height: 1.7em;
+}

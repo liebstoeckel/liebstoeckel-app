@@ -2,6 +2,7 @@
 @import "tailwindcss";
 @import "./fonts.css";
 @import "./brands.generated.css";
+@import "./code.css";
 
 /* The bridge: `inline` makes utilities emit var(--brand-*) DIRECTLY so they
    resolve at the point of use (under [data-brand]). Plain @theme would compute

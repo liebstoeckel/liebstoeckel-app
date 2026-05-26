@@ -14,6 +14,7 @@
     "types": ["bun", "react", "react-dom"],
     "paths": {
       "@present-it/engine": ["./packages/engine/src/index.ts"],
+      "@present-it/engine/code": ["./packages/engine/src/code/macro.ts"],
       "@present-it/engine/*": ["./packages/engine/src/*"],
       "@present-it/components": ["./packages/components/src/index.ts"],
       "@present-it/theme": ["./packages/theme/src/index.ts"],
@@ -24,9 +25,17 @@
       "@present-it/plugin-poll": ["./packages/plugin-poll/src/index.ts"],
       "@present-it/plugin-poll/*": ["./packages/plugin-poll/src/*"],
       "@present-it/live-server": ["./packages/live-server/src/index.ts"],
+      "@present-it/live-server/*": ["./packages/live-server/src/*"],
       "@present-it/thumbnails": ["./packages/thumbnails/src/index.ts"],
       "@present-it/thumbnails/*": ["./packages/thumbnails/src/*"],
-      "present-relay": ["./packages/present-relay/src/index.ts"]
+      "@present-it/plugin-qa": ["./packages/plugin-qa/src/index.ts"],
+      "@present-it/plugin-qa/*": ["./packages/plugin-qa/src/*"],
+      "@present-it/plugin-reactions": ["./packages/plugin-reactions/src/index.ts"],
+      "@present-it/plugin-reactions/*": ["./packages/plugin-reactions/src/*"],
+      "@present-it/cli": ["./packages/cli/src/cli.ts"],
+      "@present-it/cli/*": ["./packages/cli/src/*"],
+      "present-relay": ["./packages/present-relay/src/index.ts"],
+      "present-relay/*": ["./packages/present-relay/src/*"]
     }
   },
   "include": ["packages", "presentations", "types"],

@@ -8,7 +8,9 @@ export { useDeckNav } from "./nav";
 export { normalizeSlides, type SlideInput } from "./slides";
 export { CaptureView } from "./CaptureView";
 export { readThumbnails, type ThumbnailSet } from "./thumbnails";
-export { Step, StepsProvider } from "./steps";
+export { Step, StepsProvider, useRevealState } from "./steps";
+export { CodeMagic } from "./CodeMagic";
+export type { TokenizedStep, CodeToken } from "./code/types";
 export {
   fullscreenAction,
   toggleFullscreen,

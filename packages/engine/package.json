@@ -9,13 +9,16 @@
     "./build": "./src/build/buildDeck.ts",
     "./build/thumbnails": "./src/build/thumbnails.ts",
     "./build/capture-protocol": "./src/build/capture-protocol.ts",
-    "./mdx-plugin": "./src/build/mdx-plugin.ts"
+    "./mdx-plugin": "./src/build/mdx-plugin.ts",
+    "./code": "./src/code/macro.ts"
   },
   "dependencies": {
     "@present-it/components": "workspace:*",
     "@present-it/plugin-sdk": "workspace:*",
     "@present-it/plugin-ui": "workspace:*",
+    "@shikijs/rehype": "^3.0.0",
     "qrcode": "^1.5.4",
+    "shiki": "^3.0.0",
     "yjs": "^13.6.30"
   }
 }
