@@ -4,7 +4,7 @@ Code-first presentations that are **real software** — authored in MDX + React,
 
 > See [`DESIGN.md`](./DESIGN.md) for the architecture and the validated engineering findings.
 >
-> **Docs:** [State model](./docs/state-model.md) (with [diagram](./docs/state-handling.drawio.svg)) · [Engine](./packages/engine/docs/README.md) · [Plugins](./packages/plugin-sdk/docs/README.md) · [Live server](./packages/live-server/docs/README.md)
+> **Docs:** [liebstoeckel.app](https://liebstoeckel.app) — guides, concepts (incl. the [state model](https://liebstoeckel.app/concepts/state-model/)), plugin authoring & API reference. Source lives in [`packages/docs`](./packages/docs).
 
 ## Quickstart
 
@@ -99,6 +99,6 @@ Live-delivery keys: `F` fullscreen · `B` blur-screen · `O` overview · `0-9`�
 
 ## Packages
 
-- **`@liebstoeckel/engine`** — `Present`, `Deck`, `PresenterView`, fixed-canvas `ScaledStage`, keyboard/sync, `Slot`/`PersistentLayer` (stateful elements that travel between slides without reloading). **Docs: [`packages/engine/docs`](./packages/engine/docs/README.md).**
+- **`@liebstoeckel/engine`** — `Present`, `Deck`, `PresenterView`, fixed-canvas `ScaledStage`, keyboard/sync, `Slot`/`PersistentLayer` (stateful elements that travel between slides without reloading).
 - **`@liebstoeckel/theme`** — token model, brands, `@theme inline` bridge, self-hosted fonts.
 - **`@liebstoeckel/components`** — MDX element mapping, `Magic` (Magic Move), `Atmosphere`.
