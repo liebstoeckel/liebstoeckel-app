@@ -53,6 +53,49 @@ function Thumb({ Component }: { Component?: ComponentType }) {
   );
 }
 
+// Prominent step/reveal progress, readable from a distance. Makes it obvious why
+// the slide isn't advancing yet: there are still reveals left on this slide.
+function StepIndicator({ step, total }: { step: number; total: number }) {
+  const revealing = step < total;
+  const remaining = total - step;
+  return (
+    <div
+      className={`flex shrink-0 flex-col gap-2 rounded-xl border px-4 py-3 transition-colors ${
+        revealing ? "border-accent/60 bg-accent/10" : "border-border bg-surface/30"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span
+          className={`flex items-center gap-2 font-mono text-sm font-semibold uppercase tracking-[0.18em] ${
+            revealing ? "text-accent" : "text-muted"
+          }`}
+        >
+          {revealing && <span className="h-2 w-2 animate-pulse rounded-full bg-accent shadow-[0_0_8px_var(--brand-accent)]" />}
+          {revealing ? "Revealing steps" : "All steps shown"}
+        </span>
+        <span className="font-mono text-2xl font-semibold tabular-nums text-text">
+          {step}
+          <span className="text-muted">/{total}</span>
+        </span>
+      </div>
+      {/* segmented bar — one segment per step, filled up to the current reveal */}
+      <div className="flex gap-1.5">
+        {Array.from({ length: total }).map((_, i) => (
+          <span
+            key={i}
+            className={`h-2.5 flex-1 rounded-full transition-colors ${i < step ? "bg-accent" : "bg-border"}`}
+          />
+        ))}
+      </div>
+      <span className="font-mono text-xs tracking-wide text-muted">
+        {revealing
+          ? `${remaining} more ${remaining === 1 ? "reveal" : "reveals"} — then Next advances the slide`
+          : "Next advances to the following slide"}
+      </span>
+    </div>
+  );
+}
+
 export function PresenterView({ slides, brands = ["default"], title = "present-it" }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   // Same controller selection as the Deck: shared doc when live, else BroadcastChannel.
@@ -112,11 +155,11 @@ export function PresenterView({ slides, brands = ["default"], title = "present-i
         <section className="flex min-h-0 min-w-0 flex-[1.55] flex-col gap-3">
           <Label dot>
             On screen · {String(index + 1).padStart(2, "0")} / {String(norm.length).padStart(2, "0")}
-            {total > 0 ? ` · step ${step}/${total}` : ""}
           </Label>
           <div className="min-h-0 min-w-0 flex-1">
             <Thumb Component={Current} />
           </div>
+          {total > 0 && <StepIndicator step={step} total={total} />}
           <div className="flex shrink-0 items-center gap-3">
             <button
               onClick={prev}
@@ -128,7 +171,7 @@ export function PresenterView({ slides, brands = ["default"], title = "present-i
               onClick={next}
               className="flex-[2] rounded-xl bg-primary py-3 font-mono text-sm font-semibold uppercase tracking-widest text-on-primary transition hover:brightness-110"
             >
-              Next →
+              {step < total ? "Reveal →" : "Next →"}
             </button>
           </div>
         </section>
