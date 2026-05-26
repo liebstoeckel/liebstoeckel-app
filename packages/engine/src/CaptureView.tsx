@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import * as Y from "yjs";
 import { MDXProvider } from "@mdx-js/react";
 import { mdxComponents } from "@present-it/components";
+import { useTheme } from "@present-it/plugin-ui";
+import type { PluginDef } from "@present-it/plugin-sdk";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { PersistentProvider } from "./PersistentLayer";
 import { StepsProvider } from "./steps";
+import { LiveProvider, type LiveContextValue } from "./live/Plugin";
 import { normalizeSlides } from "./slides";
 import type { DeckProps } from "./Deck";
 import { CAPTURE_EVENT, CAPTURE_READY, SLIDE_COUNT, captureRequest } from "./build/capture-protocol";
@@ -16,9 +20,26 @@ const ALL_STEPS = 1e6;
 /** Build-time thumbnail render: one motionless slide at a time, driven by the
  *  headless capturer via the capture protocol. No live connection, no nav, no
  *  AnimatePresence — just the final state of slide `index` on the fixed canvas. */
-export function CaptureView({ slides, brands = ["default"] }: DeckProps) {
+export function CaptureView({ slides, brands = ["default"], plugins = [] }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   const [index, setIndex] = useState(() => captureRequest()?.index ?? 0);
+
+  // Provide an offline (live:false) plugin context so <Plugin> renders each
+  // plugin's fallback in the thumbnail — same as opening the standalone .html.
+  const theme = useTheme();
+  const doc = useMemo(() => new Y.Doc(), []);
+  const liveValue = useMemo<LiveContextValue>(
+    () => ({
+      live: false,
+      role: "presenter",
+      participant: "capture",
+      doc,
+      theme,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      plugins: Object.fromEntries(plugins.map((p) => [p.id, p])) as Record<string, PluginDef<any>>,
+    }),
+    [doc, theme, plugins],
+  );
 
   useEffect(() => {
     document.body.dataset.brand = brands[0];
@@ -56,18 +77,20 @@ export function CaptureView({ slides, brands = ["default"] }: DeckProps) {
   const Current = norm[index]?.Component ?? (() => null);
 
   return (
-    <MDXProvider components={mdxComponents}>
-      <PersistentProvider>
-        <ScaledStage className="h-screen w-screen">
-          <div data-capture-stage className="absolute inset-0">
-            <SlideFrame still>
-              <StepsProvider step={ALL_STEPS} slideIndex={index}>
-                <Current />
-              </StepsProvider>
-            </SlideFrame>
-          </div>
-        </ScaledStage>
-      </PersistentProvider>
-    </MDXProvider>
+    <LiveProvider value={liveValue}>
+      <MDXProvider components={mdxComponents}>
+        <PersistentProvider>
+          <ScaledStage className="h-screen w-screen">
+            <div data-capture-stage className="absolute inset-0">
+              <SlideFrame still>
+                <StepsProvider step={ALL_STEPS} slideIndex={index}>
+                  <Current />
+                </StepsProvider>
+              </SlideFrame>
+            </div>
+          </ScaledStage>
+        </PersistentProvider>
+      </MDXProvider>
+    </LiveProvider>
   );
 }

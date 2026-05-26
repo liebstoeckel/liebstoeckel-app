@@ -52,7 +52,7 @@ export function Plugin({
 
   if (!ctx.live) {
     const Fb = def.client.fallback;
-    return Fb ? <Fb snapshot={snap as never} /> : null;
+    return Fb ? <Fb snapshot={snap as never} props={props} /> : null;
   }
 
   const Slide = def.client.Slide;

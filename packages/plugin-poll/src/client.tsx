@@ -80,16 +80,23 @@ function PollPresenter(p: ClientProps<PollState>) {
   );
 }
 
-/** No live server → static preview from whatever seed exists. */
-function PollFallback({ snapshot }: { snapshot: PollState }) {
+/** No live server → static preview. Prefers the author's configured question /
+ *  options (props), then any seeded snapshot, then a generic placeholder — so the
+ *  standalone .html and the build-time thumbnail both show the real poll. */
+function PollFallback({ snapshot, props = {} }: { snapshot: PollState; props?: Record<string, unknown> }) {
+  const question = snapshot.question || (props.question as string) || "Live poll";
+  const options =
+    (snapshot.options.length && snapshot.options) ||
+    (props.options as string[] | undefined) ||
+    ["Option A", "Option B"];
   return (
     <Card>
       <Eyebrow>Poll · offline preview</Eyebrow>
       <div style={{ fontFamily: "var(--brand-font-heading, serif)", fontSize: "1.6rem", marginBottom: "0.8rem" }}>
-        {snapshot.question || "Live poll"}
+        {question}
       </div>
       <Stack gap="0.5rem">
-        {(snapshot.options.length ? snapshot.options : ["Option A", "Option B"]).map((o) => (
+        {options.map((o) => (
           <Button key={o} disabled>
             {o}
           </Button>

@@ -28,6 +28,9 @@ It's **opt-in / prod-only** (needs a browser). The demo build runs it when
 1. The capturer injects `window.__PRESENT_IT_CAPTURE__` before the deck boots, so the
    engine's `Present` renders **`CaptureView`** — one slide at a time, all `<Step>`s
    revealed, `Atmosphere still`, no transitions, on the fixed 1280×720 canvas.
+   `CaptureView` provides an offline (`live:false`) plugin context, so each
+   `<Plugin>` renders its **fallback** (the standalone preview, with the author's
+   `props`) instead of nothing.
 2. It reads `__PRESENT_IT_SLIDE_COUNT__`, then for each slide dispatches a
    `present-it:capture` event and waits for `__PRESENT_IT_CAPTURE_READY__` to match
    before screenshotting the viewport (sized to the thumbnail × `scale`).

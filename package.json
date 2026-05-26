@@ -9,7 +9,7 @@
     "demo:build": "cd presentations/demo && bun run build.ts",
     "showcase:dev": "cd presentations/visx-showcase && bun --hot ./server.ts",
     "showcase:build": "cd presentations/visx-showcase && bun run build.ts",
-    "poll:build": "cd presentations/poll-demo && bun run build.ts",
+    "poll:build": "cd presentations/poll-demo && PRESENT_IT_THUMBS=1 bun run build.ts",
     "poll:live": "bun run poll:build && bun packages/live-server/src/cli.ts presentations/poll-demo/dist/index.html",
     "live": "bun packages/live-server/src/cli.ts",
     "relay": "bun packages/present-relay/src/cli.ts",
