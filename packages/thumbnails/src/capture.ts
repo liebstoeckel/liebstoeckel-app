@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { chromium } from "playwright-core";
 import {
   CAPTURE_EVENT,
@@ -64,16 +65,22 @@ const DEFAULT_ARGS = [
 
 /** Resolve a Chromium binary: explicit → $LIEBSTOECKEL_CHROMIUM → Playwright's. */
 export function resolveChromium(opts: CaptureOptions = {}): string {
-  if (opts.executablePath) return opts.executablePath;
-  if (process.env.LIEBSTOECKEL_CHROMIUM) return process.env.LIEBSTOECKEL_CHROMIUM;
-  try {
-    return chromium.executablePath();
-  } catch {
-    throw new Error(
-      "No Chromium found for thumbnail capture. Run `bunx playwright install chromium`, " +
-        "or set LIEBSTOECKEL_CHROMIUM to a Chrome/Chromium binary.",
-    );
+  let candidate = opts.executablePath ?? process.env.LIEBSTOECKEL_CHROMIUM;
+  if (!candidate) {
+    try {
+      candidate = chromium.executablePath();
+    } catch {
+      candidate = undefined;
+    }
   }
+  // executablePath() returns a computed path even when the browser isn't
+  // installed — verify the binary actually exists so hasChromium() stays honest
+  // (otherwise capture is attempted where no browser exists, e.g. CI).
+  if (candidate && existsSync(candidate)) return candidate;
+  throw new Error(
+    "No Chromium found for thumbnail capture. Run `bunx playwright install chromium`, " +
+      "or set LIEBSTOECKEL_CHROMIUM to a Chrome/Chromium binary.",
+  );
 }
 
 /** Whether a Chromium is available for capture (cheap — resolves a path, no launch). */

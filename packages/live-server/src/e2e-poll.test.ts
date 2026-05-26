@@ -1,4 +1,5 @@
 import { test, expect, describe, afterEach } from "bun:test";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { pluginState } from "@liebstoeckel/plugin-sdk";
 import { pollSchema, tally, totalVotes } from "@liebstoeckel/plugin-poll/logic";
@@ -8,7 +9,9 @@ import { extractManifest } from "./manifest";
 
 const BUILT = join(import.meta.dir, "../../../presentations/poll-demo/dist/index.html");
 
-describe("end-to-end: built poll deck over the live server", () => {
+// Requires the poll deck to be built first (presentations/poll-demo/dist) —
+// skips cleanly in a fresh checkout / CI where it hasn't been built.
+describe.skipIf(!existsSync(BUILT))("end-to-end: built poll deck over the live server", () => {
   let live: LiveServer | null = null;
   afterEach(() => {
     live?.stop();
