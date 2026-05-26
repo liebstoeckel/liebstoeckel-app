@@ -1,0 +1,73 @@
+---
+title: CLI reference
+description: The umbrella present-it command — new, build, live, relay, thumbs.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+One binary, `present-it`, with subcommands. A bare path is shorthand for `live`.
+
+```bash
+present-it <command> [args]
+present-it <deck>            # shorthand for: present-it live <deck>
+```
+
+## `new`
+
+Scaffold a workspace-wired deck under `./presentations/`.
+
+```bash
+present-it new <name> [--brand <brand>]
+```
+
+Generates `index.html`, `main.tsx`, `build.ts` (using `buildDeckWithThumbnails`), `server.ts`, `bunfig.toml`, and a starter `slides/01-intro.tsx`. The name must be lower-case letters/digits/hyphens; it won't overwrite an existing directory.
+
+## `build`
+
+Build a deck to a single self-contained `.html` (+ thumbnails).
+
+```bash
+present-it build [dir]          # defaults to the current directory
+PRESENT_IT_NO_THUMBS=1 present-it build [dir]   # skip thumbnails
+```
+
+## `live`
+
+Present a deck to a room. Builds the deck if given a project dir.
+
+```bash
+present-it live <deck.html | deck-dir> [--port N]
+present-it live <deck> --relay <url> --relay-token <token>
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--port N` | LAN port (default: auto) |
+| `--relay <url>` | present through a [relay](/guides/relay/) instead of LAN |
+| `--relay-token <tok>` | relay account token (or `PRESENT_IT_RELAY_TOKEN`) |
+
+## `relay`
+
+Run a public relay server.
+
+```bash
+present-it relay [--port N] [--tokens tok1,tok2] [--public-url https://…]
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--port N` | listen port (or `PORT`) |
+| `--tokens` | comma-separated account tokens (or `PRESENT_RELAY_TOKENS`); one is generated if omitted |
+| `--public-url` | the public `https://` origin (so links/WebSocket use `wss://`) |
+
+## `thumbs`
+
+(Re)generate thumbnails for a built deck.
+
+```bash
+present-it thumbs <built-deck.html> [--format webp|jpeg|png] [--width 640] [--quality 80] [--scale 2]
+```
+
+<Aside type="tip" title="From the repo">
+Root scripts mirror these: `bun run live`, `bun run relay`, `bun run thumbs`, plus `bun run <deck>:dev` / `:build` for the bundled example decks.
+</Aside>

@@ -1,0 +1,83 @@
+---
+title: State & sync
+description: The typed schema, the PluginState API, and how to model concurrent state to fit the one-level record rule.
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+
+A plugin's shared state is a typed schema mapped onto a Yjs structure, so concurrent edits from many devices merge automatically.
+
+## The schema
+
+Build state shapes with `schema`/`t`:
+
+```ts
+import { schema, t, type Infer } from "@present-it/plugin-sdk";
+
+const pollSchema = schema({
+  question: t.string,
+  options: t.array(t.string),
+  votes: t.record(t.string),  // participantId → chosen option
+  closed: t.boolean,
+});
+type PollState = Infer<typeof pollSchema>;
+```
+
+| Builder | Type | Yjs mapping |
+| --- | --- | --- |
+| `t.string` `t.number` `t.boolean` | primitives | plain values |
+| `t.array(item)` | `T[]` | `Y.Array` |
+| `t.record(value)` | `Record<string, V>` | `Y.Map` (concurrent-friendly) |
+| `t.object({…})` / `schema({…})` | nested object | `Y.Map` |
+
+The schema gives runtime validation, a default value, and static types via `Infer`.
+
+## The PluginState API
+
+`ClientProps.state` is a typed accessor over the shared doc:
+
+```ts
+state.snapshot();                      // current state as plain JS (defaults filled in)
+state.set("closed", true);             // replace a whole top-level field
+state.recordSet("votes", pid, "Yes"); // set one entry of a record field
+state.recordDelete("votes", pid);      // remove one entry
+state.ensureDefaults({ question, options }); // seed once, only if empty
+const off = state.subscribe((snap) => …);    // observe deep changes
+```
+
+<Aside type="caution" title="The one-level record rule">
+`recordSet` / `recordDelete` operate on a **top-level** record field, one key deep. There is no nested-record setter. Model all concurrent-write state as top-level `t.record(...)` fields keyed by **composite strings**.
+</Aside>
+
+For example, the Q&A plugin needs per-question, per-participant votes. Rather than nesting, it keys a flat record by `` `${questionId}|${participantId}` ``:
+
+```ts
+const qaSchema = schema({
+  questions: t.record(t.object({ text: t.string, author: t.string, ts: t.number })),
+  votes: t.record(t.boolean),     // key: `${qid}|${pid}`
+  answered: t.record(t.boolean),  // key: qid
+  dismissed: t.record(t.boolean), // key: qid
+});
+```
+
+Then derive views with pure functions (`rankedQuestions`, `voteCount`, …) that you can unit-test without a browser.
+
+## Seeding from author props
+
+The presenter typically seeds initial content from the placement's `props`, once:
+
+```tsx
+useEffect(() => {
+  if (p.role === "presenter" && p.snapshot.options.length === 0) {
+    p.state.ensureDefaults({ question, options });
+  }
+}, [/* … */]);
+```
+
+`ensureDefaults` is a no-op once the state is non-empty, so it's safe to run on every presenter render.
+
+## Ephemeral state
+
+For transient effects (e.g. reactions floating up), store entries in a record keyed by `crypto.randomUUID()` and **prune** old ones on a timer with `recordDelete`, plus a per-participant rate limit. This converges across clients and keeps the doc small without needing a separate awareness channel.
+
+<LinkCard title="Server plugins" href="/plugins/server-plugins/" description="When client + shared state isn't enough." />

@@ -1,0 +1,50 @@
+---
+title: Thumbnails
+description: Build-time slide thumbnails for the overview grid — captured headlessly, encoded as WebP, embedded in the deck.
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+
+The overview grid (press <kbd>o</kbd>) would be expensive if it mounted every slide live. Instead, present-it captures each slide once at **build time** and embeds the images, so the grid is just cheap `<img>`s.
+
+## On by default
+
+`buildDeckWithThumbnails()` (what scaffolded decks use) generates thumbnails automatically, and **skips gracefully — never failing the build** — when no Chromium is available or `PRESENT_IT_NO_THUMBS` is set.
+
+## How capture works
+
+1. The built single-file deck is loaded in a **headless Chromium** (via Playwright) in a special *capture mode*: one motionless slide at a time on the fixed 1280×720 canvas, plugins rendered as their offline **fallback**.
+2. Each slide is screenshotted, then transcoded to **WebP** with `Bun.Image` (Bun's built-in codec — no native `sharp` dependency for capture).
+3. The images go into a thumbnails manifest (`index → data-URI`) embedded in the HTML. The engine prefers these `<img>`s in the overview grid; absent, it falls back to a static live render.
+
+<Aside type="note" title="Container-friendly">
+Capture launches the full Chromium with `--no-sandbox --disable-gpu --single-process --no-zygote` (the lighter `chrome-headless-shell` can crash in sandboxes). Default output is the native **1280×720** so the grid never upscales on hi-dpi screens (~16–18 KB/slide WebP).
+</Aside>
+
+## Standalone CLI
+
+Generate or refresh thumbnails for an already-built deck:
+
+```bash
+present-it thumbs dist/index.html --format webp --width 640 --quality 80 --scale 2
+```
+
+Or in code:
+
+```ts
+import { addThumbnailsToFile } from "@present-it/thumbnails";
+
+await addThumbnailsToFile("./dist/index.html", { width: 640, format: "webp" });
+```
+
+| Option | Default | Notes |
+| --- | --- | --- |
+| `format` | `webp` | `webp` \| `jpeg` \| `png` (AVIF needs an OS encoder) |
+| `width` × `scale` | 640 × 2 | native 1280×720; lower `width` to shrink a big deck |
+| `quality` | 80 | encoder quality |
+
+<Aside type="tip" title="Presenter previews are live">
+The **presenter** view does *not* use these thumbnails — its current/next previews render live (only two slides, so it's cheap, crisp, and reflects the real reveal step + live plugin state).
+</Aside>
+
+<LinkCard title="Plugins overview" href="/plugins/overview/" description="What renders in a captured thumbnail." />

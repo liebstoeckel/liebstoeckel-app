@@ -1,0 +1,71 @@
+---
+title: Animated code
+description: Build-time Shiki highlighting and CodeMagic — morphing one code state into the next.
+---
+
+import { Aside, Steps, LinkCard } from "@astrojs/starlight/components";
+
+present-it is code-first, so code is a first-class citizen: **static** fenced blocks are highlighted at build time, and **`<CodeMagic>`** animates between successive code states.
+
+## Static highlighting
+
+Any fenced code block in MDX is highlighted at **build time** by [Shiki](https://shiki.style), through a rehype plugin in the MDX pipeline:
+
+````mdx
+```ts
+export function add(a: number, b: number) {
+  return a + b;
+}
+```
+````
+
+Colors are **bound to the active brand**. Shiki runs with its css-variables theme, emitting `color: var(--shiki-token-keyword)` etc.; the theme maps those onto brand tokens (keyword → `primary`, string/function → `accent`, comment → `muted`, …). So code re-skins with `data-brand`, and **no highlighter or WASM ships to the browser** — only pre-tokenized spans.
+
+## CodeMagic — animated diffs
+
+`<CodeMagic>` takes a list of code **states** and morphs between them as you advance: unchanged lines glide to their new position, edits fade in/out. It reuses the same `layoutId` machinery as [Magic Move](/guides/your-first-deck/#magic-move).
+
+Each state is tokenized at **build time** by a [Bun macro](https://bun.com/docs/bundler/macros), so — like static blocks — no Shiki ships to the runtime:
+
+```tsx title="slides/03-code.tsx"
+import { CodeMagic, type TokenizedStep } from "@present-it/engine";
+import { codeStory } from "@present-it/engine/code" with { type: "macro" };
+
+const STORY = codeStory([
+  { code: `function greet(name) {\n  return "hi " + name\n}`, lang: "ts" },
+  { code: `function greet(name: string) {\n  return "hi " + name\n}`, lang: "ts" },
+  { code: `function greet(name: string, loud = false) {\n  const msg = "hi " + name\n  return loud ? msg.toUpperCase() : msg\n}`, lang: "ts" },
+]) as unknown as TokenizedStep[];
+
+export default function CodeSlide() {
+  return <CodeMagic title="greet.ts" steps={STORY} />;
+}
+```
+
+<Steps>
+
+1. **Author states** as `{ code, lang }` objects. Use a template literal (no `${}` interpolation — the macro needs static strings).
+
+2. **The macro tokenizes** each state with Shiki during `bun build` and inlines the result. The `as unknown as TokenizedStep[]` cast reconciles the macro's async type with the value it inlines synchronously.
+
+3. **At runtime**, `<CodeMagic>` line-diffs consecutive states (LCS over line text) so unchanged lines keep their identity and FLIP to their new position; the deck's reveal steps drive which state shows.
+
+</Steps>
+
+`<CodeMagic>` props:
+
+| Prop | Type | Notes |
+| --- | --- | --- |
+| `steps` | `TokenizedStep[]` | from the `codeStory` macro |
+| `title` | `string?` | filename shown in the chrome bar |
+| `lang` | `string?` | language tag (defaults to the first step's) |
+
+<Aside type="note" title="Reveals and static renders">
+`<CodeMagic>` claims one reveal step per transition via `useRevealState`. In a static render (a thumbnail, or a standalone open with no reveals driven) it shows the **final** state.
+</Aside>
+
+<Aside type="tip" title="Supported languages">
+The build-time highlighter loads a pragmatic default set (ts/tsx, js/jsx, json, bash, html, css, python, rust, go, sql, yaml, markdown, diff). Unknown languages fall back to plain text.
+</Aside>
+
+<LinkCard title="Theming" href="/guides/theming/" description="Where the code colors come from." />

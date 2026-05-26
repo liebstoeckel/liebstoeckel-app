@@ -16,6 +16,8 @@
     "thumbs": "bun packages/thumbnails/src/cli.ts",
     "test": "bun test packages",
     "test:e2e": "bun test packages/e2e/src/smoke.test.ts",
+    "docs:dev": "cd packages/docs && bun --bun astro dev",
+    "docs:build": "cd packages/docs && bun --bun astro build",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "devDependencies": {

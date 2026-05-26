@@ -1,0 +1,93 @@
+---
+title: Testing plugins
+description: Pure-logic tests, Yjs convergence tests across two synced docs, and render smoke tests — all with bun test.
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+
+Plugins are easy to test because their logic is pure and their sync is a CRDT. Three layers, all under `bun test`:
+
+## 1. Pure logic
+
+Test derivations directly — no doc, no browser:
+
+```ts title="src/logic.test.ts"
+import { test, expect } from "bun:test";
+import { rankedQuestions, voteCount } from "./logic";
+
+test("ranks by votes desc, then oldest first", () => {
+  const state = {
+    questions: { a: { text: "A", author: "x", ts: 1 }, b: { text: "B", author: "y", ts: 2 } },
+    votes: { "a|p1": true, "b|p1": true, "b|p2": true },
+    answered: {}, dismissed: {},
+  };
+  expect(rankedQuestions(state).map((q) => q.id)).toEqual(["b", "a"]);
+  expect(voteCount(state, "b")).toBe(2);
+});
+```
+
+## 2. Convergence (two synced docs)
+
+Prove that concurrent edits merge — without a browser — by syncing two `Y.Doc`s and asserting the derived view agrees:
+
+```ts title="src/logic.test.ts"
+import * as Y from "yjs";
+import { pluginState } from "@present-it/plugin-sdk";
+import { qaSchema, rankedQuestions } from "./logic";
+
+function sync(a: Y.Doc, b: Y.Doc) {
+  a.on("update", (u) => Y.applyUpdate(b, u));
+  b.on("update", (u) => Y.applyUpdate(a, u));
+}
+
+test("a question on one client, an upvote on another, converge", () => {
+  const docA = new Y.Doc(), docB = new Y.Doc();
+  sync(docA, docB);
+  const A = pluginState(docA, "qa", qaSchema);
+  const B = pluginState(docB, "qa", qaSchema);
+
+  A.recordSet("questions", "q1", { text: "Why Bun?", author: "p1", ts: 1 });
+  B.recordSet("votes", "q1|p2", true);
+
+  expect(rankedQuestions(A.snapshot())).toEqual(rankedQuestions(B.snapshot()));
+});
+```
+
+<Aside type="tip">
+This is the highest-value test for a plugin and it runs in milliseconds with no browser — it covers the property that actually matters (shared state agrees across devices).
+</Aside>
+
+## 3. Render smoke test
+
+Confirm the surfaces render without throwing, using `renderToStaticMarkup`:
+
+```tsx title="src/client.test.tsx"
+import { renderToStaticMarkup } from "react-dom/server";
+import * as Y from "yjs";
+import { pluginState, type ClientProps } from "@present-it/plugin-sdk";
+import plugin from "./client";
+import { mySchema, type MyState } from "./logic";
+
+const props = (): ClientProps<MyState> => {
+  const doc = new Y.Doc();
+  return {
+    doc, state: pluginState(doc, "myplugin", mySchema), snapshot: mySchema.default(),
+    role: "viewer", live: true, participantId: "p1",
+    theme: { viz: ["#fff"] } as never, ui: {}, props: {},
+  };
+};
+
+test("Slide renders", () => {
+  expect(renderToStaticMarkup(<plugin.client.Slide {...props()} />)).toContain("…");
+});
+```
+
+## Server effects
+
+For a plugin with a server part, drive it against a `Hub` (the live relay class) and assert its effect reaches a connected peer — the same pattern the live-server integration tests use.
+
+<Aside type="note" title="End-to-end">
+Plugins also get exercised by the framework's [browser smoke tier](/concepts/testing/): a real deck is built and booted in headless Chromium to confirm fallbacks render and (live) the mobile breakout opens.
+</Aside>
+
+<LinkCard title="Testing the framework" href="/concepts/testing/" description="The whole testing pyramid." />

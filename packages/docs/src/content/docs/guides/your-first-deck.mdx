@@ -1,0 +1,113 @@
+---
+title: Your first deck
+description: Slides as modules, progressive reveals, speaker notes, and Magic Move.
+---
+
+import { Aside, Tabs, TabItem, LinkCard } from "@astrojs/starlight/components";
+
+A deck is an ordered list of **slide modules** handed to `<Present>`. Each module's default export is the slide; an optional `notes` export shows in the presenter view.
+
+## A slide is a module
+
+<Tabs>
+<TabItem label="TSX">
+
+```tsx title="slides/01-intro.tsx"
+import { Step } from "@present-it/engine";
+
+export const notes = (
+  <div>
+    <p>Open strong. Reveal each point with <kbd>→</kbd>.</p>
+  </div>
+);
+
+export default function Intro() {
+  return (
+    <div className="w-full">
+      <h1 className="font-heading text-7xl font-semibold text-text">
+        Decks that <span className="italic text-primary">talk back</span>.
+      </h1>
+      <div className="mt-8 space-y-3 font-body text-2xl text-muted">
+        <Step>Plugins are real Bun packages.</Step>
+        <Step>State is shared live over a CRDT.</Step>
+      </div>
+    </div>
+  );
+}
+```
+
+</TabItem>
+<TabItem label="MDX">
+
+````mdx title="slides/02-agenda.mdx"
+## Today
+
+- Author in MDX or TSX
+- Theme from one place
+- Present live
+
+```ts
+// fenced code is highlighted at build time, on-brand
+const deck = present(slides);
+```
+````
+
+</TabItem>
+</Tabs>
+
+Register them in order:
+
+```tsx title="main.tsx"
+import Intro from "./slides/01-intro";
+import Agenda from "./slides/02-agenda.mdx";
+
+<Present brands={["nocturne"]} slides={[Intro, Agenda]} />
+```
+
+<Aside type="tip" title="Styling">
+Use the brand's **semantic** Tailwind classes — `text-text`, `text-muted`, `text-primary`, `text-accent`, `font-heading`, `font-body`, `bg-surface`. They resolve against the active brand's tokens, so the same slide re-skins when the brand changes. See [Theming](/guides/theming/).
+</Aside>
+
+## Progressive reveals with `<Step>`
+
+Wrap anything in `<Step>` to reveal it on the next press. Steps reveal in document order; once the last step is shown, the next press advances the slide.
+
+```tsx
+<Step>First this…</Step>
+<Step>…then this.</Step>
+```
+
+The presenter view shows a prominent step counter so you always know whether a press will reveal or advance.
+
+## Speaker notes
+
+Export `notes` (plain JSX) from a slide module. The presenter window renders it in a styled panel alongside the current/next slide previews and a timer.
+
+```tsx
+export const notes = (
+  <div>
+    <p>Key point. Then mention the <strong>demo</strong>.</p>
+    <ul><li>Press <kbd>Q</kbd> to show the QR.</li></ul>
+  </div>
+);
+```
+
+## Magic Move
+
+`<Magic>` keeps an element *persistent across slides* by sharing a `layoutId`, so Motion FLIP-animates it from one position/size to the next — the signature present-it transition.
+
+```tsx
+import { Magic } from "@present-it/engine";
+
+// On slide 1:
+<Magic id="logo" className="text-4xl">●</Magic>
+// On slide 2 — same id, new place/size → it glides there:
+<Magic id="logo" className="text-8xl absolute top-10 right-10">●</Magic>
+```
+
+<Aside type="caution">
+`Magic` is for *stateless* content (its children re-render). For elements with internal state (an `<iframe>`, video, or a live widget), use the persistent layer's `<Slot>` instead — see [Engine API](/reference/engine-api/).
+</Aside>
+
+<LinkCard title="Animated code" href="/guides/animated-code/" description="Shiki highlighting + CodeMagic diffs." />
+<LinkCard title="Theming & brands" href="/guides/theming/" description="One token object per brand." />

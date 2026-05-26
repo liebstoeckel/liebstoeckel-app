@@ -1,0 +1,72 @@
+---
+title: Engine API
+description: The public exports of @present-it/engine and its build subpaths.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Everything below is from `@present-it/engine` unless noted.
+
+## Top-level
+
+| Export | Kind | Purpose |
+| --- | --- | --- |
+| `Present` | component | the entry — routes to Deck / PresenterView / CaptureView |
+| `Deck` · `DeckProps` | component | the audience/standalone view |
+| `PresenterView` | component | the `#presenter` window |
+| `CaptureView` | component | build-time thumbnail render |
+| `normalizeSlides` · `SlideInput` | fn / type | normalize slide modules |
+
+## Authoring
+
+| Export | Kind | Purpose |
+| --- | --- | --- |
+| `Step` | component | a progressive reveal |
+| `StepsProvider` | component | per-slide step tracker (the engine mounts this) |
+| `useRevealState(count)` | hook | claim `count-1` reveal slots, get the active state index (for `CodeMagic`-like components) |
+| `CodeMagic` | component | animated code; `steps`, `title?`, `lang?` |
+| `TokenizedStep` · `CodeToken` | types | shape of macro output |
+| `Magic` | component | Magic Move via shared `layoutId` |
+| `Atmosphere` | component | animated gradient background (`still?`) |
+| `Slot` · `PersistentProvider` · `PersistentLayer` · `PersistentItem` | components/type | persistent stateful elements |
+
+## Layout
+
+| Export | Kind | Purpose |
+| --- | --- | --- |
+| `ScaledStage` | component | fit the 1280×720 canvas to its parent |
+| `SlideFrame` | component | brand bg + atmosphere + padded content |
+| `STAGE_W` · `STAGE_H` | const | `1280` · `720` |
+
+## Live & plugins
+
+| Export | Kind | Purpose |
+| --- | --- | --- |
+| `Plugin` | component | place a plugin (`id`, `props?`, `components?`) |
+| `LiveProvider` · `useLive` · `LiveContextValue` | component/hook/type | the live context |
+| `detectLive` · `LiveInfo` | fn/type | is a live server connected? |
+| `connectLive` · `LiveConnection` | fn/type | connect to a session over WebSocket |
+| `useLiveDeck` · `getDeckIndex` · `setDeckIndex` · `DeckController` | hooks/fns/type | the synced slide/step controller |
+| `getParticipantId` | fn | stable (or ephemeral) per-browser id |
+| `mergeUi` | fn | merge author surface overrides |
+
+## Navigation & delivery
+
+`useDeckNav` (keyboard) plus pure helpers: `stepForward`, `stepBack`, `clampIndex`, `accumulateDigits`, `fullscreenAction`, `toggleFullscreen`.
+
+## Thumbnails (runtime)
+
+`readThumbnails()` → `ThumbnailSet | null` — the embedded thumbnail manifest, used by the overview grid.
+
+## Build subpaths
+
+| Import | Exports |
+| --- | --- |
+| `@present-it/engine/build` | `buildDeck`, `buildPluginManifest`, `buildServerBundle` |
+| `@present-it/engine/code` (macro) | `codeStory`, `code` — import `with { type: "macro" }` |
+| `@present-it/engine/build/thumbnails` | `embedThumbnails`, `extractThumbnails`, `stripThumbnails` |
+| `@present-it/thumbnails/build` | `buildDeckWithThumbnails` (drop-in for `buildDeck`, + thumbnails) |
+
+<Aside type="tip">
+The full, machine-readable API lives in this site's [`/llms.txt`](/llms.txt) and [`/llms-full.txt`](/llms-full.txt) — point an assistant at those.
+</Aside>

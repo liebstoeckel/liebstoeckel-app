@@ -39,5 +39,5 @@
     }
   },
   "include": ["packages", "presentations", "types"],
-  "exclude": ["**/node_modules", "**/dist", "poc"]
+  "exclude": ["**/node_modules", "**/dist", "poc", "packages/docs"]
 }
