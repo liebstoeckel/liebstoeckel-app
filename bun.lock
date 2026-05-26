@@ -38,6 +38,13 @@
         "typescript": "^6.0.3",
       },
     },
+    "packages/ci-poller": {
+      "name": "@liebstoeckel/ci-poller",
+      "version": "0.0.0",
+      "bin": {
+        "liebstoeckel-ci-poller": "./src/index.ts",
+      },
+    },
     "packages/cli": {
       "name": "@liebstoeckel/cli",
       "version": "0.0.0",
@@ -365,6 +372,8 @@
     "@img/sharp-win32-x64": ["@img/sharp-win32-x64@0.34.5", "", { "os": "win32", "cpu": "x64" }, "sha512-+29YMsqY2/9eFEiW93eqWnuLcWcufowXewwSNIT6UwZdUUCrM3oFjMWH/Z6/TMmb4hlFenmfAVbpWeup2jryCw=="],
 
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
+
+    "@liebstoeckel/ci-poller": ["@liebstoeckel/ci-poller@workspace:packages/ci-poller"],
 
     "@liebstoeckel/cli": ["@liebstoeckel/cli@workspace:packages/cli"],
 
