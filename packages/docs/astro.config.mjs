@@ -2,25 +2,26 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import starlightPageActions from "starlight-page-actions";
 
-// Static docs site for present-it. Astro Starlight → static HTML (Islands: zero JS
+// Static docs site for liebstoeckel. Astro Starlight → static HTML (Islands: zero JS
 // by default, Pagefind search, dark mode). starlight-page-actions adds the per-page
 // toolbar (Copy as Markdown · Open in ChatGPT/Claude · Share) and emits /llms.txt,
 // so the docs are LLM-native. Build with Bun: `bun --bun astro build`.
 export default defineConfig({
-  site: "https://present-it.dev",
+  site: "https://liebstoeckel.app",
   integrations: [
     starlight({
-      title: "present-it",
+      title: "liebstoeckel",
+      customCss: ["./src/styles/theme.css"],
       description:
         "A code-first presentation engine that produces stunning, animated, single-file HTML decks — Bun + React 19 + Motion + Tailwind v4, authored in MDX + TSX.",
       tagline: "Code-first presentations that talk back.",
       // `baseUrl` is required for the llms.txt generation + absolute Markdown URLs
       // the "Open in ChatGPT/Claude" actions link to.
-      plugins: [starlightPageActions({ baseUrl: "https://present-it.dev" })],
+      plugins: [starlightPageActions({ baseUrl: "https://liebstoeckel.app" })],
       sidebar: [
         {
           label: "Start here",
-          items: ["guides/what-is-present-it", "guides/getting-started", "guides/your-first-deck"],
+          items: ["guides/what-is-liebstoeckel", "guides/getting-started", "guides/your-first-deck"],
         },
         {
           label: "Authoring",
