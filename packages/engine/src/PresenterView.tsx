@@ -9,7 +9,6 @@ import { useLiveDeck } from "./live/deckIndex";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { PersistentProvider } from "./PersistentLayer";
 import { normalizeSlides } from "./slides";
-import { readThumbnails } from "./thumbnails";
 import type { DeckProps } from "./Deck";
 
 function useNow(ms = 1000) {
@@ -36,29 +35,26 @@ function Label({ children, dot }: { children: ReactNode; dot?: boolean }) {
 }
 
 // Fills its parent box; ScaledStage letterboxes the 16:9 slide inside. The PARENT
-// decides the size, so thumbnails shrink to fit available height (never push the
-// notes off-screen).
-function Thumb({ Component, src }: { Component?: ComponentType; src?: string }) {
+// decides the size, so previews shrink to fit available height (never push the
+// notes off-screen). Rendered live (not a thumbnail) — the presenter's current/next
+// previews are only two slides, so this stays cheap while staying pixel-crisp and
+// reflecting live plugin state, unlike the static build-time thumbnails.
+function Thumb({ Component }: { Component?: ComponentType }) {
   return (
     <div className="relative h-full w-full overflow-hidden rounded-2xl border border-border bg-bg shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]">
-      {src ? (
-        <img src={src} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-cover" />
-      ) : (
-        <MDXProvider components={mdxComponents}>
-          <PersistentProvider>
-            <ScaledStage className="absolute inset-0">
-              <SlideFrame still>{Component ? <Component /> : null}</SlideFrame>
-            </ScaledStage>
-          </PersistentProvider>
-        </MDXProvider>
-      )}
+      <MDXProvider components={mdxComponents}>
+        <PersistentProvider>
+          <ScaledStage className="absolute inset-0">
+            <SlideFrame still>{Component ? <Component /> : null}</SlideFrame>
+          </ScaledStage>
+        </PersistentProvider>
+      </MDXProvider>
     </div>
   );
 }
 
 export function PresenterView({ slides, brands = ["default"], title = "present-it" }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
-  const thumbs = useMemo(() => readThumbnails(), []);
   // Same controller selection as the Deck: shared doc when live, else BroadcastChannel.
   const liveCtx = useLive();
   const live = !!liveCtx?.live;
@@ -119,7 +115,7 @@ export function PresenterView({ slides, brands = ["default"], title = "present-i
             {total > 0 ? ` · step ${step}/${total}` : ""}
           </Label>
           <div className="min-h-0 min-w-0 flex-1">
-            <Thumb Component={Current} src={thumbs?.get(index)} />
+            <Thumb Component={Current} />
           </div>
           <div className="flex shrink-0 items-center gap-3">
             <button
@@ -142,7 +138,7 @@ export function PresenterView({ slides, brands = ["default"], title = "present-i
           <Label>{Next ? "Next up" : "End of deck"}</Label>
           {/* next preview: shrinkable, capped so it can't crowd out the notes */}
           <div className="min-h-[64px] min-w-0 shrink basis-[34%] opacity-80">
-            {Next ? <Thumb Component={Next} src={thumbs?.get(index + 1)} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
+            {Next ? <Thumb Component={Next} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
           </div>
 
           <Label>Speaker notes</Label>

@@ -10,7 +10,9 @@ import type { ThumbnailManifest } from "@present-it/engine/build/thumbnails";
 export type ThumbnailFormat = "webp" | "jpeg" | "png";
 
 export interface CaptureOptions {
-  /** thumbnail width in CSS px (height derived 16:9 unless given) */
+  /** thumbnail width in CSS px (height derived 16:9 unless given). Default 640 ×
+   *  scale 2 = 1280×720, the native authoring canvas — so the overview is never
+   *  upscaled even on large/hi-dpi screens. Lower it to shrink a big deck. */
   width?: number;
   height?: number;
   /** output image format (default "webp" — ~half a JPEG, alpha, no extra deps) */
@@ -89,7 +91,7 @@ function injectCaptureFlag(html: string): string {
  *  as a data-URI (WebP by default, via Bun.Image). Returns a thumbnails manifest
  *  (embed it with `embedThumbnails`). The deck must use `Present`/`CaptureView`. */
 export async function captureThumbnails(html: string, opts: CaptureOptions = {}): Promise<ThumbnailManifest> {
-  const width = opts.width ?? 320;
+  const width = opts.width ?? 640;
   const height = opts.height ?? Math.round((width * 9) / 16);
   const format = opts.format ?? "webp";
   const quality = opts.quality ?? 80;

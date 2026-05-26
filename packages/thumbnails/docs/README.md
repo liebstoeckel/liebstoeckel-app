@@ -3,14 +3,20 @@
 Build-time slide thumbnails for present-it decks. A headless browser renders each
 slide once, motionless, and screenshots it; the images are embedded into the deck's
 single `.html` as a **thumbnails manifest**. The engine then shows cheap `<img>`
-previews in the overview grid and presenter view instead of mounting *N* live slides
-(which on a large deck means *N* `ScaledStage`s + infinite `Atmosphere` animations).
+previews in the **overview grid** instead of mounting *N* live slides (which on a
+large deck means *N* `ScaledStage`s + infinite `Atmosphere` animations). The
+presenter view renders its current/next previews live (only two slides), so it stays
+crisp and reflects live state — it does not use these thumbnails.
+
+Default size is the native **1280×720** canvas (`--width 640 --scale 2`), so the
+overview never upscales; WebP keeps each ~16–18 KB. Lower `--width` to shrink a
+large deck.
 
 ## Use
 
 ```bash
 # build the deck first, then capture into it (idempotent, in place)
-bunx present-it-thumbnails dist/index.html            # --width 320 --quality 80 --scale 2
+bunx present-it-thumbnails dist/index.html            # --format webp --width 640 --quality 80 --scale 2
 ```
 
 ```ts
