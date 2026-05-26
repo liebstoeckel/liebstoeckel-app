@@ -11,5 +11,8 @@
     "@present-it/engine": "workspace:*",
     "@present-it/theme": "workspace:*",
     "@present-it/plugin-poll": "workspace:*"
+  },
+  "devDependencies": {
+    "@present-it/thumbnails": "workspace:*"
   }
 }

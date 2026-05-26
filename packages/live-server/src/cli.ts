@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import QRCode from "qrcode";
 import { startServer } from "./server";
 import { buildLinks } from "./session";
+import { uploadDeck, runServerPluginsViaRelay, endSession } from "./relay-client";
 
 export type TargetKind = "html" | "project" | "unknown";
 
@@ -42,15 +43,16 @@ export async function loadDeckHtml(arg: string): Promise<string> {
   throw new Error(`Cannot present target: ${arg} (expected a .html file or a deck project)`);
 }
 
-async function main() {
-  const arg = process.argv[2];
-  if (!arg) {
-    console.error("usage: present-it <deck.html | deck-project-dir>");
-    process.exit(1);
-  }
+function flag(argv: string[], name: string): string | undefined {
+  const i = argv.indexOf(name);
+  return i >= 0 ? argv[i + 1] : undefined;
+}
+
+/** LAN mode: serve the deck locally and relay Yjs over /sync. */
+async function localMain(arg: string, port?: number) {
   process.stderr.write(TRUST_WARNING + "\n");
   const html = await loadDeckHtml(arg);
-  const live = await startServer({ html });
+  const live = await startServer({ html, port });
 
   const local = buildLinks(`http://localhost:${live.port}`, live.session);
   const qr = await QRCode.toString(live.links.viewer, { type: "terminal", small: true });
@@ -68,6 +70,58 @@ async function main() {
   };
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
+}
+
+/** Relay mode: upload the deck to a public relay; run the deck's server plugins
+ *  locally as the relay's privileged peer (deck code never runs on the relay). */
+async function relayMain(arg: string, relayUrl: string, relayToken: string) {
+  process.stderr.write(TRUST_WARNING + "\n");
+  const html = await loadDeckHtml(arg);
+  process.stderr.write(`▶  uploading deck to ${relayUrl} …\n`);
+  const info = await uploadDeck(relayUrl, relayToken, html);
+  const runner = await runServerPluginsViaRelay({
+    html,
+    syncUrl: info.urls.sync,
+    runnerToken: info.runnerToken,
+    sessionId: info.id,
+  });
+
+  const qr = await QRCode.toString(info.urls.viewer, { type: "terminal", small: true });
+  console.log(`\n▶  present-it live (relayed) — session ${info.id}\n`);
+  console.log(`   public            presenter  ${info.urls.presenter}`);
+  console.log(`                     audience   ${info.urls.viewer}`);
+  if (runner.plugins.length) {
+    console.log(`\n   server plugins (running locally): ${runner.plugins.join(", ")}`);
+  }
+  console.log(`\n   scan to follow along:\n${qr}`);
+
+  const shutdown = async () => {
+    runner.stop();
+    await endSession(relayUrl, relayToken, info.id);
+    process.exit(0);
+  };
+  process.on("SIGINT", () => void shutdown());
+  process.on("SIGTERM", () => void shutdown());
+}
+
+async function main() {
+  const argv = process.argv.slice(2);
+  const arg = argv.find((a) => !a.startsWith("-"));
+  if (!arg) {
+    console.error("usage: present-it <deck.html | deck-project-dir> [--relay <url> --relay-token <tok>] [--port N]");
+    process.exit(1);
+  }
+  const relayUrl = flag(argv, "--relay");
+  const relayToken = flag(argv, "--relay-token") ?? process.env.PRESENT_IT_RELAY_TOKEN;
+  if (relayUrl) {
+    if (!relayToken) {
+      console.error("--relay requires --relay-token <token> (or PRESENT_IT_RELAY_TOKEN)");
+      process.exit(1);
+    }
+    await relayMain(arg, relayUrl, relayToken);
+  } else {
+    await localMain(arg, Number(flag(argv, "--port")) || undefined);
+  }
 }
 
 if (import.meta.main) void main();

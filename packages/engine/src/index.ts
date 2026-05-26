@@ -6,6 +6,8 @@ export { HelpOverlay } from "./HelpOverlay";
 export { useDeckSync } from "./useDeckSync";
 export { useDeckNav } from "./nav";
 export { normalizeSlides, type SlideInput } from "./slides";
+export { CaptureView } from "./CaptureView";
+export { readThumbnails, type ThumbnailSet } from "./thumbnails";
 export { Step, StepsProvider } from "./steps";
 export {
   fullscreenAction,

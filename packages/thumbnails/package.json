@@ -1,0 +1,14 @@
+{
+  "name": "@present-it/thumbnails",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "present-it-thumbnails": "./src/cli.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@present-it/engine": "workspace:*",
+    "playwright-core": "1.60.0"
+  }
+}

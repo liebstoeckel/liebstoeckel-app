@@ -12,6 +12,8 @@
     "poll:build": "cd presentations/poll-demo && bun run build.ts",
     "poll:live": "bun run poll:build && bun packages/live-server/src/cli.ts presentations/poll-demo/dist/index.html",
     "live": "bun packages/live-server/src/cli.ts",
+    "relay": "bun packages/present-relay/src/cli.ts",
+    "thumbs": "bun packages/thumbnails/src/cli.ts",
     "test": "bun test packages",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },

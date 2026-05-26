@@ -38,11 +38,20 @@ export function ScaledStage({ children, className }: { children: ReactNode; clas
 }
 
 /** The visual frame of a slide: brand background + atmosphere + a padded content
- *  area. Slides can break out with absolute positioning for full-bleed charts. */
-export function SlideFrame({ children, atmosphere = true }: { children: ReactNode; atmosphere?: boolean }) {
+ *  area. Slides can break out with absolute positioning for full-bleed charts.
+ *  `still` renders the motionless atmosphere (thumbnails / capture). */
+export function SlideFrame({
+  children,
+  atmosphere = true,
+  still = false,
+}: {
+  children: ReactNode;
+  atmosphere?: boolean;
+  still?: boolean;
+}) {
   return (
     <div className="absolute inset-0 overflow-hidden bg-bg">
-      {atmosphere && <Atmosphere />}
+      {atmosphere && <Atmosphere still={still} />}
       <div className="absolute inset-0 flex flex-col justify-center px-24 py-20">{children}</div>
     </div>
   );

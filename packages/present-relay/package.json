@@ -1,0 +1,15 @@
+{
+  "name": "present-relay",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "present-relay": "./src/cli.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@present-it/live-server": "workspace:*",
+    "qrcode": "^1.5.4",
+    "yjs": "^13.6.30"
+  }
+}

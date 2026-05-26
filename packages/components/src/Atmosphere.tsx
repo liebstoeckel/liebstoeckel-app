@@ -3,20 +3,24 @@ import { motion } from "motion/react";
 // Layered atmosphere: two slow-drifting gradient blooms (brand glow colors),
 // a fine film-grain overlay (SVG turbulence), and a vignette. Pure decoration,
 // behind all content. Brand-aware via --brand-glow-* / --brand-accent.
-export function Atmosphere() {
+//
+// `still` renders the motionless variant (no infinite drift) — used by the
+// build-time thumbnail capture and static thumbnails, so a screenshot is
+// deterministic and the overview never runs N infinite animations.
+export function Atmosphere({ still = false }: { still?: boolean }) {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <motion.div
         className="absolute -left-[15%] -top-[20%] h-[70vh] w-[70vh] rounded-full blur-[120px]"
         style={{ background: "radial-gradient(circle, var(--brand-glow-a, #1b3a4b), transparent 70%)", opacity: 0.5 }}
-        animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
-        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+        animate={still ? undefined : { x: [0, 40, 0], y: [0, 30, 0] }}
+        transition={still ? undefined : { duration: 22, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         className="absolute -bottom-[25%] -right-[10%] h-[65vh] w-[65vh] rounded-full blur-[120px]"
         style={{ background: "radial-gradient(circle, var(--brand-glow-b, #2a1f3d), transparent 70%)", opacity: 0.5 }}
-        animate={{ x: [0, -50, 0], y: [0, -20, 0] }}
-        transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
+        animate={still ? undefined : { x: [0, -50, 0], y: [0, -20, 0] }}
+        transition={still ? undefined : { duration: 28, repeat: Infinity, ease: "easeInOut" }}
       />
       {/* faint accent hairline bloom near top */}
       <div

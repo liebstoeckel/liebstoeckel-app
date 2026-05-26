@@ -11,6 +11,7 @@ import { useLiveDeck } from "./live/deckIndex";
 import { PersistentProvider, PersistentLayer, type PersistentItem } from "./PersistentLayer";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { DeckThumb } from "./Thumb";
+import { readThumbnails } from "./thumbnails";
 import { HelpOverlay } from "./HelpOverlay";
 import { QrOverlay } from "./QrOverlay";
 import { StepsProvider } from "./steps";
@@ -35,6 +36,8 @@ function openPresenter() {
 export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   const count = norm.length;
+  // Pre-rendered overview thumbnails (build-time), if the deck embedded them.
+  const thumbs = useMemo(() => readThumbnails(), []);
 
   // Index/step source: shared Yjs doc in a live session (viewers follow), else
   // BroadcastChannel across local windows. Both hooks run; we select one.
@@ -229,7 +232,7 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
                         i === index ? "border-primary" : "border-border hover:border-text"
                       }`}
                     >
-                      <DeckThumb Component={s.Component} />
+                      <DeckThumb Component={s.Component} src={thumbs?.get(i)} alt={`Slide ${i + 1}`} />
                       <span className="absolute bottom-1 right-2 font-mono text-xs text-muted">{i + 1}</span>
                     </button>
                   ))}

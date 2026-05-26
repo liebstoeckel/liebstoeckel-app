@@ -66,6 +66,7 @@
       },
       "devDependencies": {
         "@present-it/plugin-poll": "workspace:*",
+        "present-relay": "workspace:*",
       },
     },
     "packages/plugin-poll": {
@@ -90,9 +91,32 @@
         "@present-it/plugin-sdk": "workspace:*",
       },
     },
+    "packages/present-relay": {
+      "name": "present-relay",
+      "version": "0.0.0",
+      "bin": {
+        "present-relay": "./src/cli.ts",
+      },
+      "dependencies": {
+        "@present-it/live-server": "workspace:*",
+        "qrcode": "^1.5.4",
+        "yjs": "^13.6.30",
+      },
+    },
     "packages/theme": {
       "name": "@present-it/theme",
       "version": "0.0.0",
+    },
+    "packages/thumbnails": {
+      "name": "@present-it/thumbnails",
+      "version": "0.0.0",
+      "bin": {
+        "present-it-thumbnails": "./src/cli.ts",
+      },
+      "dependencies": {
+        "@present-it/engine": "workspace:*",
+        "playwright-core": "1.60.0",
+      },
     },
     "presentations/demo": {
       "name": "@present-it/demo",
@@ -110,6 +134,9 @@
         "@present-it/engine": "workspace:*",
         "@present-it/plugin-poll": "workspace:*",
         "@present-it/theme": "workspace:*",
+      },
+      "devDependencies": {
+        "@present-it/thumbnails": "workspace:*",
       },
     },
     "presentations/visx-showcase": {
@@ -182,6 +209,8 @@
     "@present-it/poll-demo": ["@present-it/poll-demo@workspace:presentations/poll-demo"],
 
     "@present-it/theme": ["@present-it/theme@workspace:packages/theme"],
+
+    "@present-it/thumbnails": ["@present-it/thumbnails@workspace:packages/thumbnails"],
 
     "@present-it/visx-showcase": ["@present-it/visx-showcase@workspace:presentations/visx-showcase"],
 
@@ -513,7 +542,11 @@
 
     "path-exists": ["path-exists@4.0.0", "", {}, "sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w=="],
 
+    "playwright-core": ["playwright-core@1.60.0", "", { "bin": { "playwright-core": "cli.js" } }, "sha512-9bW6zvX/m0lEbgTKJ6YppOKx8H3VOPBMOCFh2irXFOT4BbHgrx5hPjwJYLT40Lu+4qtD36qKc/Hn56StUW57IA=="],
+
     "pngjs": ["pngjs@5.0.0", "", {}, "sha512-40QW5YalBNfQo5yRYmiw7Yz6TKKVr3h6970B2YE+3fQpsWcrbj1PzJgxeJ19DRQjhMbKPIuMY8rFaXc8moolVw=="],
+
+    "present-relay": ["present-relay@workspace:packages/present-relay"],
 
     "prop-types": ["prop-types@15.8.1", "", { "dependencies": { "loose-envify": "^1.4.0", "object-assign": "^4.1.1", "react-is": "^16.13.1" } }, "sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg=="],
 

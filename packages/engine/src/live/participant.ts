@@ -9,15 +9,34 @@ function uuid(): string {
   return `p-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
-/** Stable id for this browser session (one session = one participant). Persists
- *  in sessionStorage so a reload keeps identity (no double-counting votes). */
-export function getParticipantId(storage?: Store): string {
-  const store = storage ?? (typeof sessionStorage !== "undefined" ? sessionStorage : undefined);
-  if (!store) return uuid();
-  let id = store.getItem(KEY);
-  if (!id) {
-    id = uuid();
-    store.setItem(KEY, id);
+/** sessionStorage, or undefined if it isn't usable. Merely *accessing* the
+ *  property throws ("Access is denied") in an opaque origin — a sandboxed deck
+ *  (relay's `CSP: sandbox`) or a `setContent`/`data:` document (thumbnail capture)
+ *  — so the access itself must be guarded, not just a typeof check. */
+function safeSessionStorage(): Store | undefined {
+  try {
+    const s = sessionStorage;
+    return s ?? undefined;
+  } catch {
+    return undefined;
   }
-  return id;
+}
+
+/** Stable id for this browser session (one session = one participant). Persists
+ *  in sessionStorage so a reload keeps identity (no double-counting votes). When
+ *  storage is denied (opaque origin), falls back to an ephemeral per-load id —
+ *  navigation still works; identity just doesn't survive a reload there. */
+export function getParticipantId(storage?: Store): string {
+  const store = storage ?? safeSessionStorage();
+  if (!store) return uuid();
+  try {
+    let id = store.getItem(KEY);
+    if (!id) {
+      id = uuid();
+      store.setItem(KEY, id);
+    }
+    return id;
+  } catch {
+    return uuid();
+  }
 }

@@ -23,7 +23,9 @@
       "@present-it/plugin-ui": ["./packages/plugin-ui/src/index.ts"],
       "@present-it/plugin-poll": ["./packages/plugin-poll/src/index.ts"],
       "@present-it/plugin-poll/*": ["./packages/plugin-poll/src/*"],
-      "@present-it/live-server": ["./packages/live-server/src/index.ts"]
+      "@present-it/live-server": ["./packages/live-server/src/index.ts"],
+      "@present-it/thumbnails": ["./packages/thumbnails/src/index.ts"],
+      "present-relay": ["./packages/present-relay/src/index.ts"]
     }
   },
   "include": ["packages", "presentations", "types"],
