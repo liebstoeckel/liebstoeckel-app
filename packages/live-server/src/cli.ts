@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import QRCode from "qrcode";
 import { startServer } from "./server";
 import { buildLinks } from "./session";
 import { uploadDeck, runServerPluginsViaRelay, endSession } from "./relay-client";
@@ -55,14 +54,12 @@ async function localMain(arg: string, port?: number) {
   const live = await startServer({ html, port });
 
   const local = buildLinks(`http://localhost:${live.port}`, live.session);
-  const qr = await QRCode.toString(live.links.viewer, { type: "terminal", small: true });
   console.log(`\n▶  liebstoeckel live — session ${live.session.id}\n`);
   console.log(`   on this machine   presenter  ${local.presenter}`);
   console.log(`                     audience   ${local.viewer}`);
   console.log(`   on the network    presenter  ${live.links.presenter}`);
   console.log(`                     audience   ${live.links.viewer}`);
   if (live.serverPlugins.length) console.log(`\n   server plugins:   ${live.serverPlugins.join(", ")}`);
-  console.log(`\n   scan to follow along (network):\n${qr}`);
 
   const shutdown = () => {
     live.stop();
@@ -86,14 +83,12 @@ async function relayMain(arg: string, relayUrl: string, relayToken: string) {
     sessionId: info.id,
   });
 
-  const qr = await QRCode.toString(info.urls.viewer, { type: "terminal", small: true });
   console.log(`\n▶  liebstoeckel live (relayed) — session ${info.id}\n`);
   console.log(`   public            presenter  ${info.urls.presenter}`);
   console.log(`                     audience   ${info.urls.viewer}`);
   if (runner.plugins.length) {
     console.log(`\n   server plugins (running locally): ${runner.plugins.join(", ")}`);
   }
-  console.log(`\n   scan to follow along:\n${qr}`);
 
   const shutdown = async () => {
     runner.stop();

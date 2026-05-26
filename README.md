@@ -88,7 +88,7 @@ Turn a deck into a live, interactive session — `bunx`-style, no install:
 
 ```bash
 bun run poll:live          # build the poll demo + serve it live
-# → prints presenter + read-only links and a QR to scan
+# → prints presenter + read-only links to share
 ```
 
 - **Audience** opens the read-only link (or scans the QR via `Q` in-deck) and **follows along**; the presenter drives.
