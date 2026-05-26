@@ -1,9 +1,9 @@
 # Presenter view & sync
 
-present-it syncs slide navigation (and follow-along) over **two transports**, chosen automatically:
+liebstoeckel syncs slide navigation (and follow-along) over **two transports**, chosen automatically:
 
 - **standalone** (`.html`, no server) → `BroadcastChannel` between windows on one machine.
-- **live** (`bunx present-it`) → a shared **Yjs** document over WebSocket, across devices.
+- **live** (`bunx liebstoeckel`) → a shared **Yjs** document over WebSocket, across devices.
 
 See the [state model](../../../docs/state-model.md) for the whole picture; this page is the navigation/presenter detail.
 
@@ -28,7 +28,7 @@ const liveDeck = useLiveDeck(liveCtx?.doc, count, canDrive);      // live (share
 const ctrl     = liveCtx?.live ? liveDeck : sync;
 ```
 
-- **standalone — `useDeckSync`** broadcasts `{ index, step, total, startedAt }` on `BroadcastChannel("present-it")`. New windows send `request`; others reply, so the presenter window snaps to the live slide.
+- **standalone — `useDeckSync`** broadcasts `{ index, step, total, startedAt }` on `BroadcastChannel("liebstoeckel")`. New windows send `request`; others reply, so the presenter window snaps to the live slide.
 - **live — `useLiveDeck`** stores `{ index, step, total }` in a Yjs `deck` map. The presenter role drives (writes); **viewers follow** (`canDrive = false` → writes are no-ops). `next()`/`prev()` read the freshest doc state, so rapid keypresses never act on a stale step.
 
 A live `Deck` shows a `● live · <role>` badge.

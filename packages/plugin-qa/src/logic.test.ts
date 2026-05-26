@@ -1,6 +1,6 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
-import { pluginState } from "@present-it/plugin-sdk";
+import { pluginState } from "@liebstoeckel/plugin-sdk";
 import { qaSchema, voteKey, voteCount, hasVoted, rankedQuestions, type QaState } from "./logic";
 
 const make = (over: Partial<QaState> = {}): QaState => ({

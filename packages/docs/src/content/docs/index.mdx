@@ -1,5 +1,5 @@
 ---
-title: present-it
+title: liebstoeckel
 description: A code-first presentation engine that produces stunning, animated, single-file HTML decks on Bun + React 19 + Motion + Tailwind v4.
 template: splash
 hero:
@@ -16,9 +16,9 @@ hero:
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
 
-## Why present-it
+## Why liebstoeckel
 
-We are not building "another reveal.js." present-it is a small, opinionated **engine + theming layer** where content is authored in MDX/TSX, design lives in one place per brand, and motion is first-class.
+We are not building "another reveal.js." liebstoeckel is a small, opinionated **engine + theming layer** where content is authored in MDX/TSX, design lives in one place per brand, and motion is first-class.
 
 <CardGrid stagger>
   <Card title="Single-file output" icon="document">
@@ -44,10 +44,10 @@ We are not building "another reveal.js." present-it is a small, opinionated **en
 ## The 30-second tour
 
 ```bash
-bun add -g @present-it/cli       # or: bunx present-it …
-present-it new my-talk           # scaffold a deck
-present-it live my-talk          # present live (audience joins by QR)
-present-it build my-talk         # → one self-contained dist/index.html
+bun add -g @liebstoeckel/cli       # or: bunx liebstoeckel …
+liebstoeckel new my-talk           # scaffold a deck
+liebstoeckel live my-talk          # present live (audience joins by QR)
+liebstoeckel build my-talk         # → one self-contained dist/index.html
 ```
 
 Head to [Getting started](/guides/getting-started/) to install, or jump straight to [building a plugin](/plugins/overview/).

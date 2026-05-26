@@ -1,5 +1,5 @@
 {
-  "name": "@present-it/visx-showcase",
+  "name": "@liebstoeckel/visx-showcase",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,11 +8,11 @@
     "build": "bun run build.ts"
   },
   "dependencies": {
-    "@present-it/engine": "workspace:*",
-    "@present-it/components": "workspace:*",
-    "@present-it/theme": "workspace:*"
+    "@liebstoeckel/engine": "workspace:*",
+    "@liebstoeckel/components": "workspace:*",
+    "@liebstoeckel/theme": "workspace:*"
   },
   "devDependencies": {
-    "@present-it/thumbnails": "workspace:*"
+    "@liebstoeckel/thumbnails": "workspace:*"
   }
 }

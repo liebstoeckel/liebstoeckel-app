@@ -13,21 +13,21 @@ export interface PkgJson {
   version?: string;
   keywords?: string[];
   dependencies?: Record<string, string>;
-  presentIt?: { client?: string; server?: string };
+  liebstoeckel?: { client?: string; server?: string };
 }
 
-export const PLUGIN_KEYWORD = "present-it-plugin";
+export const PLUGIN_KEYWORD = "liebstoeckel-plugin";
 
-/** Pure: is this package a present-it plugin, and what are its entries? */
+/** Pure: is this package a liebstoeckel plugin, and what are its entries? */
 export function classifyPlugin(pkg: PkgJson, dir: string): DiscoveredPlugin | null {
-  const isPlugin = pkg.keywords?.includes(PLUGIN_KEYWORD) && !!pkg.presentIt;
+  const isPlugin = pkg.keywords?.includes(PLUGIN_KEYWORD) && !!pkg.liebstoeckel;
   if (!isPlugin || !pkg.name) return null;
   return {
     name: pkg.name,
     version: pkg.version ?? "0.0.0",
     dir,
-    clientEntry: pkg.presentIt!.client ? join(dir, pkg.presentIt!.client) : undefined,
-    serverEntry: pkg.presentIt!.server ? join(dir, pkg.presentIt!.server) : undefined,
+    clientEntry: pkg.liebstoeckel!.client ? join(dir, pkg.liebstoeckel!.client) : undefined,
+    serverEntry: pkg.liebstoeckel!.server ? join(dir, pkg.liebstoeckel!.server) : undefined,
   };
 }
 

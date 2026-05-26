@@ -13,7 +13,7 @@ A deck is an ordered list of **slide modules** handed to `<Present>`. Each modul
 <TabItem label="TSX">
 
 ```tsx title="slides/01-intro.tsx"
-import { Step } from "@present-it/engine";
+import { Step } from "@liebstoeckel/engine";
 
 export const notes = (
   <div>
@@ -94,10 +94,10 @@ export const notes = (
 
 ## Magic Move
 
-`<Magic>` keeps an element *persistent across slides* by sharing a `layoutId`, so Motion FLIP-animates it from one position/size to the next — the signature present-it transition.
+`<Magic>` keeps an element *persistent across slides* by sharing a `layoutId`, so Motion FLIP-animates it from one position/size to the next — the signature liebstoeckel transition.
 
 ```tsx
-import { Magic } from "@present-it/engine";
+import { Magic } from "@liebstoeckel/engine";
 
 // On slide 1:
 <Magic id="logo" className="text-4xl">●</Magic>

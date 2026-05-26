@@ -29,7 +29,7 @@ export function runRelay(argv: string[]) {
   const relay = createRelay({ accountTokens: tokens, port, publicBaseUrl });
   const base = publicBaseUrl?.replace(/\/$/, "") ?? `http://localhost:${relay.port}`;
 
-  console.log(`\n▶  present-relay listening on :${relay.port}`);
+  console.log(`\n▶  liebstoeckel relay listening on :${relay.port}`);
   console.log(`   base url          ${base}`);
   console.log(`   health            ${base}/healthz`);
   if (generated) {
@@ -38,7 +38,7 @@ export function runRelay(argv: string[]) {
     console.log(`   persist with PRESENT_RELAY_TOKENS=tok1,tok2 (or --tokens).`);
   }
   console.log(`\n   run a deck through it:`);
-  console.log(`       bunx present-it live <deck> --relay ${base} --relay-token <token>\n`);
+  console.log(`       bunx liebstoeckel live <deck> --relay ${base} --relay-token <token>\n`);
   if (!publicBaseUrl) {
     console.log(`   note: serve behind TLS (wss://) for public use; set --public-url to the https origin.\n`);
   }

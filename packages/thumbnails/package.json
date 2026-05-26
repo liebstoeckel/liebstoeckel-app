@@ -1,16 +1,16 @@
 {
-  "name": "@present-it/thumbnails",
+  "name": "@liebstoeckel/thumbnails",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "bin": { "present-it-thumbnails": "./src/cli.ts" },
+  "bin": { "liebstoeckel-thumbnails": "./src/cli.ts" },
   "exports": {
     ".": "./src/index.ts",
     "./build": "./src/build.ts",
     "./cli": "./src/cli.ts"
   },
   "dependencies": {
-    "@present-it/engine": "workspace:*",
+    "@liebstoeckel/engine": "workspace:*",
     "playwright-core": "1.60.0"
   }
 }

@@ -3,7 +3,7 @@
 // grammars, or WASM ship to the browser. Pass string literals so the bundler can
 // evaluate the call statically.
 //
-//   import { codeStory } from "@present-it/engine/code" with { type: "macro" };
+//   import { codeStory } from "@liebstoeckel/engine/code" with { type: "macro" };
 //   <CodeMagic steps={codeStory([{ code: `const a = 1`, lang: "ts" }, …])} />
 import { tokenizeStep } from "./tokenize";
 import type { TokenizedStep } from "./types";

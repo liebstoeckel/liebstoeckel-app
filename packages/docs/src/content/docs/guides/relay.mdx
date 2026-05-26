@@ -10,14 +10,14 @@ import { Aside, Steps, LinkCard } from "@astrojs/starlight/components";
 ## Run a relay
 
 ```bash
-present-it relay --port 8080 --tokens <account-token>
+liebstoeckel relay --port 8080 --tokens <account-token>
 # or set PRESENT_RELAY_TOKENS=tok1,tok2 ; serve behind TLS for public use
 ```
 
 Then present through it from your machine:
 
 ```bash
-present-it live my-talk --relay http://localhost:8080 --relay-token <account-token>
+liebstoeckel live my-talk --relay http://localhost:8080 --relay-token <account-token>
 ```
 
 This uploads the built deck, gets back public presenter/viewer links + QR, and runs the deck's server plugins **locally** (as a privileged peer of the relay).

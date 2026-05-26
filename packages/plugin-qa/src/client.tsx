@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { definePlugin, type ClientProps } from "@present-it/plugin-sdk";
-import { Button, Card, Eyebrow, Stack } from "@present-it/plugin-ui";
+import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
+import { Button, Card, Eyebrow, Stack } from "@liebstoeckel/plugin-ui";
 import { qaSchema, hasVoted, voteCount, voteKey, rankedQuestions, type QaState, type RankedQuestion } from "./logic";
 
 const v = (name: string, fallback: string) => `var(--brand-${name}, ${fallback})`;

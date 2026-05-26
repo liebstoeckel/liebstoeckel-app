@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Present } from "@present-it/engine";
-import "@present-it/theme/styles.css";
+import { Present } from "@liebstoeckel/engine";
+import "@liebstoeckel/theme/styles.css";
 
 import { LiveIframe } from "./elements/LiveIframe";
 import Title from "./slides/01-title.mdx";

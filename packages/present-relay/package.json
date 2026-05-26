@@ -1,15 +1,15 @@
 {
-  "name": "present-relay",
+  "name": "@liebstoeckel/present-relay",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "bin": { "present-relay": "./src/cli.ts" },
+  "bin": { "liebstoeckel-relay": "./src/cli.ts" },
   "exports": {
     ".": "./src/index.ts",
     "./cli": "./src/cli.ts"
   },
   "dependencies": {
-    "@present-it/live-server": "workspace:*",
+    "@liebstoeckel/live-server": "workspace:*",
     "qrcode": "^1.5.4",
     "yjs": "^13.6.30"
   }

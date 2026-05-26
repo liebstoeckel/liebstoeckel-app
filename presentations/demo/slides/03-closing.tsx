@@ -1,4 +1,4 @@
-import { Slot } from "@present-it/engine";
+import { Slot } from "@liebstoeckel/engine";
 
 // A plain TSX slide (proves MDX + TSX slides coexist). The same <Slot id="live">
 // at a new size/position makes the persistent iframe travel here — state intact.

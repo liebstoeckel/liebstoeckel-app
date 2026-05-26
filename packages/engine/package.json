@@ -1,5 +1,5 @@
 {
-  "name": "@present-it/engine",
+  "name": "@liebstoeckel/engine",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,9 +13,9 @@
     "./code": "./src/code/macro.ts"
   },
   "dependencies": {
-    "@present-it/components": "workspace:*",
-    "@present-it/plugin-sdk": "workspace:*",
-    "@present-it/plugin-ui": "workspace:*",
+    "@liebstoeckel/components": "workspace:*",
+    "@liebstoeckel/plugin-sdk": "workspace:*",
+    "@liebstoeckel/plugin-ui": "workspace:*",
     "@shikijs/rehype": "^3.0.0",
     "qrcode": "^1.5.4",
     "shiki": "^3.0.0",

@@ -4,8 +4,8 @@ import { classifyPlugin, discoverFromDeps, type Lookup, type PkgJson } from "./d
 const pluginPkg: PkgJson = {
   name: "@acme/poll",
   version: "1.2.3",
-  keywords: ["present-it-plugin", "poll"],
-  presentIt: { client: "./client.tsx", server: "./server.ts" },
+  keywords: ["liebstoeckel-plugin", "poll"],
+  liebstoeckel: { client: "./client.tsx", server: "./server.ts" },
 };
 
 describe("classifyPlugin", () => {
@@ -21,15 +21,15 @@ describe("classifyPlugin", () => {
   });
 
   test("client-only plugin has no serverEntry", () => {
-    const p = classifyPlugin({ ...pluginPkg, presentIt: { client: "./c.tsx" } }, "/d");
+    const p = classifyPlugin({ ...pluginPkg, liebstoeckel: { client: "./c.tsx" } }, "/d");
     expect(p?.serverEntry).toBeUndefined();
     expect(p?.clientEntry).toBe("/d/c.tsx");
   });
 
   test("rejects non-plugins", () => {
     expect(classifyPlugin({ name: "react", version: "19" }, "/d")).toBeNull();
-    expect(classifyPlugin({ name: "x", keywords: ["present-it-plugin"] }, "/d")).toBeNull(); // no presentIt
-    expect(classifyPlugin({ name: "x", presentIt: { client: "c" } }, "/d")).toBeNull(); // no keyword
+    expect(classifyPlugin({ name: "x", keywords: ["liebstoeckel-plugin"] }, "/d")).toBeNull(); // no liebstoeckel
+    expect(classifyPlugin({ name: "x", liebstoeckel: { client: "c" } }, "/d")).toBeNull(); // no keyword
   });
 });
 

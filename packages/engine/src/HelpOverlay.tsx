@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type { Role } from "@present-it/plugin-sdk";
+import type { Role } from "@liebstoeckel/plugin-sdk";
 
 type Shortcut = { keys: string[]; label: string; presenterOnly?: boolean };
 

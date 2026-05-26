@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { MDXProvider } from "@mdx-js/react";
-import { mdxComponents } from "@present-it/components";
+import { mdxComponents } from "@liebstoeckel/components";
 import * as Y from "yjs";
-import type { PluginDef } from "@present-it/plugin-sdk";
+import type { PluginDef } from "@liebstoeckel/plugin-sdk";
 import { useDeckNav, useTouchNav } from "./nav";
 import { PortraitHint } from "./MobileHint";
 import { useDeckSync } from "./useDeckSync";
@@ -31,7 +31,7 @@ export type DeckProps = {
 function openPresenter() {
   // preserve the query (incl. ?t=<token>) so a live presenter window authenticates
   const url = location.origin + location.pathname + location.search + "#presenter";
-  window.open(url, "present-it-presenter", "width=1366,height=860");
+  window.open(url, "liebstoeckel-presenter", "width=1366,height=860");
 }
 
 export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProps) {

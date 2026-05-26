@@ -1,6 +1,6 @@
 # API reference
 
-All exports are from `@present-it/engine` unless noted. Build helpers live on subpaths.
+All exports are from `@liebstoeckel/engine` unless noted. Build helpers live on subpaths.
 
 ## Components
 
@@ -38,10 +38,10 @@ The logical canvas size — `1280` × `720`. Author against these.
 ### `HelpOverlay({ open, onClose, showBrand? })`
 The keyboard-shortcuts modal. `Deck` renders and wires this for you; exported for custom chrome. `showBrand` shows the brand-cycle row.
 
-### `Magic({ id, className?, children? })` — _from `@present-it/components`_
+### `Magic({ id, className?, children? })` — _from `@liebstoeckel/components`_
 Stateless "magic move": a persistent `motion.div` with `layout` + `layoutId`. Same `id` on consecutive slides morphs the element's box. For *stateful* elements use `Slot` instead.
 
-### `Atmosphere()` — _from `@present-it/components`_
+### `Atmosphere()` — _from `@liebstoeckel/components`_
 Decorative background: drifting gradient blooms, film grain, vignette. Brand-aware via `--brand-glow-*`.
 
 ## Persistence
@@ -100,7 +100,7 @@ type NormalizedSlide = { Component: ComponentType; notes?: ReactNode };
 
 ## Build (subpaths)
 
-### `buildDeck(opts?)` — _from `@present-it/engine/build`_
+### `buildDeck(opts?)` — _from `@liebstoeckel/engine/build`_
 Builds a deck to a single self-contained `.html` (Bun.build, `compile: true`, Tailwind + MDX plugins). Throws on failure.
 
 ```ts
@@ -111,14 +111,14 @@ buildDeck(opts?: {
 }): Promise<Bun.BuildOutput>
 ```
 
-### default export — _from `@present-it/engine/mdx-plugin`_
+### default export — _from `@liebstoeckel/engine/mdx-plugin`_
 The Bun plugin compiling `.mdx` → JS. Reference it in a deck's `bunfig.toml` for the dev server; `buildDeck` includes it automatically.
 
 See [Building & dev](./building.md).
 
 ## Live session & plugins
 
-These power the live, multi-device layer. Also exported from `@present-it/engine/live`. See the [state model](../../../docs/state-model.md), [presenter & sync](./presenter-and-sync.md), and [plugins](../../plugin-sdk/docs/README.md).
+These power the live, multi-device layer. Also exported from `@liebstoeckel/engine/live`. See the [state model](../../../docs/state-model.md), [presenter & sync](./presenter-and-sync.md), and [plugins](../../plugin-sdk/docs/README.md).
 
 ### `Plugin({ id, props?, components? })`
 Places a plugin in a slide. Renders the plugin's `Slide` when a server is connected, else its `fallback`. `props` is per-instance author config; `components` overrides named surfaces.
@@ -127,7 +127,7 @@ Places a plugin in a slide. Renders the plugin's `Slide` when a server is connec
 Context carrying `{ live, role, participant, doc, theme, viewerUrl, plugins }`. `Present` provides it; `useLive()` reads it (null outside).
 
 ### `detectLive(): LiveInfo | null`
-Reads the server-injected `window.__PRESENT_IT_LIVE__` (`{ ws, session, role, token, viewer }`); `null` → standalone.
+Reads the server-injected `window.__LIEBSTOECKEL_LIVE__` (`{ ws, session, role, token, viewer }`); `null` → standalone.
 
 ### `connectLive(info, participant, opts?): LiveConnection`
 Connects a Yjs `doc` to the server over WebSocket with **auto-reconnect** (capped backoff) and a guarded message path. `opts`: `{ WS?, reconnectBaseMs?, reconnectMaxMs? }`. Returns `{ doc, onStatus(cb), close() }`.
@@ -143,10 +143,10 @@ Low-level helpers (shared-doc index access; surface-override merge).
 
 ## Live delivery
 
-### `Step` / `StepsProvider` — _from `@present-it/engine`_
+### `Step` / `StepsProvider` — _from `@liebstoeckel/engine`_
 Progressive reveals. `<Step>` hides until the deck's `step` reaches its order. `StepsProvider` (rendered by `Deck`) counts the steps and reports `total` (gated by slide index, via layout effects, so a fast keypress can't skip a slide's builds).
 
-### `delivery` helpers — _from `@present-it/engine`_
+### `delivery` helpers — _from `@liebstoeckel/engine`_
 Pure nav logic: `stepForward(step, total)`, `stepBack(step)`, `accumulateDigits(buffer, key)` (jump-to-slide), `clampIndex`, `fullscreenAction` / `toggleFullscreen(el)`.
 
 Deck keys: `→`/`Space` next (reveal step) · `←` prev · `Home`/`End` · `0-9`↵ jump · `O` overview · `F` fullscreen · `B` blur-screen · `Q` join-QR · `P` presenter · `?` help.

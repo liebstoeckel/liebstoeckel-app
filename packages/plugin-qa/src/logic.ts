@@ -1,4 +1,4 @@
-import { schema, t, type Infer } from "@present-it/plugin-sdk";
+import { schema, t, type Infer } from "@liebstoeckel/plugin-sdk";
 
 // Shared state. Audience submits questions (keyed by a generated id) and upvotes
 // them; the presenter can mark answered / dismiss. Votes are stored top-level keyed

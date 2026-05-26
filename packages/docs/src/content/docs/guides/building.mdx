@@ -10,16 +10,16 @@ import { Aside, LinkCard } from "@astrojs/starlight/components";
 A deck builds to a single `dist/index.html` with JS and CSS inlined and assets base64'd. There's nothing else to host.
 
 ```bash
-present-it build my-talk        # → presentations/my-talk/dist/index.html
+liebstoeckel build my-talk        # → presentations/my-talk/dist/index.html
 ```
 
 Under the hood, `build.ts` calls the engine's build API (which wraps `Bun.build`):
 
 ```ts title="build.ts"
-import { buildDeckWithThumbnails } from "@present-it/thumbnails/build";
+import { buildDeckWithThumbnails } from "@liebstoeckel/thumbnails/build";
 
 // builds the single file, then embeds slide thumbnails (skips gracefully
-// if no Chromium / when PRESENT_IT_NO_THUMBS=1)
+// if no Chromium / when LIEBSTOECKEL_NO_THUMBS=1)
 await buildDeckWithThumbnails({ entry: "./index.html", outdir: "./dist" });
 ```
 
@@ -43,14 +43,14 @@ Because it's one static file, deploy anywhere:
 - Drop it on any static host (S3, GitHub Pages, Netlify, a plain web server).
 - Email it / put it in a shared drive.
 
-To present it **live** to a room or the internet, you don't deploy the file — you run [`present-it live`](/guides/live/) (optionally [via a relay](/guides/relay/)).
+To present it **live** to a room or the internet, you don't deploy the file — you run [`liebstoeckel live`](/guides/live/) (optionally [via a relay](/guides/relay/)).
 
 ## Opting out of thumbnails
 
 Thumbnails need a headless Chromium. The build **skips them gracefully** (with a note, never failing) when none is available or when you set:
 
 ```bash
-PRESENT_IT_NO_THUMBS=1 present-it build my-talk
+LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build my-talk
 ```
 
 <LinkCard title="Thumbnails" href="/guides/thumbnails/" description="How build-time slide thumbnails work." />

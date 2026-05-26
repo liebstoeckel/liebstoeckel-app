@@ -23,7 +23,7 @@ Two pieces:
 
 ```tsx
 // slides/02.tsx
-import { Slot } from "@present-it/engine";
+import { Slot } from "@liebstoeckel/engine";
 export default () => (
   <div className="flex gap-8">
     <Caption>Watch the clock keep running →</Caption>

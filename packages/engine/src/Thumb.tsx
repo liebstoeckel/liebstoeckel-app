@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import { MDXProvider } from "@mdx-js/react";
-import { mdxComponents } from "@present-it/components";
+import { mdxComponents } from "@liebstoeckel/components";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { PersistentProvider } from "./PersistentLayer";
 

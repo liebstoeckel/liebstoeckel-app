@@ -1,5 +1,5 @@
 import type * as Y from "yjs";
-import { connectLive } from "@present-it/engine/live";
+import { connectLive } from "@liebstoeckel/engine/live";
 import { extractManifest, rehydrateServerBundle } from "./manifest";
 
 export interface RelaySessionInfo {

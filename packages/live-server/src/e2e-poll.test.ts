@@ -1,8 +1,8 @@
 import { test, expect, describe, afterEach } from "bun:test";
 import { join } from "node:path";
-import { pluginState } from "@present-it/plugin-sdk";
-import { pollSchema, tally, totalVotes } from "@present-it/plugin-poll/logic";
-import { connectLive } from "@present-it/engine/live";
+import { pluginState } from "@liebstoeckel/plugin-sdk";
+import { pollSchema, tally, totalVotes } from "@liebstoeckel/plugin-poll/logic";
+import { connectLive } from "@liebstoeckel/engine/live";
 import { startServer, type LiveServer } from "./server";
 import { extractManifest } from "./manifest";
 
@@ -19,7 +19,7 @@ describe("end-to-end: built poll deck over the live server", () => {
     const html = await Bun.file(BUILT).text();
     const m = extractManifest(html);
     expect(m).not.toBeNull();
-    expect(m!.plugins.some((p) => p.name === "@present-it/plugin-poll")).toBe(true);
+    expect(m!.plugins.some((p) => p.name === "@liebstoeckel/plugin-poll")).toBe(true);
   });
 
   test("presenter + viewer vote, tally converges across clients", async () => {

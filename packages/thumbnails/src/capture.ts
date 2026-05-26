@@ -4,8 +4,8 @@ import {
   CAPTURE_FLAG,
   CAPTURE_READY,
   SLIDE_COUNT,
-} from "@present-it/engine/build/capture-protocol";
-import type { ThumbnailManifest } from "@present-it/engine/build/thumbnails";
+} from "@liebstoeckel/engine/build/capture-protocol";
+import type { ThumbnailManifest } from "@liebstoeckel/engine/build/thumbnails";
 
 export type ThumbnailFormat = "webp" | "jpeg" | "png";
 
@@ -21,7 +21,7 @@ export interface CaptureOptions {
   quality?: number;
   /** device scale factor — renders at 2× for crisp text, stored at w*scale */
   scale?: number;
-  /** explicit Chromium/Chrome binary; else $PRESENT_IT_CHROMIUM, else Playwright's */
+  /** explicit Chromium/Chrome binary; else $LIEBSTOECKEL_CHROMIUM, else Playwright's */
   executablePath?: string;
   /** override the launch flags (defaults are container-friendly) */
   launchArgs?: string[];
@@ -62,16 +62,16 @@ const DEFAULT_ARGS = [
   "--no-zygote",
 ];
 
-/** Resolve a Chromium binary: explicit → $PRESENT_IT_CHROMIUM → Playwright's. */
+/** Resolve a Chromium binary: explicit → $LIEBSTOECKEL_CHROMIUM → Playwright's. */
 export function resolveChromium(opts: CaptureOptions = {}): string {
   if (opts.executablePath) return opts.executablePath;
-  if (process.env.PRESENT_IT_CHROMIUM) return process.env.PRESENT_IT_CHROMIUM;
+  if (process.env.LIEBSTOECKEL_CHROMIUM) return process.env.LIEBSTOECKEL_CHROMIUM;
   try {
     return chromium.executablePath();
   } catch {
     throw new Error(
       "No Chromium found for thumbnail capture. Run `bunx playwright install chromium`, " +
-        "or set PRESENT_IT_CHROMIUM to a Chrome/Chromium binary.",
+        "or set LIEBSTOECKEL_CHROMIUM to a Chrome/Chromium binary.",
     );
   }
 }
@@ -87,15 +87,15 @@ export function hasChromium(opts: CaptureOptions = {}): boolean {
 }
 
 /** Decide whether to capture thumbnails: on by default, opt out with
- *  `PRESENT_IT_NO_THUMBS`, and skipped (not failed) when no Chromium is available.
+ *  `LIEBSTOECKEL_NO_THUMBS`, and skipped (not failed) when no Chromium is available.
  *  Pure — `env`/`chromium` are injectable for tests. */
 export function thumbnailsEnabled(
   env: Record<string, string | undefined> = process.env,
   chromium = hasChromium(),
 ): { enabled: boolean; reason?: string } {
-  if (env.PRESENT_IT_NO_THUMBS) return { enabled: false, reason: "PRESENT_IT_NO_THUMBS is set" };
+  if (env.LIEBSTOECKEL_NO_THUMBS) return { enabled: false, reason: "LIEBSTOECKEL_NO_THUMBS is set" };
   if (!chromium) {
-    return { enabled: false, reason: "no Chromium (run `bunx playwright install chromium` or set PRESENT_IT_CHROMIUM)" };
+    return { enabled: false, reason: "no Chromium (run `bunx playwright install chromium` or set LIEBSTOECKEL_CHROMIUM)" };
   }
   return { enabled: true };
 }
@@ -136,7 +136,7 @@ export async function captureThumbnails(html: string, opts: CaptureOptions = {})
     try {
       await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key] != null, SLIDE_COUNT, { timeout });
     } catch {
-      throw new Error("deck never entered capture mode — ensure it renders <Present> (no __PRESENT_IT_SLIDE_COUNT__)");
+      throw new Error("deck never entered capture mode — ensure it renders <Present> (no __LIEBSTOECKEL_SLIDE_COUNT__)");
     }
     const count = (await page.evaluate((key) => (window as unknown as Record<string, unknown>)[key], SLIDE_COUNT)) as number;
 

@@ -1,4 +1,4 @@
-const KEY = "present-it:pid";
+const KEY = "liebstoeckel:pid";
 
 type Store = Pick<Storage, "getItem" | "setItem">;
 

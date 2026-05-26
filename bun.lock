@@ -3,11 +3,12 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "present-it",
+      "name": "liebstoeckel",
       "dependencies": {
         "@fontsource-variable/fraunces": "^5.2.9",
         "@fontsource-variable/hanken-grotesk": "^5.2.8",
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
+        "@fontsource-variable/schibsted-grotesk": "^5.2.8",
         "@visx/axis": "^3.12.0",
         "@visx/curve": "^3.12.0",
         "@visx/glyph": "^3.12.0",
@@ -38,50 +39,53 @@
       },
     },
     "packages/cli": {
-      "name": "@present-it/cli",
+      "name": "@liebstoeckel/cli",
       "version": "0.0.0",
       "bin": {
-        "present-it": "./src/cli.ts",
+        "liebstoeckel": "./src/cli.ts",
+        "lst": "./src/cli.ts",
       },
       "dependencies": {
-        "@present-it/engine": "workspace:*",
-        "@present-it/live-server": "workspace:*",
-        "@present-it/thumbnails": "workspace:*",
-        "present-relay": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
+        "@liebstoeckel/live-server": "workspace:*",
+        "@liebstoeckel/present-relay": "workspace:*",
+        "@liebstoeckel/thumbnails": "workspace:*",
       },
     },
     "packages/components": {
-      "name": "@present-it/components",
+      "name": "@liebstoeckel/components",
       "version": "0.0.0",
     },
     "packages/docs": {
-      "name": "@present-it/docs",
+      "name": "@liebstoeckel/docs",
       "version": "0.0.0",
       "dependencies": {
         "@astrojs/starlight": "^0.39.2",
+        "@fontsource-variable/jetbrains-mono": "^5.2.8",
+        "@fontsource-variable/schibsted-grotesk": "^5.2.8",
         "astro": "^6.3.7",
         "sharp": "^0.34.5",
         "starlight-page-actions": "^0.6.0",
       },
     },
     "packages/e2e": {
-      "name": "@present-it/e2e",
+      "name": "@liebstoeckel/e2e",
       "version": "0.0.0",
       "dependencies": {
-        "@present-it/engine": "workspace:*",
-        "@present-it/live-server": "workspace:*",
-        "@present-it/plugin-poll": "workspace:*",
-        "@present-it/theme": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
+        "@liebstoeckel/live-server": "workspace:*",
+        "@liebstoeckel/plugin-poll": "workspace:*",
+        "@liebstoeckel/theme": "workspace:*",
         "playwright-core": "1.60.0",
       },
     },
     "packages/engine": {
-      "name": "@present-it/engine",
+      "name": "@liebstoeckel/engine",
       "version": "0.0.0",
       "dependencies": {
-        "@present-it/components": "workspace:*",
-        "@present-it/plugin-sdk": "workspace:*",
-        "@present-it/plugin-ui": "workspace:*",
+        "@liebstoeckel/components": "workspace:*",
+        "@liebstoeckel/plugin-sdk": "workspace:*",
+        "@liebstoeckel/plugin-ui": "workspace:*",
         "@shikijs/rehype": "^3.0.0",
         "qrcode": "^1.5.4",
         "shiki": "^3.0.0",
@@ -89,121 +93,121 @@
       },
     },
     "packages/live-server": {
-      "name": "@present-it/live-server",
+      "name": "@liebstoeckel/live-server",
       "version": "0.0.0",
       "dependencies": {
-        "@present-it/engine": "workspace:*",
-        "@present-it/plugin-sdk": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
+        "@liebstoeckel/plugin-sdk": "workspace:*",
         "qrcode": "^1.5.4",
         "yjs": "^13.6.30",
       },
       "devDependencies": {
-        "@present-it/plugin-poll": "workspace:*",
-        "present-relay": "workspace:*",
+        "@liebstoeckel/plugin-poll": "workspace:*",
+        "@liebstoeckel/present-relay": "workspace:*",
       },
     },
     "packages/plugin-poll": {
-      "name": "@present-it/plugin-poll",
+      "name": "@liebstoeckel/plugin-poll",
       "version": "0.0.0",
       "dependencies": {
-        "@present-it/plugin-sdk": "workspace:*",
-        "@present-it/plugin-ui": "workspace:*",
+        "@liebstoeckel/plugin-sdk": "workspace:*",
+        "@liebstoeckel/plugin-ui": "workspace:*",
       },
     },
     "packages/plugin-qa": {
-      "name": "@present-it/plugin-qa",
+      "name": "@liebstoeckel/plugin-qa",
       "version": "0.0.0",
       "dependencies": {
-        "@present-it/plugin-sdk": "workspace:*",
-        "@present-it/plugin-ui": "workspace:*",
+        "@liebstoeckel/plugin-sdk": "workspace:*",
+        "@liebstoeckel/plugin-ui": "workspace:*",
       },
     },
     "packages/plugin-reactions": {
-      "name": "@present-it/plugin-reactions",
+      "name": "@liebstoeckel/plugin-reactions",
       "version": "0.0.0",
       "dependencies": {
-        "@present-it/plugin-sdk": "workspace:*",
-        "@present-it/plugin-ui": "workspace:*",
+        "@liebstoeckel/plugin-sdk": "workspace:*",
+        "@liebstoeckel/plugin-ui": "workspace:*",
         "motion": "12.40.0",
       },
     },
     "packages/plugin-sdk": {
-      "name": "@present-it/plugin-sdk",
+      "name": "@liebstoeckel/plugin-sdk",
       "version": "0.0.0",
       "dependencies": {
         "yjs": "^13.6.30",
       },
     },
     "packages/plugin-ui": {
-      "name": "@present-it/plugin-ui",
+      "name": "@liebstoeckel/plugin-ui",
       "version": "0.0.0",
       "dependencies": {
-        "@present-it/plugin-sdk": "workspace:*",
+        "@liebstoeckel/plugin-sdk": "workspace:*",
       },
     },
     "packages/present-relay": {
-      "name": "present-relay",
+      "name": "@liebstoeckel/present-relay",
       "version": "0.0.0",
       "bin": {
-        "present-relay": "./src/cli.ts",
+        "liebstoeckel-relay": "./src/cli.ts",
       },
       "dependencies": {
-        "@present-it/live-server": "workspace:*",
+        "@liebstoeckel/live-server": "workspace:*",
         "qrcode": "^1.5.4",
         "yjs": "^13.6.30",
       },
     },
     "packages/theme": {
-      "name": "@present-it/theme",
+      "name": "@liebstoeckel/theme",
       "version": "0.0.0",
     },
     "packages/thumbnails": {
-      "name": "@present-it/thumbnails",
+      "name": "@liebstoeckel/thumbnails",
       "version": "0.0.0",
       "bin": {
-        "present-it-thumbnails": "./src/cli.ts",
+        "liebstoeckel-thumbnails": "./src/cli.ts",
       },
       "dependencies": {
-        "@present-it/engine": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
         "playwright-core": "1.60.0",
       },
     },
     "presentations/demo": {
-      "name": "@present-it/demo",
+      "name": "@liebstoeckel/demo",
       "version": "0.0.0",
       "dependencies": {
-        "@present-it/components": "workspace:*",
-        "@present-it/engine": "workspace:*",
-        "@present-it/theme": "workspace:*",
+        "@liebstoeckel/components": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
+        "@liebstoeckel/theme": "workspace:*",
       },
       "devDependencies": {
-        "@present-it/thumbnails": "workspace:*",
+        "@liebstoeckel/thumbnails": "workspace:*",
       },
     },
     "presentations/poll-demo": {
-      "name": "@present-it/poll-demo",
+      "name": "@liebstoeckel/poll-demo",
       "version": "0.0.0",
       "dependencies": {
-        "@present-it/engine": "workspace:*",
-        "@present-it/plugin-poll": "workspace:*",
-        "@present-it/plugin-qa": "workspace:*",
-        "@present-it/plugin-reactions": "workspace:*",
-        "@present-it/theme": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
+        "@liebstoeckel/plugin-poll": "workspace:*",
+        "@liebstoeckel/plugin-qa": "workspace:*",
+        "@liebstoeckel/plugin-reactions": "workspace:*",
+        "@liebstoeckel/theme": "workspace:*",
       },
       "devDependencies": {
-        "@present-it/thumbnails": "workspace:*",
+        "@liebstoeckel/thumbnails": "workspace:*",
       },
     },
     "presentations/visx-showcase": {
-      "name": "@present-it/visx-showcase",
+      "name": "@liebstoeckel/visx-showcase",
       "version": "0.0.0",
       "dependencies": {
-        "@present-it/components": "workspace:*",
-        "@present-it/engine": "workspace:*",
-        "@present-it/theme": "workspace:*",
+        "@liebstoeckel/components": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
+        "@liebstoeckel/theme": "workspace:*",
       },
       "devDependencies": {
-        "@present-it/thumbnails": "workspace:*",
+        "@liebstoeckel/thumbnails": "workspace:*",
       },
     },
   },
@@ -308,6 +312,8 @@
 
     "@fontsource-variable/jetbrains-mono": ["@fontsource-variable/jetbrains-mono@5.2.8", "", {}, "sha512-WBA9elru6Jdp5df2mES55wuOO0WIrn3kpXnI4+W2ek5u3ZgLS9XS4gmIlcQhiZOWEKl95meYdvK7xI+ETLCq/Q=="],
 
+    "@fontsource-variable/schibsted-grotesk": ["@fontsource-variable/schibsted-grotesk@5.2.8", "", {}, "sha512-nZAorDrFue4dXZbI613WdvAhu5DPH1UJYNn5fWl7Poa+nl/s9o3VUcQImIiVZpQnYG/jkPVzHsTE7WZbSDvvkw=="],
+
     "@img/colour": ["@img/colour@1.1.0", "", {}, "sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ=="],
 
     "@img/sharp-darwin-arm64": ["@img/sharp-darwin-arm64@0.34.5", "", { "optionalDependencies": { "@img/sharp-libvips-darwin-arm64": "1.2.4" }, "os": "darwin", "cpu": "arm64" }, "sha512-imtQ3WMJXbMY4fxb/Ndp6HBTNVtWCUI0WdobyheGf5+ad6xX8VIDO8u2xE4qc/fr08CKG/7dDseFtn6M6g/r3w=="],
@@ -359,6 +365,40 @@
     "@img/sharp-win32-x64": ["@img/sharp-win32-x64@0.34.5", "", { "os": "win32", "cpu": "x64" }, "sha512-+29YMsqY2/9eFEiW93eqWnuLcWcufowXewwSNIT6UwZdUUCrM3oFjMWH/Z6/TMmb4hlFenmfAVbpWeup2jryCw=="],
 
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
+
+    "@liebstoeckel/cli": ["@liebstoeckel/cli@workspace:packages/cli"],
+
+    "@liebstoeckel/components": ["@liebstoeckel/components@workspace:packages/components"],
+
+    "@liebstoeckel/demo": ["@liebstoeckel/demo@workspace:presentations/demo"],
+
+    "@liebstoeckel/docs": ["@liebstoeckel/docs@workspace:packages/docs"],
+
+    "@liebstoeckel/e2e": ["@liebstoeckel/e2e@workspace:packages/e2e"],
+
+    "@liebstoeckel/engine": ["@liebstoeckel/engine@workspace:packages/engine"],
+
+    "@liebstoeckel/live-server": ["@liebstoeckel/live-server@workspace:packages/live-server"],
+
+    "@liebstoeckel/plugin-poll": ["@liebstoeckel/plugin-poll@workspace:packages/plugin-poll"],
+
+    "@liebstoeckel/plugin-qa": ["@liebstoeckel/plugin-qa@workspace:packages/plugin-qa"],
+
+    "@liebstoeckel/plugin-reactions": ["@liebstoeckel/plugin-reactions@workspace:packages/plugin-reactions"],
+
+    "@liebstoeckel/plugin-sdk": ["@liebstoeckel/plugin-sdk@workspace:packages/plugin-sdk"],
+
+    "@liebstoeckel/plugin-ui": ["@liebstoeckel/plugin-ui@workspace:packages/plugin-ui"],
+
+    "@liebstoeckel/poll-demo": ["@liebstoeckel/poll-demo@workspace:presentations/poll-demo"],
+
+    "@liebstoeckel/present-relay": ["@liebstoeckel/present-relay@workspace:packages/present-relay"],
+
+    "@liebstoeckel/theme": ["@liebstoeckel/theme@workspace:packages/theme"],
+
+    "@liebstoeckel/thumbnails": ["@liebstoeckel/thumbnails@workspace:packages/thumbnails"],
+
+    "@liebstoeckel/visx-showcase": ["@liebstoeckel/visx-showcase@workspace:presentations/visx-showcase"],
 
     "@mdx-js/mdx": ["@mdx-js/mdx@3.1.1", "", { "dependencies": { "@types/estree": "^1.0.0", "@types/estree-jsx": "^1.0.0", "@types/hast": "^3.0.0", "@types/mdx": "^2.0.0", "acorn": "^8.0.0", "collapse-white-space": "^2.0.0", "devlop": "^1.0.0", "estree-util-is-identifier-name": "^3.0.0", "estree-util-scope": "^1.0.0", "estree-walker": "^3.0.0", "hast-util-to-jsx-runtime": "^2.0.0", "markdown-extensions": "^2.0.0", "recma-build-jsx": "^1.0.0", "recma-jsx": "^1.0.0", "recma-stringify": "^1.0.0", "rehype-recma": "^1.0.0", "remark-mdx": "^3.0.0", "remark-parse": "^11.0.0", "remark-rehype": "^11.0.0", "source-map": "^0.7.0", "unified": "^11.0.0", "unist-util-position-from-estree": "^2.0.0", "unist-util-stringify-position": "^4.0.0", "unist-util-visit": "^5.0.0", "vfile": "^6.0.0" } }, "sha512-f6ZO2ifpwAQIpzGWaBQT2TXxPv6z3RBzQKpVftEWN78Vl/YweF1uwussDx8ECAXVtr3Rs89fKyG9YlzUs9DyGQ=="],
 
@@ -413,38 +453,6 @@
     "@pagefind/windows-arm64": ["@pagefind/windows-arm64@1.5.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-hN9Nh90fNW61nNRCW9ZyQrAj/mD0eRvmJ8NlTUzkbuW8kIzGJUi3cxjFkEcMZ5h/8FsKWD/VcouZl4yo1F7B6g=="],
 
     "@pagefind/windows-x64": ["@pagefind/windows-x64@1.5.2", "", { "os": "win32", "cpu": "x64" }, "sha512-Fa2Iyw7kaDRzGMfNYNUXNW2zbL5FQVDgSOcbDHdzBrDEdpqOqg8TcZ68F22ol6NJ9IGzvUdmeyZypLW5dyhqsg=="],
-
-    "@present-it/cli": ["@present-it/cli@workspace:packages/cli"],
-
-    "@present-it/components": ["@present-it/components@workspace:packages/components"],
-
-    "@present-it/demo": ["@present-it/demo@workspace:presentations/demo"],
-
-    "@present-it/docs": ["@present-it/docs@workspace:packages/docs"],
-
-    "@present-it/e2e": ["@present-it/e2e@workspace:packages/e2e"],
-
-    "@present-it/engine": ["@present-it/engine@workspace:packages/engine"],
-
-    "@present-it/live-server": ["@present-it/live-server@workspace:packages/live-server"],
-
-    "@present-it/plugin-poll": ["@present-it/plugin-poll@workspace:packages/plugin-poll"],
-
-    "@present-it/plugin-qa": ["@present-it/plugin-qa@workspace:packages/plugin-qa"],
-
-    "@present-it/plugin-reactions": ["@present-it/plugin-reactions@workspace:packages/plugin-reactions"],
-
-    "@present-it/plugin-sdk": ["@present-it/plugin-sdk@workspace:packages/plugin-sdk"],
-
-    "@present-it/plugin-ui": ["@present-it/plugin-ui@workspace:packages/plugin-ui"],
-
-    "@present-it/poll-demo": ["@present-it/poll-demo@workspace:presentations/poll-demo"],
-
-    "@present-it/theme": ["@present-it/theme@workspace:packages/theme"],
-
-    "@present-it/thumbnails": ["@present-it/thumbnails@workspace:packages/thumbnails"],
-
-    "@present-it/visx-showcase": ["@present-it/visx-showcase@workspace:presentations/visx-showcase"],
 
     "@rollup/pluginutils": ["@rollup/pluginutils@5.3.0", "", { "dependencies": { "@types/estree": "^1.0.0", "estree-walker": "^2.0.2", "picomatch": "^4.0.2" }, "peerDependencies": { "rollup": "^1.20.0||^2.0.0||^3.0.0||^4.0.0" }, "optionalPeers": ["rollup"] }, "sha512-5EdhGZtnu3V88ces7s53hhfK5KSASnJZv8Lulpc04cWO3REESroJXg73DFsOmgbU2BhwV0E20bu2IDZb3VKW4Q=="],
 
@@ -1129,8 +1137,6 @@
     "postcss-nested": ["postcss-nested@6.2.0", "", { "dependencies": { "postcss-selector-parser": "^6.1.1" }, "peerDependencies": { "postcss": "^8.2.14" } }, "sha512-HQbt28KulC5AJzG+cZtj9kvKB93CFCdLvog1WFLf1D+xmMvPGlBstkpTEZfK5+AN9hfJocyBFCNiqyS48bpgzQ=="],
 
     "postcss-selector-parser": ["postcss-selector-parser@6.1.2", "", { "dependencies": { "cssesc": "^3.0.0", "util-deprecate": "^1.0.2" } }, "sha512-Q8qQfPiZ+THO/3ZrOrO0cJJKfpYCagtMUkXbnEfmgUjwXg6z/WBeOyS9APBBPCTSiDV+s4SwQGu8yFsiMRIudg=="],
-
-    "present-relay": ["present-relay@workspace:packages/present-relay"],
 
     "prismjs": ["prismjs@1.30.0", "", {}, "sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw=="],
 

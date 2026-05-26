@@ -10,13 +10,13 @@ A standalone deck syncs across your own windows via `BroadcastChannel`. Run it t
 ## Start a session
 
 ```bash
-present-it live my-talk            # a deck dir, or a built .html
+liebstoeckel live my-talk            # a deck dir, or a built .html
 ```
 
 This builds the deck (if needed), serves it on your LAN, and prints presenter + audience links with a QR code:
 
 ```
-▶  present-it live — session a1b2c3d4
+▶  liebstoeckel live — session a1b2c3d4
    on this machine   presenter  http://localhost:4321/?t=…
                      audience   http://localhost:4321/?t=…
    on the network    audience   http://192.168.1.20:4321/?t=…
@@ -47,14 +47,14 @@ Building and running a deck executes its code — including any **server plugins
 </Aside>
 
 - A plugin's **client** part does WS + shared-state only and runs in every browser.
-- A plugin's optional **server** part runs **once**, on the machine that started `present-it live` — never in the audience's browsers.
+- A plugin's optional **server** part runs **once**, on the machine that started `liebstoeckel live` — never in the audience's browsers.
 
 ## Going beyond the LAN
 
-`present-it live` is LAN-first. To reach viewers over the public internet, point it at a **relay**:
+`liebstoeckel live` is LAN-first. To reach viewers over the public internet, point it at a **relay**:
 
 ```bash
-present-it live my-talk --relay https://relay.example.com --relay-token <token>
+liebstoeckel live my-talk --relay https://relay.example.com --relay-token <token>
 ```
 
 <LinkCard title="The relay" href="/guides/relay/" description="Public sessions with sandboxed deck isolation." />

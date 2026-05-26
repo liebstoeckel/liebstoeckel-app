@@ -1,4 +1,4 @@
-import { schema, t, type Infer } from "@present-it/plugin-sdk";
+import { schema, t, type Infer } from "@liebstoeckel/plugin-sdk";
 
 // Ephemeral floating-emoji reactions. Each entry is one reaction "burst", keyed by
 // a generated id. Entries are transient — clients prune expired/over-cap ids via

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import * as Y from "yjs";
 import { MDXProvider } from "@mdx-js/react";
-import { mdxComponents } from "@present-it/components";
-import { useTheme } from "@present-it/plugin-ui";
-import type { PluginDef } from "@present-it/plugin-sdk";
+import { mdxComponents } from "@liebstoeckel/components";
+import { useTheme } from "@liebstoeckel/plugin-ui";
+import type { PluginDef } from "@liebstoeckel/plugin-sdk";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { PersistentProvider } from "./PersistentLayer";
 import { StepsProvider } from "./steps";

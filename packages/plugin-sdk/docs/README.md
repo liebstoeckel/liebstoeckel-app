@@ -1,12 +1,12 @@
-# Plugins (`@present-it/plugin-sdk`)
+# Plugins (`@liebstoeckel/plugin-sdk`)
 
 A plugin adds **live, shared-state** interaction to a deck — a poll, reactions, a shared whiteboard. Each plugin is a Bun package with a **required client** part and an **optional server** part, and shares typed state over Yjs (see the [state model](../../../docs/state-model.md)).
 
 ## Anatomy
 
 ```tsx
-import { definePlugin, schema, t, type ClientProps } from "@present-it/plugin-sdk";
-import { Card, Button, useTheme } from "@present-it/plugin-ui";
+import { definePlugin, schema, t, type ClientProps } from "@liebstoeckel/plugin-sdk";
+import { Card, Button, useTheme } from "@liebstoeckel/plugin-ui";
 
 type Poll = { question: string; options: string[]; votes: Record<string, string> };
 
@@ -30,13 +30,13 @@ export default definePlugin<Poll>({
 Place it in a slide and pass per-instance config via `props`:
 
 ```tsx
-import { Plugin } from "@present-it/engine";
+import { Plugin } from "@liebstoeckel/engine";
 <Plugin id="poll" props={{ question: "Next?", options: ["A", "B"] }} />
 ```
 
 ## Shared state
 
-State is the plugin's slice of the session's Yjs doc, accessed through a typed handle (`@present-it/plugin-sdk/state`). Client components receive a ready-made one as `state` plus a live `snapshot`:
+State is the plugin's slice of the session's Yjs doc, accessed through a typed handle (`@liebstoeckel/plugin-sdk/state`). Client components receive a ready-made one as `state` plus a live `snapshot`:
 
 ```tsx
 function PollUI({ snapshot, state, participantId, role }: ClientProps<Poll>) {
@@ -85,7 +85,7 @@ Most plugins are **client-only** — the server just relays the CRDT. Add a `ser
 
 ## Theming & overrides
 
-Plugin UI inherits the active brand for free — render with `@present-it/plugin-ui` primitives (`Card`, `Button`, `Bar`) or `var(--brand-*)`, and use `useTheme()` for token *values* (charts). Authors re-skin per slide without forking:
+Plugin UI inherits the active brand for free — render with `@liebstoeckel/plugin-ui` primitives (`Card`, `Button`, `Bar`) or `var(--brand-*)`, and use `useTheme()` for token *values* (charts). Authors re-skin per slide without forking:
 
 ```tsx
 <Plugin id="poll" components={{ Results: MyResults }} />
@@ -104,8 +104,8 @@ Mark the package so the tooling finds it:
 ```jsonc
 // package.json
 {
-  "keywords": ["present-it-plugin"],
-  "presentIt": { "client": "./src/client.tsx", "server": "./src/server.ts" } // server optional
+  "keywords": ["liebstoeckel-plugin"],
+  "liebstoeckel": { "client": "./src/client.tsx", "server": "./src/server.ts" } // server optional
 }
 ```
 

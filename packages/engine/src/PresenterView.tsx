@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import * as Y from "yjs";
 import { MDXProvider } from "@mdx-js/react";
-import { mdxComponents } from "@present-it/components";
+import { mdxComponents } from "@liebstoeckel/components";
 import { useDeckSync } from "./useDeckSync";
 import { useDeckNav, useTouchNav } from "./nav";
 import { useLive } from "./live/Plugin";
@@ -99,7 +99,7 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
   );
 }
 
-export function PresenterView({ slides, brands = ["default"], title = "present-it" }: DeckProps) {
+export function PresenterView({ slides, brands = ["default"], title = "liebstoeckel" }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   // Same controller selection as the Deck: shared doc when live, else BroadcastChannel.
   const liveCtx = useLive();

@@ -29,7 +29,7 @@ Plugins (Tailwind, MDX) run only through the **`Bun.build()` JS API**, not the `
 
 ```ts
 // presentations/<deck>/build.ts
-import { buildDeck } from "@present-it/engine/build";
+import { buildDeck } from "@liebstoeckel/engine/build";
 await buildDeck({ entry: "./index.html", outdir: "./dist" });
 ```
 
@@ -57,7 +57,7 @@ Base64 adds ~33% over the raw bytes — keep large videos external if size matte
 
 ## The MDX plugin
 
-`@present-it/engine/mdx-plugin` is a Bun plugin that compiles `.mdx` → JS via `@mdx-js/mdx` (`jsxImportSource: "react"`, `providerImportSource: "@mdx-js/react"`, loader `js`). `buildDeck` already includes it; the dev server picks it up from `bunfig.toml`.
+`@liebstoeckel/engine/mdx-plugin` is a Bun plugin that compiles `.mdx` → JS via `@mdx-js/mdx` (`jsxImportSource: "react"`, `providerImportSource: "@mdx-js/react"`, loader `js`). `buildDeck` already includes it; the dev server picks it up from `bunfig.toml`.
 
 ## Working with visx (or other CJS libs)
 

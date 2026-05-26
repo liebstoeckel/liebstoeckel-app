@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { buildDeck } from "@present-it/engine/build";
+import { buildDeck } from "@liebstoeckel/engine/build";
 import { addThumbnailsToFile } from "./index";
 import { thumbnailsEnabled, type CaptureOptions } from "./capture";
 
@@ -11,7 +11,7 @@ export interface BuildDeckOptions {
 }
 
 /** Build a deck and, **by default**, capture + embed thumbnails. Thumbnails are
- *  skipped — with a note, never failing the build — when `PRESENT_IT_NO_THUMBS` is
+ *  skipped — with a note, never failing the build — when `LIEBSTOECKEL_NO_THUMBS` is
  *  set or no Chromium is available. A one-line replacement for `buildDeck` in a
  *  deck's `build.ts`. */
 export async function buildDeckWithThumbnails(

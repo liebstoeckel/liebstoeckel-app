@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { definePlugin, type ClientProps } from "@present-it/plugin-sdk";
-import { Card, Eyebrow } from "@present-it/plugin-ui";
+import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
+import { Card, Eyebrow } from "@liebstoeckel/plugin-ui";
 import {
   reactionsSchema,
   EMOJI,

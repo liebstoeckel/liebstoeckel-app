@@ -1,5 +1,5 @@
 import { createContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { Atmosphere } from "@present-it/components";
+import { Atmosphere } from "@liebstoeckel/components";
 
 // Logical canvas. Everything is authored at this size and scaled to fit, so the
 // audience view and presenter thumbnails are pixel-identical (just different scale).

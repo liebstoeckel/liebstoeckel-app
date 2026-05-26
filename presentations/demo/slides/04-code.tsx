@@ -1,8 +1,8 @@
-import { CodeMagic, type TokenizedStep } from "@present-it/engine";
+import { CodeMagic, type TokenizedStep } from "@liebstoeckel/engine";
 // The macro tokenizes each code state with Shiki at BUILD time and inlines the
 // result — no highlighter ships to the browser. The cast reconciles the macro's
 // async type with the value it inlines synchronously.
-import { codeStory } from "@present-it/engine/code" with { type: "macro" };
+import { codeStory } from "@liebstoeckel/engine/code" with { type: "macro" };
 
 const STORY = codeStory([
   {
@@ -51,7 +51,7 @@ export default function CodeSlide() {
           Watch the diff <span className="italic text-primary">animate</span>.
         </h2>
         <p className="mt-6 max-w-md font-body text-xl text-muted">
-          Author successive states; present-it line-diffs them and springs the changes — the way you’d explain code at a
+          Author successive states; liebstoeckel line-diffs them and springs the changes — the way you’d explain code at a
           whiteboard.
         </p>
       </div>

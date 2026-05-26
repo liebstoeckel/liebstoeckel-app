@@ -1,6 +1,6 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
-import { pluginState } from "@present-it/plugin-sdk";
+import { pluginState } from "@liebstoeckel/plugin-sdk";
 import { reactionsSchema, EMOJI, recent, expired, allowEmit, overCapIds, type ReactionsState } from "./logic";
 
 const make = (over: Partial<ReactionsState> = {}): ReactionsState => ({

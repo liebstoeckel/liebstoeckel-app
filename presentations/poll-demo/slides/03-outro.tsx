@@ -15,7 +15,7 @@ export default function Outro() {
       </h2>
       <p className="mt-7 max-w-xl font-body text-xl text-muted">
         Ship the deck as a single <code className="font-mono text-accent">.html</code> — it shows the poll's offline
-        fallback on its own, and lights up into a live session under <code className="font-mono text-accent">bunx present-it</code>.
+        fallback on its own, and lights up into a live session under <code className="font-mono text-accent">bunx liebstoeckel</code>.
       </p>
     </div>
   );

@@ -4,7 +4,7 @@ import rehypeShiki from "@shikijs/rehype";
 import { createCssVariablesTheme } from "shiki";
 
 // Fenced code blocks are highlighted at build time with Shiki's css-variables
-// theme: each token gets color:var(--shiki-token-*), which @present-it/theme binds
+// theme: each token gets color:var(--shiki-token-*), which @liebstoeckel/theme binds
 // to the active brand. No highlighter/grammars/WASM ship to the browser.
 const codeTheme = createCssVariablesTheme({ name: "brand", variablePrefix: "--shiki-", fontStyle: true });
 

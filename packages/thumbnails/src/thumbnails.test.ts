@@ -6,7 +6,7 @@ import {
   extractThumbnails,
   stripThumbnails,
   type ThumbnailManifest,
-} from "@present-it/engine/build/thumbnails";
+} from "@liebstoeckel/engine/build/thumbnails";
 import { captureThumbnails, resolveChromium, thumbnailsEnabled } from "./capture";
 
 describe("thumbnails manifest (pure)", () => {
@@ -21,7 +21,7 @@ describe("thumbnails manifest (pure)", () => {
   test("embedding is idempotent (replaces the prior block)", () => {
     let html = embedThumbnails("<html><body></body></html>", m);
     html = embedThumbnails(html, { ...m, thumbs: { 0: "data:image/jpeg;base64,CCC" } });
-    const count = (html.match(/data-present-it-thumbnails/g) ?? []).length;
+    const count = (html.match(/data-liebstoeckel-thumbnails/g) ?? []).length;
     expect(count).toBe(1);
     expect(extractThumbnails(html)!.thumbs[0]).toBe("data:image/jpeg;base64,CCC");
   });
@@ -33,7 +33,7 @@ describe("thumbnails manifest (pure)", () => {
 
   test("extract returns null when absent or invalid", () => {
     expect(extractThumbnails("<html></html>")).toBeNull();
-    expect(extractThumbnails(`<script type="application/json" data-present-it-thumbnails>{bad</script>`)).toBeNull();
+    expect(extractThumbnails(`<script type="application/json" data-liebstoeckel-thumbnails>{bad</script>`)).toBeNull();
   });
 });
 
@@ -41,10 +41,10 @@ describe("thumbnailsEnabled (default-on gating)", () => {
   test("enabled by default when a browser is available", () => {
     expect(thumbnailsEnabled({}, true)).toEqual({ enabled: true });
   });
-  test("opt out with PRESENT_IT_NO_THUMBS", () => {
-    const r = thumbnailsEnabled({ PRESENT_IT_NO_THUMBS: "1" }, true);
+  test("opt out with LIEBSTOECKEL_NO_THUMBS", () => {
+    const r = thumbnailsEnabled({ LIEBSTOECKEL_NO_THUMBS: "1" }, true);
     expect(r.enabled).toBe(false);
-    expect(r.reason).toContain("PRESENT_IT_NO_THUMBS");
+    expect(r.reason).toContain("LIEBSTOECKEL_NO_THUMBS");
   });
   test("skips (does not fail) when no Chromium is available", () => {
     const r = thumbnailsEnabled({}, false);
@@ -68,16 +68,16 @@ try {
 const STUB = `<!doctype html><html><head><meta charset=utf-8></head><body>
 <div id=root style="position:fixed;inset:0;background:#0b1020"></div>
 <script>
-  const cap = window.__PRESENT_IT_CAPTURE__;
+  const cap = window.__LIEBSTOECKEL_CAPTURE__;
   if (cap) {
-    window.__PRESENT_IT_SLIDE_COUNT__ = 3;
+    window.__LIEBSTOECKEL_SLIDE_COUNT__ = 3;
     const colors = ['#1e90ff','#22c55e','#f59e0b'];
     function render(i){
       document.getElementById('root').style.background = colors[i % colors.length];
-      window.__PRESENT_IT_CAPTURE_READY__ = -1;
-      requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.__PRESENT_IT_CAPTURE_READY__ = i; }); });
+      window.__LIEBSTOECKEL_CAPTURE_READY__ = -1;
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.__LIEBSTOECKEL_CAPTURE_READY__ = i; }); });
     }
-    window.addEventListener('present-it:capture', function(e){ render(e.detail); });
+    window.addEventListener('liebstoeckel:capture', function(e){ render(e.detail); });
     render(cap.index || 0);
   }
 </script></body></html>`;

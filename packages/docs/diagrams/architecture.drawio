@@ -17,7 +17,7 @@
     <mxCell id="delivery" value="&lt;b&gt;Delivery&lt;/b&gt;&lt;br&gt;live-server (LAN · Yjs Hub) · present-relay (public · opaque sandbox) · thumbnails" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#991b1b;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
       <mxGeometry x="40" y="440" width="700" height="60" as="geometry"/>
     </mxCell>
-    <mxCell id="cli" value="&lt;b&gt;CLI&lt;/b&gt;&lt;br&gt;present-it: new · build · live · relay · thumbs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
+    <mxCell id="cli" value="&lt;b&gt;CLI&lt;/b&gt;&lt;br&gt;liebstoeckel: new · build · live · relay · thumbs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
       <mxGeometry x="40" y="540" width="700" height="60" as="geometry"/>
     </mxCell>
     <mxCell id="e1" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="decks" target="engine"><mxGeometry relative="1" as="geometry"/></mxCell>

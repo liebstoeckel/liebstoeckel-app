@@ -1,4 +1,4 @@
-import { Plugin } from "@present-it/engine";
+import { Plugin } from "@liebstoeckel/engine";
 
 export const notes = (
   <div>

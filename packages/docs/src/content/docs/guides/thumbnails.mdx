@@ -5,11 +5,11 @@ description: Build-time slide thumbnails for the overview grid — captured head
 
 import { Aside, LinkCard } from "@astrojs/starlight/components";
 
-The overview grid (press <kbd>o</kbd>) would be expensive if it mounted every slide live. Instead, present-it captures each slide once at **build time** and embeds the images, so the grid is just cheap `<img>`s.
+The overview grid (press <kbd>o</kbd>) would be expensive if it mounted every slide live. Instead, liebstoeckel captures each slide once at **build time** and embeds the images, so the grid is just cheap `<img>`s.
 
 ## On by default
 
-`buildDeckWithThumbnails()` (what scaffolded decks use) generates thumbnails automatically, and **skips gracefully — never failing the build** — when no Chromium is available or `PRESENT_IT_NO_THUMBS` is set.
+`buildDeckWithThumbnails()` (what scaffolded decks use) generates thumbnails automatically, and **skips gracefully — never failing the build** — when no Chromium is available or `LIEBSTOECKEL_NO_THUMBS` is set.
 
 ## How capture works
 
@@ -26,13 +26,13 @@ Capture launches the full Chromium with `--no-sandbox --disable-gpu --single-pro
 Generate or refresh thumbnails for an already-built deck:
 
 ```bash
-present-it thumbs dist/index.html --format webp --width 640 --quality 80 --scale 2
+liebstoeckel thumbs dist/index.html --format webp --width 640 --quality 80 --scale 2
 ```
 
 Or in code:
 
 ```ts
-import { addThumbnailsToFile } from "@present-it/thumbnails";
+import { addThumbnailsToFile } from "@liebstoeckel/thumbnails";
 
 await addThumbnailsToFile("./dist/index.html", { width: 640, format: "webp" });
 ```

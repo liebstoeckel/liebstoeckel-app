@@ -20,7 +20,7 @@ function flagFormat(argv: string[]): ThumbnailFormat | undefined {
 export async function runThumbs(argv: string[]) {
   const file = argv.find((a) => !a.startsWith("-"));
   if (!file) {
-    console.error("usage: present-it thumbs <built-deck.html> [--format webp|jpeg|png] [--width 320] [--quality 80] [--scale 2]");
+    console.error("usage: liebstoeckel thumbs <built-deck.html> [--format webp|jpeg|png] [--width 320] [--quality 80] [--scale 2]");
     process.exit(1);
   }
   const abs = resolve(file);

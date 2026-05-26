@@ -1,6 +1,6 @@
 ---
 title: Plugins overview
-description: What a present-it plugin is, the built-in ones, and how they're discovered and bundled.
+description: What a liebstoeckel plugin is, the built-in ones, and how they're discovered and bundled.
 ---
 
 import { Aside, CardGrid, Card, LinkCard, FileTree } from "@astrojs/starlight/components";
@@ -28,9 +28,9 @@ A plugin is a `definePlugin({ … })` value with:
 
 ## Built-in plugins
 
-- **`@present-it/plugin-poll`** — live poll; everyone votes, results update in real time.
-- **`@present-it/plugin-qa`** — audience submits + upvotes questions; presenter marks answered / dismisses; the queue re-ranks live.
-- **`@present-it/plugin-reactions`** — ephemeral floating emoji over the deck (rate-limited, self-pruning).
+- **`@liebstoeckel/plugin-poll`** — live poll; everyone votes, results update in real time.
+- **`@liebstoeckel/plugin-qa`** — audience submits + upvotes questions; presenter marks answered / dismisses; the queue re-ranks live.
+- **`@liebstoeckel/plugin-reactions`** — ephemeral floating emoji over the deck (rate-limited, self-pruning).
 
 All three are pure-CRDT (no server part) and make good templates.
 
@@ -39,13 +39,13 @@ All three are pure-CRDT (no server part) and make good templates.
 Register it with `<Present>` and place it on a slide:
 
 ```tsx title="main.tsx"
-import poll from "@present-it/plugin-poll";
+import poll from "@liebstoeckel/plugin-poll";
 
 <Present plugins={[poll]} slides={[…]} />
 ```
 
 ```tsx title="a slide"
-import { Plugin } from "@present-it/engine";
+import { Plugin } from "@liebstoeckel/engine";
 
 <Plugin id="poll" props={{ question: "Ship it?", options: ["Yes", "Also yes"] }} />
 ```
@@ -58,8 +58,8 @@ A package is recognized as a plugin by a marker in its `package.json`:
 
 ```json
 {
-  "keywords": ["present-it-plugin"],
-  "presentIt": { "client": "./src/client.tsx", "server": "./src/server.ts" }
+  "keywords": ["liebstoeckel-plugin"],
+  "liebstoeckel": { "client": "./src/client.tsx", "server": "./src/server.ts" }
 }
 ```
 

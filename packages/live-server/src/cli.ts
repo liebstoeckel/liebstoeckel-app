@@ -16,7 +16,7 @@ export function classifyTargetPath(path: string, isDir: boolean): TargetKind {
 }
 
 const TRUST_WARNING = `
-⚠  present-it live server
+⚠  liebstoeckel live server
    This builds and runs the deck's code, including any plugins it bundles —
    server-side plugin code executes on THIS machine. Only run decks you trust.
 `;
@@ -29,7 +29,7 @@ export async function loadDeckHtml(arg: string): Promise<string> {
   if (kind === "html") return Bun.file(abs).text();
   if (kind === "project") {
     const dir = abs.endsWith("package.json") ? dirname(abs) : abs;
-    const { buildDeck } = await import("@present-it/engine/build");
+    const { buildDeck } = await import("@liebstoeckel/engine/build");
     const outdir = join(dir, "dist");
     const prev = process.cwd();
     process.chdir(dir);
@@ -56,7 +56,7 @@ async function localMain(arg: string, port?: number) {
 
   const local = buildLinks(`http://localhost:${live.port}`, live.session);
   const qr = await QRCode.toString(live.links.viewer, { type: "terminal", small: true });
-  console.log(`\n▶  present-it live — session ${live.session.id}\n`);
+  console.log(`\n▶  liebstoeckel live — session ${live.session.id}\n`);
   console.log(`   on this machine   presenter  ${local.presenter}`);
   console.log(`                     audience   ${local.viewer}`);
   console.log(`   on the network    presenter  ${live.links.presenter}`);
@@ -87,7 +87,7 @@ async function relayMain(arg: string, relayUrl: string, relayToken: string) {
   });
 
   const qr = await QRCode.toString(info.urls.viewer, { type: "terminal", small: true });
-  console.log(`\n▶  present-it live (relayed) — session ${info.id}\n`);
+  console.log(`\n▶  liebstoeckel live (relayed) — session ${info.id}\n`);
   console.log(`   public            presenter  ${info.urls.presenter}`);
   console.log(`                     audience   ${info.urls.viewer}`);
   if (runner.plugins.length) {
@@ -107,14 +107,14 @@ async function relayMain(arg: string, relayUrl: string, relayToken: string) {
 export async function runLive(argv: string[]) {
   const arg = argv.find((a) => !a.startsWith("-"));
   if (!arg) {
-    console.error("usage: present-it live <deck.html | deck-project-dir> [--relay <url> --relay-token <tok>] [--port N]");
+    console.error("usage: liebstoeckel live <deck.html | deck-project-dir> [--relay <url> --relay-token <tok>] [--port N]");
     process.exit(1);
   }
   const relayUrl = flag(argv, "--relay");
-  const relayToken = flag(argv, "--relay-token") ?? process.env.PRESENT_IT_RELAY_TOKEN;
+  const relayToken = flag(argv, "--relay-token") ?? process.env.LIEBSTOECKEL_RELAY_TOKEN;
   if (relayUrl) {
     if (!relayToken) {
-      console.error("--relay requires --relay-token <token> (or PRESENT_IT_RELAY_TOKEN)");
+      console.error("--relay requires --relay-token <token> (or LIEBSTOECKEL_RELAY_TOKEN)");
       process.exit(1);
     }
     await relayMain(arg, relayUrl, relayToken);

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { AnimatePresence } from "motion/react";
 import type * as Y from "yjs";
-import { pluginState, type PluginDef, type Role, type ThemeTokens } from "@present-it/plugin-sdk";
+import { pluginState, type PluginDef, type Role, type ThemeTokens } from "@liebstoeckel/plugin-sdk";
 import { mergeUi } from "./ui";
 import { GlowTap, BreakoutSheet, useBreakoutEligible } from "./breakout";
 

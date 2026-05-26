@@ -1,11 +1,11 @@
 ---
 title: Engine API
-description: The public exports of @present-it/engine and its build subpaths.
+description: The public exports of @liebstoeckel/engine and its build subpaths.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
 
-Everything below is from `@present-it/engine` unless noted.
+Everything below is from `@liebstoeckel/engine` unless noted.
 
 ## Top-level
 
@@ -62,10 +62,10 @@ Everything below is from `@present-it/engine` unless noted.
 
 | Import | Exports |
 | --- | --- |
-| `@present-it/engine/build` | `buildDeck`, `buildPluginManifest`, `buildServerBundle` |
-| `@present-it/engine/code` (macro) | `codeStory`, `code` — import `with { type: "macro" }` |
-| `@present-it/engine/build/thumbnails` | `embedThumbnails`, `extractThumbnails`, `stripThumbnails` |
-| `@present-it/thumbnails/build` | `buildDeckWithThumbnails` (drop-in for `buildDeck`, + thumbnails) |
+| `@liebstoeckel/engine/build` | `buildDeck`, `buildPluginManifest`, `buildServerBundle` |
+| `@liebstoeckel/engine/code` (macro) | `codeStory`, `code` — import `with { type: "macro" }` |
+| `@liebstoeckel/engine/build/thumbnails` | `embedThumbnails`, `extractThumbnails`, `stripThumbnails` |
+| `@liebstoeckel/thumbnails/build` | `buildDeckWithThumbnails` (drop-in for `buildDeck`, + thumbnails) |
 
 <Aside type="tip">
 Every page is available as raw Markdown — use the **Copy Markdown** / **Open in ChatGPT / Claude** buttons at the top of any page, or append `.md` to its URL (e.g. `/reference/engine-api.md`). A [`/llms.txt`](/llms.txt) index lists every page for an assistant to crawl. _(These are generated at build time — they resolve on the built/deployed site, not the `astro dev` server.)_

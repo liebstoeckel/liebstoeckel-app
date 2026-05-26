@@ -1,8 +1,8 @@
 import { test, expect, describe } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as Y from "yjs";
-import { definePlugin, schema, t, pluginState, type ClientProps } from "@present-it/plugin-sdk";
-import { readTheme } from "@present-it/plugin-ui";
+import { definePlugin, schema, t, pluginState, type ClientProps } from "@liebstoeckel/plugin-sdk";
+import { readTheme } from "@liebstoeckel/plugin-ui";
 import { Plugin, LiveProvider, type LiveContextValue } from "./Plugin";
 
 const counter = definePlugin<{ n: number }>({

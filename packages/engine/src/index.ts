@@ -25,7 +25,7 @@ export {
   Slot,
   type PersistentItem,
 } from "./PersistentLayer";
-export { Magic, Atmosphere } from "@present-it/components";
+export { Magic, Atmosphere } from "@liebstoeckel/components";
 export {
   Plugin,
   LiveProvider,

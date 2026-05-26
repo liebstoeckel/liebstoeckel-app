@@ -1,5 +1,5 @@
 {
-  "name": "@present-it/live-server",
+  "name": "@liebstoeckel/live-server",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,13 +8,13 @@
     "./cli": "./src/cli.ts"
   },
   "dependencies": {
-    "@present-it/engine": "workspace:*",
-    "@present-it/plugin-sdk": "workspace:*",
+    "@liebstoeckel/engine": "workspace:*",
+    "@liebstoeckel/plugin-sdk": "workspace:*",
     "qrcode": "^1.5.4",
     "yjs": "^13.6.30"
   },
   "devDependencies": {
-    "@present-it/plugin-poll": "workspace:*",
-    "present-relay": "workspace:*"
+    "@liebstoeckel/plugin-poll": "workspace:*",
+    "@liebstoeckel/present-relay": "workspace:*"
   }
 }

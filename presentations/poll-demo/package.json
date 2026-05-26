@@ -1,5 +1,5 @@
 {
-  "name": "@present-it/poll-demo",
+  "name": "@liebstoeckel/poll-demo",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,13 +8,13 @@
     "build": "bun run build.ts"
   },
   "dependencies": {
-    "@present-it/engine": "workspace:*",
-    "@present-it/theme": "workspace:*",
-    "@present-it/plugin-poll": "workspace:*",
-    "@present-it/plugin-qa": "workspace:*",
-    "@present-it/plugin-reactions": "workspace:*"
+    "@liebstoeckel/engine": "workspace:*",
+    "@liebstoeckel/theme": "workspace:*",
+    "@liebstoeckel/plugin-poll": "workspace:*",
+    "@liebstoeckel/plugin-qa": "workspace:*",
+    "@liebstoeckel/plugin-reactions": "workspace:*"
   },
   "devDependencies": {
-    "@present-it/thumbnails": "workspace:*"
+    "@liebstoeckel/thumbnails": "workspace:*"
   }
 }

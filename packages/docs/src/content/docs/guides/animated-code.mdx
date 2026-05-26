@@ -5,7 +5,7 @@ description: Build-time Shiki highlighting and CodeMagic — morphing one code s
 
 import { Aside, Steps, LinkCard } from "@astrojs/starlight/components";
 
-present-it is code-first, so code is a first-class citizen: **static** fenced blocks are highlighted at build time, and **`<CodeMagic>`** animates between successive code states.
+liebstoeckel is code-first, so code is a first-class citizen: **static** fenced blocks are highlighted at build time, and **`<CodeMagic>`** animates between successive code states.
 
 ## Static highlighting
 
@@ -28,8 +28,8 @@ Colors are **bound to the active brand**. Shiki runs with its css-variables them
 Each state is tokenized at **build time** by a [Bun macro](https://bun.com/docs/bundler/macros), so — like static blocks — no Shiki ships to the runtime:
 
 ```tsx title="slides/03-code.tsx"
-import { CodeMagic, type TokenizedStep } from "@present-it/engine";
-import { codeStory } from "@present-it/engine/code" with { type: "macro" };
+import { CodeMagic, type TokenizedStep } from "@liebstoeckel/engine";
+import { codeStory } from "@liebstoeckel/engine/code" with { type: "macro" };
 
 const STORY = codeStory([
   { code: `function greet(name) {\n  return "hi " + name\n}`, lang: "ts" },

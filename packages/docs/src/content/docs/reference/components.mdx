@@ -5,11 +5,11 @@ description: Themed MDX elements, slide components, and the plugin-ui primitives
 
 ## MDX element map
 
-`mdxComponents` (from `@present-it/components`, wired by the engine's `MDXProvider`) maps Markdown to themed elements: `h1` (display serif), `h2` (`text-primary`), `p` (`font-body text-muted`), `ul`/`li` (accent bullets), `strong` (`text-accent`), inline `code` (themed pill), and fenced code (Shiki, brand-bound). Just write Markdown — no imports needed for these.
+`mdxComponents` (from `@liebstoeckel/components`, wired by the engine's `MDXProvider`) maps Markdown to themed elements: `h1` (display serif), `h2` (`text-primary`), `p` (`font-body text-muted`), `ul`/`li` (accent bullets), `strong` (`text-accent`), inline `code` (themed pill), and fenced code (Shiki, brand-bound). Just write Markdown — no imports needed for these.
 
 ## Slide components
 
-From `@present-it/engine` (see [Engine API](/reference/engine-api/)):
+From `@liebstoeckel/engine` (see [Engine API](/reference/engine-api/)):
 
 - `<Step>` — a reveal.
 - `<CodeMagic steps title? lang?>` — animated code.
@@ -19,7 +19,7 @@ From `@present-it/engine` (see [Engine API](/reference/engine-api/)):
 
 ## Plugin UI primitives
 
-From `@present-it/plugin-ui` — used inside plugin client surfaces; they style against `var(--brand-*)` so they're automatically on-brand.
+From `@liebstoeckel/plugin-ui` — used inside plugin client surfaces; they style against `var(--brand-*)` so they're automatically on-brand.
 
 | Component | Props | Use |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ From `@present-it/plugin-ui` — used inside plugin client surfaces; they style 
 Also exported: `useTheme()` / `readTheme()` → `ThemeTokens` (resolved brand colors/fonts/`viz` for canvas or SVG use).
 
 ```tsx
-import { Card, Eyebrow, Bar, Button, Stack } from "@present-it/plugin-ui";
+import { Card, Eyebrow, Bar, Button, Stack } from "@liebstoeckel/plugin-ui";
 
 <Card style={{ width: "100%", maxWidth: 460 }}>
   <Eyebrow>Live poll · 12 votes</Eyebrow>

@@ -37,7 +37,7 @@ Why this matters:
 
 ## 3. Peer sync — `BroadcastChannel`
 
-The audience and presenter windows are independent React trees that stay in step by broadcasting a tiny state object — `{ index, startedAt }` — over a same-origin `BroadcastChannel` named `"present-it"`. Either window can drive; there is no leader. A new window asks for the current state on open and snaps to the live slide.
+The audience and presenter windows are independent React trees that stay in step by broadcasting a tiny state object — `{ index, startedAt }` — over a same-origin `BroadcastChannel` named `"liebstoeckel"`. Either window can drive; there is no leader. A new window asks for the current state on open and snaps to the live slide.
 
 See [Presenter view & sync](./presenter-and-sync.md) for the full protocol. (Same-browser only — it does not cross devices or machines.)
 
@@ -50,9 +50,9 @@ See [Presenter view & sync](./presenter-and-sync.md) for the full protocol. (Sam
 ## Layering
 
 ```
-@present-it/engine        routing · views · sync · scaling · persistence · build
-        ├── @present-it/components   MDX map · Magic · Atmosphere
-        └── @present-it/theme        tokens → @theme inline → Tailwind utilities, fonts
+@liebstoeckel/engine        routing · views · sync · scaling · persistence · build
+        ├── @liebstoeckel/components   MDX map · Magic · Atmosphere
+        └── @liebstoeckel/theme        tokens → @theme inline → Tailwind utilities, fonts
 ```
 
 The engine never hardcodes a colour or font; it uses semantic Tailwind utilities (`bg-bg`, `text-primary`, `font-heading`) that resolve to the active brand's CSS variables. Swap `data-brand` and the whole deck — including the progress bar and presenter chrome — re-skins.

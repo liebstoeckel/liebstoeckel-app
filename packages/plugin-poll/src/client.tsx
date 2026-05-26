@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { definePlugin, type ClientProps } from "@present-it/plugin-sdk";
-import { Bar, Button, Card, Eyebrow, Stack } from "@present-it/plugin-ui";
+import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
+import { Bar, Button, Card, Eyebrow, Stack } from "@liebstoeckel/plugin-ui";
 import { pollSchema, tally, totalVotes, myVote, leader, type PollState } from "./logic";
 
 // Seed the question/options from author props once (presenter owns init).

@@ -1,6 +1,6 @@
-# `@present-it/engine` — docs
+# `@liebstoeckel/engine` — docs
 
-The runtime for a present-it deck: slide routing, the audience view, the presenter view, cross-window sync, the fixed-canvas scaler, persistent stateful elements, and the single-file build helper. It is **brand-agnostic** — looks come from `@present-it/theme`; primitives from `@present-it/components`.
+The runtime for a liebstoeckel deck: slide routing, the audience view, the presenter view, cross-window sync, the fixed-canvas scaler, persistent stateful elements, and the single-file build helper. It is **brand-agnostic** — looks come from `@liebstoeckel/theme`; primitives from `@liebstoeckel/components`.
 
 ## Contents
 
@@ -18,8 +18,8 @@ The runtime for a present-it deck: slide routing, the audience view, the present
 ```tsx
 // presentations/<deck>/main.tsx
 import { createRoot } from "react-dom/client";
-import { Present } from "@present-it/engine";
-import "@present-it/theme/styles.css";
+import { Present } from "@liebstoeckel/engine";
+import "@liebstoeckel/theme/styles.css";
 
 import * as title from "./slides/01-title";   // `import *` carries the `notes` export
 import * as chart from "./slides/02-chart";

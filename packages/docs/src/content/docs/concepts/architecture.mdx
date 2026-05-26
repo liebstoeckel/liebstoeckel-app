@@ -5,11 +5,11 @@ description: The monorepo packages, how a deck is built, and how live state flow
 
 import { Aside, LinkCard } from "@astrojs/starlight/components";
 
-present-it is a small Bun monorepo: reusable **engine / theme / components** packages, a **plugin** stack, **delivery** packages (live server + relay + thumbnails), an umbrella **CLI**, and `presentations/*` decks.
+liebstoeckel is a small Bun monorepo: reusable **engine / theme / components** packages, a **plugin** stack, **delivery** packages (live server + relay + thumbnails), an umbrella **CLI**, and `presentations/*` decks.
 
 ## Packages & layers
 
-![present-it package and layer map](/diagrams/architecture.svg)
+![liebstoeckel package and layer map](/diagrams/architecture.svg)
 
 | Package | Role |
 | --- | --- |
@@ -22,7 +22,7 @@ present-it is a small Bun monorepo: reusable **engine / theme / components** pac
 | `live-server` | LAN session: serve + Yjs `Hub` over WebSocket, presenter/viewer tokens |
 | `present-relay` | public session: opaque-sandbox deck serving; never runs deck code |
 | `thumbnails` | build-time slide capture (Playwright + `Bun.Image` → WebP) |
-| `cli` | the umbrella `present-it` command |
+| `cli` | the umbrella `liebstoeckel` command |
 
 **Separation of concerns:** `engine` knows nothing about a specific look; `theme` defines looks; `components` consume theme tokens; a `presentation` wires a brand + ordered slides + plugins together.
 

@@ -79,7 +79,7 @@ describe("relay deck serving (opaque sandbox)", () => {
     expect(csp).not.toContain("allow-same-origin");
     expect(csp).toContain("connect-src");
     const html = await res.text();
-    expect(html).toContain("window.__PRESENT_IT_LIVE__");
+    expect(html).toContain("window.__LIEBSTOECKEL_LIVE__");
     expect(html).toContain(`/sync/${id}?t=${viewerToken}`);
     expect(html).toContain('"role":"viewer"');
   });

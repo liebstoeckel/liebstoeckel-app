@@ -1,4 +1,4 @@
-# present-it
+# liebstoeckel
 
 Code-first presentations that are **real software** — authored in MDX + React, animated with Motion, themed from a single token file, and shipped as **one self-contained `.html`**. Built on Bun + React 19 + Tailwind v4.
 
@@ -32,8 +32,8 @@ The presenter window and the audience window stay in sync over `BroadcastChannel
 A deck is an `index.html` + `main.tsx` that renders `<Present>` with an ordered list of slides:
 
 ```tsx
-import { Present } from "@present-it/engine";
-import "@present-it/theme/styles.css";
+import { Present } from "@liebstoeckel/engine";
+import "@liebstoeckel/theme/styles.css";
 import * as title from "./slides/01-title";   // `import *` carries the `notes` export
 import * as chart from "./slides/02-chart";
 
@@ -92,13 +92,13 @@ bun run poll:live          # build the poll demo + serve it live
 ```
 
 - **Audience** opens the read-only link (or scans the QR via `Q` in-deck) and **follows along**; the presenter drives.
-- **Plugins** are Bun packages (`keywords: ["present-it-plugin"]` + a `presentIt` field) with a required **client** and optional **server** part. They share **typed state over Yjs**, so everyone — including read-only viewers — can interact (e.g. vote in a poll). The same `.html` runs standalone (plugins show a `fallback`) or live.
-- Place one in a slide: `<Plugin id="poll" props={{ question, options }} />`. Author a plugin with `definePlugin({ id, state, server?, client })` from `@present-it/plugin-sdk`; build UI from `@present-it/plugin-ui` (themeable + per-slide overridable).
+- **Plugins** are Bun packages (`keywords: ["liebstoeckel-plugin"]` + a `liebstoeckel` field) with a required **client** and optional **server** part. They share **typed state over Yjs**, so everyone — including read-only viewers — can interact (e.g. vote in a poll). The same `.html` runs standalone (plugins show a `fallback`) or live.
+- Place one in a slide: `<Plugin id="poll" props={{ question, options }} />`. Author a plugin with `definePlugin({ id, state, server?, client })` from `@liebstoeckel/plugin-sdk`; build UI from `@liebstoeckel/plugin-ui` (themeable + per-slide overridable).
 
 Live-delivery keys: `F` fullscreen · `B` blur-screen · `O` overview · `0-9`↵ jump · `Q` QR · steps reveal with `→`.
 
 ## Packages
 
-- **`@present-it/engine`** — `Present`, `Deck`, `PresenterView`, fixed-canvas `ScaledStage`, keyboard/sync, `Slot`/`PersistentLayer` (stateful elements that travel between slides without reloading). **Docs: [`packages/engine/docs`](./packages/engine/docs/README.md).**
-- **`@present-it/theme`** — token model, brands, `@theme inline` bridge, self-hosted fonts.
-- **`@present-it/components`** — MDX element mapping, `Magic` (Magic Move), `Atmosphere`.
+- **`@liebstoeckel/engine`** — `Present`, `Deck`, `PresenterView`, fixed-canvas `ScaledStage`, keyboard/sync, `Slot`/`PersistentLayer` (stateful elements that travel between slides without reloading). **Docs: [`packages/engine/docs`](./packages/engine/docs/README.md).**
+- **`@liebstoeckel/theme`** — token model, brands, `@theme inline` bridge, self-hosted fonts.
+- **`@liebstoeckel/components`** — MDX element mapping, `Magic` (Magic Move), `Atmosphere`.

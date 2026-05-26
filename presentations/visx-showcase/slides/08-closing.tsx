@@ -13,7 +13,7 @@ export const notes = (
 
 const code = [
   [{ t: "import", c: "kw" }, { t: " { Present }", c: "tx" }],
-  [{ t: "  from", c: "kw" }, { t: ' "@present-it/engine"', c: "str" }],
+  [{ t: "  from", c: "kw" }, { t: ' "@liebstoeckel/engine"', c: "str" }],
   [],
   [{ t: "<Present", c: "tag" }],
   [{ t: "  brands", c: "attr" }, { t: "={[", c: "tx" }, { t: '"nocturne"', c: "str" }, { t: "]}", c: "tx" }],

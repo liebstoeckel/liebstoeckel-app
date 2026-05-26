@@ -1,10 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Present } from "@present-it/engine";
-import poll from "@present-it/plugin-poll";
-import qa from "@present-it/plugin-qa";
-import reactions from "@present-it/plugin-reactions";
-import "@present-it/theme/styles.css";
+import { Present } from "@liebstoeckel/engine";
+import poll from "@liebstoeckel/plugin-poll";
+import qa from "@liebstoeckel/plugin-qa";
+import reactions from "@liebstoeckel/plugin-reactions";
+import "@liebstoeckel/theme/styles.css";
 
 import * as title from "./slides/01-title";
 import * as pollSlide from "./slides/02-poll";

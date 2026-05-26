@@ -1,8 +1,8 @@
 import { test, expect, describe, afterEach } from "bun:test";
-import { createRelay, type RelayServer } from "present-relay";
-import { connectLive, type LiveConnection } from "@present-it/engine/live";
-import { pluginState } from "@present-it/plugin-sdk";
-import { pollSchema, tally, totalVotes } from "@present-it/plugin-poll/logic";
+import { createRelay, type RelayServer } from "@liebstoeckel/present-relay";
+import { connectLive, type LiveConnection } from "@liebstoeckel/engine/live";
+import { pluginState } from "@liebstoeckel/plugin-sdk";
+import { pollSchema, tally, totalVotes } from "@liebstoeckel/plugin-poll/logic";
 import { embedManifest, encodeServerBundle, type PluginManifest } from "./manifest";
 import { uploadDeck, runServerPluginsViaRelay, endSession, type RunnerHandle } from "./relay-client";
 

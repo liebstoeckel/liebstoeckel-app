@@ -6,7 +6,7 @@ import {
   type Peer,
   type Role,
   type Session,
-} from "@present-it/live-server";
+} from "@liebstoeckel/live-server";
 import { bearer, matchAccount, safeEqual } from "./auth";
 
 export interface RelayOptions {

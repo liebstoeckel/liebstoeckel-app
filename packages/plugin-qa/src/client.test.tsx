@@ -2,7 +2,7 @@ import { test, expect, describe } from "bun:test";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as Y from "yjs";
-import { pluginState, type ClientProps } from "@present-it/plugin-sdk";
+import { pluginState, type ClientProps } from "@liebstoeckel/plugin-sdk";
 import qa from "./client";
 import { qaSchema, type QaState } from "./logic";
 

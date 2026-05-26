@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import * as Y from "yjs";
-import { useTheme } from "@present-it/plugin-ui";
-import type { PluginDef } from "@present-it/plugin-sdk";
+import { useTheme } from "@liebstoeckel/plugin-ui";
+import type { PluginDef } from "@liebstoeckel/plugin-sdk";
 import { Deck, type DeckProps } from "./Deck";
 import { PresenterView } from "./PresenterView";
 import { CaptureView } from "./CaptureView";

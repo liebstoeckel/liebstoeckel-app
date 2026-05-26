@@ -17,10 +17,10 @@ export default function Area() {
 Write prose, drop in **components**.
 ```
 
-MDX maps `#`, `##`, `p`, `ul`, `code`, `strong`, … to themed components (see `@present-it/components`). Inside an `.mdx` file you can `import` anything:
+MDX maps `#`, `##`, `p`, `ul`, `code`, `strong`, … to themed components (see `@liebstoeckel/components`). Inside an `.mdx` file you can `import` anything:
 
 ```mdx
-import { Slot } from "@present-it/engine";
+import { Slot } from "@liebstoeckel/engine";
 
 ## Live data
 <Slot id="demo" />

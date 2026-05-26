@@ -1,8 +1,8 @@
 # present-relay
 
-A public relay for present-it live sessions — it gives a session reach beyond the
+A public relay for liebstoeckel live sessions — it gives a session reach beyond the
 LAN. The relay hosts the session's Yjs doc (transport only) and serves the deck;
-**the deck's code never runs on the relay**. The local `present-it` runs the deck's
+**the deck's code never runs on the relay**. The local `liebstoeckel` runs the deck's
 server plugins and connects as a privileged peer.
 
 ## Run
@@ -15,7 +15,7 @@ PRESENT_RELAY_TOKENS=tok1,tok2 bunx present-relay --port 8080 --public-url https
 Then point a deck at it:
 
 ```bash
-bunx present-it ./deck.html --relay https://relay.example --relay-token tok1
+bunx liebstoeckel ./deck.html --relay https://relay.example --relay-token tok1
 # uploads the deck, runs its server plugins locally, prints public presenter/viewer links + QR
 ```
 
