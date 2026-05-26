@@ -6,7 +6,8 @@
   "bin": { "present-it-thumbnails": "./src/cli.ts" },
   "exports": {
     ".": "./src/index.ts",
-    "./build": "./src/build.ts"
+    "./build": "./src/build.ts",
+    "./cli": "./src/cli.ts"
   },
   "dependencies": {
     "@present-it/engine": "workspace:*",

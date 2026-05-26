@@ -104,11 +104,10 @@ async function relayMain(arg: string, relayUrl: string, relayToken: string) {
   process.on("SIGTERM", () => void shutdown());
 }
 
-async function main() {
-  const argv = process.argv.slice(2);
+export async function runLive(argv: string[]) {
   const arg = argv.find((a) => !a.startsWith("-"));
   if (!arg) {
-    console.error("usage: present-it <deck.html | deck-project-dir> [--relay <url> --relay-token <tok>] [--port N]");
+    console.error("usage: present-it live <deck.html | deck-project-dir> [--relay <url> --relay-token <tok>] [--port N]");
     process.exit(1);
   }
   const relayUrl = flag(argv, "--relay");
@@ -124,4 +123,4 @@ async function main() {
   }
 }
 
-if (import.meta.main) void main();
+if (import.meta.main) void runLive(process.argv.slice(2));

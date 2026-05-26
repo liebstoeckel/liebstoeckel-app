@@ -12,8 +12,7 @@ function flag(argv: string[], name: string): string | undefined {
   return i >= 0 ? argv[i + 1] : undefined;
 }
 
-function main() {
-  const argv = process.argv.slice(2);
+export function runRelay(argv: string[]) {
   const port = Number(flag(argv, "--port") ?? process.env.PORT ?? 0) || 0;
   const publicBaseUrl = flag(argv, "--public-url") ?? process.env.PRESENT_RELAY_PUBLIC_URL;
   let tokens = (flag(argv, "--tokens") ?? process.env.PRESENT_RELAY_TOKENS ?? "")
@@ -39,7 +38,7 @@ function main() {
     console.log(`   persist with PRESENT_RELAY_TOKENS=tok1,tok2 (or --tokens).`);
   }
   console.log(`\n   run a deck through it:`);
-  console.log(`       bunx present-it <deck> --relay ${base} --relay-token <token>\n`);
+  console.log(`       bunx present-it live <deck> --relay ${base} --relay-token <token>\n`);
   if (!publicBaseUrl) {
     console.log(`   note: serve behind TLS (wss://) for public use; set --public-url to the https origin.\n`);
   }
@@ -52,4 +51,4 @@ function main() {
   process.on("SIGTERM", shutdown);
 }
 
-if (import.meta.main) main();
+if (import.meta.main) runRelay(process.argv.slice(2));

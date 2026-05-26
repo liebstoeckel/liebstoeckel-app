@@ -1,0 +1,17 @@
+{
+  "name": "@present-it/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "present-it": "./src/cli.ts" },
+  "exports": {
+    ".": "./src/cli.ts",
+    "./new": "./src/new.ts"
+  },
+  "dependencies": {
+    "@present-it/engine": "workspace:*",
+    "@present-it/thumbnails": "workspace:*",
+    "@present-it/live-server": "workspace:*",
+    "present-relay": "workspace:*"
+  }
+}

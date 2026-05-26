@@ -5,7 +5,8 @@
   "type": "module",
   "bin": { "present-relay": "./src/cli.ts" },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./cli": "./src/cli.ts"
   },
   "dependencies": {
     "@present-it/live-server": "workspace:*",

@@ -17,11 +17,10 @@ function flagFormat(argv: string[]): ThumbnailFormat | undefined {
   return v === "webp" || v === "jpeg" || v === "png" ? v : undefined;
 }
 
-async function main() {
-  const argv = process.argv.slice(2);
+export async function runThumbs(argv: string[]) {
   const file = argv.find((a) => !a.startsWith("-"));
   if (!file) {
-    console.error("usage: present-it-thumbnails <built-deck.html> [--format webp|jpeg|png] [--width 320] [--quality 80] [--scale 2]");
+    console.error("usage: present-it thumbs <built-deck.html> [--format webp|jpeg|png] [--width 320] [--quality 80] [--scale 2]");
     process.exit(1);
   }
   const abs = resolve(file);
@@ -50,4 +49,4 @@ async function main() {
   console.log(`✓ embedded ${n} thumbnail${n === 1 ? "" : "s"} (${manifest.w}×${manifest.h}) into ${file}`);
 }
 
-if (import.meta.main) void main();
+if (import.meta.main) void runThumbs(process.argv.slice(2));
