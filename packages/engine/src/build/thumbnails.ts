@@ -1,6 +1,6 @@
 // A thumbnails manifest mirrors the plugin manifest: an inert JSON <script> the
 // browser never executes, embedded into the single-file deck. Each entry maps a
-// slide index to a data-URI image (built by @present-it/thumbnails). The engine
+// slide index to a data-URI image (built by @liebstoeckel/thumbnails). The engine
 // reads it to render cheap <img> previews in the overview / presenter instead of
 // mounting N live slides. Pure string/JSON helpers — no DOM, no browser.
 
@@ -13,17 +13,20 @@ export interface ThumbnailManifest {
   thumbs: Record<number, string>;
 }
 
-export const THUMBS_ATTR = "data-present-it-thumbnails";
+export const THUMBS_ATTR = "data-liebstoeckel-thumbnails";
 
 export const encodeThumbnails = (m: ThumbnailManifest): string => JSON.stringify(m);
 export const parseThumbnails = (json: string): ThumbnailManifest => JSON.parse(json) as ThumbnailManifest;
 
 /** Embed (or replace) the thumbnails manifest as an inert JSON <script> before
- *  </body>. Re-embedding strips any prior block so re-running is idempotent. */
+ *  the closing </body>. Re-embedding strips any prior block so re-running is idempotent.
+ *  Inserts before the LAST </body> — a deck's inlined JS bundle can contain the string
+ *  "</body>" in a literal (e.g. an iframe srcdoc), and the real document </body> is last. */
 export function embedThumbnails(html: string, m: ThumbnailManifest): string {
   const stripped = stripThumbnails(html);
   const tag = `<script type="application/json" ${THUMBS_ATTR}>${encodeThumbnails(m)}</script>`;
-  return stripped.includes("</body>") ? stripped.replace("</body>", `${tag}</body>`) : stripped + tag;
+  const at = stripped.lastIndexOf("</body>");
+  return at >= 0 ? stripped.slice(0, at) + tag + stripped.slice(at) : stripped + tag;
 }
 
 const blockRe = new RegExp(`<script[^>]*${THUMBS_ATTR}[^>]*>[\\s\\S]*?</script>`, "i");

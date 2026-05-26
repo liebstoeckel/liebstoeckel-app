@@ -15,15 +15,18 @@ export interface PluginManifest {
   plugins: PluginManifestEntry[];
 }
 
-export const MANIFEST_ATTR = "data-present-it-plugins";
+export const MANIFEST_ATTR = "data-liebstoeckel-plugins";
 
 export const encodeManifest = (m: PluginManifest): string => JSON.stringify(m);
 export const parseManifest = (json: string): PluginManifest => JSON.parse(json) as PluginManifest;
 
-/** Embed the manifest as an inert JSON <script> before </body> (browser never runs it). */
+/** Embed the manifest as an inert JSON <script> before the closing </body> (browser never
+ *  runs it). Inserts before the LAST </body> — a deck's inlined JS bundle can contain the
+ *  string "</body>" in a literal (e.g. an iframe srcdoc); the real document </body> is last. */
 export function embedManifest(html: string, m: PluginManifest): string {
   const tag = `<script type="application/json" ${MANIFEST_ATTR}>${encodeManifest(m)}</script>`;
-  return html.includes("</body>") ? html.replace("</body>", `${tag}</body>`) : html + tag;
+  const at = html.lastIndexOf("</body>");
+  return at >= 0 ? html.slice(0, at) + tag + html.slice(at) : html + tag;
 }
 
 /** Extract the manifest from a built HTML, or null if none. */
@@ -45,7 +48,7 @@ export const encodeServerBundle = (source: string | Uint8Array): string =>
  *  export is the plugin's `server(ctx)` function. */
 export async function rehydrateServerBundle(base64: string, name: string): Promise<{ default?: unknown }> {
   const code = Buffer.from(base64, "base64").toString("utf8");
-  const dir = mkdtempSync(join(tmpdir(), "present-it-"));
+  const dir = mkdtempSync(join(tmpdir(), "liebstoeckel-"));
   const file = join(dir, `${name.replace(/[^a-z0-9]/gi, "_")}.mjs`);
   writeFileSync(file, code);
   return (await import(file)) as { default?: unknown };

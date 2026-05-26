@@ -1,12 +1,12 @@
 import { join } from "node:path";
 import tailwind from "bun-plugin-tailwind";
-import { discoverFromPackageJson } from "@present-it/plugin-sdk/discovery";
+import { discoverFromPackageJson } from "@liebstoeckel/plugin-sdk/discovery";
 import {
   embedManifest,
   encodeServerBundle,
   type PluginManifest,
   type PluginManifestEntry,
-} from "@present-it/plugin-sdk/manifest";
+} from "@liebstoeckel/plugin-sdk/manifest";
 import mdx from "./mdx-plugin";
 
 /** Bundle a plugin's server entry into a self-contained, base64-encoded ESM module
@@ -40,6 +40,24 @@ export async function buildPluginManifest(pkgJsonPath: string): Promise<PluginMa
   return { v: 1, plugins: entries };
 }
 
+/** Bun inlines the JS bundle as `<script type="module">…</script>`, but does NOT escape
+ *  `</script>` sequences that occur inside JS string literals (e.g. a deck embedding HTML
+ *  through an iframe `srcdoc`). The HTML parser would close the inline script at the first
+ *  such `</script>`, dumping the rest of the bundle as text. Escape every `</script` →
+ *  `<\/script` inside the module body (a no-op for the JS string value, but no longer a
+ *  tag terminator). Runs on Bun's fresh output, where the module bundle is the document's
+ *  last element, so its real terminator is the final `</script>`. */
+export function escapeInlineModuleScript(html: string): string {
+  const open = '<script type="module">';
+  const start = html.indexOf(open);
+  if (start < 0) return html;
+  const contentStart = start + open.length;
+  const close = html.lastIndexOf("</script>");
+  if (close <= contentStart) return html;
+  const body = html.slice(contentStart, close).replace(/<\/script/gi, "<\\/script");
+  return html.slice(0, contentStart) + body + html.slice(close);
+}
+
 // Builds a deck to a single self-contained .html. Plugins (Tailwind, MDX) only
 // run via the Bun.build() JS API — NOT the `bun build` CLI. `compile:true` +
 // target:"browser" inline JS/CSS and base64 the assets. Verified on Bun 1.3.
@@ -68,13 +86,13 @@ export async function buildDeck({
     throw new Error("Deck build failed");
   }
 
-  // Embed the plugin manifest (incl. base64 server bundles) into the single file.
+  // Escape `</script>` inside the inlined bundle, then embed the plugin manifest
+  // (incl. base64 server bundles) into the single file.
+  const outHtml = join(outdir, "index.html");
+  let html = escapeInlineModuleScript(await Bun.file(outHtml).text());
   const manifest = await buildPluginManifest(pkgJson);
-  if (manifest) {
-    const outHtml = join(outdir, "index.html");
-    const html = await Bun.file(outHtml).text();
-    await Bun.write(outHtml, embedManifest(html, manifest));
-  }
+  if (manifest) html = embedManifest(html, manifest);
+  await Bun.write(outHtml, html);
 
   return result;
 }
