@@ -13,19 +13,19 @@ export interface ScaffoldOptions {
 
 /** Pure: the file map for a new minimal deck (deck-relative path → contents).
  *  Kept as plain templates so a richer template library can grow from here. */
-export function deckFiles(name: string, brand = "nocturne"): Record<string, string> {
+export function deckFiles(name: string, brand = "liebstoeckel"): Record<string, string> {
   const title = titleCase(name);
   const pkg = {
-    name: `@present-it/${name}`,
+    name: `@liebstoeckel/${name}`,
     version: "0.0.0",
     private: true,
     type: "module",
     scripts: { dev: "bun --hot ./server.ts", build: "bun run build.ts" },
     dependencies: {
-      "@present-it/engine": "workspace:*",
-      "@present-it/theme": "workspace:*",
+      "@liebstoeckel/engine": "workspace:*",
+      "@liebstoeckel/theme": "workspace:*",
     },
-    devDependencies: { "@present-it/thumbnails": "workspace:*" },
+    devDependencies: { "@liebstoeckel/thumbnails": "workspace:*" },
   };
 
   return {
@@ -64,16 +64,16 @@ const server = Bun.serve({
 console.log(\`▶  http://localhost:\${server.port}\`);
 `,
 
-    "build.ts": `import { buildDeckWithThumbnails } from "@present-it/thumbnails/build";
+    "build.ts": `import { buildDeckWithThumbnails } from "@liebstoeckel/thumbnails/build";
 
-// Single self-contained .html + slide thumbnails (skip with PRESENT_IT_NO_THUMBS=1).
+// Single self-contained .html + slide thumbnails (skip with LIEBSTOECKEL_NO_THUMBS=1).
 await buildDeckWithThumbnails({ entry: "./index.html", outdir: "./dist" });
 `,
 
     "main.tsx": `import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Present } from "@present-it/engine";
-import "@present-it/theme/styles.css";
+import { Present } from "@liebstoeckel/engine";
+import "@liebstoeckel/theme/styles.css";
 
 import Intro from "./slides/01-intro";
 
@@ -84,14 +84,14 @@ createRoot(document.getElementById("root")!).render(
 );
 `,
 
-    "slides/01-intro.tsx": `import { Step } from "@present-it/engine";
+    "slides/01-intro.tsx": `import { Step } from "@liebstoeckel/engine";
 
 export default function Intro() {
   return (
     <div className="w-full">
       <div className="mb-5 flex items-center gap-3 font-mono text-sm uppercase tracking-[0.35em] text-accent">
         <span className="h-px w-8 bg-accent" />
-        present-it
+        liebstoeckel
       </div>
       <h1 className="font-heading text-[88px] font-semibold leading-[0.95] tracking-[-0.03em] text-text">
         ${title}
@@ -116,7 +116,7 @@ export async function scaffold(
   if (!VALID_NAME.test(name)) {
     throw new Error(`invalid deck name "${name}" — use lower-case letters, digits and hyphens`);
   }
-  const brand = opts.brand ?? "nocturne";
+  const brand = opts.brand ?? "liebstoeckel";
   const root = opts.dir ?? join(process.cwd(), "presentations");
   const dir = join(root, name);
   if (existsSync(dir)) throw new Error(`${dir} already exists`);

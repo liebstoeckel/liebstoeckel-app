@@ -53,8 +53,8 @@ export function GlowTap({ label, onOpen, children }: { label: string; onOpen: ()
           position: "absolute",
           inset: "-3px",
           borderRadius: "1.2rem",
-          border: "1px solid var(--brand-accent, #62e8ff)",
-          boxShadow: "0 0 26px -4px var(--brand-accent, #62e8ff)",
+          border: "1px solid var(--brand-accent, #e0c580)",
+          boxShadow: "0 0 26px -4px var(--brand-accent, #e0c580)",
           pointerEvents: "none",
         }}
         animate={{ opacity: [0.45, 1, 0.45] }}
@@ -70,8 +70,8 @@ export function GlowTap({ label, onOpen, children }: { label: string; onOpen: ()
           whiteSpace: "nowrap",
           padding: "0.25rem 0.7rem",
           borderRadius: "999px",
-          background: "var(--brand-accent, #62e8ff)",
-          color: "var(--brand-on-primary, #08090c)",
+          background: "var(--brand-accent, #e0c580)",
+          color: "var(--brand-on-primary, #10140e)",
           fontFamily: "var(--brand-font-mono, monospace)",
           fontSize: "0.7rem",
           letterSpacing: "0.12em",
@@ -117,7 +117,7 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-end",
-        background: "color-mix(in srgb, var(--brand-bg, #08090c) 60%, transparent)",
+        background: "color-mix(in srgb, var(--brand-bg, #10140e) 60%, transparent)",
         backdropFilter: "blur(6px)",
       }}
     >
@@ -134,8 +134,8 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
           padding: "1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom))",
           borderTopLeftRadius: "1.4rem",
           borderTopRightRadius: "1.4rem",
-          background: "var(--brand-surface, #11141b)",
-          borderTop: "1px solid var(--brand-border, color-mix(in srgb, var(--brand-text, #fff) 14%, transparent))",
+          background: "var(--brand-surface, #1a2014)",
+          borderTop: "1px solid var(--brand-border, color-mix(in srgb, var(--brand-text, #e9e6d7) 14%, transparent))",
           boxShadow: "0 -24px 60px -20px rgba(0,0,0,0.7)",
         }}
       >
@@ -146,7 +146,7 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
               fontSize: "0.7rem",
               letterSpacing: "0.22em",
               textTransform: "uppercase",
-              color: "var(--brand-muted, #8b93a7)",
+              color: "var(--brand-muted, #9da28c)",
             }}
           >
             {label}
@@ -159,7 +159,7 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
               cursor: "pointer",
               border: "none",
               background: "transparent",
-              color: "var(--brand-muted, #8b93a7)",
+              color: "var(--brand-muted, #9da28c)",
               fontSize: "1.2rem",
               lineHeight: 1,
               padding: "0.25rem 0.5rem",
