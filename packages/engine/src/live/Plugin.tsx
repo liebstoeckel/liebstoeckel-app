@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import type * as Y from "yjs";
 import { pluginState, type PluginDef, type Role, type ThemeTokens } from "@present-it/plugin-sdk";
+import { captureRequest } from "../build/capture-protocol";
 import { mergeUi } from "./ui";
 
 export interface LiveContextValue {
@@ -52,7 +53,7 @@ export function Plugin({
 
   if (!ctx.live) {
     const Fb = def.client.fallback;
-    return Fb ? <Fb snapshot={snap as never} props={props} /> : null;
+    return Fb ? <Fb snapshot={snap as never} props={props} capture={!!captureRequest()} /> : null;
   }
 
   const Slide = def.client.Slide;

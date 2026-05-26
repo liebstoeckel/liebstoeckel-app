@@ -35,9 +35,11 @@ export interface PluginClient<T> {
   Slide: ClientComponent<T>;
   /** optional presenter-only panel */
   Presenter?: ClientComponent<T>;
-  /** shown when no server is connected (standalone .html + thumbnail capture);
-   *  receives the current snapshot and the author `props` from `<Plugin props>`. */
-  fallback?: ComponentType<{ snapshot: T; props: Record<string, unknown> }> | (() => ReactNode);
+  /** shown when no server is connected. Receives the current snapshot, the author
+   *  `props` from `<Plugin props>`, and `capture` — true when rendered for a
+   *  build-time thumbnail (vs. a genuinely offline `.html`), so the fallback can
+   *  drop "start the server" chrome in a thumbnail. */
+  fallback?: ComponentType<{ snapshot: T; props: Record<string, unknown>; capture: boolean }> | (() => ReactNode);
   /** named override surfaces an author may replace per slide */
   surfaces?: readonly string[];
 }

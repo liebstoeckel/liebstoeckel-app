@@ -82,8 +82,18 @@ function PollPresenter(p: ClientProps<PollState>) {
 
 /** No live server → static preview. Prefers the author's configured question /
  *  options (props), then any seeded snapshot, then a generic placeholder — so the
- *  standalone .html and the build-time thumbnail both show the real poll. */
-function PollFallback({ snapshot, props = {} }: { snapshot: PollState; props?: Record<string, unknown> }) {
+ *  standalone .html and the build-time thumbnail both show the real poll. In a
+ *  thumbnail (`capture`) it drops the "start the server" chrome — that's a slide
+ *  preview, not an actually-offline deck. */
+function PollFallback({
+  snapshot,
+  props = {},
+  capture = false,
+}: {
+  snapshot: PollState;
+  props?: Record<string, unknown>;
+  capture?: boolean;
+}) {
   const question = snapshot.question || (props.question as string) || "Live poll";
   const options =
     (snapshot.options.length && snapshot.options) ||
@@ -91,7 +101,7 @@ function PollFallback({ snapshot, props = {} }: { snapshot: PollState; props?: R
     ["Option A", "Option B"];
   return (
     <Card>
-      <Eyebrow>Poll · offline preview</Eyebrow>
+      <Eyebrow>{capture ? "Live poll" : "Poll · offline preview"}</Eyebrow>
       <div style={{ fontFamily: "var(--brand-font-heading, serif)", fontSize: "1.6rem", marginBottom: "0.8rem" }}>
         {question}
       </div>
@@ -102,9 +112,11 @@ function PollFallback({ snapshot, props = {} }: { snapshot: PollState; props?: R
           </Button>
         ))}
       </Stack>
-      <div style={{ marginTop: "1rem", color: "var(--brand-muted,#8b93a7)", fontFamily: "var(--brand-font-mono,monospace)", fontSize: "0.8rem" }}>
-        Start the live server to vote.
-      </div>
+      {!capture && (
+        <div style={{ marginTop: "1rem", color: "var(--brand-muted,#8b93a7)", fontFamily: "var(--brand-font-mono,monospace)", fontSize: "0.8rem" }}>
+          Start the live server to vote.
+        </div>
+      )}
     </Card>
   );
 }
