@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["bun", "react", "react-dom"],
+    "paths": {
+      "@liebstoeckel/engine": ["./packages/engine/src/index.ts"],
+      "@liebstoeckel/engine/*": ["./packages/engine/src/*"],
+      "@liebstoeckel/components": ["./packages/components/src/index.ts"],
+      "@liebstoeckel/theme": ["./packages/theme/src/index.ts"]
+    }
+  }
+}

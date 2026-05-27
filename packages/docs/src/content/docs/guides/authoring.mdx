@@ -1,0 +1,65 @@
+---
+title: The authoring model
+description: MDX vs TSX, the fixed canvas, themed element mapping, and persistent stateful elements.
+---
+
+import { Aside, CardGrid, Card, LinkCard } from "@astrojs/starlight/components";
+
+## Two formats, mixed freely
+
+<CardGrid>
+  <Card title="MDX — prose slides" icon="document">
+    Write Markdown; element tags (`h1`, `p`, `ul`, `code`, …) map to themed components automatically. Best for text-heavy slides. Fenced code is syntax-highlighted at build time.
+  </Card>
+  <Card title="TSX — interactive slides" icon="puzzle">
+    A default-exported React component. Best for anything animated, data-driven, or that places a `<Plugin>`. Full access to Motion, the engine, and your own components.
+  </Card>
+</CardGrid>
+
+Both compile to the same thing; pick per slide and mix them in one deck.
+
+## The fixed canvas
+
+Every slide is authored on a logical **1280×720** canvas (`STAGE_W × STAGE_H`). The engine's `ScaledStage` scales that canvas to fit any screen, centered and letterboxed, so a slide looks identical on a laptop, a projector, and a phone (just at a different scale). You never write responsive breakpoints for slide content — you design once at 1280×720.
+
+`SlideFrame` gives each slide a brand background, an animated atmosphere, and a padded content area. Break out with absolute positioning for full-bleed visuals.
+
+## Themed MDX elements
+
+In MDX you write plain Markdown and the look comes from the brand. The mapping (in `@liebstoeckel/components`):
+
+| Markdown | Renders as |
+| --- | --- |
+| `# H1` | display serif, `text-text` |
+| `## H2` | `text-primary` heading |
+| paragraph | `font-body`, `text-muted` |
+| list item | accent bullet (`▹`) |
+| `` `inline code` `` | a themed pill |
+| ```` ```ts ```` block | Shiki-highlighted, brand-bound colors |
+
+<Aside type="tip">
+Need a component inside MDX? Import it at the top of the `.mdx` file like any module: `import { Plugin } from "@liebstoeckel/engine"`.
+</Aside>
+
+## Persistent stateful elements
+
+Magic Move re-renders content, which would reset a stateful element (an `<iframe>`, a `<video>`, a running widget). For those, the engine provides a **persistent layer**: render the element once at the deck root and project it into slides via a `<Slot>`. It keeps its internal state while traveling between slides.
+
+```tsx title="main.tsx"
+<Present
+  slides={[...]}
+  persistent={[{ id: "live", render: () => <LiveIframe /> }]}
+/>
+```
+
+```mdx title="a slide"
+import { Slot } from "@liebstoeckel/engine";
+
+## The clock keeps running →
+
+<Slot id="live" className="mt-10 h-56 w-full rounded-2xl border border-surface" />
+```
+
+Move the `<Slot id="live">` to a different position on the next slide and the live element animates to its new home without reloading.
+
+<LinkCard title="Animated code" href="/guides/animated-code/" description="The signature feature for technical decks." />

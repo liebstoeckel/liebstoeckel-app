@@ -1,0 +1,41 @@
+---
+title: The rendering pipeline
+description: From a slide module to pixels — Present, the fixed canvas, steps, transitions, and the overview.
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+
+## `Present` routes to a view
+
+`<Present>` is the single entry. It detects context and renders one of:
+
+- **`Deck`** — the audience/standalone view (the main canvas).
+- **`PresenterView`** — opened at `#presenter`; current/next previews, notes, timer, step indicator.
+- **`CaptureView`** — used at build time by [thumbnails](/guides/thumbnails/) to render one motionless slide.
+
+## The fixed canvas
+
+Slides are authored at **1280×720**. `ScaledStage` measures its parent and applies a single CSS `transform: scale(...)` so the canvas fits, centered + letterboxed. Because everything is one scaled layer, a slide is pixel-identical everywhere — only the scale differs.
+
+`SlideFrame` wraps each slide with the brand background, the animated `Atmosphere` (gradient blooms; a still variant for captures), and a padded content area.
+
+## Steps & reveals
+
+`StepsProvider` (mounted per active slide) tracks how many reveal "slots" the slide contains; `<Step>` claims one. The deck's current `step` drives which steps are shown. A component can claim several slots via `useRevealState(count)` — that's how `<CodeMagic>` advances through its states with the same key presses.
+
+Navigation is pure at its core (`stepForward` / `stepBack`): advance within a slide's steps; once past the last, change slide. The same logic backs keyboard, touch, and the on-screen controls.
+
+## Transitions
+
+- **Between slides** — `AnimatePresence` cross-fades + blurs the outgoing/incoming slide.
+- **Within a slide** — `<Step>` fades/rises each reveal; `<Magic>` / `<CodeMagic>` FLIP shared elements via `layoutId`.
+
+## Overview & thumbnails
+
+The overview grid (<kbd>o</kbd>) prefers the build-time thumbnail `<img>`s; absent, it renders a cheap static `DeckThumb`. The presenter previews always render **live** (only two slides) so they stay crisp and reflect the real reveal/plugin state.
+
+<Aside type="note" title="Plugins in the tree">
+A `<Plugin>` reads the live context (doc, role, participant, theme) and renders the plugin's `Slide` when live, else its `fallback`. On touch it wraps that in the [breakout](/guides/mobile/) affordance.
+</Aside>
+
+<LinkCard title="Testing" href="/concepts/testing/" description="How the framework verifies all of this." />

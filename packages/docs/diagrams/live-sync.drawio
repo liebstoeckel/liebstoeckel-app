@@ -1,0 +1,28 @@
+<mxGraphModel adaptiveColors="auto">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="presenter" value="&lt;b&gt;Presenter&lt;/b&gt;&lt;br&gt;writes slide index&lt;br&gt;+ plugin state" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#1e3a5f;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
+      <mxGeometry x="40" y="180" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="hub" value="&lt;b&gt;Yjs document (Hub)&lt;/b&gt;&lt;br&gt;one CRDT per session&lt;br&gt;broadcast over WebSocket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#92660a;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
+      <mxGeometry x="340" y="160" width="220" height="120" as="geometry"/>
+    </mxCell>
+    <mxCell id="v1" value="&lt;b&gt;Viewer&lt;/b&gt; (phone)&lt;br&gt;follows · votes / asks / reacts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#166534;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
+      <mxGeometry x="680" y="90" width="200" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="v2" value="&lt;b&gt;Viewer&lt;/b&gt; (laptop)&lt;br&gt;follows · votes / asks / reacts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#166534;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
+      <mxGeometry x="680" y="280" width="200" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="runner" value="&lt;b&gt;Local runner&lt;/b&gt;&lt;br&gt;server plugins run here&lt;br&gt;(never on the relay)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=12;arcSize=10;" vertex="1" parent="1">
+      <mxGeometry x="40" y="360" width="180" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="note" value="Relay (optional, public): transport only — deck HTML served in an opaque sandbox; deck code never runs on it." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#991b1b;fontColor=#0f172a;fontSize=12;arcSize=12;dashed=1;" vertex="1" parent="1">
+      <mxGeometry x="300" y="20" width="300" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="s1" value="index / state" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#64748b;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="presenter" target="hub"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="s2" value="broadcast" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="hub" target="v1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="s3" value="broadcast" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="hub" target="v2"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="s4" value="effects" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=1;exitY=0.5;entryX=0.5;entryY=1;fontSize=11;fontColor=#334155;" edge="1" parent="1" source="runner" target="hub"><mxGeometry relative="1" as="geometry"/></mxCell>
+  </root>
+</mxGraphModel>

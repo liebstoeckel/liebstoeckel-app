@@ -1,0 +1,45 @@
+---
+title: Components
+description: Themed MDX elements, slide components, and the plugin-ui primitives.
+---
+
+## MDX element map
+
+`mdxComponents` (from `@liebstoeckel/components`, wired by the engine's `MDXProvider`) maps Markdown to themed elements: `h1` (display serif), `h2` (`text-primary`), `p` (`font-body text-muted`), `ul`/`li` (accent bullets), `strong` (`text-accent`), inline `code` (themed pill), and fenced code (Shiki, brand-bound). Just write Markdown — no imports needed for these.
+
+## Slide components
+
+From `@liebstoeckel/engine` (see [Engine API](/reference/engine-api/)):
+
+- `<Step>` — a reveal.
+- `<CodeMagic steps title? lang?>` — animated code.
+- `<Magic id className?>` — Magic Move.
+- `<Slot id className?>` — project a persistent element.
+- `<Plugin id props? components?>` — place a live plugin.
+
+## Plugin UI primitives
+
+From `@liebstoeckel/plugin-ui` — used inside plugin client surfaces; they style against `var(--brand-*)` so they're automatically on-brand.
+
+| Component | Props | Use |
+| --- | --- | --- |
+| `Card` | `style?`, `className?` | translucent surface container |
+| `Button` | `onClick?`, `active?`, `disabled?`, `style?` | full-width option/action button |
+| `Bar` | `pct`, `color?`, `label`, `value?`, `highlight?` | animatable result bar (0–100) |
+| `Stack` | `gap?`, `style?` | vertical flex stack |
+| `Eyebrow` | — | uppercase mono label |
+
+Also exported: `useTheme()` / `readTheme()` → `ThemeTokens` (resolved brand colors/fonts/`viz` for canvas or SVG use).
+
+```tsx
+import { Card, Eyebrow, Bar, Button, Stack } from "@liebstoeckel/plugin-ui";
+
+<Card style={{ width: "100%", maxWidth: 460 }}>
+  <Eyebrow>Live poll · 12 votes</Eyebrow>
+  <Stack>
+    <Bar pct={75} label="Yes" value="9 · 75%" highlight />
+    <Bar pct={25} label="No" value="3 · 25%" />
+  </Stack>
+  <Button active>Vote</Button>
+</Card>
+```

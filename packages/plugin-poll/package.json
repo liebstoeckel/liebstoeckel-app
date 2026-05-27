@@ -1,0 +1,18 @@
+{
+  "name": "@liebstoeckel/plugin-poll",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "keywords": ["liebstoeckel-plugin"],
+  "liebstoeckel": {
+    "client": "./src/client.tsx"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./logic": "./src/logic.ts"
+  },
+  "dependencies": {
+    "@liebstoeckel/plugin-sdk": "workspace:*",
+    "@liebstoeckel/plugin-ui": "workspace:*"
+  }
+}

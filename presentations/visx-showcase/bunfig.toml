@@ -1,0 +1,3 @@
+# Plugins for the HMR dev server. The build uses Bun.build()'s plugins (build.ts).
+[serve.static]
+plugins = ["bun-plugin-tailwind", "../../packages/engine/src/build/mdx-plugin.ts"]

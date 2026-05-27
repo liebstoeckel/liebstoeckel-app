@@ -1,0 +1,84 @@
+<mxGraphModel dx="1600" dy="1120" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1120" math="0" shadow="0" adaptiveColors="auto">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+    <mxCell id="title" value="liebstoeckel — state handling" style="text;html=1;align=center;fontSize=22;fontStyle=1;" parent="1" vertex="1">
+      <mxGeometry x="60" y="16" width="1480" height="34" as="geometry" />
+    </mxCell>
+    <mxCell id="detect" value="window.__LIEBSTOECKEL_LIVE__&#10;present? (server-injected)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" parent="1" vertex="1">
+      <mxGeometry x="640" y="64" width="300" height="84" as="geometry" />
+    </mxCell>
+    <mxCell id="detnote" value="bootstrap = { ws, token, role, viewer }&#10;absent ⇒ standalone" style="text;html=1;align=left;fontSize=11;fontColor=#666666;" parent="1" vertex="1">
+      <mxGeometry x="960" y="78" width="420" height="40" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sa" value="STANDALONE — single .html, no server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontStyle=1;fontSize=13;arcSize=4;" parent="1" vertex="1">
+      <mxGeometry x="60" y="220" width="500" height="300" as="geometry" />
+    </mxCell>
+    <mxCell id="presW" value="Presenter window&#10;(#presenter)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=12;" parent="1" vertex="1">
+      <mxGeometry x="90" y="290" width="190" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="audW" value="Audience window" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=12;" parent="1" vertex="1">
+      <mxGeometry x="340" y="290" width="190" height="70" as="geometry" />
+    </mxCell>
+    <mxCell id="bc" value="BroadcastChannel &quot;liebstoeckel&quot;&#10;{ index, step, total, startedAt }" style="endArrow=classic;startArrow=classic;html=1;fontSize=11;rounded=0;" parent="1" source="presW" target="audW" edge="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="safallback" value="Plugins render their fallback (no shared state)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#6c8ebf;fontSize=11;fontStyle=2;" parent="1" vertex="1">
+      <mxGeometry x="110" y="410" width="400" height="60" as="geometry" />
+    </mxCell>
+
+    <mxCell id="live" value="LIVE SESSION — bunx liebstoeckel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=13;arcSize=3;" parent="1" vertex="1">
+      <mxGeometry x="600" y="220" width="940" height="480" as="geometry" />
+    </mxCell>
+    <mxCell id="presDev" value="Presenter device&#10;Deck or #presenter&#10;role: presenter — CAN drive" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" parent="1" vertex="1">
+      <mxGeometry x="630" y="300" width="210" height="90" as="geometry" />
+    </mxCell>
+    <mxCell id="viewDev" value="Viewer devices ×N&#10;read-only link / QR&#10;role: viewer — follow + vote" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=12;" parent="1" vertex="1">
+      <mxGeometry x="630" y="500" width="210" height="90" as="geometry" />
+    </mxCell>
+
+    <mxCell id="srv" value="Live Server" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=top;fontStyle=1;fontSize=13;arcSize=4;" parent="1" vertex="1">
+      <mxGeometry x="980" y="270" width="320" height="400" as="geometry" />
+    </mxCell>
+    <mxCell id="hubLabel" value="Yjs Hub — authoritative Y.Doc" style="text;html=1;align=center;fontSize=12;fontStyle=1;" parent="1" vertex="1">
+      <mxGeometry x="995" y="300" width="290" height="22" as="geometry" />
+    </mxCell>
+    <mxCell id="deckmap" value="deck map&#10;index · step · total" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="1" vertex="1">
+      <mxGeometry x="995" y="328" width="135" height="66" as="geometry" />
+    </mxCell>
+    <mxCell id="pollmap" value="plugin:poll&#10;options · votes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="1" vertex="1">
+      <mxGeometry x="1150" y="328" width="135" height="66" as="geometry" />
+    </mxCell>
+    <mxCell id="sessions" value="Sessions + tokens&#10;presenter / viewer roles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" parent="1" vertex="1">
+      <mxGeometry x="995" y="408" width="290" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="srvplugins" value="Server plugins&#10;base64 manifest ⇒ ctx-injected" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=11;" parent="1" vertex="1">
+      <mxGeometry x="995" y="470" width="290" height="50" as="geometry" />
+    </mxCell>
+    <mxCell id="relaynote" value="Relay: full state on join · broadcast each update to others · oversized/bad frames dropped" style="text;html=1;align=left;fontSize=10;fontColor=#7a5300;" parent="1" vertex="1">
+      <mxGeometry x="995" y="528" width="290" height="120" as="geometry" />
+    </mxCell>
+
+    <mxCell id="ePres" value="WebSocket (Yjs)&#10;write index/step/total + votes&#10;auto-reconnect (backoff)" style="endArrow=classic;startArrow=classic;html=1;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" parent="1" source="presDev" target="srv" edge="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="eView" value="WebSocket (Yjs)&#10;follow nav · cast vote" style="endArrow=classic;startArrow=classic;html=1;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" parent="1" source="viewDev" target="srv" edge="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="eNo" value="No ⇒ standalone" style="endArrow=classic;html=1;fontSize=11;" parent="1" source="detect" target="sa" edge="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="eYes" value="Yes ⇒ live" style="endArrow=classic;html=1;fontSize=11;" parent="1" source="detect" target="live" edge="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="legend" value="State → transport → authority" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;verticalAlign=top;fontStyle=1;fontSize=13;arcSize=3;" parent="1" vertex="1">
+      <mxGeometry x="60" y="730" width="1480" height="250" as="geometry" />
+    </mxCell>
+    <mxCell id="legendrows" value="• Slide index / step / total&#9;—&#9;live: Yjs &quot;deck&quot; map · standalone: BroadcastChannel&#9;—&#9;presenter writes, everyone reads&#10;&#10;• Plugin shared state (poll votes, …)&#9;—&#9;Yjs &quot;plugin:&lt;id&gt;&quot; map (CRDT)&#9;—&#9;any participant writes, incl. read-only viewers; presenter-only actions gated in plugin code&#10;&#10;• Brand (data-brand)&#9;—&#9;per-window React state&#9;—&#9;local to each window&#10;&#10;• Elapsed timer&#9;—&#9;per-window React state&#9;—&#9;local to each presenter window&#10;&#10;• Participant id&#9;—&#9;sessionStorage&#9;—&#9;local (1 browser session = 1 participant)&#10;&#10;• Overlays: help / blur / overview / QR / jump&#9;—&#9;per-window React state&#9;—&#9;local UI" style="text;html=1;align=left;verticalAlign=top;fontSize=12;spacingLeft=6;" parent="1" vertex="1">
+      <mxGeometry x="78" y="768" width="1444" height="200" as="geometry" />
+    </mxCell>
+  </root>
+</mxGraphModel>

@@ -1,0 +1,11 @@
+{
+  "name": "@liebstoeckel/theme",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/index.css",
+    "./tokens": "./src/tokens.ts"
+  }
+}

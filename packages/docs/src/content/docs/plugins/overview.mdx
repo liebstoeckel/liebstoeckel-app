@@ -1,0 +1,72 @@
+---
+title: Plugins overview
+description: What a liebstoeckel plugin is, the built-in ones, and how they're discovered and bundled.
+---
+
+import { Aside, CardGrid, Card, LinkCard, FileTree } from "@astrojs/starlight/components";
+
+A **plugin** adds live, shared behavior to a deck — a poll, audience Q&A, emoji reactions, or anything you can model as shared state. Plugins are ordinary Bun packages; a deck depends on them like any dependency.
+
+## Anatomy
+
+A plugin is a `definePlugin({ … })` value with:
+
+<CardGrid>
+  <Card title="id" icon="seti:json">
+    A short string. Used to place the plugin (`<Plugin id="poll" />`) and to namespace its shared state (`plugin:poll`).
+  </Card>
+  <Card title="state" icon="setting">
+    A typed schema describing the shared CRDT state (the SDK's `schema`/`t`).
+  </Card>
+  <Card title="client" icon="laptop">
+    React surfaces: `Slide` (in-deck), optional `Presenter`, and a `fallback` (offline/thumbnail). Runs in every browser.
+  </Card>
+  <Card title="server" icon="rocket">
+    Optional host-side logic. Runs **once**, on the machine presenting — never in the audience's browsers.
+  </Card>
+</CardGrid>
+
+## Built-in plugins
+
+- **`@liebstoeckel/plugin-poll`** — live poll; everyone votes, results update in real time.
+- **`@liebstoeckel/plugin-qa`** — audience submits + upvotes questions; presenter marks answered / dismisses; the queue re-ranks live.
+- **`@liebstoeckel/plugin-reactions`** — ephemeral floating emoji over the deck (rate-limited, self-pruning).
+
+All three are pure-CRDT (no server part) and make good templates.
+
+## Using a plugin
+
+Register it with `<Present>` and place it on a slide:
+
+```tsx title="main.tsx"
+import poll from "@liebstoeckel/plugin-poll";
+
+<Present plugins={[poll]} slides={[…]} />
+```
+
+```tsx title="a slide"
+import { Plugin } from "@liebstoeckel/engine";
+
+<Plugin id="poll" props={{ question: "Ship it?", options: ["Yes", "Also yes"] }} />
+```
+
+`<Plugin>` renders the plugin's `Slide` when a live server is connected, else its `fallback`. On touch screens it provides the [tap-to-interact breakout](/guides/mobile/) automatically.
+
+## Discovery & bundling
+
+A package is recognized as a plugin by a marker in its `package.json`:
+
+```json
+{
+  "keywords": ["liebstoeckel-plugin"],
+  "liebstoeckel": { "client": "./src/client.tsx", "server": "./src/server.ts" }
+}
+```
+
+At build time the deck's dependencies are scanned for this marker; matching plugins go into a **manifest** embedded in the deck. Any `server` entry is bundled (target `bun`) and base64-encoded into that manifest — decoded and run only by a live server, never in the browser.
+
+<Aside type="note" title="Threat model">
+The current model assumes **non-malicious clients** (XSS must still be impossible). Roles/moderation are client-enforced (honor system). Server-side write-role enforcement is a documented future step.
+</Aside>
+
+<LinkCard title="Build a plugin" href="/plugins/building-a-plugin/" description="A complete, working plugin from scratch." />

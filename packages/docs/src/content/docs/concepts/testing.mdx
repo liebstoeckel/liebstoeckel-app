@@ -1,0 +1,39 @@
+---
+title: Testing
+description: The testing pyramid — pure unit tests, Yjs convergence, render smoke, and a headless-browser e2e tier.
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+
+liebstoeckel keeps a deliberate testing pyramid: a broad, fast base of pure + integration tests with `bun test`, and a thin browser tier for the "does the built artifact actually run" gap.
+
+## The layers
+
+| Layer | What it covers | Cost |
+| --- | --- | --- |
+| **Pure unit** | schemas, tallies, line-diff keying, touch-gesture resolution, breakout eligibility, CLI scaffold templates | milliseconds |
+| **Yjs convergence** | shared state agrees across two synced docs (polls, Q&A, reactions, relay) — the property that matters, with **no browser** | milliseconds |
+| **Render smoke** | components render without throwing (`renderToStaticMarkup`) | fast |
+| **E2E (browser)** | the real single-file deck boots in headless Chromium: no console errors, reveals + nav, `CodeMagic` morph, plugin fallback, the mobile breakout | seconds |
+
+Run them:
+
+```bash
+bun run test         # the full suite (bun test packages)
+bun run test:e2e     # just the browser smoke tier
+bun run typecheck    # tsc --noEmit
+```
+
+## Why this shape
+
+Most of the risk — does shared state converge, do derivations rank correctly, does navigation advance — is covered by fast, reliable headless tests. The e2e tier exists only for what a browser uniquely catches: bundling, the Bun macro, hydration, CSS, and the touch breakout. It **skips cleanly when no Chromium** is installed.
+
+<Aside type="note" title="E2E gotchas (in this environment)">
+The fixture deck builds in a **subprocess** (calling `Bun.build` inside `bun test` can't follow workspace symlinks for a plugin's transitive deps), and single-process Chromium can't share contexts, so each case launches its own browser.
+</Aside>
+
+<Aside type="tip" title="What's intentionally not pixel-tested">
+No visual-regression (screenshot diffing): it's font-dependent and high-maintenance. The e2e tier asserts **structure and behavior**, not pixels.
+</Aside>
+
+<LinkCard title="Testing plugins" href="/plugins/testing/" description="The same layers, applied to a plugin." />

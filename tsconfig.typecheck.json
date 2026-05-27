@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["bun", "react", "react-dom"],
+    "paths": {
+      "@liebstoeckel/engine": ["./packages/engine/src/index.ts"],
+      "@liebstoeckel/engine/code": ["./packages/engine/src/code/macro.ts"],
+      "@liebstoeckel/engine/*": ["./packages/engine/src/*"],
+      "@liebstoeckel/components": ["./packages/components/src/index.ts"],
+      "@liebstoeckel/theme": ["./packages/theme/src/index.ts"],
+      "@liebstoeckel/theme/*": ["./packages/theme/src/*"],
+      "@liebstoeckel/plugin-sdk": ["./packages/plugin-sdk/src/index.ts"],
+      "@liebstoeckel/plugin-sdk/*": ["./packages/plugin-sdk/src/*"],
+      "@liebstoeckel/plugin-ui": ["./packages/plugin-ui/src/index.ts"],
+      "@liebstoeckel/plugin-poll": ["./packages/plugin-poll/src/index.ts"],
+      "@liebstoeckel/plugin-poll/*": ["./packages/plugin-poll/src/*"],
+      "@liebstoeckel/live-server": ["./packages/live-server/src/index.ts"],
+      "@liebstoeckel/live-server/*": ["./packages/live-server/src/*"],
+      "@liebstoeckel/thumbnails": ["./packages/thumbnails/src/index.ts"],
+      "@liebstoeckel/thumbnails/*": ["./packages/thumbnails/src/*"],
+      "@liebstoeckel/plugin-qa": ["./packages/plugin-qa/src/index.ts"],
+      "@liebstoeckel/plugin-qa/*": ["./packages/plugin-qa/src/*"],
+      "@liebstoeckel/plugin-reactions": ["./packages/plugin-reactions/src/index.ts"],
+      "@liebstoeckel/plugin-reactions/*": ["./packages/plugin-reactions/src/*"],
+      "@liebstoeckel/cli": ["./packages/cli/src/cli.ts"],
+      "@liebstoeckel/cli/*": ["./packages/cli/src/*"],
+      "@liebstoeckel/present-relay": ["./packages/present-relay/src/index.ts"],
+      "@liebstoeckel/present-relay/*": ["./packages/present-relay/src/*"]
+    }
+  },
+  "include": ["packages", "presentations", "types"],
+  "exclude": ["**/node_modules", "**/dist", "packages/docs"]
+}

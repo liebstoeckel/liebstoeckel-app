@@ -1,0 +1,53 @@
+---
+title: liebstoeckel
+description: A code-first presentation engine that produces stunning, animated, single-file HTML decks on Bun + React 19 + Motion + Tailwind v4.
+template: splash
+hero:
+  tagline: Code-first presentations that talk back. Animated single-file decks, multi-brand theming, and a live plugin system — built on Bun + React 19 + Motion.
+  actions:
+    - text: Get started
+      link: /guides/getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: Build a plugin
+      link: /plugins/overview/
+      icon: open-book
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+## Why liebstoeckel
+
+We are not building "another reveal.js." liebstoeckel is a small, opinionated **engine + theming layer** where content is authored in MDX/TSX, design lives in one place per brand, and motion is first-class.
+
+<CardGrid stagger>
+  <Card title="Single-file output" icon="document">
+    Every deck builds to one portable `.html` — JS/CSS inlined, assets base64'd. No server, no CDN, emailable.
+  </Card>
+  <Card title="Motion that matters" icon="rocket">
+    Magic Move (`layoutId`), spring choreography, animated code diffs — the reason to build our own instead of using a generic tool.
+  </Card>
+  <Card title="Brands, not styles" icon="setting">
+    A deck declares `brand: "acme"` and inherits the whole look from typed design tokens. Override a token for a one-off without forking.
+  </Card>
+  <Card title="Decks that talk back" icon="comment">
+    A live Yjs-backed plugin system: polls, audience Q&A, and reactions sync across every device in the room.
+  </Card>
+  <Card title="Mobile-ready" icon="laptop">
+    The audience joins from a phone — tap a glowing plugin to interact full-size, swipe to navigate.
+  </Card>
+  <Card title="LLM-native docs" icon="open-book">
+    Every page has **Copy Markdown** + **Open in ChatGPT / Claude**, a raw `.md` at each URL, and an `/llms.txt` index — built for assistants.
+  </Card>
+</CardGrid>
+
+## The 30-second tour
+
+```bash
+bun add -g @liebstoeckel/cli       # or: bunx liebstoeckel …
+liebstoeckel new my-talk           # scaffold a deck
+liebstoeckel live my-talk          # present live (audience joins by QR)
+liebstoeckel build my-talk         # → one self-contained dist/index.html
+```
+
+Head to [Getting started](/guides/getting-started/) to install, or jump straight to [building a plugin](/plugins/overview/).

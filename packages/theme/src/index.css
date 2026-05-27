@@ -1,0 +1,61 @@
+/* @import rules must come first (CSS spec). */
+@import "tailwindcss";
+@import "./fonts.css";
+@import "./brands.generated.css";
+@import "./code.css";
+
+/* The bridge: `inline` makes utilities emit var(--brand-*) DIRECTLY so they
+   resolve at the point of use (under [data-brand]). Plain @theme would compute
+   these at :root, where --brand-* isn't defined yet → empty values. Verified. */
+@theme inline {
+  --color-bg: var(--brand-bg);
+  --color-surface: var(--brand-surface);
+  --color-text: var(--brand-text);
+  --color-muted: var(--brand-muted);
+  --color-primary: var(--brand-primary);
+  --color-accent: var(--brand-accent);
+  --color-accent2: var(--brand-accent2);
+  /* fall back to a hairline derived from the brand's own text color so the
+     indicator/borders are never invisible on brands that omit --brand-border */
+  --color-border: var(--brand-border, color-mix(in srgb, var(--brand-text) 14%, transparent));
+  --color-on-primary: var(--brand-on-primary);
+  --font-heading: var(--brand-font-heading);
+  --font-body: var(--brand-font-body);
+  --font-mono: var(--brand-font-mono);
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--brand-font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* expressive optical sizing for the display serif */
+.font-heading {
+  font-optical-sizing: auto;
+}
+
+/* speaker-notes panel: notes are authored as plain JSX, so style raw elements */
+.presenter-notes :where(p) { margin: 0 0 0.85em; }
+.presenter-notes :where(ul) { margin: 0.4em 0; padding-left: 1.1em; list-style: none; }
+.presenter-notes :where(li) { position: relative; margin: 0.45em 0; padding-left: 1.1em; }
+.presenter-notes :where(li)::before {
+  content: "›"; position: absolute; left: 0; color: var(--brand-accent); font-weight: 700;
+}
+.presenter-notes :where(strong) { color: var(--brand-primary); font-weight: 600; }
+.presenter-notes :where(code) {
+  font-family: var(--brand-font-mono); font-size: 0.85em;
+  background: color-mix(in srgb, var(--brand-surface) 80%, transparent);
+  padding: 0.1em 0.4em; border-radius: 0.35em; color: var(--brand-accent);
+}
+.presenter-notes :where(kbd) {
+  font-family: var(--brand-font-mono); font-size: 0.8em; border: 1px solid var(--brand-border);
+  padding: 0.1em 0.45em; border-radius: 0.35em;
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@liebstoeckel/live-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./cli": "./src/cli.ts"
+  },
+  "dependencies": {
+    "@liebstoeckel/engine": "workspace:*",
+    "@liebstoeckel/plugin-sdk": "workspace:*",
+    "qrcode": "^1.5.4",
+    "yjs": "^13.6.30"
+  },
+  "devDependencies": {
+    "@liebstoeckel/plugin-poll": "workspace:*",
+    "@liebstoeckel/present-relay": "workspace:*"
+  }
+}
