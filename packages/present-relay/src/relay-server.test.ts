@@ -75,8 +75,9 @@ describe("relay deck serving (opaque sandbox)", () => {
     const res = await fetch(`${base}/s/${id}?t=${viewerToken}`);
     expect(res.status).toBe(200);
     const csp = res.headers.get("content-security-policy") ?? "";
-    expect(csp).toContain("sandbox allow-scripts allow-fullscreen");
+    expect(csp).toContain("sandbox allow-scripts");
     expect(csp).not.toContain("allow-same-origin");
+    expect(csp).not.toContain("allow-fullscreen"); // invalid sandbox token — must not regress
     expect(csp).toContain("connect-src");
     const html = await res.text();
     expect(html).toContain("window.__LIEBSTOECKEL_LIVE__");
