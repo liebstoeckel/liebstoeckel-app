@@ -75,6 +75,13 @@
         "starlight-page-actions": "^0.6.0",
       },
     },
+    "packages/docs-dist": {
+      "name": "@liebstoeckel/docs-dist",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liebstoeckel/docs": "workspace:*",
+      },
+    },
     "packages/e2e": {
       "name": "@liebstoeckel/e2e",
       "version": "0.0.0",
@@ -382,6 +389,8 @@
     "@liebstoeckel/demo": ["@liebstoeckel/demo@workspace:presentations/demo"],
 
     "@liebstoeckel/docs": ["@liebstoeckel/docs@workspace:packages/docs"],
+
+    "@liebstoeckel/docs-dist": ["@liebstoeckel/docs-dist@workspace:packages/docs-dist"],
 
     "@liebstoeckel/e2e": ["@liebstoeckel/e2e@workspace:packages/e2e"],
 
