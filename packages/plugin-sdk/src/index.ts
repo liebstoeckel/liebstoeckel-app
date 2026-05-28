@@ -9,4 +9,8 @@ export {
   type ClientComponent,
   type PluginServerCtx,
   type Role,
+  type GlobalSurfaces,
+  type GlobalProps,
+  type GlobalComponent,
+  type PanelController,
 } from "./plugin";

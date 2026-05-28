@@ -30,6 +30,34 @@ export interface ClientProps<T> {
 
 export type ClientComponent<T> = ComponentType<ClientProps<T>>;
 
+/** Controls the open-state of a plugin's global `Panel` — the engine owns it the
+ *  same way it owns the Help/QR overlays. A `Control` toggles its sibling `Panel`. */
+export interface PanelController {
+  open: boolean;
+  toggle: () => void;
+  close: () => void;
+}
+
+/** Props for a plugin's `Control`/`Panel` global surfaces: the usual `ClientProps`
+ *  plus the panel controller. (`Overlay` is ambient and gets plain `ClientProps`.) */
+export interface GlobalProps<T> extends ClientProps<T> {
+  panel: PanelController;
+}
+
+export type GlobalComponent<T> = ComponentType<GlobalProps<T>>;
+
+/** Optional deck-wide surfaces, mounted once per deck by the engine (see ADR 0021).
+ *  Live-gated: rendered only when a server is connected. */
+export interface GlobalSurfaces<T> {
+  /** full-deck, `pointer-events:none` float layer above the slide, below chrome */
+  Overlay?: ClientComponent<T>;
+  /** a button in the chrome rail next to the help affordance — any node; the
+   *  `ChromeButton` primitive matches the help button's look & feel by default */
+  Control?: GlobalComponent<T>;
+  /** a drawer/modal portaled outside the scaled stage, toggled by `Control` */
+  Panel?: GlobalComponent<T>;
+}
+
 export interface PluginClient<T> {
   /** rendered in the deck (audience + presenter) */
   Slide: ClientComponent<T>;
@@ -44,6 +72,9 @@ export interface PluginClient<T> {
    *  on small / coarse-pointer screens. Defaults to true; set false for display-only
    *  plugins so they don't show a misleading affordance. */
   interactive?: boolean;
+  /** optional deck-wide surfaces (overlay / chrome control / panel), independent of
+   *  the slide-anchored `<Plugin>` placement. See ADR 0021. */
+  global?: GlobalSurfaces<T>;
 }
 
 /** Context handed to a plugin's optional server part. */

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
-import { Card, Eyebrow } from "@liebstoeckel/plugin-ui";
+import { definePlugin, type ClientProps, type GlobalProps, type PluginState } from "@liebstoeckel/plugin-sdk";
+import { Card, Eyebrow, ChromeButton } from "@liebstoeckel/plugin-ui";
 import {
   reactionsSchema,
   EMOJI,
@@ -40,22 +40,11 @@ function Floater({ r }: { r: Reaction }) {
   );
 }
 
-/** In-deck UI: a row of emoji buttons + a non-blocking float layer above the deck. */
-function ReactionsSlide(p: ClientProps<ReactionsState>) {
-  const { snapshot, state, participantId } = p;
-  const lastEmit = useRef(0);
+/** The live floaters + the prune loop that keeps the doc bounded. Caller positions
+ *  it (anchored bottom-center inside a card, or deck-wide in the global overlay). */
+function FloatLayer({ snapshot, state }: { snapshot: ReactionsState; state: PluginState<ReactionsState> }) {
   const [, force] = useState(0); // re-tick `recent()` as the window slides
   const live = recent(snapshot, Date.now());
-
-  const emit = (emoji: string) => {
-    const now = Date.now();
-    if (!allowEmit(lastEmit.current, now)) return;
-    lastEmit.current = now;
-    state.recordSet("reactions", crypto.randomUUID(), { emoji, pid: participantId, ts: now });
-  };
-
-  // Prune expired + over-cap entries so the doc stays small; also re-render so
-  // floaters that exit the window unmount via AnimatePresence.
   useEffect(() => {
     const tick = () => {
       const now = Date.now();
@@ -66,44 +55,100 @@ function ReactionsSlide(p: ClientProps<ReactionsState>) {
     const h = setInterval(tick, 1000);
     return () => clearInterval(h);
   }, [snapshot, state]);
+  return (
+    <AnimatePresence>
+      {live.map((r) => (
+        <Floater key={r.id} r={r} />
+      ))}
+    </AnimatePresence>
+  );
+}
 
+/** A rate-limited emit, shared by the slide, the panel and any other surface. */
+function useEmit(state: PluginState<ReactionsState>, participantId: string) {
+  const lastEmit = useRef(0);
+  return (emoji: string) => {
+    const now = Date.now();
+    if (!allowEmit(lastEmit.current, now)) return;
+    lastEmit.current = now;
+    state.recordSet("reactions", crypto.randomUUID(), { emoji, pid: participantId, ts: now });
+  };
+}
+
+/** The springy row of emoji buttons. */
+function EmojiPalette({ onEmit }: { onEmit: (emoji: string) => void }) {
+  return (
+    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", position: "relative" }}>
+      {EMOJI.map((e) => (
+        <motion.button
+          key={e}
+          onClick={() => onEmit(e)}
+          whileTap={{ scale: 0.86 }}
+          whileHover={{ scale: 1.08 }}
+          transition={{ type: "spring", stiffness: 500, damping: 24 }}
+          style={{
+            appearance: "none",
+            cursor: "pointer",
+            width: "3.1rem",
+            height: "3.1rem",
+            fontSize: "1.5rem",
+            lineHeight: 1,
+            borderRadius: "0.7rem",
+            border: `1px solid ${v("border", "#222734")}`,
+            background: `color-mix(in srgb, ${v("surface", "#11141b")} 60%, transparent)`,
+          }}
+        >
+          {e}
+        </motion.button>
+      ))}
+    </div>
+  );
+}
+
+/** In-deck slide: a palette over an in-card float layer (a showcase surface). */
+function ReactionsSlide(p: ClientProps<ReactionsState>) {
+  const { snapshot, state, participantId } = p;
+  const emit = useEmit(state, participantId);
   return (
     <Card style={{ position: "relative", width: "100%", maxWidth: 420, overflow: "visible" }}>
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden", borderRadius: "1rem" }}>
         <div style={{ position: "absolute", left: "50%", bottom: "5.5rem", transform: "translateX(-50%)", display: "flex" }}>
-          <AnimatePresence>
-            {live.map((r) => (
-              <Floater key={r.id} r={r} />
-            ))}
-          </AnimatePresence>
+          <FloatLayer snapshot={snapshot} state={state} />
         </div>
       </div>
       <Eyebrow>React</Eyebrow>
-      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", position: "relative" }}>
-        {EMOJI.map((e) => (
-          <motion.button
-            key={e}
-            onClick={() => emit(e)}
-            whileTap={{ scale: 0.86 }}
-            whileHover={{ scale: 1.08 }}
-            transition={{ type: "spring", stiffness: 500, damping: 24 }}
-            style={{
-              appearance: "none",
-              cursor: "pointer",
-              width: "3.1rem",
-              height: "3.1rem",
-              fontSize: "1.5rem",
-              lineHeight: 1,
-              borderRadius: "0.7rem",
-              border: `1px solid ${v("border", "#222734")}`,
-              background: `color-mix(in srgb, ${v("surface", "#11141b")} 60%, transparent)`,
-            }}
-          >
-            {e}
-          </motion.button>
-        ))}
-      </div>
+      <EmojiPalette onEmit={emit} />
     </Card>
+  );
+}
+
+/** Global overlay: floaters rising deck-wide, anchored bottom-center. Rendered in
+ *  the engine's non-interactive overlay layer, so it's available on every slide. */
+function ReactionsOverlay({ snapshot, state }: ClientProps<ReactionsState>) {
+  return (
+    <div style={{ position: "absolute", left: "50%", bottom: "9%", transform: "translateX(-50%)", display: "flex" }}>
+      <FloatLayer snapshot={snapshot} state={state} />
+    </div>
+  );
+}
+
+/** Global chrome control: a help-button-style toggle for the palette panel. */
+function ReactionsControl({ panel }: GlobalProps<ReactionsState>) {
+  return (
+    <ChromeButton onClick={panel.toggle} active={panel.open} title="Reactions" ariaLabel="Reactions" style={{ fontSize: "0.95rem" }}>
+      🎉
+    </ChromeButton>
+  );
+}
+
+/** Global panel: the palette, reachable from anywhere via the chrome control. */
+function ReactionsPanel(p: GlobalProps<ReactionsState>) {
+  const emit = useEmit(p.state, p.participantId);
+  return (
+    <>
+      <Eyebrow>React</Eyebrow>
+      <EmojiPalette onEmit={emit} />
+    </>
   );
 }
 
@@ -146,5 +191,10 @@ export default definePlugin<ReactionsState>({
   client: {
     Slide: ReactionsSlide,
     fallback: ReactionsFallback,
+    global: {
+      Overlay: ReactionsOverlay,
+      Control: ReactionsControl,
+      Panel: ReactionsPanel,
+    },
   },
 });

@@ -103,6 +103,55 @@ export function Bar({
   );
 }
 
+/** A round chrome-rail button matching the deck's help affordance (1.75rem, brand
+ *  border, muted→accent, fades in on hover). The default look for a plugin's global
+ *  `Control` — but it imposes nothing: pass any `children` / `style` to restyle. */
+export function ChromeButton({
+  children,
+  onClick,
+  active = false,
+  title,
+  ariaLabel,
+  style,
+}: {
+  children?: ReactNode;
+  onClick?: () => void;
+  active?: boolean;
+  title?: string;
+  ariaLabel?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      aria-label={ariaLabel}
+      data-active={active}
+      style={{
+        appearance: "none",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "1.75rem",
+        width: "1.75rem",
+        borderRadius: "999px",
+        border: `1px solid ${active ? v("accent", "#62e8ff") : v("border", "#222734")}`,
+        background: "transparent",
+        color: active ? v("accent", "#62e8ff") : v("muted", "#8b93a7"),
+        fontFamily: v("font-mono", "monospace"),
+        fontSize: "0.85rem",
+        lineHeight: 1,
+        opacity: active ? 1 : 0.7,
+        transition: "all 0.15s ease",
+        ...style,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function Stack({ children, gap = "0.6rem", style }: { children?: ReactNode; gap?: string; style?: CSSProperties }) {
   return <div style={{ display: "flex", flexDirection: "column", gap, ...style }}>{children}</div>;
 }

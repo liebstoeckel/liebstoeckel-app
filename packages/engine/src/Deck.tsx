@@ -15,6 +15,7 @@ import { DeckThumb } from "./Thumb";
 import { readThumbnails } from "./thumbnails";
 import { HelpOverlay } from "./HelpOverlay";
 import { QrOverlay } from "./QrOverlay";
+import { PluginOverlays, PluginControls } from "./live/globalChrome";
 import { StepsProvider } from "./steps";
 import { accumulateDigits, toggleFullscreen } from "./delivery";
 import { normalizeSlides, type SlideInput } from "./slides";
@@ -137,6 +138,10 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
 
             <PersistentLayer items={persistent} />
 
+            {/* deck-wide plugin overlays (e.g. reactions floaters) — over the
+                slide, below chrome; non-interactive (live only, see ADR 0021) */}
+            <PluginOverlays />
+
             {/* progress + counter */}
             <div className="absolute inset-x-0 bottom-0 h-[3px] bg-border/40">
               <motion.div
@@ -149,34 +154,38 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
               {String(index + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
             </div>
 
-            {/* role-aware help affordance: ? (standalone) · eye (viewer) · screen (presenter) */}
-            <button
-              onClick={() => setHelp(true)}
-              title={
-                isLive
-                  ? `${role} · shortcuts (? or right-click)`
-                  : "Shortcuts (? or right-click)"
-              }
-              className={`absolute bottom-4 left-8 flex h-7 w-7 items-center justify-center rounded-full border transition ${
-                isLive
-                  ? "border-accent/50 text-accent opacity-80 hover:opacity-100"
-                  : "border-border text-muted/50 opacity-60 hover:border-text hover:text-text hover:opacity-100"
-              }`}
-            >
-              {!isLive ? (
-                <span className="font-mono text-xs">?</span>
-              ) : role === "viewer" ? (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="13" rx="1.5" />
-                  <path d="M12 17v3M8.5 20h7" />
-                </svg>
-              )}
-            </button>
+            {/* chrome rail: role-aware help affordance (? standalone · eye viewer ·
+                screen presenter) + any plugin-registered global controls (ADR 0021) */}
+            <div className="absolute bottom-4 left-8 flex items-center gap-2">
+              <button
+                onClick={() => setHelp(true)}
+                title={
+                  isLive
+                    ? `${role} · shortcuts (? or right-click)`
+                    : "Shortcuts (? or right-click)"
+                }
+                className={`flex h-7 w-7 items-center justify-center rounded-full border transition ${
+                  isLive
+                    ? "border-accent/50 text-accent opacity-80 hover:opacity-100"
+                    : "border-border text-muted/50 opacity-60 hover:border-text hover:text-text hover:opacity-100"
+                }`}
+              >
+                {!isLive ? (
+                  <span className="font-mono text-xs">?</span>
+                ) : role === "viewer" ? (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                ) : (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="13" rx="1.5" />
+                    <path d="M12 17v3M8.5 20h7" />
+                  </svg>
+                )}
+              </button>
+              <PluginControls />
+            </div>
 
             {/* jump-to-number buffer */}
             <AnimatePresence>
