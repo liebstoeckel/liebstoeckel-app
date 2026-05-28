@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { StageScaleContext } from "../Stage";
@@ -86,9 +86,28 @@ export function GlowTap({ label, onOpen, children }: { label: string; onOpen: ()
   );
 }
 
-/** A full-size bottom sheet portaled OUTSIDE the scaled stage, so the plugin's real
- *  controls render at device scale with proper tap targets. Same Yjs state. */
+/** True on a short viewport (landscape phone / small window) — switch the breakout
+ *  from a full-width bottom sheet to a centered, height-capped card so its content
+ *  doesn't overflow off the bottom. */
+function useShortViewport(): boolean {
+  const [short, setShort] = useState(false);
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return;
+    const mq = matchMedia("(max-height: 600px)");
+    const update = () => setShort(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
+  return short;
+}
+
+/** A full-size breakout portaled OUTSIDE the scaled stage, so the plugin's real
+ *  controls render at device scale with proper tap targets. Same Yjs state. A
+ *  bottom sheet on tall viewports; a centered, scrollable card on short/landscape
+ *  ones so the content never runs off-screen. */
 export function BreakoutSheet({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
+  const short = useShortViewport();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -116,7 +135,9 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
         zIndex: 9999,
         display: "flex",
         flexDirection: "column",
-        justifyContent: "flex-end",
+        justifyContent: short ? "center" : "flex-end",
+        alignItems: "center",
+        padding: short ? "max(env(safe-area-inset-top), 0.75rem) 0.75rem" : 0,
         background: "color-mix(in srgb, var(--brand-bg, #10140e) 60%, transparent)",
         backdropFilter: "blur(6px)",
       }}
@@ -124,22 +145,42 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
       <motion.div
         data-pi-breakout
         onClick={(e) => e.stopPropagation()}
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
+        initial={{ y: short ? 24 : "100%", opacity: short ? 0 : 1 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: short ? 24 : "100%", opacity: short ? 0 : 1 }}
         transition={{ type: "spring", stiffness: 320, damping: 36 }}
         style={{
-          maxHeight: "88vh",
+          width: "100%",
+          maxWidth: short ? "560px" : "720px",
+          marginInline: "auto",
+          maxHeight: short ? "100%" : "88vh",
           overflow: "auto",
-          padding: "1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom))",
-          borderTopLeftRadius: "1.4rem",
-          borderTopRightRadius: "1.4rem",
+          padding: short
+            ? "0 1.1rem 1.1rem"
+            : "0 1.25rem calc(1.5rem + env(safe-area-inset-bottom))",
+          borderRadius: short ? "1.2rem" : "1.4rem 1.4rem 0 0",
           background: "var(--brand-surface, #1a2014)",
+          border: short
+            ? "1px solid var(--brand-border, color-mix(in srgb, var(--brand-text, #e9e6d7) 14%, transparent))"
+            : "none",
           borderTop: "1px solid var(--brand-border, color-mix(in srgb, var(--brand-text, #e9e6d7) 14%, transparent))",
           boxShadow: "0 -24px 60px -20px rgba(0,0,0,0.7)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+        {/* sticky header so the close button stays reachable while the body scrolls */}
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "1.1rem 0 0.9rem",
+            marginBottom: "0.4rem",
+            background: "var(--brand-surface, #1a2014)",
+          }}
+        >
           <span
             style={{
               fontFamily: "var(--brand-font-mono, monospace)",
@@ -168,7 +209,9 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
             ✕
           </button>
         </div>
-        {children}
+        {/* shrink the plugin's content a touch on short viewports so it fits with
+            less scrolling (zoom reflows, unlike transform) */}
+        <div style={short ? ({ zoom: 0.85 } as CSSProperties) : undefined}>{children}</div>
       </motion.div>
     </motion.div>,
     document.body,

@@ -15,7 +15,8 @@ import { DeckThumb } from "./Thumb";
 import { readThumbnails } from "./thumbnails";
 import { HelpOverlay } from "./HelpOverlay";
 import { QrOverlay } from "./QrOverlay";
-import { PluginOverlays, PluginControls } from "./live/globalChrome";
+import { PluginOverlays } from "./live/globalChrome";
+import { DeckChrome } from "./DeckChrome";
 import { StepsProvider } from "./steps";
 import { accumulateDigits, toggleFullscreen } from "./delivery";
 import { normalizeSlides, type SlideInput } from "./slides";
@@ -117,7 +118,11 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
   return (
     <MDXProvider components={mdxComponents}>
       <PersistentProvider>
-        <ScaledStage className="h-screen w-screen">
+       {/* 100dvh (dynamic viewport), NOT 100vh: on mobile the browser's address
+           bar makes 100vh taller than the visible area, which would push the slide
+           bottom + the viewport-pinned chrome below the fold. */}
+       <div className="relative h-dvh w-screen overflow-hidden bg-bg">
+        <ScaledStage className="absolute inset-0">
           <div data-deck-root className="absolute inset-0">
             <AnimatePresence>
               <motion.div
@@ -142,51 +147,6 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
                 slide, below chrome; non-interactive (live only, see ADR 0021) */}
             <PluginOverlays />
 
-            {/* progress + counter */}
-            <div className="absolute inset-x-0 bottom-0 h-[3px] bg-border/40">
-              <motion.div
-                className="h-full bg-primary"
-                animate={{ width: `${((index + 1) / count) * 100}%` }}
-                transition={{ type: "spring", stiffness: 120, damping: 22 }}
-              />
-            </div>
-            <div className="absolute bottom-5 right-8 font-mono text-sm tracking-wide text-muted">
-              {String(index + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
-            </div>
-
-            {/* chrome rail: role-aware help affordance (? standalone · eye viewer ·
-                screen presenter) + any plugin-registered global controls (ADR 0021) */}
-            <div className="absolute bottom-4 left-8 flex items-center gap-2">
-              <button
-                onClick={() => setHelp(true)}
-                title={
-                  isLive
-                    ? `${role} · shortcuts (? or right-click)`
-                    : "Shortcuts (? or right-click)"
-                }
-                className={`flex h-7 w-7 items-center justify-center rounded-full border transition ${
-                  isLive
-                    ? "border-accent/50 text-accent opacity-80 hover:opacity-100"
-                    : "border-border text-muted/50 opacity-60 hover:border-text hover:text-text hover:opacity-100"
-                }`}
-              >
-                {!isLive ? (
-                  <span className="font-mono text-xs">?</span>
-                ) : role === "viewer" ? (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                ) : (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="4" width="18" height="13" rx="1.5" />
-                    <path d="M12 17v3M8.5 20h7" />
-                  </svg>
-                )}
-              </button>
-              <PluginControls />
-            </div>
-
             {/* jump-to-number buffer */}
             <AnimatePresence>
               {jump && (
@@ -202,7 +162,6 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
             </AnimatePresence>
 
             <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} />
-            <QrOverlay open={qr} url={liveCtx?.viewerUrl} onClose={() => setQr(false)} />
             <PortraitHint />
           </div>
 
@@ -224,38 +183,58 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* overview grid */}
-          <AnimatePresence>
-            {overview && (
-              <motion.div
-                className="absolute inset-0 overflow-auto bg-bg/95 p-[4%] backdrop-blur-xl"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <div className="mb-6 font-mono text-sm uppercase tracking-[0.3em] text-muted">Overview · click or type a number</div>
-                <div className="grid grid-cols-4 gap-5">
-                  {norm.map((s, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        ctrl.setIndex(i);
-                        setOverview(false);
-                      }}
-                      className={`relative aspect-video overflow-hidden rounded-xl border text-left transition ${
-                        i === index ? "border-primary" : "border-border hover:border-text"
-                      }`}
-                    >
-                      <DeckThumb Component={s.Component} src={thumbs?.get(i)} alt={`Slide ${i + 1}`} />
-                      <span className="absolute bottom-1 right-2 font-mono text-xs text-muted">{i + 1}</span>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </ScaledStage>
+
+        {/* QR + overview render OUTSIDE the scaled canvas (device scale) so they're
+            full-size on a phone — the touch ⋮ menu opens them. */}
+        <QrOverlay open={qr} url={liveCtx?.viewerUrl} onClose={() => setQr(false)} />
+        <AnimatePresence>
+          {overview && (
+            <motion.div
+              className="absolute inset-0 z-40 overflow-auto bg-bg/95 p-[4%] backdrop-blur-xl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <div className="mb-6 font-mono text-sm uppercase tracking-[0.3em] text-muted">Overview · tap or type a number</div>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-5">
+                {norm.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      ctrl.setIndex(i);
+                      setOverview(false);
+                    }}
+                    className={`relative aspect-video overflow-hidden rounded-xl border text-left transition ${
+                      i === index ? "border-primary" : "border-border hover:border-text"
+                    }`}
+                  >
+                    <DeckThumb Component={s.Component} src={thumbs?.get(i)} alt={`Slide ${i + 1}`} />
+                    <span className="absolute bottom-1 right-2 font-mono text-xs text-muted">{i + 1}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* chrome at DEVICE scale, pinned to the real viewport (outside the scaled
+            canvas) so the help + plugin buttons stay tappable on a phone. On touch
+            the help affordance becomes a ⋮ action menu (fullscreen, overview, …). */}
+        <DeckChrome
+          index={index}
+          count={count}
+          isLive={isLive}
+          role={role}
+          canDrive={role !== "viewer"}
+          brandCount={brands.length}
+          viewerUrl={liveCtx?.viewerUrl}
+          onHelp={() => setHelp(true)}
+          onOverview={() => setOverview((v) => !v)}
+          onQr={() => setQr((v) => !v)}
+          onBrand={() => setBrandIdx((n) => n + 1)}
+        />
+       </div>
       </PersistentProvider>
     </MDXProvider>
   );
