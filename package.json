@@ -2,7 +2,10 @@
   "name": "liebstoeckel",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*", "presentations/*"],
+  "workspaces": [
+    "packages/*",
+    "presentations/*"
+  ],
   "scripts": {
     "gen": "bun run packages/theme/src/gen.ts",
     "demo:dev": "cd presentations/demo && bun --hot ./server.ts",
@@ -52,5 +55,6 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "yjs": "^13.6.30"
-  }
+  },
+  "license": "MPL-2.0"
 }

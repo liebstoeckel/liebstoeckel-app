@@ -1,9 +1,25 @@
 {
   "name": "@liebstoeckel/thumbnails",
   "version": "0.0.0",
-  "private": true,
+  "license": "MPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/limond/liebstoeckel-app-public.git",
+    "directory": "packages/thumbnails"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "bun": ">=1.3"
+  },
   "type": "module",
-  "bin": { "liebstoeckel-thumbnails": "./src/cli.ts" },
+  "bin": {
+    "liebstoeckel-thumbnails": "./src/cli.ts"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./build": "./src/build.ts",

@@ -16,3 +16,4 @@ _ft/
 .DS_Store
 .idea/
 *.swp
+.npmrc

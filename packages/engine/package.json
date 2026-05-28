@@ -1,7 +1,21 @@
 {
   "name": "@liebstoeckel/engine",
   "version": "0.0.0",
-  "private": true,
+  "license": "MPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/limond/liebstoeckel-app-public.git",
+    "directory": "packages/engine"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "bun": ">=1.3"
+  },
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -16,9 +30,17 @@
     "@liebstoeckel/components": "workspace:*",
     "@liebstoeckel/plugin-sdk": "workspace:*",
     "@liebstoeckel/plugin-ui": "workspace:*",
+    "@mdx-js/mdx": "^3.1.1",
+    "@mdx-js/react": "^3.1.1",
     "@shikijs/rehype": "^3.0.0",
+    "bun-plugin-tailwind": "^0.1.2",
+    "motion": "^12.40.0",
     "qrcode": "^1.5.4",
-    "shiki": "^3.0.0",
+    "shiki": "^3.0.0"
+  },
+  "peerDependencies": {
+    "react": ">=19",
+    "react-dom": ">=19",
     "yjs": "^13.6.30"
   }
 }
