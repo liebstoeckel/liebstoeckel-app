@@ -33,6 +33,20 @@ await relay.stop();
 
 Then point the live server at it (e.g. `liebstoeckel live deck.html --relay <url> --relay-token <token>`).
 
+### Self-host with Docker
+
+A generic image ships in this package ([`Dockerfile`](./Dockerfile)). It's all env-driven — `PORT`, `PRESENT_RELAY_TOKENS` (comma-separated account tokens), `PRESENT_RELAY_PUBLIC_URL` (your TLS origin, so links come back as `wss://`). Build from the **repo root** (a frozen workspace install resolves the `@liebstoeckel/*` symlinks):
+
+```sh
+docker build -f packages/present-relay/Dockerfile -t liebstoeckel-relay .
+docker run -p 8080:8080 \
+  -e PRESENT_RELAY_TOKENS="$(openssl rand -hex 24)" \
+  -e PRESENT_RELAY_PUBLIC_URL=https://relay.example.com \
+  liebstoeckel-relay
+```
+
+Terminate TLS at your proxy and forward `/sync/*` as a WebSocket. The image runs as a non-root user on `:8080` and is happy under a read-only root filesystem.
+
 ## Exports
 
 | Entry | What |
