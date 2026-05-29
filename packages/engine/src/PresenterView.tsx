@@ -8,6 +8,7 @@ import { useLive } from "./live/Plugin";
 import { BreakoutAllowedContext } from "./live/breakout";
 import { useLiveDeck } from "./live/deckIndex";
 import { ScaledStage, SlideFrame } from "./Stage";
+import { PresenterShare } from "./QrOverlay";
 import { PersistentProvider } from "./PersistentLayer";
 import { normalizeSlides } from "./slides";
 import type { DeckProps } from "./Deck";
@@ -109,7 +110,16 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   const liveDeck = useLiveDeck(liveCtx?.doc ?? fallbackDoc, norm.length, liveCtx?.role !== "viewer");
   const ctrl = live ? liveDeck : sync;
   const { index, step, total, setIndex, next, prev } = ctrl;
-  useDeckNav({ count: norm.length, setIndex, onNext: next, onPrev: prev });
+
+  // Share both links (Q / the header button), live only. The viewer link is
+  // injected; the presenter link is this window's own URL minus the #presenter
+  // hash (it loaded with ?t=<presenterToken>) — scanning it drives from a phone.
+  const [share, setShare] = useState(false);
+  const presenterUrl = useMemo(
+    () => (typeof location !== "undefined" ? location.origin + location.pathname + location.search : undefined),
+    [],
+  );
+  useDeckNav({ count: norm.length, setIndex, onNext: next, onPrev: prev, onQr: live ? () => setShare((v) => !v) : undefined });
   useTouchNav({ enabled: true, onNext: next, onPrev: prev });
   const now = useNow();
   // the presenter's own elapsed timer (per-window)
@@ -148,8 +158,25 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           >
             reset
           </button>
+          {live && (
+            <button
+              onClick={() => setShare((v) => !v)}
+              title="Share links (Q) — viewer + presenter QR"
+              aria-label="Share session links"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted transition hover:border-accent hover:text-accent"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <path d="M14 14h3M20 14v3M14 20h3M20 20h.01M17 17v.01" />
+              </svg>
+            </button>
+          )}
         </div>
       </header>
+
+      <PresenterShare open={share} viewerUrl={liveCtx?.viewerUrl} presenterUrl={presenterUrl} onClose={() => setShare(false)} />
 
       {/* main: flex row; each column is a min-h-0 flex-col so inner regions can
           shrink. Thumbnails get capped/flexible heights; the notes panel always
