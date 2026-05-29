@@ -30,10 +30,12 @@ function Floater({ r }: { r: Reaction }) {
   return (
     <motion.span
       initial={{ opacity: 0, y: 0, scale: 0.4 }}
-      animate={{ opacity: [0, 1, 1, 0], y: -180, x: j.drift, rotate: j.tilt, scale: j.scale }}
+      animate={{ opacity: [0, 1, 1, 0], y: -260, x: j.drift, rotate: j.tilt, scale: j.scale }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 3.6, ease: [0.16, 1, 0.3, 1], opacity: { times: [0, 0.12, 0.7, 1] } }}
-      style={{ position: "absolute", bottom: 0, fontSize: "2rem", lineHeight: 1, willChange: "transform, opacity" }}
+      // Linger: hold opaque for most of the rise and fade only in the last fifth,
+      // so a burst is comfortably readable (WINDOW_MS prunes just after this ends).
+      transition={{ duration: 5.2, ease: [0.16, 1, 0.3, 1], opacity: { times: [0, 0.06, 0.82, 1] } }}
+      style={{ position: "absolute", bottom: 0, fontSize: "2.4rem", lineHeight: 1, willChange: "transform, opacity" }}
     >
       {r.emoji}
     </motion.span>

@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
 import { pluginState } from "@liebstoeckel/plugin-sdk";
-import { reactionsSchema, EMOJI, recent, expired, allowEmit, overCapIds, type ReactionsState } from "./logic";
+import { reactionsSchema, EMOJI, WINDOW_MS, recent, expired, allowEmit, overCapIds, type ReactionsState } from "./logic";
 
 const make = (over: Partial<ReactionsState> = {}): ReactionsState => ({
   reactions: {},
@@ -20,11 +20,11 @@ describe("EMOJI", () => {
 
 describe("recent", () => {
   test("keeps entries inside the window, sorted by ts", () => {
-    const now = 10_000;
+    const now = 100_000;
     const s = make({
-      reactions: { a: burst("👏", now - 100), b: burst("🔥", now - 3000), c: burst("❤️", now - 5000) },
+      reactions: { a: burst("👏", now - 100), b: burst("🔥", now - 2000), c: burst("❤️", now - WINDOW_MS - 1000) },
     });
-    const r = recent(s, now); // default 4000ms window → drops c
+    const r = recent(s, now); // default WINDOW_MS window → drops c (aged out)
     expect(r.map((x) => x.id)).toEqual(["b", "a"]); // older first
   });
   test("respects a custom window", () => {
@@ -34,23 +34,23 @@ describe("recent", () => {
     expect(recent(s, now, 2000)).toHaveLength(1);
   });
   test("includes an entry exactly on the window boundary", () => {
-    const now = 10_000;
-    const s = make({ reactions: { a: burst("👏", now - 4000) } });
+    const now = 100_000;
+    const s = make({ reactions: { a: burst("👏", now - WINDOW_MS) } });
     expect(recent(s, now)).toHaveLength(1);
   });
 });
 
 describe("expired", () => {
   test("returns ids older than the window", () => {
-    const now = 10_000;
+    const now = 100_000;
     const s = make({
-      reactions: { a: burst("👏", now - 100), b: burst("🔥", now - 9000) },
+      reactions: { a: burst("👏", now - 100), b: burst("🔥", now - WINDOW_MS - 3000) },
     });
     expect(expired(s, now)).toEqual(["b"]);
   });
   test("boundary entry is not expired", () => {
-    const now = 10_000;
-    const s = make({ reactions: { a: burst("👏", now - 4000) } });
+    const now = 100_000;
+    const s = make({ reactions: { a: burst("👏", now - WINDOW_MS) } });
     expect(expired(s, now)).toEqual([]);
   });
 });

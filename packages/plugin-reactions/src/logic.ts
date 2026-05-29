@@ -14,6 +14,11 @@ export const EMOJI: readonly string[] = ["👏", "❤️", "🎉", "🔥", "😮
 /** Soft cap on live entries before clients prune the oldest. */
 export const MAX_ENTRIES = 60;
 
+/** How long a reaction stays "live" (visible + animating) before it's pruned.
+ *  Sits just above the floater animation duration so a burst plays out fully
+ *  before it's removed. */
+export const WINDOW_MS = 6000;
+
 export interface Reaction {
   id: string;
   emoji: string;
@@ -25,14 +30,14 @@ const all = (state: ReactionsState): Reaction[] =>
   Object.entries(state.reactions).map(([id, r]) => ({ id, emoji: r.emoji, pid: r.pid, ts: r.ts }));
 
 /** Entries still inside the visible window, oldest → newest. */
-export function recent(state: ReactionsState, now: number, windowMs = 4000): Reaction[] {
+export function recent(state: ReactionsState, now: number, windowMs = WINDOW_MS): Reaction[] {
   return all(state)
     .filter((r) => r.ts >= now - windowMs)
     .sort((a, b) => a.ts - b.ts);
 }
 
 /** Ids that have aged out of the window (to prune). */
-export function expired(state: ReactionsState, now: number, windowMs = 4000): string[] {
+export function expired(state: ReactionsState, now: number, windowMs = WINDOW_MS): string[] {
   return all(state)
     .filter((r) => r.ts < now - windowMs)
     .map((r) => r.id);

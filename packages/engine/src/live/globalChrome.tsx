@@ -1,10 +1,57 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
-import { AnimatePresence } from "motion/react";
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { pluginState, type ClientProps, type GlobalProps, type PluginDef } from "@liebstoeckel/plugin-sdk";
 import { useLive, type LiveContextValue } from "./Plugin";
 import { mergeUi } from "./ui";
 import { globalPlugins } from "./globals";
-import { BreakoutSheet } from "./breakout";
+
+/** A lightweight popover for a global plugin Panel — portaled to device scale and
+ *  anchored just above the chrome rail (bottom-left), with a transparent outside-
+ *  click catcher and NO backdrop blur/dim. Unlike the focus-stealing `BreakoutSheet`
+ *  (used for full interactive breakouts like Q&A), a quick, frequent action such as
+ *  reacting shouldn't blur the whole deck behind it (ADR 0023). */
+function ChromePopover({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <>
+      {/* transparent catcher: outside-tap closes, but the deck stays fully visible */}
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9998, background: "transparent" }} />
+      <motion.div
+        data-pi-panel
+        onClick={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 10, scale: 0.98 }}
+        transition={{ type: "spring", stiffness: 420, damping: 32 }}
+        style={{
+          position: "fixed",
+          zIndex: 9999,
+          left: "max(env(safe-area-inset-left), 1rem)",
+          bottom: "calc(3.6rem + env(safe-area-inset-bottom))",
+          maxWidth: "min(22rem, calc(100vw - 2rem))",
+          padding: "1rem 1.15rem 1.15rem",
+          borderRadius: "1rem",
+          background: "var(--brand-surface, #11141b)",
+          border: "1px solid var(--brand-border, #222734)",
+          boxShadow: "0 18px 50px -18px rgba(0,0,0,0.7)",
+        }}
+      >
+        {children}
+      </motion.div>
+    </>,
+    document.body,
+  );
+}
 
 /** Subscribe to a plugin's slice of the shared doc — same pattern as `<Plugin>`. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,9 +115,9 @@ function ControlItem({ ctx, id, def }: { ctx: LiveContextValue; id: string; def:
       {Control && <Control {...gprops} />}
       <AnimatePresence>
         {open && Panel && (
-          <BreakoutSheet label={id} onClose={panel.close}>
+          <ChromePopover onClose={panel.close}>
             <Panel {...gprops} />
-          </BreakoutSheet>
+          </ChromePopover>
         )}
       </AnimatePresence>
     </>
