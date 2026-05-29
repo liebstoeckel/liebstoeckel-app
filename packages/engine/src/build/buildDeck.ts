@@ -58,10 +58,15 @@ export function escapeInlineModuleScript(html: string): string {
   return html.slice(0, contentStart) + body + html.slice(close);
 }
 
-// Builds a deck to a single self-contained .html. Plugins (Tailwind, MDX) only
-// run via the Bun.build() JS API — NOT the `bun build` CLI. `compile:true` +
-// target:"browser" inline JS/CSS and base64 the assets. Verified on Bun 1.3.
-export async function buildDeck({
+// Bundles a deck into a single self-contained .html — the browser-free build
+// primitive (no Chromium). Plugins (Tailwind, MDX) only run via the Bun.build()
+// JS API — NOT the `bun build` CLI. `compile:true` + target:"browser" inline
+// JS/CSS and base64 the assets. Verified on Bun 1.3.
+//
+// For the batteries-included default (this + slide thumbnails) use `buildDeck`
+// from `@liebstoeckel/thumbnails/build`, which wraps this. Kept here, dependency-
+// free, so engine never pulls in the headless-browser capturer (playwright-core).
+export async function bundleDeck({
   entry = "./index.html",
   outdir = "./dist",
   minify = true,

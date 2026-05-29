@@ -64,10 +64,10 @@ const server = Bun.serve({
 console.log(\`▶  http://localhost:\${server.port}\`);
 `,
 
-    "build.ts": `import { buildDeckWithThumbnails } from "@liebstoeckel/thumbnails/build";
+    "build.ts": `import { buildDeck } from "@liebstoeckel/thumbnails/build";
 
 // Single self-contained .html + slide thumbnails (skip with LIEBSTOECKEL_NO_THUMBS=1).
-await buildDeckWithThumbnails({ entry: "./index.html", outdir: "./dist" });
+await buildDeck({ entry: "./index.html", outdir: "./dist" });
 `,
 
     "main.tsx": `import { StrictMode } from "react";

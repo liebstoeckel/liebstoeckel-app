@@ -16,12 +16,16 @@ liebstoeckel build my-talk        # → presentations/my-talk/dist/index.html
 Under the hood, `build.ts` calls the engine's build API (which wraps `Bun.build`):
 
 ```ts title="build.ts"
-import { buildDeckWithThumbnails } from "@liebstoeckel/thumbnails/build";
+import { buildDeck } from "@liebstoeckel/thumbnails/build";
 
 // builds the single file, then embeds slide thumbnails (skips gracefully
 // if no Chromium / when LIEBSTOECKEL_NO_THUMBS=1)
-await buildDeckWithThumbnails({ entry: "./index.html", outdir: "./dist" });
+await buildDeck({ entry: "./index.html", outdir: "./dist" });
 ```
+
+<Aside type="note" title="buildDeck vs bundleDeck">
+`buildDeck` (from `@liebstoeckel/thumbnails/build`) is the batteries-included default — it bundles **and** captures thumbnails. It wraps the lower-level `bundleDeck` from `@liebstoeckel/engine/build`, which only produces the single-file HTML (no Chromium). Reach for `bundleDeck` only if you want the bundle without the thumbnail step and aren't using `LIEBSTOECKEL_NO_THUMBS`.
+</Aside>
 
 <Aside type="note" title="Why the JS API, not the CLI">
 The single-file output requires the **`Bun.build()` JS API** with `compile: true` + `target: "browser"` — that's what inlines everything. The `bun build` *CLI* does not produce the same standalone file. The engine plugins (Tailwind, MDX, the code macro, Shiki) run in this build.

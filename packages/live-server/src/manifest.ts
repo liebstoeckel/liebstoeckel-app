@@ -1,2 +1,2 @@
-// Canonical impl lives in plugin-sdk (shared by buildDeck + the live server).
+// Canonical impl lives in plugin-sdk (shared by bundleDeck + the live server).
 export * from "@liebstoeckel/plugin-sdk/manifest";

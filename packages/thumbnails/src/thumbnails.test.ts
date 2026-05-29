@@ -8,6 +8,7 @@ import {
   type ThumbnailManifest,
 } from "@liebstoeckel/engine/build/thumbnails";
 import { captureThumbnails, resolveChromium, thumbnailsEnabled } from "./capture";
+import { withThumbnails } from "./index";
 
 describe("thumbnails manifest (pure)", () => {
   const m: ThumbnailManifest = { v: 1, w: 640, h: 360, thumbs: { 0: "data:image/jpeg;base64,AAA", 1: "data:image/jpeg;base64,BBB" } };
@@ -50,6 +51,23 @@ describe("thumbnailsEnabled (default-on gating)", () => {
     const r = thumbnailsEnabled({}, false);
     expect(r.enabled).toBe(false);
     expect(r.reason).toContain("Chromium");
+  });
+});
+
+describe("withThumbnails (gated, never-fatal)", () => {
+  test("skips gracefully (unchanged html + reason) when disabled", async () => {
+    const prev = process.env.LIEBSTOECKEL_NO_THUMBS;
+    process.env.LIEBSTOECKEL_NO_THUMBS = "1";
+    try {
+      const html = "<html><body><div id=root></div></body></html>";
+      const r = await withThumbnails(html);
+      expect(r.html).toBe(html); // unchanged
+      expect(r.manifest).toBeNull();
+      expect(r.skipped).toContain("LIEBSTOECKEL_NO_THUMBS");
+    } finally {
+      if (prev === undefined) delete process.env.LIEBSTOECKEL_NO_THUMBS;
+      else process.env.LIEBSTOECKEL_NO_THUMBS = prev;
+    }
   });
 });
 
@@ -97,6 +115,14 @@ describe.skipIf(!hasChromium)("captureThumbnails (headless)", () => {
   test("honors an explicit format (jpeg)", async () => {
     const m = await captureThumbnails(STUB, { width: 160, scale: 1, settleMs: 0, format: "jpeg" });
     expect(m.thumbs[0]!.startsWith("data:image/jpeg;base64,")).toBe(true);
+  }, 30_000);
+
+  test("withThumbnails embeds into the html when enabled", async () => {
+    const r = await withThumbnails(STUB, { width: 160, scale: 1, settleMs: 0 });
+    expect(r.skipped).toBeUndefined();
+    expect(Object.keys(r.manifest!.thumbs).length).toBe(3);
+    expect(r.html).toContain("data-liebstoeckel-thumbnails");
+    expect(extractThumbnails(r.html)).toEqual(r.manifest);
   }, 30_000);
 
   const BUILT = join(import.meta.dir, "../../../presentations/poll-demo/dist/index.html");

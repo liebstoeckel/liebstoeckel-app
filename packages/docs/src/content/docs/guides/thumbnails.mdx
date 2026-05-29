@@ -5,11 +5,16 @@ description: Build-time slide thumbnails for the overview grid — captured head
 
 import { Aside, LinkCard } from "@astrojs/starlight/components";
 
-The overview grid (press <kbd>o</kbd>) would be expensive if it mounted every slide live. Instead, liebstoeckel captures each slide once at **build time** and embeds the images, so the grid is just cheap `<img>`s.
+The overview grid (press <kbd>o</kbd>) would be expensive if it mounted every slide live. Instead, liebstoeckel captures each slide once — at **build time**, or when you start presenting — and embeds the images, so the grid is just cheap `<img>`s.
 
 ## On by default
 
-`buildDeckWithThumbnails()` (what scaffolded decks use) generates thumbnails automatically, and **skips gracefully — never failing the build** — when no Chromium is available or `LIEBSTOECKEL_NO_THUMBS` is set.
+Both entry points capture thumbnails automatically and **skip gracefully — never failing** — when no Chromium is available or `LIEBSTOECKEL_NO_THUMBS` is set:
+
+- `buildDeck()` from `@liebstoeckel/thumbnails/build` (what scaffolded decks' `build.ts` use).
+- `liebstoeckel live` / `bun run live` captures into the deck before serving/uploading (pass `--no-thumbnails` to skip).
+
+Both route through the same `withThumbnails(html, opts)` primitive, so the gate/capture/embed policy lives in one place.
 
 ## How capture works
 
@@ -29,12 +34,14 @@ Generate or refresh thumbnails for an already-built deck:
 liebstoeckel thumbs dist/index.html --format webp --width 640 --quality 80 --scale 2
 ```
 
-Or in code:
+Or in code — `addThumbnailsToFile` is **loud** (throws if no Chromium), for an explicit capture; `withThumbnails` is the **gated, never-fatal** in-memory variant the build/live paths use:
 
 ```ts
-import { addThumbnailsToFile } from "@liebstoeckel/thumbnails";
+import { addThumbnailsToFile, withThumbnails } from "@liebstoeckel/thumbnails";
 
 await addThumbnailsToFile("./dist/index.html", { width: 640, format: "webp" });
+
+const { html, manifest, skipped } = await withThumbnails(deckHtml, { width: 640 });
 ```
 
 | Option | Default | Notes |

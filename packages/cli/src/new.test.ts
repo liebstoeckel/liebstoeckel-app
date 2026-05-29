@@ -22,7 +22,7 @@ describe("deckFiles (pure templates)", () => {
     expect(pkg.name).toBe("@liebstoeckel/my-talk");
     expect(pkg.dependencies["@liebstoeckel/engine"]).toBe("workspace:*");
     expect(pkg.devDependencies["@liebstoeckel/thumbnails"]).toBe("workspace:*");
-    expect(files["build.ts"]).toContain("buildDeckWithThumbnails");
+    expect(files["build.ts"]).toContain('buildDeck } from "@liebstoeckel/thumbnails/build"');
     expect(files["index.html"]).toContain('data-brand="nocturne"');
     expect(files["main.tsx"]).toContain('brands={["nocturne"]}');
     expect(files["main.tsx"]).toContain("My Talk"); // title-cased from the name

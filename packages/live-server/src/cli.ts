@@ -28,12 +28,12 @@ export async function loadDeckHtml(arg: string): Promise<string> {
   if (kind === "html") return Bun.file(abs).text();
   if (kind === "project") {
     const dir = abs.endsWith("package.json") ? dirname(abs) : abs;
-    const { buildDeck } = await import("@liebstoeckel/engine/build");
+    const { bundleDeck } = await import("@liebstoeckel/engine/build");
     const outdir = join(dir, "dist");
     const prev = process.cwd();
     process.chdir(dir);
     try {
-      await buildDeck({ entry: "./index.html", outdir: "./dist" });
+      await bundleDeck({ entry: "./index.html", outdir: "./dist" });
     } finally {
       process.chdir(prev);
     }
@@ -74,9 +74,10 @@ export function thumbSettings(argv: string[]): ThumbSettings {
 }
 
 /** Capture + embed slide thumbnails into the deck HTML so the overview grid is
- *  instant and uniform. On by default. Never fatal: skips with a hint when opted
- *  out, when `@liebstoeckel/thumbnails` isn't installed, or when no Chromium is
- *  available (dynamic import so `--no-thumbnails` pays no playwright-core cost). */
+ *  instant and uniform. On by default. The gate/capture/embed/never-fatal policy
+ *  lives in the thumbnails package's `withThumbnails`; this just wires it to the CLI
+ *  (dynamic import so `--no-thumbnails` pays no playwright-core cost, and a missing
+ *  module degrades to a hint rather than a crash). */
 export async function addThumbnails(html: string, s: ThumbSettings): Promise<string> {
   if (!s.enabled) return html;
   let mod: typeof import("@liebstoeckel/thumbnails");
@@ -86,20 +87,20 @@ export async function addThumbnails(html: string, s: ThumbSettings): Promise<str
     process.stderr.write("⚠  thumbnails skipped: @liebstoeckel/thumbnails not installed (pass --no-thumbnails to silence)\n");
     return html;
   }
-  const opts = { width: s.width, quality: s.quality, scale: s.scale, format: s.format };
-  // defaults: process.env (also honors LIEBSTOECKEL_NO_THUMBS) + hasChromium()
-  const gate = mod.thumbnailsEnabled();
-  if (!gate.enabled) {
-    process.stderr.write(`⚠  thumbnails skipped: ${gate.reason}\n`);
-    return html;
-  }
   process.stderr.write("▶  capturing slide thumbnails …\n");
-  const manifest = await mod.captureThumbnails(html, {
-    ...opts,
+  const { html: out, manifest, skipped } = await mod.withThumbnails(html, {
+    width: s.width,
+    quality: s.quality,
+    scale: s.scale,
+    format: s.format,
     onSlide: (i, n) => process.stderr.write(`\r   slide ${i + 1}/${n}   `),
   });
-  process.stderr.write(`\r✓  embedded ${Object.keys(manifest.thumbs).length} thumbnails            \n`);
-  return mod.embedThumbnails(html, manifest);
+  if (skipped) {
+    process.stderr.write(`\r⚠  thumbnails skipped: ${skipped}            \n`);
+    return html;
+  }
+  process.stderr.write(`\r✓  embedded ${Object.keys(manifest!.thumbs).length} thumbnails            \n`);
+  return out;
 }
 
 /** LAN mode: serve the deck locally and relay Yjs over /sync. */

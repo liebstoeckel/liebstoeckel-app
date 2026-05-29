@@ -46,11 +46,11 @@ async function runNew(argv: string[]) {
 
 async function runBuild(argv: string[]) {
   const target = argv.find((a) => !a.startsWith("-"));
-  const { buildDeckWithThumbnails } = await import("@liebstoeckel/thumbnails/build");
+  const { buildDeck } = await import("@liebstoeckel/thumbnails/build");
   const prev = process.cwd();
   if (target) process.chdir(resolve(target));
   try {
-    await buildDeckWithThumbnails({ entry: "./index.html", outdir: "./dist" });
+    await buildDeck({ entry: "./index.html", outdir: "./dist" });
   } finally {
     process.chdir(prev);
   }

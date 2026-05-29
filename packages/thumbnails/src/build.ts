@@ -1,7 +1,7 @@
 import { join } from "node:path";
-import { buildDeck } from "@liebstoeckel/engine/build";
-import { addThumbnailsToFile } from "./index";
-import { thumbnailsEnabled, type CaptureOptions } from "./capture";
+import { bundleDeck } from "@liebstoeckel/engine/build";
+import { withThumbnails } from "./index";
+import type { CaptureOptions } from "./capture";
 
 export interface BuildDeckOptions {
   entry?: string;
@@ -10,33 +10,24 @@ export interface BuildDeckOptions {
   pkgJson?: string;
 }
 
-/** Build a deck and, **by default**, capture + embed thumbnails. Thumbnails are
- *  skipped — with a note, never failing the build — when `LIEBSTOECKEL_NO_THUMBS` is
- *  set or no Chromium is available. A one-line replacement for `buildDeck` in a
- *  deck's `build.ts`. */
-export async function buildDeckWithThumbnails(
-  build: BuildDeckOptions = {},
-  capture: CaptureOptions = {},
-): Promise<void> {
+/** Build a deck to a single self-contained `.html` and, **by default**, capture +
+ *  embed slide thumbnails. The batteries-included default a deck's `build.ts` uses —
+ *  it wraps engine's browser-free `bundleDeck` primitive. Thumbnails are skipped,
+ *  not failed, when `LIEBSTOECKEL_NO_THUMBS` is set or no Chromium is available
+ *  (the policy lives in `withThumbnails`). */
+export async function buildDeck(build: BuildDeckOptions = {}, capture: CaptureOptions = {}): Promise<void> {
   const outdir = build.outdir ?? "./dist";
-  await buildDeck(build);
+  await bundleDeck(build);
   const out = join(outdir, "index.html");
   console.log(`✓ built ${out}`);
 
-  const { enabled, reason } = thumbnailsEnabled();
-  if (!enabled) {
-    console.log(`  thumbnails skipped: ${reason}`);
+  const onSlide = capture.onSlide ?? ((i: number, n: number) => process.stderr.write(`\r  thumbnail ${i + 1}/${n}   `));
+  const { html, manifest, skipped } = await withThumbnails(await Bun.file(out).text(), { ...capture, onSlide });
+  if (skipped) {
+    console.log(`  thumbnails skipped: ${skipped}`);
     return;
   }
-
-  const onSlide = capture.onSlide ?? ((i: number, n: number) => process.stderr.write(`\r  thumbnail ${i + 1}/${n}   `));
-  try {
-    const m = await addThumbnailsToFile(out, { ...capture, onSlide });
-    process.stderr.write("\n");
-    console.log(`✓ embedded ${Object.keys(m.thumbs).length} thumbnails (${m.w}×${m.h})`);
-  } catch (err) {
-    // Never fail the build over the optional thumbnail step — the deck is built.
-    process.stderr.write("\n");
-    console.warn(`⚠ thumbnails skipped: ${(err as Error).message}`);
-  }
+  await Bun.write(out, html);
+  process.stderr.write("\n");
+  console.log(`✓ embedded ${Object.keys(manifest!.thumbs).length} thumbnails (${manifest!.w}×${manifest!.h})`);
 }
