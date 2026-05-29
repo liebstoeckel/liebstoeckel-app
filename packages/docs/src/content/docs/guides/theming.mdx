@@ -1,83 +1,94 @@
 ---
 title: Theming & brands
-description: One typed token object per brand, the CSS-variable bridge, and how code + plugins inherit the brand.
+description: Define your deck's brand as one typed token object, or reuse a built-in — colors, fonts, and the CSS-variable bridge that everything inherits.
 ---
 
 import { Aside, Steps, LinkCard } from "@astrojs/starlight/components";
 
-Theming is the requirement that drives the whole design: **author style, fonts, and CSS in one place; reuse across many decks; swap brands freely.**
+A **brand** is one typed token object — colors, fonts, a chart palette — and the whole deck (slides, code, plugins) derives its look from it. Nothing is hardcoded in slides: a slide uses `text-primary`, not `text-blue-500`, so it's right under any brand.
 
-## A brand is one token object
+## Use a built-in brand
 
-Everything visual derives from a single typed object. Nothing is hardcoded in slides.
+The theme styles ship a few brands (`liebstoeckel`, `nocturne`, `acme`, `sunset`). Import the styles once in your entry and pick one by name:
 
-```ts title="packages/theme/src/brands/nocturne.ts"
-import { defineTheme } from "../defineTheme";
+```tsx title="main.tsx"
+import "@liebstoeckel/theme/styles.css";
+import { Present } from "@liebstoeckel/engine";
 
-export const nocturne = defineTheme({
-  name: "nocturne",
+<Present brands={["nocturne"]} slides={[…]} />
+```
+
+## Define your own brand
+
+Author it with `defineTheme` and hand it to `<Present>` via `brandThemes` — the engine injects it as a `[data-brand]` stylesheet, so you ship a brand **without touching the theme package**:
+
+```tsx title="main.tsx"
+import "@liebstoeckel/theme/styles.css";
+import { Present } from "@liebstoeckel/engine";
+import { defineTheme } from "@liebstoeckel/theme";
+
+const acme = defineTheme({
+  name: "acme",
   colors: {
-    bg: "#08090c", surface: "#11141b", border: "#222734",
-    text: "#f3f1ea", muted: "#8b93a7",
-    primary: "#caff4d",   // chartreuse
-    accent: "#62e8ff",    // cyan
-    accent2: "#ff7a59",   // coral (optional)
-    onPrimary: "#08090c",
+    bg: "#0b0e14", surface: "#141925", border: "#222a3a",
+    text: "#e6eaf2", muted: "#8a93a6",
+    primary: "#3b82f6",   // brand
+    accent: "#22d3ee",    // accent
+    accent2: "#f0abfc",   // optional secondary accent
+    onPrimary: "#ffffff", // text/icons on a primary fill
   },
   fonts: {
-    heading: '"Fraunces Variable", serif',
-    body: '"Hanken Grotesk Variable", system-ui, sans-serif',
-    mono: '"JetBrains Mono Variable", ui-monospace, monospace',
+    heading: '"Inter", system-ui, sans-serif',
+    body: '"Inter", system-ui, sans-serif',
+    mono: '"JetBrains Mono", ui-monospace, monospace',
   },
-  viz: ["#caff4d", "#62e8ff", "#ff7a59", "#b692ff", "#ffd166"], // chart palette
-  glow: { a: "#1b3a4b", b: "#2a1f3d" },                          // atmosphere gradient
+  viz: ["#3b82f6", "#22d3ee", "#f0abfc", "#a3e635", "#fbbf24"], // optional chart palette
+  glow: { a: "#10233f", b: "#0b2530" },                         // optional atmosphere gradient
 });
+
+<Present brands={["acme"]} brandThemes={[acme]} slides={[…]} />
 ```
 
-Colors are **semantic** (`primary`, not `blue-500`), so a slide that uses `text-primary` looks right under every brand.
+That's it — `brands` names the active brand, `brandThemes` supplies its tokens. (Bring fonts via `@font-face` / a `<link>` in your `index.html`.)
 
-## The bridge: tokens → CSS variables → Tailwind
-
-<Steps>
-
-1. A brand emits a `[data-brand="name"] { --brand-*: … }` block (via `themeToCss`, generated into `brands.generated.css`).
-
-2. `index.css` maps Tailwind utilities onto those variables with **`@theme inline`**, so `text-primary` resolves to `var(--brand-primary)` *at the point of use* — under whichever `data-brand` is active.
-
-3. The deck sets `document.body.dataset.brand`, so switching brands re-skins the whole deck instantly (no rebuild).
-
-</Steps>
-
-```html
-<body data-brand="nocturne"> <!-- the whole deck inherits these tokens --> </body>
-```
-
-Import the styles once in your entry:
-
-```tsx
-import "@liebstoeckel/theme/styles.css";
-```
-
-<Aside type="tip" title="Multiple brands">
-Pass several to `<Present brands={["acme", "sunset"]} />` and press <kbd>t</kbd> while presenting to cycle them — handy for showing the same deck to different clients.
+<Aside type="tip" title="Semantic, not literal">
+Name colors by role (`primary`, `accent`, `surface`), never by hue. A slide written once looks right under every brand you give it.
 </Aside>
-
-## Code and plugins inherit the brand
-
-- **Code blocks** are highlighted with Shiki's css-variables theme; `--shiki-token-*` are bound to brand tokens, so syntax colors match the palette and change with the brand. See [Animated code](/guides/animated-code/).
-- **Plugins** style against `var(--brand-*)` directly (and read `theme.viz` for chart series), so poll bars, Q&A rows, and reactions are automatically on-brand.
 
 ## Available tokens
 
-| CSS variable | Tailwind | Meaning |
-| --- | --- | --- |
-| `--brand-bg` / `--brand-surface` | `bg-bg` / `bg-surface` | page + panel backgrounds |
-| `--brand-text` / `--brand-muted` | `text-text` / `text-muted` | primary + secondary text |
-| `--brand-primary` / `--brand-accent` | `text-primary` / `text-accent` | brand + accent |
-| `--brand-accent2` | `text-accent2` | secondary accent (optional) |
-| `--brand-border` | `border-border` | hairlines |
-| `--brand-font-heading/body/mono` | `font-heading/body/mono` | typefaces |
-| `--brand-viz-0…n` | — | chart-series palette |
-| `--brand-glow-a/b` | — | atmosphere gradient stops |
+| CSS variable | Tailwind | Meaning | Required |
+| --- | --- | --- | --- |
+| `--brand-bg` / `--brand-surface` | `bg-bg` / `bg-surface` | page + panel backgrounds | ✓ |
+| `--brand-text` / `--brand-muted` | `text-text` / `text-muted` | primary + secondary text | ✓ |
+| `--brand-primary` / `--brand-accent` | `text-primary` / `text-accent` | brand + accent | ✓ |
+| `--brand-on-primary` | `text-on-primary` | content on a primary fill | ✓ |
+| `--brand-font-heading/body/mono` | `font-heading/body/mono` | typefaces | ✓ |
+| `--brand-border` | `border-border` | hairlines (falls back to a tint of text) | – |
+| `--brand-accent2` | `text-accent2` | secondary accent | – |
+| `--brand-viz-0…n` | — | chart-series palette (`theme.viz`) | – |
+| `--brand-glow-a/b` | — | atmosphere gradient stops (`theme.glow`) | – |
+
+## How it works (the bridge)
+
+<Steps>
+
+1. A brand is a `[data-brand="name"] { --brand-*: … }` block — built-ins live in the theme styles; your `brandThemes` are injected as the same kind of block.
+
+2. `@theme inline` in the theme CSS maps Tailwind utilities onto those variables, so `text-primary` resolves to `var(--brand-primary)` **at the point of use** — under whichever `data-brand` is active.
+
+3. The deck sets `document.body.dataset.brand`, so the whole deck re-skins instantly — no rebuild.
+
+</Steps>
+
+**Code and plugins inherit automatically:** Shiki highlights against the brand tokens (see [Animated code](/guides/animated-code/)), and plugins style against `var(--brand-*)` (and read `theme.viz` for charts), so polls, Q&A, and reactions are on-brand for free.
+
+<Aside type="note" title="Multiple brands">
+Pass several — `brands={["acme", "sunset"]}` (+ their `brandThemes`) — and press <kbd>t</kbd> on the keyboard to cycle them. It's a desktop preview/showcase aid (handy while designing, or to show one deck in two skins); it isn't surfaced in the touch UI.
+</Aside>
+
+## Contributing a shared brand
+
+To make a brand available to *every* deck by name (instead of per-deck `brandThemes`), add it to the theme package: drop a `defineTheme(...)` file in `packages/theme/src/brands/`, export it from `brands/index.ts`, and run `bun run gen` to regenerate `brands.generated.css`.
 
 <LinkCard title="Build & deploy" href="/guides/building/" description="Ship the single-file deck." />

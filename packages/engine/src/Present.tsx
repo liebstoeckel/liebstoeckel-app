@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import * as Y from "yjs";
 import { useTheme } from "@liebstoeckel/plugin-ui";
+import { themeToCss, type Theme } from "@liebstoeckel/theme";
 import type { PluginDef } from "@liebstoeckel/plugin-sdk";
 import { Deck, type DeckProps } from "./Deck";
 import { PresenterView } from "./PresenterView";
@@ -10,6 +11,12 @@ import { detectLive } from "./live/detect";
 import { connectLive } from "./live/connect";
 import { getParticipantId } from "./live/participant";
 import { captureRequest } from "./build/capture-protocol";
+
+/** Concatenate deck-defined brand themes into one CSS string of `[data-brand]`
+ *  blocks (empty when none). Pure — unit-testable without a DOM. */
+export function brandThemesCss(themes?: Theme[]): string {
+  return (themes ?? []).map(themeToCss).join("\n");
+}
 
 // Single entry point for a presentation. Detects a live server (the bootstrap the
 // server injects), connects the shared Yjs doc, and provides plugin context. Falls
@@ -48,10 +55,26 @@ export function Present(props: DeckProps) {
     () => typeof location !== "undefined" && location.hash.includes("presenter"),
   );
 
-  if (capture) return <CaptureView {...props} />;
+  // Deck-defined brands → an injected `[data-brand]` stylesheet (so a deck can ship
+  // its own brand without editing the theme package). Rendered in every view.
+  const css = brandThemesCss(props.brandThemes);
+  const brandStyle = css ? <style data-brand-themes>{css}</style> : null;
+
+  if (capture)
+    return (
+      <>
+        {brandStyle}
+        <CaptureView {...props} />
+      </>
+    );
 
   // The confidence monitor (#presenter) works standalone (BroadcastChannel) and
   // live (shared Yjs doc) — it reads the same controller as the audience Deck.
   const view = isPresenterWindow ? <PresenterView {...props} /> : <Deck {...props} />;
-  return <LiveProvider value={value}>{view}</LiveProvider>;
+  return (
+    <LiveProvider value={value}>
+      {brandStyle}
+      {view}
+    </LiveProvider>
+  );
 }

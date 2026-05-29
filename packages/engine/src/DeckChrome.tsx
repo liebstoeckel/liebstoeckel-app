@@ -126,29 +126,27 @@ export function DeckChrome({
   isLive,
   role,
   canDrive,
-  brandCount,
   viewerUrl,
   onHelp,
   onOverview,
   onQr,
-  onBrand,
 }: {
   index: number;
   count: number;
   isLive: boolean;
   role: string | undefined;
   canDrive: boolean;
-  brandCount: number;
   viewerUrl: string | undefined;
   onHelp: () => void;
   onOverview: () => void;
   onQr: () => void;
-  onBrand: () => void;
 }) {
   const coarse = useCoarsePointer();
   const fs = useIsFullscreen();
   const inset = "max(env(safe-area-inset-left), 1rem)";
 
+  // Note: no "Cycle theme" here — brand cycling stays the desktop `t` shortcut
+  // (a niche preview/showcase affordance), not a touch action.
   const actions: MenuAction[] = [
     {
       key: "fullscreen",
@@ -158,7 +156,6 @@ export function DeckChrome({
     },
     ...(canDrive ? [{ key: "overview", label: "Overview", icon: ICON.grid, onClick: onOverview }] : []),
     ...(isLive && viewerUrl ? [{ key: "share", label: "Share / QR", icon: ICON.share, onClick: onQr }] : []),
-    ...(brandCount > 1 ? [{ key: "theme", label: "Cycle theme", icon: ICON.theme, onClick: onBrand }] : []),
   ];
 
   return (

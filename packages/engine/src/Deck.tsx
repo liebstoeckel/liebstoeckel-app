@@ -21,6 +21,7 @@ import { StepsProvider } from "./steps";
 import { accumulateDigits, toggleFullscreen } from "./delivery";
 import { normalizeSlides, type SlideInput } from "./slides";
 import { resolveTransition, mobileTransitionsDisabled, type SlideDirection, type SlideTransition } from "./transitions";
+import type { Theme } from "@liebstoeckel/theme";
 import { useCoarsePointer } from "./useCoarsePointer";
 
 export type DeckProps = {
@@ -31,6 +32,11 @@ export type DeckProps = {
   /** Deck-wide default slide transition. A slide can override it with its own
    *  `export const transition`. Defaults to a light `"fade"`. */
   transition?: SlideTransition;
+  /** Deck-defined brand themes. Each is injected as a `[data-brand]` CSS block, so a
+   *  deck can ship its own brand(s) without editing the theme package — reference
+   *  them by `name` in `brands`. (Built-in brand names work via the theme styles
+   *  with no entry here.) */
+  brandThemes?: Theme[];
   /** Allow slide transitions on mobile (coarse-pointer) devices. Off by default —
    *  transitions are dropped there for snappier, jank-free navigation. Set true to
    *  opt back in. */
@@ -262,12 +268,10 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
           isLive={isLive}
           role={role}
           canDrive={role !== "viewer"}
-          brandCount={brands.length}
           viewerUrl={liveCtx?.viewerUrl}
           onHelp={() => setHelp(true)}
           onOverview={() => setOverview((v) => !v)}
           onQr={() => setQr((v) => !v)}
-          onBrand={() => setBrandIdx((n) => n + 1)}
         />
        </div>
       </PersistentProvider>
