@@ -182,10 +182,14 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
 
         {/* next + notes */}
         <aside className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-          {/* next preview hidden on phones to give notes the room */}
-          <div className="hidden min-h-0 flex-col gap-3 lg:flex">
+          {/* next preview hidden on phones to give notes the room. The height
+              share (basis) sits on THIS wrapper — a flex child of the aside, which
+              has a definite height — so the inner preview can be flex-1 and fill it.
+              (A % basis on an auto-height parent doesn't resolve, which collapsed
+              the box to its min-height and made the preview render tiny.) */}
+          <div className="hidden min-h-[120px] shrink basis-[34%] flex-col gap-3 lg:flex">
             <Label>{Next ? "Next up" : "End of deck"}</Label>
-            <div className="min-h-[64px] min-w-0 shrink basis-[34%] opacity-80">
+            <div className="min-h-0 min-w-0 flex-1 opacity-80">
               {Next ? <Thumb Component={Next} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
             </div>
           </div>
