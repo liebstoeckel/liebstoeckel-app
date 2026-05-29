@@ -80,7 +80,7 @@ export function CaptureView({ slides, brands = ["default"], plugins = [] }: Deck
     <LiveProvider value={liveValue}>
       <MDXProvider components={mdxComponents}>
         <PersistentProvider>
-          <ScaledStage className="h-screen w-screen">
+          <ScaledStage className="fixed inset-0">
             <div data-capture-stage className="absolute inset-0">
               <SlideFrame still>
                 <StepsProvider step={ALL_STEPS} slideIndex={index}>

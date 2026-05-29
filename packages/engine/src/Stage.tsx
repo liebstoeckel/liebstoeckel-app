@@ -1,4 +1,5 @@
 import { createContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { motion } from "motion/react";
 import { Atmosphere } from "@liebstoeckel/components";
 
 // Logical canvas. Everything is authored at this size and scaled to fit, so the
@@ -10,16 +11,24 @@ export const STAGE_H = 720;
  *  (e.g. plugins) read it to decide when inline controls are too small to tap. */
 export const StageScaleContext = createContext(1);
 
-/** Fits a fixed STAGE_W×STAGE_H canvas into its parent, centered + letterboxed. */
+/** Fits a fixed STAGE_W×STAGE_H canvas into its parent, centered + letterboxed.
+ *  The fit transform is expressed as **Motion values** — `scale` + a centering
+ *  `x`/`y` translate, about a **top-left** origin — not a CSS `transform` string and
+ *  not a center `transform-origin`. Motion's layout-projection tree only accounts
+ *  for transforms it owns and assumes a top-left origin, so this is what keeps
+ *  `layoutId`/`layout` morphs (`Magic`, `CodeMagic`) correct under the scaled stage
+ *  (Motion #3356/#874). The outer div must be a positioned containing block for the
+ *  absolute canvas (all consumers pass `absolute`/`fixed inset-0`). */
 export function ScaledStage({ children, className }: { children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0);
+  const [fit, setFit] = useState({ scale: 0, x: 0, y: 0 });
 
   useLayoutEffect(() => {
     const el = ref.current!;
     const measure = () => {
       const { width, height } = el.getBoundingClientRect();
-      setScale(Math.min(width / STAGE_W, height / STAGE_H));
+      const scale = Math.min(width / STAGE_W, height / STAGE_H);
+      setFit({ scale, x: (width - STAGE_W * scale) / 2, y: (height - STAGE_H * scale) / 2 });
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -28,16 +37,25 @@ export function ScaledStage({ children, className }: { children: ReactNode; clas
   }, []);
 
   return (
-    // no hardcoded `position`: consumers pass `h-screen w-screen` (block) or
-    // `absolute inset-0` (fill a relative parent, e.g. presenter thumbnails).
-    <div ref={ref} className={`flex items-center justify-center overflow-hidden bg-bg ${className ?? ""}`}>
-      <StageScaleContext.Provider value={scale || 1}>
-        <div
-          style={{ width: STAGE_W, height: STAGE_H, transform: `scale(${scale})`, visibility: scale ? "visible" : "hidden" }}
-          className="relative shrink-0"
+    <div ref={ref} className={`overflow-hidden bg-bg ${className ?? ""}`}>
+      <StageScaleContext.Provider value={fit.scale || 1}>
+        <motion.div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: STAGE_W,
+            height: STAGE_H,
+            originX: 0,
+            originY: 0,
+            scale: fit.scale || 0.0001,
+            x: fit.x,
+            y: fit.y,
+            visibility: fit.scale ? "visible" : "hidden",
+          }}
         >
           {children}
-        </div>
+        </motion.div>
       </StageScaleContext.Provider>
     </div>
   );
