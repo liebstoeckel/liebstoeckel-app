@@ -43,6 +43,25 @@ export function useTouchNav(opts: { enabled: boolean; onNext: () => void; onPrev
   }, [enabled, onNext, onPrev]);
 }
 
+/** True when a key event originates from a text-editable element. Typing in a
+ *  plugin's input (e.g. the Q&A question box) must NOT trigger the global deck
+ *  shortcuts — otherwise `f`/`o`/space/arrows/Enter drive the deck while you type.
+ *  Duck-typed (reads `tagName`/`isContentEditable`) so it's unit-testable without a
+ *  DOM. */
+export function isEditableTarget(target: EventTarget | null): boolean {
+  const el = target as (Partial<HTMLElement> & { tagName?: string }) | null;
+  if (!el) return false;
+  if (el.isContentEditable) return true;
+  switch (el.tagName) {
+    case "INPUT":
+    case "TEXTAREA":
+    case "SELECT":
+      return true;
+    default:
+      return false;
+  }
+}
+
 // Keyboard navigation. `onNext`/`onPrev` let the deck intercept for step reveals;
 // they fall back to slide nav. Slide index lives in the deck controller (synced).
 export function useDeckNav(opts: {
@@ -78,6 +97,8 @@ export function useDeckNav(opts: {
     const next = onNext ?? (() => setIndex((n: number) => Math.min(n + 1, count - 1)));
     const prev = onPrev ?? (() => setIndex((n: number) => Math.max(n - 1, 0)));
     const onKey = (e: KeyboardEvent) => {
+      // don't hijack typing in a plugin's input (Q&A box, etc.)
+      if (isEditableTarget(e.target)) return;
       switch (e.key) {
         case "ArrowRight":
         case " ":
