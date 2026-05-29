@@ -9,12 +9,13 @@ import Agenda from "./slides/02-agenda.mdx";
 import CodeSlide from "./slides/04-code";
 import StaticCode from "./slides/05-static-code.mdx";
 import Closing from "./slides/03-closing";
+import Travel from "./slides/06-travel";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Present
       brands={["acme", "sunset"]}
-      slides={[Title, Agenda, CodeSlide, StaticCode, Closing]}
+      slides={[Title, Agenda, CodeSlide, StaticCode, Closing, Travel]}
       persistent={[{ id: "live", render: () => <LiveIframe /> }]}
     />
   </StrictMode>,

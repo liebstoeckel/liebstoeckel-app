@@ -43,7 +43,9 @@ Need a component inside MDX? Import it at the top of the `.mdx` file like any mo
 
 ## Persistent stateful elements
 
-Magic Move re-renders content, which would reset a stateful element (an `<iframe>`, a `<video>`, a running widget). For those, the engine provides a **persistent layer**: render the element once at the deck root and project it into slides via a `<Slot>`. It keeps its internal state while traveling between slides.
+[Magic Move](/guides/your-first-deck/#magic-move) re-renders content, which would reset a stateful element (an `<iframe>`, a `<video>`, a running widget). For those, the engine provides a **persistent layer**: render the element once at the deck root and project it into slides via a `<Slot>`. It keeps its internal state while traveling between slides.
+
+The two are complements: `Magic` morphs *different stateless elements* into one another (declared inline per slide); `<Slot>` carries *one stateful element* across slides (defined once). Reach for `<Slot>` when state must survive, `Magic` for a stateless flourish.
 
 ```tsx title="main.tsx"
 <Present
@@ -61,6 +63,16 @@ import { Slot } from "@liebstoeckel/engine";
 ```
 
 Move the `<Slot id="live">` to a different position on the next slide and the live element animates to its new home without reloading.
+
+### How it behaves between slides
+
+The element is positioned onto the slot on the **current** slide, and how it gets there depends on where you came from:
+
+- **Travel** — both the slide you left *and* the one you entered have a `<Slot>` with the same `id`: the element **springs** from the old position/size to the new one, state intact. This is the headline trick — put the slot in two consecutive slides at different spots to make a live widget glide across.
+- **Appear** — you arrive from a slide that has **no** matching slot (or it's the first time it shows): the element **snaps** into the slot and only fades in. It won't fly in from wherever it last was.
+- **Leave** — the next slide has no matching slot: the element **fades out in step with the slide transition** (it doesn't linger after).
+
+It's positioned in the deck's logical canvas space, so it lines up with the slot at any stage scale (fullscreen, windowed, or mobile). Reloading is never triggered by any of these — the element is rendered once and never unmounts.
 
 ## Slide transitions
 
