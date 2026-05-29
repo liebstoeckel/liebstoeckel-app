@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { motion } from "motion/react";
+import { StageScaleContext } from "./Stage";
 
 export type PersistentItem = { id: string; render: () => ReactNode };
 type Rect = { top: number; left: number; width: number; height: number };
@@ -65,15 +66,20 @@ export function PersistentProvider({ children }: { children: ReactNode }) {
  *  Drop the same `id` on multiple slides to make the element travel between them. */
 export function Slot({ id, className }: { id: string; className?: string }) {
   const { register, update, unregister } = usePersistent();
+  const scale = useContext(StageScaleContext);
   const ref = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const el = ref.current!;
     const root = (el.closest("[data-deck-root]") as HTMLElement) ?? document.body;
+    // getBoundingClientRect is post-transform (device px), but the persistent layer
+    // positions inside the stage's LOGICAL 1280×720 space — divide the stage scale
+    // back out, else the element is mis-placed whenever the stage isn't at 1:1.
+    const s = scale || 1;
     const measure = (): Rect => {
       const r = el.getBoundingClientRect();
       const base = root.getBoundingClientRect();
-      return { top: r.top - base.top, left: r.left - base.left, width: r.width, height: r.height };
+      return { top: (r.top - base.top) / s, left: (r.left - base.left) / s, width: r.width / s, height: r.height / s };
     };
     register(id, measure());
     const ro = new ResizeObserver(() => update(id, measure()));
@@ -86,13 +92,16 @@ export function Slot({ id, className }: { id: string; className?: string }) {
       window.removeEventListener("resize", onResize);
       unregister(id);
     };
-  }, [id, register, update, unregister]);
+  }, [id, register, update, unregister, scale]);
 
   return <div ref={ref} data-slot={id} className={className} />;
 }
 
 /** Renders each persistent element ONCE (never unmounts → internal state kept),
- *  positioning it onto its active slot and FLIP-animating between slots. */
+ *  positioning it onto its active slot and animating between slots. Animates the
+ *  box props (top/left/width/height) directly rather than Motion `layout` FLIP,
+ *  whose projection mis-positions under the stage's scaled ancestor. Coordinates
+ *  are the slot's LOGICAL rect (the engine renders this inside the scaled stage). */
 export function PersistentLayer({ items }: { items: PersistentItem[] }) {
   const { rects, visible } = usePersistent();
   return (
@@ -103,19 +112,17 @@ export function PersistentLayer({ items }: { items: PersistentItem[] }) {
         return (
           <motion.div
             key={it.id}
-            layout
             data-persistent={it.id}
             initial={false}
-            animate={{ opacity: show ? 1 : 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 26 }}
-            style={{
-              position: "absolute",
+            animate={{
               top: r?.top ?? 0,
               left: r?.left ?? 0,
               width: r?.width ?? 0,
               height: r?.height ?? 0,
-              pointerEvents: show ? "auto" : "none",
+              opacity: show ? 1 : 0,
             }}
+            transition={{ type: "spring", stiffness: 200, damping: 26 }}
+            style={{ position: "absolute", pointerEvents: show ? "auto" : "none" }}
           >
             {it.render()}
           </motion.div>
