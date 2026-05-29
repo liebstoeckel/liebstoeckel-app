@@ -17,6 +17,12 @@ interface StepsApi {
 
 const StepsCtx = createContext<StepsApi | null>(null);
 
+/** The index of the slide a subtree belongs to. During the AnimatePresence overlap
+ *  the exiting slide still carries its own (old) index here, so descendants — e.g.
+ *  a persistent `<Slot>` — can tell whether they're on the *current* slide. -1
+ *  outside any slide. */
+export const SlideIndexContext = createContext(-1);
+
 /** Wraps the active slide; tracks the total reveal slots it contains (sum of each
  *  consumer's weight) and the current reveal index. Reports `total` via onTotal
  *  *with its slide index* so the deck can ignore a slide that's exiting (the
@@ -59,7 +65,11 @@ export function StepsProvider({
   useLayoutEffect(() => {
     onTotal?.(slideIndex, total);
   }, [total, slideIndex, onTotal]);
-  return <StepsCtx.Provider value={api}>{children}</StepsCtx.Provider>;
+  return (
+    <StepsCtx.Provider value={api}>
+      <SlideIndexContext.Provider value={slideIndex}>{children}</SlideIndexContext.Provider>
+    </StepsCtx.Provider>
+  );
 }
 
 /** A progressive reveal. Hidden until the deck's step reaches its slot (its

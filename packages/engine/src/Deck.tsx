@@ -176,7 +176,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
               </motion.div>
             </AnimatePresence>
 
-            <PersistentLayer items={persistent} />
+            <PersistentLayer items={persistent} currentIndex={index} />
 
             {/* deck-wide plugin overlays (e.g. reactions floaters) — over the
                 slide, below chrome; non-interactive (live only, see ADR 0021) */}
