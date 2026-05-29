@@ -2,22 +2,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence } from "motion/react";
 import { PluginControls } from "./live/globalChrome";
 import { BreakoutSheet } from "./live/breakout";
+import { useCoarsePointer } from "./useCoarsePointer";
 import { toggleFullscreen } from "./delivery";
-
-/** True on a coarse (touch) pointer — used to upsize tap targets and swap the
- *  keyboard-shortcut help for a tappable action menu. */
-function useCoarsePointer(): boolean {
-  const [coarse, setCoarse] = useState(false);
-  useEffect(() => {
-    if (typeof matchMedia !== "function") return;
-    const mq = matchMedia("(pointer: coarse)");
-    const update = () => setCoarse(mq.matches);
-    update();
-    mq.addEventListener?.("change", update);
-    return () => mq.removeEventListener?.("change", update);
-  }, []);
-  return coarse;
-}
 
 function useIsFullscreen(): boolean {
   const [fs, setFs] = useState(false);

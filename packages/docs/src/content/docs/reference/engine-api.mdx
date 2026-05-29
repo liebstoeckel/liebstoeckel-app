@@ -28,6 +28,10 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 | `TokenizedStep` · `CodeToken` | types | shape of macro output |
 | `Magic` | component | Magic Move via shared `layoutId` |
 | `Atmosphere` | component | animated gradient background (`still?`) |
+| `Present`/`Deck` `transition` prop | prop | deck-wide slide transition; a slide can `export const transition` to override |
+| `Present`/`Deck` `mobileTransitions` prop | prop | re-enable slide transitions on mobile (coarse pointer); off by default |
+| `resolveTransition` · `TRANSITIONS` · `DEFAULT_TRANSITION` | fn/const | resolve a name/custom spec → Motion variants; the built-in presets; the default (`"fade"`) |
+| `SlideTransition` · `SlideTransitionName` · `SlideTransitionSpec` · `SlideDirection` | types | transition config (preset name `fade`/`blur`/`slide`/`zoom`/`none`, or a custom `{ variants, transition }`) |
 | `Slot` · `PersistentProvider` · `PersistentLayer` · `PersistentItem` | components/type | persistent stateful elements |
 
 ## Layout

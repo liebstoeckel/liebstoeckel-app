@@ -62,4 +62,33 @@ import { Slot } from "@liebstoeckel/engine";
 
 Move the `<Slot id="live">` to a different position on the next slide and the live element animates to its new home without reloading.
 
+## Slide transitions
+
+How one slide gives way to the next is configurable. Set a deck-wide default on `Present`, and override any individual slide with an `export const transition`:
+
+```tsx title="main.tsx"
+<Present slides={[...]} transition="slide" />   {/* deck default; omit for "fade" */}
+```
+
+```tsx title="a slide"
+export const transition = "zoom";               // this slide only
+```
+
+Built-in presets: **`fade`** (default), `blur`, `slide` (directional push — mirrors on back-nav), `zoom`, `none`. Need something bespoke? Pass a custom spec instead of a name:
+
+```tsx
+export const transition = {
+  variants: { enter: { opacity: 0, y: 40 }, center: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -40 } },
+  transition: { duration: 0.5 },
+};
+```
+
+Transitions respect `prefers-reduced-motion` (they collapse to a tiny fade), and don't affect persistent-layer elements — those travel above the swap untouched.
+
+On **mobile** (touch / coarse pointer) transitions are **off by default** — the stage is heavily down-scaled there, so cuts feel snappier and avoid jank. Opt back in with the `mobileTransitions` escape hatch:
+
+```tsx title="main.tsx"
+<Present slides={[...]} transition="slide" mobileTransitions />
+```
+
 <LinkCard title="Animated code" href="/guides/animated-code/" description="The signature feature for technical decks." />

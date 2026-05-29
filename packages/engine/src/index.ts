@@ -6,6 +6,15 @@ export { HelpOverlay } from "./HelpOverlay";
 export { useDeckSync } from "./useDeckSync";
 export { useDeckNav } from "./nav";
 export { normalizeSlides, type SlideInput } from "./slides";
+export {
+  resolveTransition,
+  TRANSITIONS,
+  DEFAULT_TRANSITION,
+  type SlideTransition,
+  type SlideTransitionName,
+  type SlideTransitionSpec,
+  type SlideDirection,
+} from "./transitions";
 export { CaptureView } from "./CaptureView";
 export { readThumbnails, type ThumbnailSet } from "./thumbnails";
 export { Step, StepsProvider, useRevealState } from "./steps";

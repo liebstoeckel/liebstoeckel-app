@@ -2,24 +2,12 @@ import { createContext, useContext, useEffect, useState, type CSSProperties, typ
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { StageScaleContext } from "../Stage";
+import { useCoarsePointer } from "../useCoarsePointer";
 import { breakoutEligible } from "../mobile";
 
 /** Set false to suppress the touch breakout for plugins in a subtree (e.g. the
  *  presenter's non-interactive slide preview). */
 export const BreakoutAllowedContext = createContext(true);
-
-function useCoarsePointer(): boolean {
-  const [coarse, setCoarse] = useState(false);
-  useEffect(() => {
-    if (typeof matchMedia !== "function") return;
-    const mq = matchMedia("(pointer: coarse)");
-    const update = () => setCoarse(mq.matches);
-    update();
-    mq.addEventListener?.("change", update);
-    return () => mq.removeEventListener?.("change", update);
-  }, []);
-  return coarse;
-}
 
 /** Whether a plugin should offer tap-to-expand instead of inline interaction. */
 export function useBreakoutEligible(interactive: boolean): boolean {

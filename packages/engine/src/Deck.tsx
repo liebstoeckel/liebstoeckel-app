@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { MDXProvider } from "@mdx-js/react";
 import { mdxComponents } from "@liebstoeckel/components";
 import * as Y from "yjs";
@@ -20,12 +20,21 @@ import { DeckChrome } from "./DeckChrome";
 import { StepsProvider } from "./steps";
 import { accumulateDigits, toggleFullscreen } from "./delivery";
 import { normalizeSlides, type SlideInput } from "./slides";
+import { resolveTransition, mobileTransitionsDisabled, type SlideDirection, type SlideTransition } from "./transitions";
+import { useCoarsePointer } from "./useCoarsePointer";
 
 export type DeckProps = {
   slides: SlideInput[];
   persistent?: PersistentItem[];
   brands?: string[];
   title?: string;
+  /** Deck-wide default slide transition. A slide can override it with its own
+   *  `export const transition`. Defaults to a light `"fade"`. */
+  transition?: SlideTransition;
+  /** Allow slide transitions on mobile (coarse-pointer) devices. Off by default —
+   *  transitions are dropped there for snappier, jank-free navigation. Set true to
+   *  opt back in. */
+  mobileTransitions?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   plugins?: PluginDef<any>[];
 };
@@ -43,7 +52,7 @@ function openPresenter() {
   }
 }
 
-export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProps) {
+export function Deck({ slides, persistent = [], brands = ["default"], transition: deckTransition, mobileTransitions }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   const count = norm.length;
   // Pre-rendered overview thumbnails (build-time), if the deck embedded them.
@@ -122,6 +131,23 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
 
   const Current = norm[index]?.Component ?? (() => null);
 
+  // Slide transition: per-slide `transition` export wins over the deck default
+  // (which defaults to "fade"). `direction` mirrors directional presets on
+  // back-nav; reduced-motion collapses everything to a tiny opacity fade.
+  const reduceMotion = useReducedMotion();
+  const coarse = useCoarsePointer();
+  const prevIndexRef = useRef(index);
+  const direction: SlideDirection = index >= prevIndexRef.current ? 1 : -1;
+  useEffect(() => {
+    prevIndexRef.current = index;
+  }, [index]);
+  // Mobile (coarse pointer) drops transitions by default — opt back in with
+  // `mobileTransitions`. Otherwise: per-slide override → deck default → "fade".
+  const requested = mobileTransitionsDisabled(coarse, mobileTransitions)
+    ? "none"
+    : (norm[index]?.transition ?? deckTransition);
+  const slideTransition = resolveTransition(requested, !!reduceMotion);
+
   return (
     <MDXProvider components={mdxComponents}>
       <PersistentProvider>
@@ -131,14 +157,16 @@ export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProp
        <div className="relative h-dvh w-screen overflow-hidden bg-bg">
         <ScaledStage className="absolute inset-0">
           <div data-deck-root className="absolute inset-0">
-            <AnimatePresence>
+            <AnimatePresence custom={direction}>
               <motion.div
                 key={index}
+                custom={direction}
                 className="absolute inset-0"
-                initial={{ opacity: 0, filter: "blur(10px)", scale: 1.015 }}
-                animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
-                exit={{ opacity: 0, filter: "blur(10px)", scale: 0.99 }}
-                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                variants={slideTransition.variants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={slideTransition.transition}
               >
                 <SlideFrame>
                   <StepsProvider step={step} slideIndex={index} onTotal={onTotal}>

@@ -27,7 +27,7 @@ Navigation is pure at its core (`stepForward` / `stepBack`): advance within a sl
 
 ## Transitions
 
-- **Between slides** — `AnimatePresence` cross-fades + blurs the outgoing/incoming slide.
+- **Between slides** — `AnimatePresence` swaps the slide via a configurable **transition** (Motion variants resolved with the nav direction). Built-ins: `fade` (default), `blur`, `slide` (directional push), `zoom`, `none` — or pass a custom spec. Set a deck default on `Present` (`transition="slide"`) and override per slide with `export const transition`. Honors `prefers-reduced-motion` (collapses to a tiny opacity fade), and is **off by default on mobile** (coarse pointer) — set `mobileTransitions` to opt back in. Persistent-layer elements travel *above* this swap, so they're unaffected.
 - **Within a slide** — `<Step>` fades/rises each reveal; `<Magic>` / `<CodeMagic>` FLIP shared elements via `layoutId`.
 
 ## Overview & thumbnails
