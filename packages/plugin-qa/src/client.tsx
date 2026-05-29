@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
-import { Button, Card, Eyebrow, Stack } from "@liebstoeckel/plugin-ui";
+import { Button, Card, Eyebrow, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
 import { qaSchema, hasVoted, voteCount, voteKey, rankedQuestions, type QaState, type RankedQuestion } from "./logic";
 
 const v = (name: string, fallback: string) => `var(--brand-${name}, ${fallback})`;
@@ -171,26 +171,32 @@ function QaSlide(p: ClientProps<QaState>) {
           Ask
         </Button>
       </div>
-      <Stack gap="0.55rem">
-        <AnimatePresence initial={false}>
-          {ranked.map((q) => (
-            <QuestionRow
-              key={q.id}
-              q={q}
-              voted={hasVoted(snapshot, q.id, participantId)}
-              role={role}
-              onUpvote={() => toggleVote(q.id)}
-              onAnswer={() => state.recordSet("answered", q.id, !snapshot.answered[q.id])}
-              onDismiss={() => state.recordSet("dismissed", q.id, true)}
-            />
-          ))}
-        </AnimatePresence>
-        {ranked.length === 0 && (
-          <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
-            No questions yet — be the first.
-          </div>
-        )}
-      </Stack>
+      {/* the queue grows with the audience — cap + scroll it inside the card so it
+          never overflows the fixed slide canvas (ADR 0006). The header + input above
+          stay pinned. On mobile the breakout sheet already scrolls; this matches it
+          inline. */}
+      <ScrollArea>
+        <Stack gap="0.55rem">
+          <AnimatePresence initial={false}>
+            {ranked.map((q) => (
+              <QuestionRow
+                key={q.id}
+                q={q}
+                voted={hasVoted(snapshot, q.id, participantId)}
+                role={role}
+                onUpvote={() => toggleVote(q.id)}
+                onAnswer={() => state.recordSet("answered", q.id, !snapshot.answered[q.id])}
+                onDismiss={() => state.recordSet("dismissed", q.id, true)}
+              />
+            ))}
+          </AnimatePresence>
+          {ranked.length === 0 && (
+            <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
+              No questions yet — be the first.
+            </div>
+          )}
+        </Stack>
+      </ScrollArea>
     </Card>
   );
 }

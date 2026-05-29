@@ -156,6 +156,43 @@ export function Stack({ children, gap = "0.6rem", style }: { children?: ReactNod
   return <div style={{ display: "flex", flexDirection: "column", gap, ...style }}>{children}</div>;
 }
 
+/** A bounded, internally-scrolling region. The inline slide canvas is a fixed
+ *  1280×720 surface with `overflow:hidden` (ADR 0006) and never scrolls, so a
+ *  plugin whose content grows without bound (a Q&A queue, a chat, any feed) must
+ *  cap its own height and scroll inside it — pin the header/input, wrap the growing
+ *  list in a ScrollArea. On mobile the breakout sheet already scrolls; this gives
+ *  the inline/desktop path the same boundary. `maxHeight` accepts any CSS length
+ *  (default a stage-relative cap that leaves room for surrounding chrome). */
+export function ScrollArea({
+  children,
+  maxHeight = "min(360px, 42vh)",
+  style,
+  className,
+}: {
+  children?: ReactNode;
+  maxHeight?: string;
+  style?: CSSProperties;
+  className?: string;
+}) {
+  return (
+    <div
+      className={className}
+      style={{
+        maxHeight,
+        overflowY: "auto",
+        // a hair of inline padding so a scrollbar doesn't crowd content
+        paddingRight: "0.15rem",
+        // momentum scroll on touch + don't chain the scroll to the deck/page
+        overscrollBehavior: "contain",
+        WebkitOverflowScrolling: "touch",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function Eyebrow({ children }: { children?: ReactNode }) {
   return (
     <div

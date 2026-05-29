@@ -109,6 +109,34 @@ import applause from "@liebstoeckel/plugin-applause";
 <Plugin id="applause" />
 ```
 
+## Layout: the slide canvas is fixed — bound your own height
+
+A slide is rendered on a fixed **1280×720 canvas** that's scaled to fit and **clipped** (`overflow: hidden`), so the audience view, presenter view, and thumbnails stay pixel-identical ([ADR&nbsp;0006](https://github.com/…/docs/adr/0006-fixed-canvas-scaled-stage)). The canvas **never scrolls**. That's fine for authored slides — you control how much is on them — but a plugin whose content grows with the audience (a Q&A queue, a chat, a long results list) *will* eventually overflow and get cut off, with no way to scroll to the rest.
+
+So: **pin your header/input and scroll the growing part yourself.** `@liebstoeckel/plugin-ui` ships a `ScrollArea` for exactly this — a bounded region that scrolls internally and won't chain its scroll to the deck:
+
+```tsx title="src/client.tsx" {1,8,12}
+import { Card, Eyebrow, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
+
+function QueueSlide(p: ClientProps<State>) {
+  return (
+    <Card style={{ width: "100%", maxWidth: 520 }}>
+      <Eyebrow>Questions</Eyebrow>
+      {/* …input box stays pinned here… */}
+      <ScrollArea>            {/* default cap: min(360px, 42vh) */}
+        <Stack>
+          {items.map((q) => <Row key={q.id} {...q} />)}
+        </Stack>
+      </ScrollArea>
+    </Card>
+  );
+}
+```
+
+<Aside type="caution" title="Mobile scrolls for free — desktop does not">
+On touch, an interactive plugin opens in a breakout sheet that already scrolls ([ADR&nbsp;0018](https://github.com/…/docs/adr/0018-mobile-touch-breakout)). It's the **inline / desktop** path that has no scroll boundary, so test your plugin with a *lot* of content on a desktop window. A `ScrollArea` fixes both at once — and because it has its own boundary, it stays a single clean scroll inside the breakout too.
+</Aside>
+
 ## The client contract
 
 | Surface | When it renders |

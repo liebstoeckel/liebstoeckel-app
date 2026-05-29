@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readTheme } from "./useTheme";
-import { Bar, Button, Card } from "./primitives";
+import { Bar, Button, Card, ScrollArea } from "./primitives";
 
 describe("readTheme", () => {
   test("returns brand fallbacks when no document", () => {
@@ -24,5 +24,16 @@ describe("primitives render", () => {
   });
   test("Card renders children", () => {
     expect(renderToStaticMarkup(<Card>hello</Card>)).toContain("hello");
+  });
+  test("ScrollArea bounds its height and scrolls internally", () => {
+    const html = renderToStaticMarkup(<ScrollArea>queue</ScrollArea>);
+    expect(html).toContain("queue");
+    expect(html).toContain("overflow-y:auto");
+    expect(html).toContain("max-height:min(360px, 42vh)"); // default cap
+    expect(html).toContain("overscroll-behavior:contain"); // don't chain to the deck
+  });
+  test("ScrollArea honours a custom maxHeight", () => {
+    const html = renderToStaticMarkup(<ScrollArea maxHeight="200px">x</ScrollArea>);
+    expect(html).toContain("max-height:200px");
   });
 });
