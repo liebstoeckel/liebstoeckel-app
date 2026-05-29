@@ -32,7 +32,9 @@
 .shiki {
   margin: 0;
   padding: 1.3rem 1.6rem;
-  overflow: auto;
+  /* clip rather than scroll — a scrollbar on a slide reads as overflow the author
+     should fix; keep code sized to the canvas. */
+  overflow: hidden;
   font-family: var(--brand-font-mono);
   font-size: 1.02rem;
   line-height: 1.7;
@@ -82,7 +84,9 @@
 .pi-codemagic {
   margin: 0;
   padding: 1.35rem 1.6rem;
-  overflow: auto;
+  /* never scroll — clip instead. Mid-morph the FLIP'd lines briefly overflow the
+     box and `overflow: auto` would flash scrollbars; code on a slide should fit. */
+  overflow: hidden;
   background: transparent;
   font-family: var(--brand-font-mono);
   font-size: 1.02rem;
