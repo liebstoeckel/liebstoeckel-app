@@ -23,7 +23,8 @@
   },
   "dependencies": {
     "@liebstoeckel/engine": "workspace:*",
-    "@liebstoeckel/plugin-sdk": "workspace:*"
+    "@liebstoeckel/plugin-sdk": "workspace:*",
+    "@liebstoeckel/thumbnails": "workspace:*"
   },
   "peerDependencies": {
     "yjs": "^13.6.30"

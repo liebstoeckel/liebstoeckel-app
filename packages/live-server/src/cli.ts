@@ -47,10 +47,65 @@ function flag(argv: string[], name: string): string | undefined {
   return i >= 0 ? argv[i + 1] : undefined;
 }
 
+interface ThumbSettings {
+  enabled: boolean;
+  width?: number;
+  quality?: number;
+  scale?: number;
+  format?: "webp" | "jpeg" | "png";
+}
+
+/** Parse the thumbnail flags. Capture is ON by default — `--no-thumbnails` opts
+ *  out; `--format/--width/--quality/--scale` mirror `liebstoeckel thumbs`. */
+export function thumbSettings(argv: string[]): ThumbSettings {
+  const num = (name: string): number | undefined => {
+    const v = flag(argv, name);
+    const n = v == null ? NaN : Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const fmt = flag(argv, "--format");
+  return {
+    enabled: !argv.includes("--no-thumbnails"),
+    width: num("--width"),
+    quality: num("--quality"),
+    scale: num("--scale"),
+    format: fmt === "webp" || fmt === "jpeg" || fmt === "png" ? fmt : undefined,
+  };
+}
+
+/** Capture + embed slide thumbnails into the deck HTML so the overview grid is
+ *  instant and uniform. On by default. Never fatal: skips with a hint when opted
+ *  out, when `@liebstoeckel/thumbnails` isn't installed, or when no Chromium is
+ *  available (dynamic import so `--no-thumbnails` pays no playwright-core cost). */
+export async function addThumbnails(html: string, s: ThumbSettings): Promise<string> {
+  if (!s.enabled) return html;
+  let mod: typeof import("@liebstoeckel/thumbnails");
+  try {
+    mod = await import("@liebstoeckel/thumbnails");
+  } catch {
+    process.stderr.write("⚠  thumbnails skipped: @liebstoeckel/thumbnails not installed (pass --no-thumbnails to silence)\n");
+    return html;
+  }
+  const opts = { width: s.width, quality: s.quality, scale: s.scale, format: s.format };
+  // defaults: process.env (also honors LIEBSTOECKEL_NO_THUMBS) + hasChromium()
+  const gate = mod.thumbnailsEnabled();
+  if (!gate.enabled) {
+    process.stderr.write(`⚠  thumbnails skipped: ${gate.reason}\n`);
+    return html;
+  }
+  process.stderr.write("▶  capturing slide thumbnails …\n");
+  const manifest = await mod.captureThumbnails(html, {
+    ...opts,
+    onSlide: (i, n) => process.stderr.write(`\r   slide ${i + 1}/${n}   `),
+  });
+  process.stderr.write(`\r✓  embedded ${Object.keys(manifest.thumbs).length} thumbnails            \n`);
+  return mod.embedThumbnails(html, manifest);
+}
+
 /** LAN mode: serve the deck locally and relay Yjs over /sync. */
-async function localMain(arg: string, port?: number) {
+async function localMain(arg: string, thumbs: ThumbSettings, port?: number) {
   process.stderr.write(TRUST_WARNING + "\n");
-  const html = await loadDeckHtml(arg);
+  const html = await addThumbnails(await loadDeckHtml(arg), thumbs);
   const live = await startServer({ html, port });
 
   const local = buildLinks(`http://localhost:${live.port}`, live.session);
@@ -71,9 +126,9 @@ async function localMain(arg: string, port?: number) {
 
 /** Relay mode: upload the deck to a public relay; run the deck's server plugins
  *  locally as the relay's privileged peer (deck code never runs on the relay). */
-async function relayMain(arg: string, relayUrl: string, relayToken: string) {
+async function relayMain(arg: string, relayUrl: string, relayToken: string, thumbs: ThumbSettings) {
   process.stderr.write(TRUST_WARNING + "\n");
-  const html = await loadDeckHtml(arg);
+  const html = await addThumbnails(await loadDeckHtml(arg), thumbs);
   process.stderr.write(`▶  uploading deck to ${relayUrl} …\n`);
   const info = await uploadDeck(relayUrl, relayToken, html);
   const runner = await runServerPluginsViaRelay({
@@ -102,9 +157,14 @@ async function relayMain(arg: string, relayUrl: string, relayToken: string) {
 export async function runLive(argv: string[]) {
   const arg = argv.find((a) => !a.startsWith("-"));
   if (!arg) {
-    console.error("usage: liebstoeckel live <deck.html | deck-project-dir> [--relay <url> --relay-token <tok>] [--port N]");
+    console.error(
+      "usage: liebstoeckel live <deck.html | deck-project-dir> [--relay <url> --relay-token <tok>] [--port N]\n" +
+        "       thumbnails are captured by default (needs Chromium); --no-thumbnails to skip,\n" +
+        "       --format webp|jpeg|png --width N --quality N --scale N to tune them",
+    );
     process.exit(1);
   }
+  const thumbs = thumbSettings(argv);
   const relayUrl = flag(argv, "--relay");
   const relayToken = flag(argv, "--relay-token") ?? process.env.LIEBSTOECKEL_RELAY_TOKEN;
   if (relayUrl) {
@@ -112,9 +172,9 @@ export async function runLive(argv: string[]) {
       console.error("--relay requires --relay-token <token> (or LIEBSTOECKEL_RELAY_TOKEN)");
       process.exit(1);
     }
-    await relayMain(arg, relayUrl, relayToken);
+    await relayMain(arg, relayUrl, relayToken, thumbs);
   } else {
-    await localMain(arg, Number(flag(argv, "--port")) || undefined);
+    await localMain(arg, thumbs, Number(flag(argv, "--port")) || undefined);
   }
 }
 

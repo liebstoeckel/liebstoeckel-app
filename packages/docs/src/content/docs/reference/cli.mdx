@@ -33,11 +33,14 @@ LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build [dir]   # skip thumbnails
 
 ## `live`
 
-Present a deck to a room. Builds the deck if given a project dir.
+Present a deck to a room. Builds the deck if given a project dir, and captures
+slide thumbnails by default (so the overview grid is instant) — skipped, not
+failed, when no Chromium is available.
 
 ```bash
 liebstoeckel live <deck.html | deck-dir> [--port N]
 liebstoeckel live <deck> --relay <url> --relay-token <token>
+liebstoeckel live <deck> --no-thumbnails        # skip the capture step
 ```
 
 | Flag | Meaning |
@@ -45,6 +48,8 @@ liebstoeckel live <deck> --relay <url> --relay-token <token>
 | `--port N` | LAN port (default: auto) |
 | `--relay <url>` | present through a [relay](/guides/relay/) instead of LAN |
 | `--relay-token <tok>` | relay account token (or `LIEBSTOECKEL_RELAY_TOKEN`) |
+| `--no-thumbnails` | skip thumbnail capture (also via `LIEBSTOECKEL_NO_THUMBS=1`) |
+| `--format` / `--width` / `--quality` / `--scale` | tune thumbnails, as in [`thumbs`](#thumbs) |
 
 ## `relay`
 

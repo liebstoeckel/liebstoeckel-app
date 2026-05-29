@@ -132,6 +132,7 @@
       "dependencies": {
         "@liebstoeckel/engine": "workspace:*",
         "@liebstoeckel/plugin-sdk": "workspace:*",
+        "@liebstoeckel/thumbnails": "workspace:*",
       },
       "devDependencies": {
         "@liebstoeckel/plugin-poll": "workspace:*",
