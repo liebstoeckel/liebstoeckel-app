@@ -70,7 +70,7 @@ A single `Bun.serve` HTTP+WebSocket process holding many independent sessions in
   - `POST /api/sessions` (account-token `Bearer`-gated) — accepts an uploaded deck, enforces deck-size and per-account session quotas, mints a `Session` plus a privileged `runnerToken`, spins up a per-session `Hub`, and returns the presenter/viewer/sync URLs + an expiry.
   - `DELETE /api/sessions/:id` — owner-only teardown.
   - `WS /sync/:id?t=<token>` — token-gated Yjs relay into that session's `Hub`.
-  - `GET /s/:id?t=<token>` — serves the deck under a locked-down **`sandbox allow-scripts allow-fullscreen`** CSP (opaque origin, no `allow-same-origin`) with `connect-src` pinned to the relay's own ws/http origin; the bootstrap is injected per request.
+  - `GET /s/:id?t=<token>` — serves the deck under a locked-down **`sandbox allow-scripts allow-popups`** CSP (opaque origin, no `allow-same-origin`; `allow-popups` is just for the presenter `P` pop-out) with `connect-src` pinned to the relay's own ws/http origin; the bootstrap is injected per request.
 - **`auth.ts`** — constant-time token compare (`safeEqual` via `timingSafeEqual`), `matchAccount` (compares all configured tokens with no early-out), `bearer` header parse.
 - Each session is **in-memory and TTL-expiring** (default 6h): a timer calls `dropSession` to destroy the `Hub` and forget tokens; nothing is persisted. `originOf` derives public URLs from `publicBaseUrl` or `x-forwarded-*` headers (TLS terminates at your proxy).
 - **`cli.ts`** — `runRelay` powers the `liebstoeckel-relay` bin: parses `--port`/`--tokens`/`--public-url` (env fallbacks), generates a throwaway account token if none given, and prints the base URL + how to point `liebstoeckel live` at it.

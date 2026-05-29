@@ -196,11 +196,15 @@ export function createRelay(opts: RelayOptions): RelayServer {
             // Opaque-origin isolation: no allow-same-origin → the deck can't reach
             // the relay's cookies/API/DOM, and each load is a fresh opaque origin
             // (deck-to-deck isolation). connect-src pins the live socket to us.
+            // `allow-popups` enables the presenter pop-out (P → window.open of
+            // /s/:id?t=<presenterToken>#presenter) — the popup is itself served
+            // sandboxed by the relay and syncs through the Hub, so isolation holds
+            // (ADR 0014). Without it window.open throws in the sandbox.
             // `allow-fullscreen` is NOT a valid CSP `sandbox` token (it's an
             // iframe/Permissions-Policy feature) — browsers reject it and log a
             // console error. Fullscreen for this top-level doc is governed by the
             // Fullscreen API / Permissions-Policy, not the sandbox directive.
-            "content-security-policy": `sandbox allow-scripts; connect-src ${ws} ${http}`,
+            "content-security-policy": `sandbox allow-scripts allow-popups; connect-src ${ws} ${http}`,
             "x-content-type-options": "nosniff",
             "referrer-policy": "no-referrer",
           },

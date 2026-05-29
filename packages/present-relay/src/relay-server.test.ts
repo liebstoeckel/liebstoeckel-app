@@ -76,6 +76,7 @@ describe("relay deck serving (opaque sandbox)", () => {
     expect(res.status).toBe(200);
     const csp = res.headers.get("content-security-policy") ?? "";
     expect(csp).toContain("sandbox allow-scripts");
+    expect(csp).toContain("allow-popups"); // presenter pop-out (window.open) — ADR 0014
     expect(csp).not.toContain("allow-same-origin");
     expect(csp).not.toContain("allow-fullscreen"); // invalid sandbox token — must not regress
     expect(csp).toContain("connect-src");

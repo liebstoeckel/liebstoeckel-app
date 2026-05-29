@@ -33,7 +33,14 @@ export type DeckProps = {
 function openPresenter() {
   // preserve the query (incl. ?t=<token>) so a live presenter window authenticates
   const url = location.origin + location.pathname + location.search + "#presenter";
-  window.open(url, "liebstoeckel-presenter", "width=1366,height=860");
+  // window.open can throw (relay sandbox without allow-popups) or return null (a
+  // popup blocker) — never let that bubble up as an uncaught DOMException.
+  try {
+    const w = window.open(url, "liebstoeckel-presenter", "width=1366,height=860");
+    if (!w) console.warn("[liebstoeckel] presenter pop-out was blocked (popup blocker or sandbox).");
+  } catch (err) {
+    console.warn("[liebstoeckel] presenter pop-out is unavailable in this context:", err);
+  }
 }
 
 export function Deck({ slides, persistent = [], brands = ["default"] }: DeckProps) {
