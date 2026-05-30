@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import * as Y from "yjs";
 import { MDXProvider } from "@mdx-js/react";
 import { mdxComponents } from "@liebstoeckel/components";
@@ -59,6 +59,43 @@ const fmtElapsed = (delta: number) => {
   const s = Math.max(0, Math.floor(delta / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
+
+/** The talk timer's **start** timestamp, shared via the deck doc so every presenter
+ *  surface agrees (ADR 0029). Each device computes elapsed = now − startedAt itself;
+ *  only drivers write (lazy-init + reset). Live → liveCtx.doc (shared); standalone →
+ *  a per-window fallback doc, so it stays per-window. */
+function usePresenterStart(doc: Y.Doc, canWrite: boolean): { startedAt: number; reset: () => void } {
+  const map = useMemo(() => doc.getMap("presenter") as Y.Map<number>, [doc]);
+  const [startedAt, setStartedAt] = useState<number | undefined>(() => {
+    const v = map.get("startedAt");
+    return typeof v === "number" ? v : undefined;
+  });
+  useEffect(() => {
+    const apply = () => {
+      const v = map.get("startedAt");
+      if (typeof v === "number") setStartedAt(v);
+    };
+    map.observe(apply);
+    apply();
+    // Claim the start only if it's *still* unset after the initial sync settles —
+    // a late-joining presenter then adopts the existing (first presenter's) start
+    // instead of racing it, which could otherwise yank the shared timer backwards.
+    let claim: ReturnType<typeof setTimeout> | undefined;
+    if (canWrite) {
+      claim = setTimeout(() => {
+        if (typeof map.get("startedAt") !== "number") map.set("startedAt", Date.now());
+      }, 400);
+    }
+    return () => {
+      if (claim) clearTimeout(claim);
+      map.unobserve(apply);
+    };
+  }, [map, canWrite]);
+  const reset = useCallback(() => {
+    if (canWrite) map.set("startedAt", Date.now());
+  }, [map, canWrite]);
+  return { startedAt: startedAt ?? Date.now(), reset };
+}
 
 function Label({ children, dot }: { children: ReactNode; dot?: boolean }) {
   return (
@@ -157,9 +194,11 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   useDeckNav({ count: norm.length, setIndex, onNext: next, onPrev: prev, onQr: live ? () => setShare((v) => !v) : undefined });
   useTouchNav({ enabled: true, onNext: next, onPrev: prev });
   const now = useNow();
-  // the presenter's own elapsed timer (per-window)
-  const [startedAt, setStartedAt] = useState(() => Date.now());
-  const resetTimer = () => setStartedAt(Date.now());
+  // Talk timer: the START is shared via the doc (ADR 0029) so every presenter
+  // surface agrees; standalone falls back to the per-window doc. Only drivers write.
+  const timerDoc = liveCtx?.doc ?? fallbackDoc;
+  const canWriteTimer = !live || liveCtx?.role !== "viewer";
+  const { startedAt, reset: resetTimer } = usePresenterStart(timerDoc, canWriteTimer);
 
   // Phone presenter (ADR 0027): a notes-first confidence monitor + remote. Keep the
   // screen awake, and offer a way back to the audience deck (drop the #presenter
