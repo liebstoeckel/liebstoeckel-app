@@ -178,6 +178,10 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   const wall = new Date(now).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const elapsed = fmtElapsed(now - startedAt);
   const count = norm.length;
+  // Nothing left to advance to: last slide AND all reveals shown (a remaining reveal
+  // still makes Next a "Reveal →"). Symmetric for Prev at the very start.
+  const atEnd = index >= count - 1 && step >= total;
+  const atStart = index <= 0 && step <= 0;
   const noNotes = <span className="text-muted">— no notes for this slide —</span>;
   const shareOverlay = (
     <PresenterShare open={share} viewerUrl={liveCtx?.viewerUrl} presenterUrl={presenterUrl} onClose={() => setShare(false)} />
@@ -244,10 +248,19 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           className="flex shrink-0 items-stretch gap-3 px-4 pt-2"
           style={{ paddingBottom: "calc(0.85rem + env(safe-area-inset-bottom))" }}
         >
-          <button onClick={prev} aria-label="Previous" className="flex-1 rounded-xl border border-border py-4 font-mono text-lg text-muted transition active:border-text active:text-text">
+          <button
+            onClick={prev}
+            disabled={atStart}
+            aria-label="Previous"
+            className="flex-1 rounded-xl border border-border py-4 font-mono text-lg text-muted transition active:border-text active:text-text disabled:opacity-40"
+          >
             ←
           </button>
-          <button onClick={next} className="flex-[2.4] rounded-xl bg-primary py-4 font-mono text-base font-semibold uppercase tracking-widest text-on-primary transition active:brightness-110">
+          <button
+            onClick={next}
+            disabled={atEnd}
+            className="flex-[2.4] rounded-xl bg-primary py-4 font-mono text-base font-semibold uppercase tracking-widest text-on-primary transition active:brightness-110 disabled:opacity-40"
+          >
             {step < total ? "Reveal →" : "Next →"}
           </button>
         </div>
@@ -315,13 +328,15 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           <div className="flex shrink-0 items-center gap-3">
             <button
               onClick={prev}
-              className="flex-1 rounded-xl border border-border py-3 font-mono text-sm uppercase tracking-widest text-muted transition hover:border-text hover:text-text"
+              disabled={atStart}
+              className="flex-1 rounded-xl border border-border py-3 font-mono text-sm uppercase tracking-widest text-muted transition hover:border-text hover:text-text disabled:opacity-40 disabled:hover:border-border disabled:hover:text-muted"
             >
               ← Prev
             </button>
             <button
               onClick={next}
-              className="flex-[2] rounded-xl bg-primary py-3 font-mono text-sm font-semibold uppercase tracking-widest text-on-primary transition hover:brightness-110"
+              disabled={atEnd}
+              className="flex-[2] rounded-xl bg-primary py-3 font-mono text-sm font-semibold uppercase tracking-widest text-on-primary transition hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100"
             >
               {step < total ? "Reveal →" : "Next →"}
             </button>
