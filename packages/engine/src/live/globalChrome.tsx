@@ -1,11 +1,26 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { ChromeButton } from "@liebstoeckel/plugin-ui";
 import { type ClientProps, type GlobalProps, type PluginDef } from "@liebstoeckel/plugin-sdk";
 import { useLive, usePluginProps, type LiveContextValue } from "./Plugin";
 import { BreakoutSheet } from "./breakout";
 import { useCoarsePointer } from "../useCoarsePointer";
 import { globalPlugins } from "./globals";
+
+/** A row in the touch `⋮` menu (matches DeckChrome's MenuAction). */
+export interface PluginMenuAction {
+  key: string;
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+}
+
+interface PanelController {
+  open: boolean;
+  toggle: () => void;
+  close: () => void;
+}
 
 /** A lightweight popover for a global plugin Panel — portaled to device scale and
  *  anchored just above the chrome rail (bottom-left), with a transparent outside-
@@ -79,52 +94,77 @@ export function PluginOverlays() {
   );
 }
 
-/** One plugin's chrome control (rendered inline in the rail) plus its panel
- *  (portaled outside the scaled stage via `BreakoutSheet`). Owns its open-state. */
+/** A plugin's rail trigger: its custom `Control` if it has one, else a `ChromeButton`
+ *  built from `icon` + `label`. Toggles the shared panel open-state. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ControlItem({ ctx, id, def }: { ctx: LiveContextValue; id: string; def: PluginDef<any> }) {
+function RailTrigger({ ctx, id, def, panel }: { ctx: LiveContextValue; id: string; def: PluginDef<any>; panel: PanelController }) {
   const base = usePluginProps(ctx, id, def);
-  const [open, setOpen] = useState(false);
-  const coarse = useCoarsePointer();
-  const Control = def.client.global?.Control as ComponentType<GlobalProps<unknown>> | undefined;
-  const Panel = def.client.global?.Panel as ComponentType<GlobalProps<unknown>> | undefined;
-  const panel = { open, toggle: () => setOpen((v) => !v), close: () => setOpen(false) };
-  const gprops: GlobalProps<unknown> = { ...base, panel };
-  // A "sheet" panel opens full-viewport on touch (keyboard-friendly) instead of the
-  // bottom popover, which the on-screen keyboard buries (ADR 0037). Desktop stays a popover.
-  const sheet = def.client.global?.panelMode === "sheet" && coarse;
+  const g = def.client.global!;
+  const Control = g.Control as ComponentType<GlobalProps<unknown>> | undefined;
+  if (Control) return <Control {...base} panel={panel} />;
   return (
-    <>
-      {Control && <Control {...gprops} />}
-      <AnimatePresence>
-        {open &&
-          Panel &&
-          (sheet ? (
-            <BreakoutSheet label={def.client.presenter?.label ?? id} onClose={panel.close}>
-              <Panel {...gprops} />
-            </BreakoutSheet>
-          ) : (
-            <ChromePopover onClose={panel.close}>
-              <Panel {...gprops} />
-            </ChromePopover>
-          ))}
-      </AnimatePresence>
-    </>
+    <ChromeButton onClick={panel.toggle} active={panel.open} title={g.label} ariaLabel={g.label}>
+      {g.icon}
+    </ChromeButton>
   );
 }
 
-/** The plugin half of the chrome rail: one `Control` per registered plugin that
- *  exposes one, in registration order. Rendered next to the help button. */
-export function PluginControls() {
-  const ctx = useLive();
-  if (!ctx?.live) return null;
-  const entries = globalPlugins(ctx.plugins).filter((e) => e.def.client.global?.Control);
-  if (entries.length === 0) return null;
+/** A plugin's panel, hosted centrally so it survives the `⋮` sheet closing and so its
+ *  open-state can be driven from either the rail or a menu row. A `"sheet"` panel opens
+ *  full-viewport on touch (keyboard-friendly, ADR 0037); otherwise a popover. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function PanelHost({ ctx, id, def, open, onClose, coarse }: { ctx: LiveContextValue; id: string; def: PluginDef<any>; open: boolean; onClose: () => void; coarse: boolean }) {
+  const base = usePluginProps(ctx, id, def);
+  const Panel = def.client.global?.Panel as ComponentType<GlobalProps<unknown>> | undefined;
+  const gprops: GlobalProps<unknown> = { ...base, panel: { open, toggle: onClose, close: onClose } };
+  const sheet = def.client.global?.panelMode === "sheet" && coarse;
   return (
-    <>
-      {entries.map(({ id, def }) => (
-        <ControlItem key={id} ctx={ctx} id={id} def={def} />
-      ))}
-    </>
+    <AnimatePresence>
+      {open &&
+        Panel &&
+        (sheet ? (
+          <BreakoutSheet label={def.client.global?.label ?? id} onClose={onClose}>
+            <Panel {...gprops} />
+          </BreakoutSheet>
+        ) : (
+          <ChromePopover onClose={onClose}>
+            <Panel {...gprops} />
+          </ChromePopover>
+        ))}
+    </AnimatePresence>
   );
+}
+
+/** Wires the global plugin controls into the chrome (ADR 0038). Returns the rail
+ *  triggers (pinned + custom on touch, all on desktop), the `⋮` menu rows for the rest
+ *  (touch only — the rail can't overflow), and the centrally-hosted panels. One panel
+ *  open at a time. */
+export function usePluginChrome(): { rail: ReactNode; menuActions: PluginMenuAction[]; panels: ReactNode } {
+  const ctx = useLive();
+  const coarse = useCoarsePointer();
+  const [openId, setOpenId] = useState<string | null>(null);
+  if (!ctx?.live) return { rail: null, menuActions: [], panels: null };
+
+  const entries = globalPlugins(ctx.plugins).filter((e) => e.def.client.global?.Panel || e.def.client.global?.Control);
+  // desktop: everything inline. touch: pinned (or a custom Control) inline, the rest → ⋮.
+  const inRail = (def: (typeof entries)[number]["def"]) => !coarse || !!def.client.global?.pinned || !!def.client.global?.Control;
+  const ctrl = (id: string): PanelController => ({
+    open: openId === id,
+    toggle: () => setOpenId((v) => (v === id ? null : id)),
+    close: () => setOpenId(null),
+  });
+
+  const rail = entries
+    .filter((e) => inRail(e.def))
+    .map(({ id, def }) => <RailTrigger key={id} ctx={ctx} id={id} def={def} panel={ctrl(id)} />);
+
+  const menuActions: PluginMenuAction[] = entries
+    .filter((e) => !inRail(e.def))
+    .map(({ id, def }) => ({ key: `plugin:${id}`, label: def.client.global?.label ?? id, icon: def.client.global?.icon ?? null, onClick: () => setOpenId(id) }));
+
+  const panels = entries.map(({ id, def }) => (
+    <PanelHost key={id} ctx={ctx} id={id} def={def} open={openId === id} onClose={() => setOpenId(null)} coarse={coarse} />
+  ));
+
+  return { rail, menuActions, panels };
 }

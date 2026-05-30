@@ -54,10 +54,20 @@ export type GlobalComponent<T> = ComponentType<GlobalProps<T>>;
 export interface GlobalSurfaces<T> {
   /** full-deck, `pointer-events:none` float layer above the slide, below chrome */
   Overlay?: ClientComponent<T>;
-  /** a button in the chrome rail next to the help affordance — any node; the
-   *  `ChromeButton` primitive matches the help button's look & feel by default */
+  /** the panel's trigger label — used as the chrome button's `aria-label` and as its
+   *  row text when it overflows into the touch `⋮` menu (ADR 0038). */
+  label?: string;
+  /** the trigger glyph (a stroke SVG to match the engine's chrome icons). */
+  icon?: ReactNode;
+  /** keep this control in the chrome rail on mobile instead of overflowing into the
+   *  `⋮` menu — for quick, frequent actions like reactions (ADR 0038). Default false:
+   *  on a coarse pointer the control becomes a `⋮` menu row so the rail can't overflow.
+   *  Ignored on desktop, where the rail has room for everything. */
+  pinned?: boolean;
+  /** advanced: a fully custom trigger component (instead of `icon`+`label`). Rendered
+   *  inline in the rail only — it does not participate in `⋮` overflow. */
   Control?: GlobalComponent<T>;
-  /** a drawer/modal portaled outside the scaled stage, toggled by `Control` */
+  /** a drawer/modal portaled outside the scaled stage, toggled by the control */
   Panel?: GlobalComponent<T>;
   /** how the `Panel` opens. `"popover"` (default) is a light, non-dimming bubble above the
    *  chrome rail — right for quick, frequent actions (reactions). `"sheet"` opens a

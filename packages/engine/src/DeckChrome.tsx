@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence } from "motion/react";
-import { PluginControls } from "./live/globalChrome";
+import { usePluginChrome } from "./live/globalChrome";
 import { BreakoutSheet } from "./live/breakout";
 import { useCoarsePointer } from "./useCoarsePointer";
 import { toggleFullscreen } from "./delivery";
@@ -150,6 +150,9 @@ export function DeckChrome({
   const coarse = useCoarsePointer();
   const fs = useIsFullscreen();
   const inset = "max(env(safe-area-inset-left), 1rem)";
+  // plugin global controls: pinned ones sit in the rail; the rest overflow into the ⋮
+  // menu on touch so the rail can't run off-screen (ADR 0038). Panels are hosted here.
+  const { rail: pluginRail, menuActions: pluginMenu, panels: pluginPanels } = usePluginChrome();
 
   // Switch this window to the presenter view (ADR 0027) — the touch counterpart to
   // the desktop `P` pop-out. `Present` selects the view by the #presenter hash at
@@ -173,6 +176,7 @@ export function DeckChrome({
     // Presenter view (notes-first confidence monitor) — drivers only, never viewers.
     ...(canDrive ? [{ key: "presenter", label: "Presenter view", icon: ICON.notes, onClick: openPresenterView }] : []),
     ...(isLive && viewerUrl ? [{ key: "share", label: "Share / QR", icon: ICON.share, onClick: onQr }] : []),
+    ...pluginMenu, // overflowed (unpinned) plugin controls, touch only
   ];
 
   return (
@@ -228,8 +232,9 @@ export function DeckChrome({
             )}
           </button>
         )}
-        <PluginControls />
+        {pluginRail}
       </div>
+      {pluginPanels}
     </>
   );
 }

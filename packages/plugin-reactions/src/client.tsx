@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { definePlugin, type ClientProps, type GlobalProps, type PluginState } from "@liebstoeckel/plugin-sdk";
-import { Card, Eyebrow, ChromeButton } from "@liebstoeckel/plugin-ui";
+import { Card, Eyebrow } from "@liebstoeckel/plugin-ui";
 import {
   reactionsSchema,
   EMOJI,
@@ -134,12 +134,15 @@ function ReactionsOverlay({ snapshot, state }: ClientProps<ReactionsState>) {
   );
 }
 
-/** Global chrome control: a help-button-style toggle for the palette panel. */
-function ReactionsControl({ panel }: GlobalProps<ReactionsState>) {
+/** A line icon matching the engine's chrome/share/maximize SVGs (stroke, 24 grid) — a
+ *  smiley, since reactions are emoji feedback. Keeps the rail visually consistent. */
+function ReactionsIcon() {
   return (
-    <ChromeButton onClick={panel.toggle} active={panel.open} title="Reactions" ariaLabel="Reactions" style={{ fontSize: "0.95rem" }}>
-      🎉
-    </ChromeButton>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.5 14.5a4.5 4.5 0 0 0 7 0" />
+      <path d="M9 9.5h.01M15 9.5h.01" />
+    </svg>
   );
 }
 
@@ -195,7 +198,9 @@ export default definePlugin<ReactionsState>({
     fallback: ReactionsFallback,
     global: {
       Overlay: ReactionsOverlay,
-      Control: ReactionsControl,
+      icon: <ReactionsIcon />,
+      label: "Reactions",
+      pinned: true, // quick, frequent → stays in the rail on mobile (ADR 0038)
       Panel: ReactionsPanel,
     },
   },

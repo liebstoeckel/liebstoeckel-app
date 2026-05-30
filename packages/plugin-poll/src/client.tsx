@@ -119,6 +119,16 @@ function PollFallback({ snapshot, props = {} }: { snapshot: PollState; props?: R
   );
 }
 
+/** A bar-chart line icon (stroke, 24 grid) matching the engine's chrome SVGs — for the
+ *  presenter tab, so Poll looks consistent with the rest of the UI. */
+function PollIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M18 20V10M12 20V4M6 20v-6" />
+    </svg>
+  );
+}
+
 export default definePlugin<PollState>({
   id: "poll",
   state: pollSchema,
@@ -126,7 +136,7 @@ export default definePlugin<PollState>({
     Slide: PollSlide,
     presenter: {
       label: "Poll",
-      icon: "📊",
+      icon: <PollIcon />,
       badge: (s) => totalVotes(s) || undefined,
       title: (s) => s.question || undefined, // tell sibling poll instances apart (ADR 0033)
       Console: PollConsole,

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { definePlugin, type ClientProps, type GlobalProps } from "@liebstoeckel/plugin-sdk";
-import { Button, Card, ChromeButton, Eyebrow, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
+import { Button, Card, Eyebrow, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
 import { qaSchema, hasVoted, voteCount, voteKey, rankedQuestions, type QaState, type RankedQuestion } from "./logic";
 
 const v = (name: string, fallback: string) => `var(--brand-${name}, ${fallback})`;
@@ -238,13 +238,13 @@ function QaConsole(p: ClientProps<QaState>) {
   );
 }
 
-/** Global chrome control (ADR 0021/0036): a quiet 💬 button — no count, so the audience
- *  isn't nudged — that toggles the ask panel from any slide, even with no Q&A slide. */
-function QaControl({ panel }: GlobalProps<QaState>) {
+/** A message line icon (stroke, 24 grid) matching the engine's chrome SVGs — used for the
+ *  chrome control and the presenter tab so Q&A looks consistent with the rest of the UI. */
+function QaIcon() {
   return (
-    <ChromeButton onClick={panel.toggle} active={panel.open} title="Ask a question" ariaLabel="Q&A">
-      💬
-    </ChromeButton>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
   );
 }
 
@@ -327,13 +327,14 @@ export default definePlugin<QaState>({
     Slide: QaSlide,
     presenter: {
       label: "Q&A",
-      icon: "💬",
+      icon: <QaIcon />,
       badge: (s) => rankedQuestions(s).filter((q) => !q.answered).length || undefined,
       Console: QaConsole,
     },
     fallback: QaFallback,
-    // ask from any slide, even with no Q&A slide placed (ADR 0021/0036). The panel opens
-    // as a full-viewport sheet on touch so the keyboard doesn't bury it (ADR 0037).
-    global: { Control: QaControl, Panel: QaPanel, panelMode: "sheet" },
+    // ask from any slide, even with no Q&A slide placed (ADR 0021/0036). Unpinned → folds
+    // into the ⋮ menu on mobile (ADR 0038); opens as a sheet on touch so the keyboard
+    // doesn't bury it (ADR 0037).
+    global: { icon: <QaIcon />, label: "Q&A", Panel: QaPanel, panelMode: "sheet" },
   },
 });
