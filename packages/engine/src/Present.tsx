@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as Y from "yjs";
 import { useTheme } from "@liebstoeckel/plugin-ui";
 import { themeToCss, type Theme } from "@liebstoeckel/theme";
-import type { PluginDef } from "@liebstoeckel/plugin-sdk";
+import { registerPluginInstance, type PluginDef } from "@liebstoeckel/plugin-sdk";
 import { Deck, type DeckProps } from "./Deck";
 import { PresenterView } from "./PresenterView";
 import { CaptureView } from "./CaptureView";
@@ -40,6 +40,18 @@ export function Present(props: DeckProps) {
   );
   const conn = useMemo(() => (info ? connectLive(info, participant) : null), [info, participant]);
   const doc = useMemo(() => conn?.doc ?? new Y.Doc(), [conn]);
+
+  // A plugin with global surfaces + a presenter console (e.g. Q&A) can be used without an
+  // on-slide placement, so register its default instance in the doc index — otherwise the
+  // presenter console, which discovers instances from placements (ADR 0033), wouldn't find
+  // it. Runs in both the Deck and the presenter window, so it doesn't depend on a viewer
+  // being connected. (ADR 0036)
+  useEffect(() => {
+    if (!info) return;
+    for (const [id, def] of Object.entries(registry)) {
+      if (def.client.presenter && def.client.global) registerPluginInstance(doc, id, "");
+    }
+  }, [info, registry, doc]);
 
   const value: LiveContextValue = {
     live: !!info,

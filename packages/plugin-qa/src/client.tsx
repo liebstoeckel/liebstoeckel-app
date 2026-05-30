@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
-import { Button, Card, Eyebrow, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
+import { definePlugin, type ClientProps, type GlobalProps } from "@liebstoeckel/plugin-sdk";
+import { Button, Card, ChromeButton, Eyebrow, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
 import { qaSchema, hasVoted, voteCount, voteKey, rankedQuestions, type QaState, type RankedQuestion } from "./logic";
 
 const v = (name: string, fallback: string) => `var(--brand-${name}, ${fallback})`;
@@ -122,81 +122,104 @@ function CtrlButton({ glyph, title, onClick, active = false }: { glyph: string; 
   );
 }
 
-/** In-deck UI: a submit box atop a live, springy, ranked queue. */
-function QaSlide(p: ClientProps<QaState>) {
-  const { snapshot, state, participantId, role, props } = p;
-  const [draft, setDraft] = useState("");
-  const ranked = rankedQuestions(snapshot);
-  const prompt = (props.prompt as string) || "Ask a question";
+/** Submit a question / toggle a vote — the audience actions, shared by every surface. */
+function useQaActions(p: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId">) {
+  const submit = (text: string) => {
+    const t = text.trim();
+    if (!t) return;
+    p.state.recordSet("questions", crypto.randomUUID(), { text: t, author: `viewer-${p.participantId.slice(0, 4)}`, ts: Date.now() });
+  };
+  const toggleVote = (qid: string) => {
+    const key = voteKey(qid, p.participantId);
+    if (hasVoted(p.snapshot, qid, p.participantId)) p.state.recordDelete("votes", key);
+    else p.state.recordSet("votes", key, true);
+  };
+  return { submit, toggleVote };
+}
 
-  const submit = () => {
-    const text = draft.trim();
-    if (!text) return;
-    state.recordSet("questions", crypto.randomUUID(), { text, author: `viewer-${participantId.slice(0, 4)}`, ts: Date.now() });
+/** The ask box. Clears itself on submit. */
+function Composer({ onSubmit, autoFocus }: { onSubmit: (text: string) => void; autoFocus?: boolean }) {
+  const [draft, setDraft] = useState("");
+  const go = () => {
+    onSubmit(draft);
     setDraft("");
   };
+  return (
+    <div style={{ display: "flex", gap: "0.5rem" }}>
+      <input
+        value={draft}
+        autoFocus={autoFocus}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && go()}
+        placeholder="Type your question…"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          appearance: "none",
+          padding: "0.7rem 0.9rem",
+          borderRadius: "0.7rem",
+          border: `1px solid ${v("border", "#222734")}`,
+          background: `color-mix(in srgb, ${v("surface", "#11141b")} 60%, transparent)`,
+          color: v("text", "#f3f1ea"),
+          fontFamily: v("font-body", "sans-serif"),
+          fontSize: "1rem",
+          outline: "none",
+        }}
+      />
+      <Button onClick={go} active style={{ width: "auto", paddingLeft: "1.2rem", paddingRight: "1.2rem" }}>
+        Ask
+      </Button>
+    </div>
+  );
+}
 
-  const toggleVote = (qid: string) => {
-    const key = voteKey(qid, participantId);
-    if (hasVoted(snapshot, qid, participantId)) state.recordDelete("votes", key);
-    else state.recordSet("votes", key, true);
-  };
+/** The live, springy, ranked queue. Moderation buttons appear only for `role==="presenter"`.
+ *  Bounded + internally scrolling so it never overflows the fixed slide canvas (ADR 0006). */
+function Queue(p: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId" | "role">) {
+  const { snapshot, state, participantId, role } = p;
+  const { toggleVote } = useQaActions(p);
+  const ranked = rankedQuestions(snapshot);
+  return (
+    <ScrollArea>
+      <Stack gap="0.55rem">
+        <AnimatePresence initial={false}>
+          {ranked.map((q) => (
+            <QuestionRow
+              key={q.id}
+              q={q}
+              voted={hasVoted(snapshot, q.id, participantId)}
+              role={role}
+              onUpvote={() => toggleVote(q.id)}
+              onAnswer={() => state.recordSet("answered", q.id, !snapshot.answered[q.id])}
+              onDismiss={() => state.recordSet("dismissed", q.id, true)}
+            />
+          ))}
+        </AnimatePresence>
+        {ranked.length === 0 && (
+          <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
+            No questions yet — be the first.
+          </div>
+        )}
+      </Stack>
+    </ScrollArea>
+  );
+}
 
+/** In-deck spotlight: the prompt + ask box atop the ranked queue. */
+function QaSlide(p: ClientProps<QaState>) {
+  const { snapshot, props } = p;
+  const { submit } = useQaActions(p);
+  const prompt = (props.prompt as string) || "Ask a question";
   return (
     <Card style={{ width: "100%", maxWidth: 520 }}>
-      <Eyebrow>Audience Q&amp;A · {ranked.length} open</Eyebrow>
+      <Eyebrow>Audience Q&amp;A · {rankedQuestions(snapshot).length} open</Eyebrow>
       <div style={{ fontFamily: v("font-heading", "serif"), fontSize: "1.9rem", fontWeight: 600, marginBottom: "1.1rem" }}>
         {prompt}
       </div>
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.3rem" }}>
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="Type your question…"
-          style={{
-            flex: 1,
-            appearance: "none",
-            padding: "0.8rem 1rem",
-            borderRadius: "0.7rem",
-            border: `1px solid ${v("border", "#222734")}`,
-            background: `color-mix(in srgb, ${v("surface", "#11141b")} 60%, transparent)`,
-            color: v("text", "#f3f1ea"),
-            fontFamily: v("font-body", "sans-serif"),
-            fontSize: "1rem",
-            outline: "none",
-          }}
-        />
-        <Button onClick={submit} active style={{ width: "auto", paddingLeft: "1.4rem", paddingRight: "1.4rem" }}>
-          Ask
-        </Button>
+      <div style={{ marginBottom: "1.3rem" }}>
+        <Composer onSubmit={submit} />
       </div>
-      {/* the queue grows with the audience — cap + scroll it inside the card so it
-          never overflows the fixed slide canvas (ADR 0006). The header + input above
-          stay pinned. On mobile the breakout sheet already scrolls; this matches it
-          inline. */}
-      <ScrollArea>
-        <Stack gap="0.55rem">
-          <AnimatePresence initial={false}>
-            {ranked.map((q) => (
-              <QuestionRow
-                key={q.id}
-                q={q}
-                voted={hasVoted(snapshot, q.id, participantId)}
-                role={role}
-                onUpvote={() => toggleVote(q.id)}
-                onAnswer={() => state.recordSet("answered", q.id, !snapshot.answered[q.id])}
-                onDismiss={() => state.recordSet("dismissed", q.id, true)}
-              />
-            ))}
-          </AnimatePresence>
-          {ranked.length === 0 && (
-            <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
-              No questions yet — be the first.
-            </div>
-          )}
-        </Stack>
-      </ScrollArea>
+      <Queue {...p} />
     </Card>
   );
 }
@@ -205,40 +228,39 @@ function QaSlide(p: ClientProps<QaState>) {
  *  answered, dismiss, upvote. Each action writes the plugin's own state, so the
  *  audience Q&A slide reflects it instantly (ADR 0031). */
 function QaConsole(p: ClientProps<QaState>) {
-  const { snapshot, state, participantId, role } = p;
-  const ranked = rankedQuestions(snapshot);
+  const ranked = rankedQuestions(p.snapshot);
   const open = ranked.filter((q) => !q.answered).length;
-  const toggleVote = (qid: string) => {
-    const key = voteKey(qid, participantId);
-    if (hasVoted(snapshot, qid, participantId)) state.recordDelete("votes", key);
-    else state.recordSet("votes", key, true);
-  };
   return (
     <Card>
       <Eyebrow>Queue · {open} open{ranked.length > open ? ` · ${ranked.length - open} answered` : ""}</Eyebrow>
-      <ScrollArea>
-        <Stack gap="0.55rem">
-          <AnimatePresence initial={false}>
-            {ranked.map((q) => (
-              <QuestionRow
-                key={q.id}
-                q={q}
-                voted={hasVoted(snapshot, q.id, participantId)}
-                role={role}
-                onUpvote={() => toggleVote(q.id)}
-                onAnswer={() => state.recordSet("answered", q.id, !snapshot.answered[q.id])}
-                onDismiss={() => state.recordSet("dismissed", q.id, true)}
-              />
-            ))}
-          </AnimatePresence>
-          {ranked.length === 0 && (
-            <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
-              No questions yet.
-            </div>
-          )}
-        </Stack>
-      </ScrollArea>
+      <Queue {...p} />
     </Card>
+  );
+}
+
+/** Global chrome control (ADR 0021/0036): a quiet 💬 button — no count, so the audience
+ *  isn't nudged — that toggles the ask panel from any slide, even with no Q&A slide. */
+function QaControl({ panel }: GlobalProps<QaState>) {
+  return (
+    <ChromeButton onClick={panel.toggle} active={panel.open} title="Ask a question" ariaLabel="Q&A">
+      💬
+    </ChromeButton>
+  );
+}
+
+/** Global panel: ask + upvote from anywhere. Participation only — moderation lives in the
+ *  presenter console (rows render as `viewer`, so no answer/dismiss here). */
+function QaPanel(p: GlobalProps<QaState>) {
+  const { submit } = useQaActions(p);
+  // fills a full-viewport sheet on touch, capped in the desktop popover (which is ~22rem)
+  return (
+    <div style={{ width: "100%", maxWidth: 480 }}>
+      <Eyebrow>Ask the room</Eyebrow>
+      <div style={{ margin: "0.4rem 0 0.9rem" }}>
+        <Composer onSubmit={submit} autoFocus />
+      </div>
+      <Queue snapshot={p.snapshot} state={p.state} participantId={p.participantId} role="viewer" />
+    </div>
   );
 }
 
@@ -310,5 +332,8 @@ export default definePlugin<QaState>({
       Console: QaConsole,
     },
     fallback: QaFallback,
+    // ask from any slide, even with no Q&A slide placed (ADR 0021/0036). The panel opens
+    // as a full-viewport sheet on touch so the keyboard doesn't bury it (ADR 0037).
+    global: { Control: QaControl, Panel: QaPanel, panelMode: "sheet" },
   },
 });
