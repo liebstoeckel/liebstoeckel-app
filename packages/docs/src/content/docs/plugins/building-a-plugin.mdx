@@ -142,13 +142,61 @@ On touch, an interactive plugin opens in a breakout sheet that already scrolls (
 | Surface | When it renders |
 | --- | --- |
 | `Slide` | a live server is connected — the interactive in-deck UI |
-| `Presenter?` | optional presenter-only panel (e.g. a big results view) |
+| `presenter?` | optional **presenter console** — a tab in the presenter view (see below) |
 | `fallback?` | standalone `.html` **and** in build-time thumbnails — show real content from `snapshot`/`props` |
 | `surfaces?` | named override points an author can replace per placement |
 | `interactive?` | `false` to suppress the mobile breakout for display-only plugins (default `true`) |
+| `global?` | deck-wide surfaces (overlay / chrome control / panel) — see the [overview](/plugins/overview/) |
 
 <Aside type="tip" title="Fallbacks matter">
 The `fallback` is what shows offline and in the overview thumbnail — make it reflect the real configuration (use `props` and any seeded `snapshot`), not a generic placeholder.
+</Aside>
+
+## The presenter console
+
+A plugin can claim a **tab in the presenter view** — a presenter-private surface for
+a live readout (vote tallies, queue depth) *and* privileged moderation the audience
+shouldn't see being done (close a poll, mark a question answered, dismiss spam).
+Notes are the default tab; your console sits beside them on both desktop and mobile
+([ADR&nbsp;0031](https://github.com/…/docs/adr/0031-plugin-presenter-console)).
+
+```tsx
+client: {
+  Slide: PollSlide,
+  presenter: {
+    label: "Poll",
+    icon: "📊",
+    // optional attention pill on the tab; return undefined/0 to hide it
+    badge: (s) => totalVotes(s) || undefined,
+    // same ClientProps as Slide (doc, state, snapshot, role, live, …)
+    Console: PollConsole,
+  },
+},
+```
+
+**Driving the audience needs no special API.** State is deck-global and writes are
+role-gated, so an audience-affecting action is just a write to your *own* state — the
+`Slide` reads it and re-renders on the audience screen:
+
+```tsx
+function PollConsole({ snapshot, state, role }: ClientProps<PollState>) {
+  return (
+    <Card>
+      <Results snapshot={snapshot} /* … */ />
+      {role === "presenter" && (
+        <Button onClick={() => state.set("closed", !snapshot.closed)}>
+          {snapshot.closed ? "Reopen voting" : "Close voting"}
+        </Button>
+      )}
+    </Card>
+  );
+}
+```
+
+<Aside type="note">
+The console is **live-only** (it needs a session to moderate) and `role`-gated:
+guard write actions on `role === "presenter"` so a viewer who opens the presenter
+view to shadow can read the console but not moderate.
 </Aside>
 
 <LinkCard title="State & sync" href="/plugins/state-and-sync/" description="The schema/state API and the one-level record rule." />
