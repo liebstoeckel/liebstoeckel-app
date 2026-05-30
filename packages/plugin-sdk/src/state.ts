@@ -1,7 +1,9 @@
 import * as Y from "yjs";
 import type { Schema } from "./schema";
+import { instanceStateKey } from "./instances";
 
-// Maps a plugin's typed state onto a Y.Map at `plugin:<id>`. Object/record fields
+// Maps a plugin's typed state onto a Y.Map at `plugin:<id>` (or `plugin:<id>:<instance>`
+// for a named instance, ADR 0033). Object/record fields
 // become nested Y.Maps (concurrent writes merge — e.g. poll votes); arrays become
 // Y.Arrays. Reads come back as plain JS, validated against the schema's defaults.
 
@@ -44,8 +46,8 @@ export interface PluginState<T> {
   subscribe(cb: (snap: T) => void): () => void;
 }
 
-export function pluginState<T>(doc: Y.Doc, id: string, schema: Schema<T>): PluginState<T> {
-  const root = doc.getMap<unknown>(`plugin:${id}`);
+export function pluginState<T>(doc: Y.Doc, id: string, schema: Schema<T>, instance = ""): PluginState<T> {
+  const root = doc.getMap<unknown>(instanceStateKey(id, instance));
 
   const snapshot = (): T => {
     const base = schema.default() as Record<string, unknown>;

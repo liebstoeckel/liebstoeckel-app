@@ -64,4 +64,25 @@ describe("pluginState over Yjs", () => {
     expect(sa.snapshot().votes).toEqual({ p1: "A", p2: "B" });
     expect(sb.snapshot().votes).toEqual({ p1: "A", p2: "B" });
   });
+
+  test("instances of one type are independent; default stays at the old address (ADR 0033)", () => {
+    const doc = new Y.Doc();
+    const def = pluginState(doc, "poll", pollSchema); // default instance
+    const lunch = pluginState(doc, "poll", pollSchema, "lunch");
+    const dinner = pluginState(doc, "poll", pollSchema, "dinner");
+
+    def.ensureDefaults({ options: ["x"] });
+    lunch.recordSet("votes", "p1", "A");
+    dinner.recordSet("votes", "p1", "B");
+
+    // each slice is isolated
+    expect(lunch.snapshot().votes).toEqual({ p1: "A" });
+    expect(dinner.snapshot().votes).toEqual({ p1: "B" });
+    expect(def.snapshot().votes).toEqual({});
+
+    // the default keeps the pre-instances address; named instances are suffixed
+    expect([...doc.share.keys()]).toContain("plugin:poll");
+    expect([...doc.share.keys()]).toContain("plugin:poll:lunch");
+    expect([...doc.share.keys()]).toContain("plugin:poll:dinner");
+  });
 });

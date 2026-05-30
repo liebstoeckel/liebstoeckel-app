@@ -19,6 +19,7 @@ function clientProps(): ClientProps<ReactionsState> {
     theme: { viz: ["#fff"] } as unknown as ClientProps<ReactionsState>["theme"],
     ui: {},
     props: {},
+    instance: "",
   };
 }
 

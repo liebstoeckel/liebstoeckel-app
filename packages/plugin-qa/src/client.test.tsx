@@ -19,6 +19,7 @@ function clientProps(role: "presenter" | "viewer" = "viewer"): ClientProps<QaSta
     theme: { viz: ["#fff"] } as unknown as ClientProps<QaState>["theme"],
     ui: {},
     props: { prompt: "Ask me anything" },
+    instance: "",
   };
 }
 

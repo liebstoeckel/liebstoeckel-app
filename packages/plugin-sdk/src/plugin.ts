@@ -26,6 +26,9 @@ export interface ClientProps<T> {
   ui: Record<string, ComponentType<Record<string, unknown>>>;
   /** author config passed at placement, e.g. <Plugin id="poll" props={{ options }} /> */
   props: Record<string, unknown>;
+  /** instance discriminator (ADR 0033); "" = the default slice. Lets one plugin *type*
+   *  back many independent placements (e.g. two separate polls). */
+  instance: string;
 }
 
 export type ClientComponent<T> = ComponentType<ClientProps<T>>;
@@ -72,6 +75,10 @@ export interface PresenterSurface<T> {
    *  votes, …), shown as a small pill on the tab so a presenter notices a tab that
    *  needs attention without switching to it. Return undefined/0 for none. */
   badge?: (snapshot: T) => number | string | undefined;
+  /** optional per-instance title from live state (e.g. the poll's question), used to
+   *  tell sibling instances apart in the presenter tabs (ADR 0033). Falls back to the
+   *  placement `title`, then the instance id. */
+  title?: (snapshot: T) => string | undefined;
   /** the console itself: full-size, presenter-private. Same `ClientProps` as
    *  `Slide` (doc, state, snapshot, role, live, …). */
   Console: ClientComponent<T>;
@@ -101,6 +108,10 @@ export interface PluginServerCtx<T> {
   doc: Y.Doc;
   state: PluginState<T>;
   session: { id: string };
+  /** the instance this invocation is for ("" = default). A server plugin that supports
+   *  multiple instances enumerates the rest from the doc index — `readPluginInstances` /
+   *  `observePluginIndex` (ADR 0033 / 0034). */
+  instance: string;
 }
 
 export interface PluginDef<T> {
