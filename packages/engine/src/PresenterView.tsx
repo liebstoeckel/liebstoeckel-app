@@ -74,9 +74,11 @@ function Label({ children, dot }: { children: ReactNode; dot?: boolean }) {
 // notes off-screen). Rendered live (not a thumbnail) — the presenter's current/next
 // previews are only two slides, so this stays cheap while staying pixel-crisp and
 // reflecting live plugin state, unlike the static build-time thumbnails.
-function Thumb({ Component }: { Component?: ComponentType }) {
+function Thumb({ Component, interactive = true }: { Component?: ComponentType; interactive?: boolean }) {
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-2xl border border-border bg-bg shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]">
+    <div
+      className={`relative h-full w-full overflow-hidden rounded-2xl border border-border bg-bg shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] ${interactive ? "" : "pointer-events-none"}`}
+    >
       <MDXProvider components={mdxComponents}>
         <PersistentProvider>
           <BreakoutAllowedContext.Provider value={false}>
@@ -231,7 +233,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
         {/* 3 · compact next + reveal peek */}
         <div className="flex shrink-0 items-center gap-3 border-t border-border px-4 py-2">
           <div className="h-12 w-[5.5rem] shrink-0 opacity-80">
-            {Next ? <Thumb Component={Next} /> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
+            {Next ? <Thumb Component={Next} interactive={false} /> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
           </div>
           <div className="min-w-0 flex-1 font-mono text-[11px]">
             <div className="uppercase tracking-[0.2em] text-muted">{Next ? "next up" : "end of deck"}</div>
@@ -353,7 +355,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           <div className="hidden min-h-[120px] shrink basis-[34%] flex-col gap-3 lg:flex">
             <Label>{Next ? "Next up" : "End of deck"}</Label>
             <div className="min-h-0 min-w-0 flex-1 opacity-80">
-              {Next ? <Thumb Component={Next} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
+              {Next ? <Thumb Component={Next} interactive={false} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
             </div>
           </div>
 
