@@ -60,40 +60,49 @@ const fmtElapsed = (delta: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
-/** The talk timer's **start** timestamp, shared via the deck doc so every presenter
- *  surface agrees (ADR 0029). Each device computes elapsed = now − startedAt itself;
- *  only drivers write (lazy-init + reset). Live → liveCtx.doc (shared); standalone →
- *  a per-window fallback doc, so it stays per-window. */
+type TimerCell = { at: number; epoch: number };
+
+/** The shared talk-timer start, the **conflict-free** way (ADR 0030): each presenter
+ *  writes its OWN cell (keyed by `doc.clientID`) so two clients never contend for one
+ *  key — no LWW tie-break, no timing race. The start is a deterministic reduce over
+ *  the map: the MIN `at` within the highest `epoch`. Reset bumps the epoch (a higher
+ *  epoch wins), so it propagates to every device. Each device computes elapsed itself
+ *  (sub-second clock skew). Only drivers write; standalone → per-window fallback doc. */
 function usePresenterStart(doc: Y.Doc, canWrite: boolean): { startedAt: number; reset: () => void } {
-  const map = useMemo(() => doc.getMap("presenter") as Y.Map<number>, [doc]);
-  const [startedAt, setStartedAt] = useState<number | undefined>(() => {
-    const v = map.get("startedAt");
-    return typeof v === "number" ? v : undefined;
-  });
+  const map = useMemo(() => doc.getMap("timer") as Y.Map<TimerCell>, [doc]);
+  const key = String(doc.clientID);
+
+  const reduce = useCallback((): { start?: number; epoch: number } => {
+    let epoch = -1;
+    let start: number | undefined;
+    map.forEach((v) => {
+      if (!v || typeof v.at !== "number") return;
+      const e = typeof v.epoch === "number" ? v.epoch : 0;
+      if (e > epoch) {
+        epoch = e;
+        start = v.at;
+      } else if (e === epoch && v.at < (start ?? Infinity)) {
+        start = v.at;
+      }
+    });
+    return { start, epoch: Math.max(0, epoch) };
+  }, [map]);
+
+  const [startedAt, setStartedAt] = useState<number | undefined>(() => reduce().start);
+
   useEffect(() => {
-    const apply = () => {
-      const v = map.get("startedAt");
-      if (typeof v === "number") setStartedAt(v);
-    };
+    const apply = () => setStartedAt(reduce().start);
     map.observe(apply);
     apply();
-    // Claim the start only if it's *still* unset after the initial sync settles —
-    // a late-joining presenter then adopts the existing (first presenter's) start
-    // instead of racing it, which could otherwise yank the shared timer backwards.
-    let claim: ReturnType<typeof setTimeout> | undefined;
-    if (canWrite) {
-      claim = setTimeout(() => {
-        if (typeof map.get("startedAt") !== "number") map.set("startedAt", Date.now());
-      }, 400);
-    }
-    return () => {
-      if (claim) clearTimeout(claim);
-      map.unobserve(apply);
-    };
-  }, [map, canWrite]);
+    // claim our own cell at the current epoch — only we ever write this key
+    if (canWrite && !map.has(key)) map.set(key, { at: Date.now(), epoch: reduce().epoch });
+    return () => map.unobserve(apply);
+  }, [map, key, canWrite, reduce]);
+
   const reset = useCallback(() => {
-    if (canWrite) map.set("startedAt", Date.now());
-  }, [map, canWrite]);
+    if (canWrite) map.set(key, { at: Date.now(), epoch: reduce().epoch + 1 });
+  }, [map, key, canWrite, reduce]);
+
   return { startedAt: startedAt ?? Date.now(), reset };
 }
 
@@ -194,8 +203,9 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   useDeckNav({ count: norm.length, setIndex, onNext: next, onPrev: prev, onQr: live ? () => setShare((v) => !v) : undefined });
   useTouchNav({ enabled: true, onNext: next, onPrev: prev });
   const now = useNow();
-  // Talk timer: the START is shared via the doc (ADR 0029) so every presenter
-  // surface agrees; standalone falls back to the per-window doc. Only drivers write.
+  // Talk timer: the START is shared via the doc (conflict-free per-client cells,
+  // ADR 0030) so every presenter surface agrees; standalone falls back to the
+  // per-window doc. Only drivers write.
   const timerDoc = liveCtx?.doc ?? fallbackDoc;
   const canWriteTimer = !live || liveCtx?.role !== "viewer";
   const { startedAt, reset: resetTimer } = usePresenterStart(timerDoc, canWriteTimer);
