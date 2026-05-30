@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { type ClientProps, type GlobalProps, type PluginDef } from "@liebstoeckel/plugin-sdk";
 import { useLive, usePluginProps, type LiveContextValue } from "./Plugin";
+import { BreakoutSheet } from "./breakout";
+import { useCoarsePointer } from "../useCoarsePointer";
 import { globalPlugins } from "./globals";
 
 /** A lightweight popover for a global plugin Panel — portaled to device scale and
@@ -83,19 +85,29 @@ export function PluginOverlays() {
 function ControlItem({ ctx, id, def }: { ctx: LiveContextValue; id: string; def: PluginDef<any> }) {
   const base = usePluginProps(ctx, id, def);
   const [open, setOpen] = useState(false);
+  const coarse = useCoarsePointer();
   const Control = def.client.global?.Control as ComponentType<GlobalProps<unknown>> | undefined;
   const Panel = def.client.global?.Panel as ComponentType<GlobalProps<unknown>> | undefined;
   const panel = { open, toggle: () => setOpen((v) => !v), close: () => setOpen(false) };
   const gprops: GlobalProps<unknown> = { ...base, panel };
+  // A "sheet" panel opens full-viewport on touch (keyboard-friendly) instead of the
+  // bottom popover, which the on-screen keyboard buries (ADR 0037). Desktop stays a popover.
+  const sheet = def.client.global?.panelMode === "sheet" && coarse;
   return (
     <>
       {Control && <Control {...gprops} />}
       <AnimatePresence>
-        {open && Panel && (
-          <ChromePopover onClose={panel.close}>
-            <Panel {...gprops} />
-          </ChromePopover>
-        )}
+        {open &&
+          Panel &&
+          (sheet ? (
+            <BreakoutSheet label={def.client.presenter?.label ?? id} onClose={panel.close}>
+              <Panel {...gprops} />
+            </BreakoutSheet>
+          ) : (
+            <ChromePopover onClose={panel.close}>
+              <Panel {...gprops} />
+            </ChromePopover>
+          ))}
       </AnimatePresence>
     </>
   );

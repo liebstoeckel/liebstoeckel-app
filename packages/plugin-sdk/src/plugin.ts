@@ -59,6 +59,12 @@ export interface GlobalSurfaces<T> {
   Control?: GlobalComponent<T>;
   /** a drawer/modal portaled outside the scaled stage, toggled by `Control` */
   Panel?: GlobalComponent<T>;
+  /** how the `Panel` opens. `"popover"` (default) is a light, non-dimming bubble above the
+   *  chrome rail — right for quick, frequent actions (reactions). `"sheet"` opens a
+   *  full-viewport breakout on touch (keyboard-friendly) — right for panels with a text
+   *  input (Q&A), where a bottom popover gets buried by the on-screen keyboard. On a
+   *  fine-pointer (desktop) it stays a popover regardless. See ADR 0023 / 0037. */
+  panelMode?: "popover" | "sheet";
 }
 
 /** A plugin's **presenter console** — one tab in the presenter view (ADR 0031). It

@@ -90,12 +90,35 @@ function useShortViewport(): boolean {
   return short;
 }
 
+/** Track the **visual viewport** — the region NOT covered by the on-screen keyboard.
+ *  On mobile the keyboard overlays the layout viewport (`100vh`/`inset:0` don't shrink),
+ *  so a bottom-anchored sheet ends up behind it. Pinning to `visualViewport` keeps the
+ *  sheet in the visible area. Returns null when unsupported (desktop / SSR) → caller
+ *  falls back to full-viewport. */
+function useVisualViewport(): { height: number; offsetTop: number } | null {
+  const [vp, setVp] = useState<{ height: number; offsetTop: number } | null>(null);
+  useEffect(() => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : undefined;
+    if (!vv) return;
+    const update = () => setVp({ height: vv.height, offsetTop: vv.offsetTop });
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+  return vp;
+}
+
 /** A full-size breakout portaled OUTSIDE the scaled stage, so the plugin's real
  *  controls render at device scale with proper tap targets. Same Yjs state. A
  *  bottom sheet on tall viewports; a centered, scrollable card on short/landscape
  *  ones so the content never runs off-screen. */
 export function BreakoutSheet({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
   const short = useShortViewport();
+  const vp = useVisualViewport();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -118,8 +141,13 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       style={{
+        // pin to the visual viewport so the on-screen keyboard can't bury the sheet
+        // (it overlays the layout viewport; `inset:0` would sit behind it). ADR 0037.
         position: "fixed",
-        inset: 0,
+        left: 0,
+        right: 0,
+        top: vp ? vp.offsetTop : 0,
+        height: vp ? vp.height : "100%",
         zIndex: 9999,
         display: "flex",
         flexDirection: "column",
@@ -141,7 +169,7 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
           width: "100%",
           maxWidth: short ? "560px" : "720px",
           marginInline: "auto",
-          maxHeight: short ? "100%" : "88vh",
+          maxHeight: short ? "100%" : "min(88vh, 100%)",
           overflow: "auto",
           padding: short
             ? "0 1.1rem 1.1rem"
