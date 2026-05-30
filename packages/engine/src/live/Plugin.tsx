@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { AnimatePresence } from "motion/react";
 import type * as Y from "yjs";
-import { pluginState, type ClientProps, type PluginDef, type Role, type ThemeTokens } from "@liebstoeckel/plugin-sdk";
+import { pluginState, registerPluginInstance, type ClientProps, type PluginDef, type Role, type ThemeTokens } from "@liebstoeckel/plugin-sdk";
 import { mergeUi } from "./ui";
 import { GlowTap, BreakoutSheet, useBreakoutEligible } from "./breakout";
 
@@ -33,8 +33,9 @@ export function usePluginProps(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   def: PluginDef<any>,
   props: Record<string, unknown> = {},
+  instance = "",
 ): ClientProps<unknown> {
-  const state = useMemo(() => pluginState(ctx.doc, id, def.state), [ctx.doc, id, def]);
+  const state = useMemo(() => pluginState(ctx.doc, id, def.state, instance), [ctx.doc, id, def, instance]);
   const [snap, setSnap] = useState<unknown>(() => state.snapshot());
   useEffect(() => {
     setSnap(state.snapshot());
@@ -50,6 +51,7 @@ export function usePluginProps(
     theme: ctx.theme,
     ui: mergeUi({}, {}),
     props,
+    instance,
   };
 }
 
@@ -57,19 +59,27 @@ export function usePluginProps(
  *  connected, else its `fallback`. Subscribes to the shared state snapshot. */
 export function Plugin({
   id,
+  instance = "",
+  title,
   props = {},
   components = {},
 }: {
   id: string;
+  /** instance discriminator (ADR 0033); omit for the default slice. Two placements with
+   *  the same (id, instance) share state — that's how you intentionally mirror one. */
+  instance?: string;
+  /** optional human label for this instance, used in the presenter tabs to tell
+   *  sibling instances apart (a plugin's `presenter.title(snapshot)` takes precedence). */
+  title?: string;
   props?: Record<string, unknown>;
   components?: Record<string, ComponentType<Record<string, unknown>>>;
 }) {
   const ctx = useContext(LiveCtx);
   const def = ctx?.plugins[id];
   const state = useMemo(
-    () => (ctx && def ? pluginState(ctx.doc, id, def.state) : null),
+    () => (ctx && def ? pluginState(ctx.doc, id, def.state, instance) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ctx?.doc, id, def],
+    [ctx?.doc, id, def, instance],
   );
   const [snap, setSnap] = useState<unknown>(() => state?.snapshot());
   const [open, setOpen] = useState(false);
@@ -82,6 +92,11 @@ export function Plugin({
     setSnap(state.snapshot());
     return state.subscribe(setSnap);
   }, [state]);
+
+  // Register this instance so the presenter console / server can discover it (ADR 0033).
+  useEffect(() => {
+    if (ctx?.live && def) registerPluginInstance(ctx.doc, id, instance, { title });
+  }, [ctx?.live, ctx?.doc, def, id, instance, title]);
 
   if (!ctx || !def || !state) return null;
 
@@ -103,6 +118,7 @@ export function Plugin({
       theme={ctx.theme}
       ui={mergeUi({}, components)}
       props={props}
+      instance={instance}
     />
   );
 
