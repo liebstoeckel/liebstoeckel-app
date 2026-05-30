@@ -39,10 +39,23 @@ function QrCard({ url, label, sub, enabled, size = 240 }: { url?: string; label:
   );
 }
 
+/** Close on Escape while `open`. */
+function useEscToClose(open: boolean, onClose: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+}
+
 /** Full-screen QR of the read-only follow-along link, over a blurred slide.
- *  Toggled with the Q key in a live session (the audience Deck). */
+ *  Toggled with the Q key in a live session (the audience Deck). Click or Esc closes. */
 export function QrOverlay({ open, url, onClose }: { open: boolean; url?: string; onClose: () => void }) {
   const src = useQrDataUrl(url, open);
+  useEscToClose(open, onClose);
   return (
     <AnimatePresence>
       {open && url && (
@@ -92,25 +105,29 @@ export function PresenterShare({
   presenterUrl?: string;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscToClose(open, onClose);
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 backdrop-blur-2xl"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 overflow-y-auto p-6 backdrop-blur-2xl"
           style={{ background: "color-mix(in srgb, var(--brand-bg) 80%, transparent)" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
         >
+          {/* always-visible close (the QR cards stop propagation, so a backdrop tap
+              can be hard to find on a phone) */}
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="fixed right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted transition hover:border-text hover:text-text"
+            style={{ top: "calc(1rem + env(safe-area-inset-top))" }}
+          >
+            ✕
+          </button>
           <div className="flex items-center gap-3 font-mono text-sm uppercase tracking-[0.35em] text-accent">
             <span className="h-px w-8 bg-accent" />
             share this session
@@ -120,7 +137,7 @@ export function PresenterShare({
             <QrCard url={viewerUrl} label="Follow along" sub={viewerUrl ?? ""} enabled={open} />
             <QrCard url={presenterUrl} label="Drive from your phone" sub={presenterUrl ?? ""} enabled={open} />
           </div>
-          <div className="font-mono text-xs text-muted">Q or Esc to close</div>
+          <div className="font-mono text-xs text-muted">tap outside, ✕, or press Q / Esc to close</div>
         </motion.div>
       )}
     </AnimatePresence>
