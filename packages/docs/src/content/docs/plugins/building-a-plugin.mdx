@@ -164,7 +164,7 @@ On touch, an interactive plugin opens in a breakout sheet that already scrolls (
 | `fallback?` | standalone `.html` **and** in build-time thumbnails — show real content from `snapshot`/`props` |
 | `surfaces?` | named override points an author can replace per placement |
 | `interactive?` | `false` to suppress the mobile breakout for display-only plugins (default `true`) |
-| `global?` | deck-wide surfaces (overlay / chrome control / panel) — see the [overview](/plugins/overview/). Set `global.panelMode: "sheet"` if the panel has a text input, so it opens full-viewport on touch instead of a bottom popover the keyboard would bury |
+| `global?` | deck-wide surfaces — an `Overlay`, and a chrome control declared as `icon` + `label` that toggles a `Panel` (see the [overview](/plugins/overview/)). `pinned: true` keeps the control in the mobile rail; otherwise it folds into the `⋮` menu on touch so the rail can't overflow. `panelMode: "sheet"` opens the panel full-viewport on touch (for a text input the keyboard would otherwise bury) |
 
 <Aside type="tip" title="Fallbacks matter">
 The `fallback` is what shows offline and in the overview thumbnail — make it reflect the real configuration (use `props` and any seeded `snapshot`), not a generic placeholder.
