@@ -10,6 +10,7 @@ export {
   type PluginServerCtx,
   type Role,
   type GlobalSurfaces,
+  type PresenterSurface,
   type GlobalProps,
   type GlobalComponent,
   type PanelController,

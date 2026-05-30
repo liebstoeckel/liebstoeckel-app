@@ -58,11 +58,30 @@ export interface GlobalSurfaces<T> {
   Panel?: GlobalComponent<T>;
 }
 
+/** A plugin's **presenter console** — one tab in the presenter view (ADR 0031). It
+ *  may be a passive readout, an interactive moderator, or both: a plugin decides.
+ *  Audience-affecting actions ("close voting", "pin question", "reveal results") are
+ *  just role-gated writes to the plugin's own state, which its `Slide` reads — there
+ *  is no separate broadcast channel. Mounted only when a server is connected. */
+export interface PresenterSurface<T> {
+  /** tab label in the presenter panel (e.g. "Q&A", "Poll") */
+  label: string;
+  /** optional tab glyph — emoji or node */
+  icon?: ReactNode;
+  /** optional attention badge derived from live state (unread questions, total
+   *  votes, …), shown as a small pill on the tab so a presenter notices a tab that
+   *  needs attention without switching to it. Return undefined/0 for none. */
+  badge?: (snapshot: T) => number | string | undefined;
+  /** the console itself: full-size, presenter-private. Same `ClientProps` as
+   *  `Slide` (doc, state, snapshot, role, live, …). */
+  Console: ClientComponent<T>;
+}
+
 export interface PluginClient<T> {
   /** rendered in the deck (audience + presenter) */
   Slide: ClientComponent<T>;
-  /** optional presenter-only panel */
-  Presenter?: ClientComponent<T>;
+  /** optional presenter console — a tab in the presenter view (ADR 0031) */
+  presenter?: PresenterSurface<T>;
   /** shown when no server is connected (standalone .html + thumbnail capture);
    *  receives the current snapshot and the author `props` from `<Plugin props>`. */
   fallback?: ComponentType<{ snapshot: T; props: Record<string, unknown> }> | (() => ReactNode);
