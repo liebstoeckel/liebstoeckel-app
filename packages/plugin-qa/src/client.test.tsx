@@ -29,9 +29,9 @@ describe("qa client renders", () => {
     expect(html).toContain("Ask");
   });
 
-  test("Presenter panel renders", () => {
-    const Presenter = qa.client.Presenter!;
-    const html = renderToStaticMarkup(<Presenter {...clientProps("presenter")} />);
+  test("presenter console renders", () => {
+    const Console = qa.client.presenter!.Console;
+    const html = renderToStaticMarkup(<Console {...clientProps("presenter")} />);
     expect(html).toContain("Queue");
   });
 

@@ -201,32 +201,43 @@ function QaSlide(p: ClientProps<QaState>) {
   );
 }
 
-/** Presenter-only: a compact ranked panel of the open queue. */
-function QaPresenter({ snapshot }: ClientProps<QaState>) {
+/** Presenter console: the live ranked queue with privileged moderation — mark
+ *  answered, dismiss, upvote. Each action writes the plugin's own state, so the
+ *  audience Q&A slide reflects it instantly (ADR 0031). */
+function QaConsole(p: ClientProps<QaState>) {
+  const { snapshot, state, participantId, role } = p;
   const ranked = rankedQuestions(snapshot);
+  const open = ranked.filter((q) => !q.answered).length;
+  const toggleVote = (qid: string) => {
+    const key = voteKey(qid, participantId);
+    if (hasVoted(snapshot, qid, participantId)) state.recordDelete("votes", key);
+    else state.recordSet("votes", key, true);
+  };
   return (
     <Card>
-      <Eyebrow>Queue · {ranked.length} open</Eyebrow>
-      <Stack gap="0.4rem">
-        {ranked.map((q) => (
-          <div
-            key={q.id}
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              gap: "0.7rem",
-              fontFamily: v("font-body", "sans-serif"),
-              opacity: q.answered ? 0.55 : 1,
-            }}
-          >
-            <span style={{ fontFamily: v("font-mono", "monospace"), color: v("accent", "#62e8ff"), minWidth: "2.2rem" }}>
-              ▲{q.votes}
-            </span>
-            <span style={{ textDecoration: q.answered ? "line-through" : "none" }}>{q.text}</span>
-          </div>
-        ))}
-        {ranked.length === 0 && <span style={{ color: v("muted", "#8b93a7") }}>No questions yet.</span>}
-      </Stack>
+      <Eyebrow>Queue · {open} open{ranked.length > open ? ` · ${ranked.length - open} answered` : ""}</Eyebrow>
+      <ScrollArea>
+        <Stack gap="0.55rem">
+          <AnimatePresence initial={false}>
+            {ranked.map((q) => (
+              <QuestionRow
+                key={q.id}
+                q={q}
+                voted={hasVoted(snapshot, q.id, participantId)}
+                role={role}
+                onUpvote={() => toggleVote(q.id)}
+                onAnswer={() => state.recordSet("answered", q.id, !snapshot.answered[q.id])}
+                onDismiss={() => state.recordSet("dismissed", q.id, true)}
+              />
+            ))}
+          </AnimatePresence>
+          {ranked.length === 0 && (
+            <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
+              No questions yet.
+            </div>
+          )}
+        </Stack>
+      </ScrollArea>
     </Card>
   );
 }
@@ -292,7 +303,12 @@ export default definePlugin<QaState>({
   state: qaSchema,
   client: {
     Slide: QaSlide,
-    Presenter: QaPresenter,
+    presenter: {
+      label: "Q&A",
+      icon: "💬",
+      badge: (s) => rankedQuestions(s).filter((q) => !q.answered).length || undefined,
+      Console: QaConsole,
+    },
     fallback: QaFallback,
   },
 });

@@ -70,12 +70,22 @@ function PollSlide(p: ClientProps<PollState>) {
   );
 }
 
-/** Presenter-only: big results panel. */
-function PollPresenter(p: ClientProps<PollState>) {
+/** Presenter console: the big live tally plus the privileged close/reopen control.
+ *  Toggling `closed` is an audience-affecting action — the Slide reads it and locks
+ *  voting on the audience screen (ADR 0031). */
+function PollConsole(p: ClientProps<PollState>) {
+  const { snapshot, state, role } = p;
   return (
     <Card>
-      <Eyebrow>Results · {totalVotes(p.snapshot)} votes{p.snapshot.closed ? " · closed" : ""}</Eyebrow>
+      <Eyebrow>Results · {totalVotes(snapshot)} votes{snapshot.closed ? " · closed" : ""}</Eyebrow>
       <Results {...p} />
+      {role === "presenter" && (
+        <div style={{ marginTop: "1.2rem" }}>
+          <Button onClick={() => state.set("closed", !snapshot.closed)}>
+            {snapshot.closed ? "▶ Reopen voting" : "■ Close voting"}
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }
@@ -114,7 +124,7 @@ export default definePlugin<PollState>({
   state: pollSchema,
   client: {
     Slide: PollSlide,
-    Presenter: PollPresenter,
+    presenter: { label: "Poll", icon: "📊", badge: (s) => totalVotes(s) || undefined, Console: PollConsole },
     fallback: PollFallback,
     surfaces: ["Results"],
   },
