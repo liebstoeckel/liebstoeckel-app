@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { pluginState, type ClientProps, type GlobalProps, type PluginDef } from "@liebstoeckel/plugin-sdk";
-import { useLive, type LiveContextValue } from "./Plugin";
-import { mergeUi } from "./ui";
+import { type ClientProps, type GlobalProps, type PluginDef } from "@liebstoeckel/plugin-sdk";
+import { useLive, usePluginProps, type LiveContextValue } from "./Plugin";
 import { globalPlugins } from "./globals";
 
 /** A lightweight popover for a global plugin Panel — portaled to device scale and
@@ -53,33 +52,11 @@ function ChromePopover({ onClose, children }: { onClose: () => void; children: R
   );
 }
 
-/** Subscribe to a plugin's slice of the shared doc — same pattern as `<Plugin>`. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function useGlobalProps(ctx: LiveContextValue, id: string, def: PluginDef<any>): ClientProps<unknown> {
-  const state = useMemo(() => pluginState(ctx.doc, id, def.state), [ctx.doc, id, def]);
-  const [snap, setSnap] = useState<unknown>(() => state.snapshot());
-  useEffect(() => {
-    setSnap(state.snapshot());
-    return state.subscribe(setSnap);
-  }, [state]);
-  return {
-    doc: ctx.doc,
-    state,
-    snapshot: snap,
-    role: ctx.role,
-    live: ctx.live,
-    participantId: ctx.participant,
-    theme: ctx.theme,
-    ui: mergeUi({}, {}),
-    props: {},
-  };
-}
-
 /** One plugin's ambient overlay (e.g. reactions floaters), inside the shared
  *  `pointer-events:none` layer. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function OverlayItem({ ctx, id, def }: { ctx: LiveContextValue; id: string; def: PluginDef<any> }) {
-  const props = useGlobalProps(ctx, id, def);
+  const props = usePluginProps(ctx, id, def);
   const Overlay = def.client.global?.Overlay as ComponentType<ClientProps<unknown>> | undefined;
   return Overlay ? <Overlay {...props} /> : null;
 }
@@ -104,7 +81,7 @@ export function PluginOverlays() {
  *  (portaled outside the scaled stage via `BreakoutSheet`). Owns its open-state. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ControlItem({ ctx, id, def }: { ctx: LiveContextValue; id: string; def: PluginDef<any> }) {
-  const base = useGlobalProps(ctx, id, def);
+  const base = usePluginProps(ctx, id, def);
   const [open, setOpen] = useState(false);
   const Control = def.client.global?.Control as ComponentType<GlobalProps<unknown>> | undefined;
   const Panel = def.client.global?.Panel as ComponentType<GlobalProps<unknown>> | undefined;

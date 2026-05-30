@@ -5,6 +5,7 @@ import { mdxComponents } from "@liebstoeckel/components";
 import { useDeckSync } from "./useDeckSync";
 import { useDeckNav, useTouchNav } from "./nav";
 import { useLive } from "./live/Plugin";
+import { PresenterPanel } from "./live/presenterPanel";
 import { BreakoutAllowedContext } from "./live/breakout";
 import { useLiveDeck } from "./live/deckIndex";
 import { ScaledStage, SlideFrame } from "./Stage";
@@ -219,6 +220,28 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
     if (typeof location !== "undefined") location.assign(location.pathname + location.search);
   };
 
+  // Focus mode (ADR 0032): full-bleed the active pane (notes / a plugin console),
+  // hiding the slide previews. Nav + timer + the tab strip stay pinned. `z` toggles,
+  // `Esc` restores; both guard against firing while typing in a console input.
+  const [focused, setFocused] = useState(false);
+  const toggleFocus = useCallback(() => setFocused((v) => !v), []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      const editable = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+      if (e.key === "Escape" && focused) {
+        setFocused(false);
+        return;
+      }
+      if (e.key === "z" && !editable) {
+        e.preventDefault();
+        toggleFocus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focused, toggleFocus]);
+
   useEffect(() => {
     document.body.dataset.brand = brands[0];
   }, [brands]);
@@ -274,12 +297,12 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           </div>
         </div>
 
-        {/* 2 · notes — the dominant region */}
-        <div className="presenter-notes min-h-0 flex-1 overflow-auto px-5 py-4 text-2xl leading-relaxed text-text/90">
-          {notes ?? noNotes}
-        </div>
+        {/* 2 · dominant region: notes (default) + one tab per plugin console (ADR 0031),
+            with a maximize toggle (ADR 0032) */}
+        <PresenterPanel variant="mobile" notes={notes ?? noNotes} focused={focused} onToggleFocus={toggleFocus} />
 
-        {/* 3 · compact next + reveal peek */}
+        {/* 3 · compact next + reveal peek — reclaimed by focus mode */}
+        {!focused && (
         <div className="flex shrink-0 items-center gap-3 border-t border-border px-4 py-2">
           <div className="h-12 w-[5.5rem] shrink-0 opacity-80">
             {Next ? <Thumb Component={Next} interactive={false} /> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
@@ -293,6 +316,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
             )}
           </div>
         </div>
+        )}
 
         {/* 4 · thumb-zone controls */}
         <div
@@ -320,6 +344,26 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   }
 
   // ── Desktop: two-column confidence monitor ──────────────────────────────────
+  // Prev/Next, reused in the current column (normal) and pinned under the panel
+  // (focus mode) so navigation is never hidden (ADR 0032).
+  const navRow = (
+    <div className="flex shrink-0 items-center gap-3">
+      <button
+        onClick={prev}
+        disabled={atStart}
+        className="flex-1 rounded-xl border border-border py-3 font-mono text-sm uppercase tracking-widest text-muted transition hover:border-text hover:text-text disabled:opacity-40 disabled:hover:border-border disabled:hover:text-muted"
+      >
+        ← Prev
+      </button>
+      <button
+        onClick={next}
+        disabled={atEnd}
+        className="flex-[2] rounded-xl bg-primary py-3 font-mono text-sm font-semibold uppercase tracking-widest text-on-primary transition hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100"
+      >
+        {step < total ? "Reveal →" : "Next →"}
+      </button>
+    </div>
+  );
   return (
     <div className="flex h-screen w-screen flex-col bg-bg font-body text-text">
       {/* top bar */}
@@ -367,52 +411,42 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           shrink. Thumbnails get capped/flexible heights; the notes panel always
           keeps a guaranteed, scrollable minimum. */}
       <div className="flex min-h-0 flex-1 flex-col gap-5 p-5 lg:flex-row lg:gap-7 lg:p-7">
-        {/* current */}
-        <section className="flex min-h-0 min-w-0 flex-col gap-3 lg:flex-[1.55]">
-          <Label dot>
-            On screen · {String(index + 1).padStart(2, "0")} / {String(norm.length).padStart(2, "0")}
-          </Label>
-          <div className="h-[30vh] min-h-0 min-w-0 lg:h-auto lg:flex-1">
-            <Thumb Component={Current} />
-          </div>
-          {total > 0 && <StepIndicator step={step} total={total} />}
-          <div className="flex shrink-0 items-center gap-3">
-            <button
-              onClick={prev}
-              disabled={atStart}
-              className="flex-1 rounded-xl border border-border py-3 font-mono text-sm uppercase tracking-widest text-muted transition hover:border-text hover:text-text disabled:opacity-40 disabled:hover:border-border disabled:hover:text-muted"
-            >
-              ← Prev
-            </button>
-            <button
-              onClick={next}
-              disabled={atEnd}
-              className="flex-[2] rounded-xl bg-primary py-3 font-mono text-sm font-semibold uppercase tracking-widest text-on-primary transition hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100"
-            >
-              {step < total ? "Reveal →" : "Next →"}
-            </button>
-          </div>
-        </section>
-
-        {/* next + notes */}
-        <aside className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-          {/* next preview hidden on phones to give notes the room. The height
-              share (basis) sits on THIS wrapper — a flex child of the aside, which
-              has a definite height — so the inner preview can be flex-1 and fill it.
-              (A % basis on an auto-height parent doesn't resolve, which collapsed
-              the box to its min-height and made the preview render tiny.) */}
-          <div className="hidden min-h-[120px] shrink basis-[34%] flex-col gap-3 lg:flex">
-            <Label>{Next ? "Next up" : "End of deck"}</Label>
-            <div className="min-h-0 min-w-0 flex-1 opacity-80">
-              {Next ? <Thumb Component={Next} interactive={false} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
+        {/* current — hidden in focus mode (it's on the room's screen anyway) */}
+        {!focused && (
+          <section className="flex min-h-0 min-w-0 flex-col gap-3 lg:flex-[1.55]">
+            <Label dot>
+              On screen · {String(index + 1).padStart(2, "0")} / {String(norm.length).padStart(2, "0")}
+            </Label>
+            <div className="h-[30vh] min-h-0 min-w-0 lg:h-auto lg:flex-1">
+              <Thumb Component={Current} />
             </div>
-          </div>
+            {total > 0 && <StepIndicator step={step} total={total} />}
+            {navRow}
+          </section>
+        )}
 
-          <Label>Speaker notes</Label>
-          {/* notes always visible: takes remaining space, with a floor, scrolls if needed */}
-          <div className="presenter-notes min-h-[38%] min-w-0 flex-1 overflow-auto rounded-2xl border border-border bg-surface/40 p-6 text-xl leading-relaxed text-text/90">
-            {notes ?? <span className="text-muted">— no notes for this slide —</span>}
-          </div>
+        {/* next + notes (full width in focus mode) */}
+        <aside className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+          {/* next preview hidden on phones to give notes the room, and in focus mode.
+              The height share (basis) sits on THIS wrapper — a flex child of the aside,
+              which has a definite height — so the inner preview can be flex-1 and fill
+              it. (A % basis on an auto-height parent doesn't resolve, which collapsed
+              the box to its min-height and made the preview render tiny.) */}
+          {!focused && (
+            <div className="hidden min-h-[120px] shrink basis-[34%] flex-col gap-3 lg:flex">
+              <Label>{Next ? "Next up" : "End of deck"}</Label>
+              <div className="min-h-0 min-w-0 flex-1 opacity-80">
+                {Next ? <Thumb Component={Next} interactive={false} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
+              </div>
+            </div>
+          )}
+
+          {/* notes (default tab) + one tab per plugin console (ADR 0031), with the
+              maximize toggle (ADR 0032). */}
+          <PresenterPanel variant="desktop" notes={notes ?? noNotes} focused={focused} onToggleFocus={toggleFocus} />
+          {/* pin nav under the panel when the current column (which normally holds it)
+              is hidden by focus mode */}
+          {focused && navRow}
         </aside>
       </div>
     </div>

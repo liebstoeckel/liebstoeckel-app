@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { AnimatePresence } from "motion/react";
 import type * as Y from "yjs";
-import { pluginState, type PluginDef, type Role, type ThemeTokens } from "@liebstoeckel/plugin-sdk";
+import { pluginState, type ClientProps, type PluginDef, type Role, type ThemeTokens } from "@liebstoeckel/plugin-sdk";
 import { mergeUi } from "./ui";
 import { GlowTap, BreakoutSheet, useBreakoutEligible } from "./breakout";
 
@@ -22,6 +22,35 @@ export const useLive = (): LiveContextValue | null => useContext(LiveCtx);
 
 export function LiveProvider({ value, children }: { value: LiveContextValue; children: ReactNode }) {
   return <LiveCtx.Provider value={value}>{children}</LiveCtx.Provider>;
+}
+
+/** Subscribe to a plugin's slice of the shared doc and assemble its `ClientProps`.
+ *  The single piece of plumbing behind `<Plugin>`, the global surfaces, and the
+ *  presenter console — so every surface reads the same live state identically. */
+export function usePluginProps(
+  ctx: LiveContextValue,
+  id: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  def: PluginDef<any>,
+  props: Record<string, unknown> = {},
+): ClientProps<unknown> {
+  const state = useMemo(() => pluginState(ctx.doc, id, def.state), [ctx.doc, id, def]);
+  const [snap, setSnap] = useState<unknown>(() => state.snapshot());
+  useEffect(() => {
+    setSnap(state.snapshot());
+    return state.subscribe(setSnap);
+  }, [state]);
+  return {
+    doc: ctx.doc,
+    state,
+    snapshot: snap,
+    role: ctx.role,
+    live: ctx.live,
+    participantId: ctx.participant,
+    theme: ctx.theme,
+    ui: mergeUi({}, {}),
+    props,
+  };
 }
 
 /** Place a plugin in a slide. Renders the plugin's `Slide` when a server is
