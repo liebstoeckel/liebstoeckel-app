@@ -124,7 +124,13 @@ export default definePlugin<PollState>({
   state: pollSchema,
   client: {
     Slide: PollSlide,
-    presenter: { label: "Poll", icon: "📊", badge: (s) => totalVotes(s) || undefined, Console: PollConsole },
+    presenter: {
+      label: "Poll",
+      icon: "📊",
+      badge: (s) => totalVotes(s) || undefined,
+      title: (s) => s.question || undefined, // tell sibling poll instances apart (ADR 0033)
+      Console: PollConsole,
+    },
     fallback: PollFallback,
     surfaces: ["Results"],
   },
