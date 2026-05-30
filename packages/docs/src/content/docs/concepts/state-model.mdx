@@ -21,7 +21,7 @@ The *same built `.html`* works both ways — see [Live presenting](/guides/live/
 | State | Owner | Transport | Authority | Persistence |
 |-------|-------|-----------|-----------|-------------|
 | Slide **index / step / total** | `Deck` / `PresenterView` controller | **live:** Yjs `deck` map · **standalone:** `BroadcastChannel` | presenter writes, everyone reads | ephemeral (per session) |
-| **Plugin shared state** (e.g. poll `votes`) | the plugin, via `pluginState()` | Yjs `plugin:<id>` map (CRDT) | **any** participant writes — incl. read-only viewers; presenter-only actions gated in plugin code | ephemeral (lost on server restart) |
+| **Plugin shared state** (e.g. poll `votes`) | the plugin, via `pluginState()` | Yjs `plugin:<id>` map (CRDT) — or `plugin:<id>:<instance>` for a named instance ([ADR&nbsp;0033](https://github.com/…/docs/adr/0033-plugin-instances)) | **any** participant writes — incl. read-only viewers; presenter-only actions gated in plugin code | ephemeral (lost on server restart) |
 | **Brand** (`data-brand`) | `Deck` / `PresenterView` | per-window React state | local | n/a |
 | **Elapsed timer** | `PresenterView` | per-window React state | local | resets per window |
 | **Participant id** | client | `sessionStorage` | local | survives reload (1 browser session = 1 participant) |

@@ -109,6 +109,24 @@ import applause from "@liebstoeckel/plugin-applause";
 <Plugin id="applause" />
 ```
 
+### Multiple independent instances
+
+`id` selects the plugin **type**; state lives at `plugin:<id>`. Place the same `id`
+twice and both share that one slice — handy to *mirror* a poll across slides, but it
+means a second `<Plugin id="poll">` with a different question is ignored. For
+**independent** instances, give each an `instance` (a stable, author-chosen id — never
+random, since it's part of the shared address). State then lives at
+`plugin:<id>:<instance>` ([ADR&nbsp;0033](https://github.com/…/docs/adr/0033-plugin-instances)):
+
+```tsx
+<Plugin id="poll" instance="lunch"  props={{ question: "Lunch?",  options: […] }} />
+<Plugin id="poll" instance="dinner" props={{ question: "Dinner?", options: […] }} />
+```
+
+Each gets its own state **and** its own presenter-console tab. Give a `presenter.title`
+(below) — or a `<Plugin title="…">` — so the tabs read "Poll · Lunch?" rather than the
+bare instance id. Omitting `instance` keeps the original single-slice behaviour.
+
 ## Layout: the slide canvas is fixed — bound your own height
 
 A slide is rendered on a fixed **1280×720 canvas** that's scaled to fit and **clipped** (`overflow: hidden`), so the audience view, presenter view, and thumbnails stay pixel-identical ([ADR&nbsp;0006](https://github.com/…/docs/adr/0006-fixed-canvas-scaled-stage)). The canvas **never scrolls**. That's fine for authored slides — you control how much is on them — but a plugin whose content grows with the audience (a Q&A queue, a chat, a long results list) *will* eventually overflow and get cut off, with no way to scroll to the rest.
@@ -168,6 +186,8 @@ client: {
     icon: "📊",
     // optional attention pill on the tab; return undefined/0 to hide it
     badge: (s) => totalVotes(s) || undefined,
+    // optional per-instance label, to tell sibling instances apart in the tabs
+    title: (s) => s.question || undefined,
     // same ClientProps as Slide (doc, state, snapshot, role, live, …)
     Console: PollConsole,
   },
