@@ -10,6 +10,7 @@ import { useLiveDeck } from "./live/deckIndex";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { PresenterShare } from "./QrOverlay";
 import { PersistentProvider } from "./PersistentLayer";
+import { useCoarsePointer } from "./useCoarsePointer";
 import { normalizeSlides } from "./slides";
 import type { DeckProps } from "./Deck";
 
@@ -20,6 +21,38 @@ function useNow(ms = 1000) {
     return () => clearInterval(id);
   }, [ms]);
   return now;
+}
+
+type WakeLockNav = Navigator & { wakeLock?: { request(type: "screen"): Promise<{ release(): Promise<void> }> } };
+
+/** Hold a screen Wake Lock while `on` — a phone used as a remote shouldn't sleep
+ *  mid-talk. Best-effort (browser/permission dependent); re-acquires when the tab
+ *  returns to the foreground (locks drop on hide). */
+function useWakeLock(on: boolean) {
+  useEffect(() => {
+    const nav = typeof navigator !== "undefined" ? (navigator as WakeLockNav) : undefined;
+    if (!on || !nav?.wakeLock) return;
+    let sentinel: { release(): Promise<void> } | null = null;
+    let cancelled = false;
+    const acquire = () =>
+      nav
+        .wakeLock!.request("screen")
+        .then((s) => {
+          if (cancelled) void s.release().catch(() => {});
+          else sentinel = s;
+        })
+        .catch(() => {});
+    void acquire();
+    const onVis = () => {
+      if (document.visibilityState === "visible") void acquire();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVis);
+      void sentinel?.release().catch(() => {});
+    };
+  }, [on]);
 }
 
 const fmtElapsed = (delta: number) => {
@@ -126,6 +159,15 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   const [startedAt, setStartedAt] = useState(() => Date.now());
   const resetTimer = () => setStartedAt(Date.now());
 
+  // Phone presenter (ADR 0027): a notes-first confidence monitor + remote. Keep the
+  // screen awake, and offer a way back to the audience deck (drop the #presenter
+  // hash → Present re-selects the Deck at mount).
+  const coarse = useCoarsePointer();
+  useWakeLock(coarse);
+  const backToSlides = () => {
+    if (typeof location !== "undefined") location.assign(location.pathname + location.search);
+  };
+
   useEffect(() => {
     document.body.dataset.brand = brands[0];
   }, [brands]);
@@ -134,7 +176,86 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   const Next = norm[index + 1]?.Component;
   const notes = norm[index]?.notes;
   const wall = new Date(now).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const elapsed = fmtElapsed(now - startedAt);
+  const count = norm.length;
+  const noNotes = <span className="text-muted">— no notes for this slide —</span>;
+  const shareOverlay = (
+    <PresenterShare open={share} viewerUrl={liveCtx?.viewerUrl} presenterUrl={presenterUrl} onClose={() => setShare(false)} />
+  );
 
+  // ── Mobile: notes-first stack (ADR 0027) ───────────────────────────────────
+  // Notes dominate; a compact next+reveal peek; big thumb-zone Prev/Next. Vertical
+  // scroll moves the notes, horizontal swipe (useTouchNav) changes slides — the two
+  // axes don't collide, so notes scroll can't misfire a slide change.
+  if (coarse) {
+    return (
+      <div className="flex h-dvh w-screen flex-col bg-bg font-body text-text">
+        {shareOverlay}
+        {/* 1 · slim status bar */}
+        <div
+          className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2"
+          style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}
+        >
+          <button onClick={backToSlides} aria-label="Back to slides" className="font-mono text-xs uppercase tracking-wider text-muted transition active:text-text">
+            ‹ slides
+          </button>
+          <span className="font-mono text-sm tabular-nums text-text">
+            {String(index + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
+          </span>
+          <div className="flex items-center gap-3">
+            <button onClick={resetTimer} aria-label="Reset timer" className="font-mono text-sm tabular-nums text-primary">
+              {elapsed}
+            </button>
+            {live && (
+              <button onClick={() => setShare((v) => !v)} aria-label="Share session links" className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted transition active:text-accent">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <path d="M14 14h3M20 14v3M14 20h3M20 20h.01M17 17v.01" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 2 · notes — the dominant region */}
+        <div className="presenter-notes min-h-0 flex-1 overflow-auto px-5 py-4 text-2xl leading-relaxed text-text/90">
+          {notes ?? noNotes}
+        </div>
+
+        {/* 3 · compact next + reveal peek */}
+        <div className="flex shrink-0 items-center gap-3 border-t border-border px-4 py-2">
+          <div className="h-12 w-[5.5rem] shrink-0 opacity-80">
+            {Next ? <Thumb Component={Next} /> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
+          </div>
+          <div className="min-w-0 flex-1 font-mono text-[11px]">
+            <div className="uppercase tracking-[0.2em] text-muted">{Next ? "next up" : "end of deck"}</div>
+            {total > 0 && (
+              <div className={step < total ? "text-accent" : "text-muted"}>
+                {step < total ? `revealing ${step} / ${total} — Next reveals` : "Next → following slide"}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 4 · thumb-zone controls */}
+        <div
+          className="flex shrink-0 items-stretch gap-3 px-4 pt-2"
+          style={{ paddingBottom: "calc(0.85rem + env(safe-area-inset-bottom))" }}
+        >
+          <button onClick={prev} aria-label="Previous" className="flex-1 rounded-xl border border-border py-4 font-mono text-lg text-muted transition active:border-text active:text-text">
+            ←
+          </button>
+          <button onClick={next} className="flex-[2.4] rounded-xl bg-primary py-4 font-mono text-base font-semibold uppercase tracking-widest text-on-primary transition active:brightness-110">
+            {step < total ? "Reveal →" : "Next →"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Desktop: two-column confidence monitor ──────────────────────────────────
   return (
     <div className="flex h-screen w-screen flex-col bg-bg font-body text-text">
       {/* top bar */}
@@ -176,7 +297,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
         </div>
       </header>
 
-      <PresenterShare open={share} viewerUrl={liveCtx?.viewerUrl} presenterUrl={presenterUrl} onClose={() => setShare(false)} />
+      {shareOverlay}
 
       {/* main: flex row; each column is a min-h-0 flex-col so inner regions can
           shrink. Thumbnails get capped/flexible heights; the notes panel always

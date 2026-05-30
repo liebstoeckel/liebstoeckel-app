@@ -49,6 +49,12 @@ const ICON = {
       <path d="M12 3a9 9 0 1 0 0 18 2.5 2.5 0 0 0 0-5h-1a2 2 0 0 1 0-4h3a4 4 0 0 0 4-4 5 5 0 0 0-9-3Z" />
     </svg>
   ),
+  notes: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="14" rx="1.5" />
+      <path d="M7 9h10M7 13h6" />
+    </svg>
+  ),
 } as const;
 
 interface MenuAction {
@@ -145,6 +151,15 @@ export function DeckChrome({
   const fs = useIsFullscreen();
   const inset = "max(env(safe-area-inset-left), 1rem)";
 
+  // Switch this window to the presenter view (ADR 0027) — the touch counterpart to
+  // the desktop `P` pop-out. `Present` selects the view by the #presenter hash at
+  // mount, so set the hash and reload.
+  const openPresenterView = () => {
+    if (typeof location === "undefined") return;
+    location.hash = "presenter";
+    location.reload();
+  };
+
   // Note: no "Cycle theme" here — brand cycling stays the desktop `t` shortcut
   // (a niche preview/showcase affordance), not a touch action.
   const actions: MenuAction[] = [
@@ -155,6 +170,8 @@ export function DeckChrome({
       onClick: () => void toggleFullscreen(document.documentElement),
     },
     ...(canDrive ? [{ key: "overview", label: "Overview", icon: ICON.grid, onClick: onOverview }] : []),
+    // Presenter view (notes-first confidence monitor) — drivers only, never viewers.
+    ...(canDrive ? [{ key: "presenter", label: "Presenter view", icon: ICON.notes, onClick: openPresenterView }] : []),
     ...(isLive && viewerUrl ? [{ key: "share", label: "Share / QR", icon: ICON.share, onClick: onQr }] : []),
   ];
 
