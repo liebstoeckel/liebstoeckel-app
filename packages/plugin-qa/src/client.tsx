@@ -175,34 +175,36 @@ function Composer({ onSubmit, autoFocus }: { onSubmit: (text: string) => void; a
 
 /** The live, springy, ranked queue. Moderation buttons appear only for `role==="presenter"`.
  *  Bounded + internally scrolling so it never overflows the fixed slide canvas (ADR 0006). */
-function Queue(p: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId" | "role">) {
+function Queue({ fill, ...p }: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId" | "role"> & { fill?: boolean }) {
   const { snapshot, state, participantId, role } = p;
   const { toggleVote } = useQaActions(p);
   const ranked = rankedQuestions(snapshot);
-  return (
-    <ScrollArea>
-      <Stack gap="0.55rem">
-        <AnimatePresence initial={false}>
-          {ranked.map((q) => (
-            <QuestionRow
-              key={q.id}
-              q={q}
-              voted={hasVoted(snapshot, q.id, participantId)}
-              role={role}
-              onUpvote={() => toggleVote(q.id)}
-              onAnswer={() => state.recordSet("answered", q.id, !snapshot.answered[q.id])}
-              onDismiss={() => state.recordSet("dismissed", q.id, true)}
-            />
-          ))}
-        </AnimatePresence>
-        {ranked.length === 0 && (
-          <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
-            No questions yet — be the first.
-          </div>
-        )}
-      </Stack>
-    </ScrollArea>
+  const list = (
+    <Stack gap="0.55rem">
+      <AnimatePresence initial={false}>
+        {ranked.map((q) => (
+          <QuestionRow
+            key={q.id}
+            q={q}
+            voted={hasVoted(snapshot, q.id, participantId)}
+            role={role}
+            onUpvote={() => toggleVote(q.id)}
+            onAnswer={() => state.recordSet("answered", q.id, !snapshot.answered[q.id])}
+            onDismiss={() => state.recordSet("dismissed", q.id, true)}
+          />
+        ))}
+      </AnimatePresence>
+      {ranked.length === 0 && (
+        <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
+          No questions yet — be the first.
+        </div>
+      )}
+    </Stack>
   );
+  // `fill`: the presenter console already gives us a tall scrolling box, so don't impose
+  // the slide-canvas cap (ADR 0006) — let the list use the full panel height. On the slide
+  // and in the popover panel we keep the bounded ScrollArea.
+  return fill ? list : <ScrollArea>{list}</ScrollArea>;
 }
 
 /** In-deck spotlight: the prompt + ask box atop the ranked queue. */
@@ -233,7 +235,7 @@ function QaConsole(p: ClientProps<QaState>) {
   return (
     <Card>
       <Eyebrow>Queue · {open} open{ranked.length > open ? ` · ${ranked.length - open} answered` : ""}</Eyebrow>
-      <Queue {...p} />
+      <Queue {...p} fill />
     </Card>
   );
 }

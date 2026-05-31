@@ -251,7 +251,8 @@ export function PresenterPanel({
               ))}
           </>
         )}
-        {onToggleFocus && <FocusControl focused={focused} onToggle={onToggleFocus} />}
+        {/* focus toggle is desktop-only: the mobile panel is already full-bleed (ADR 0032/0027) */}
+        {onToggleFocus && variant === "desktop" && <FocusControl focused={focused} onToggle={onToggleFocus} />}
       </div>
 
       {/* instance switcher (dropdown) for the selected multi-instance type — keeps long
