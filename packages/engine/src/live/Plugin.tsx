@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, LayoutGroup } from "motion/react";
 import type * as Y from "yjs";
 import { pluginState, registerPluginInstance, type ClientProps, type PluginDef, type Role, type ThemeTokens } from "@liebstoeckel/plugin-sdk";
 import { mergeUi } from "./ui";
@@ -106,20 +106,27 @@ export function Plugin({
   }
 
   const Slide = def.client.Slide;
+  // Isolate each surface's Motion layout tree: a plugin's `layoutId` (e.g. Q&A's ranked
+  // rows) is also rendered by other live surfaces of the same plugin — the global panel,
+  // the presenter console, the mobile breakout. Sharing one `layoutId` across them makes
+  // Motion morph one into another (rows "disappear" from the slide). A per-surface
+  // LayoutGroup namespaces the ids so intra-surface animation still works but they never
+  // collide across surfaces (the ADR 0026 hazard, generalised).
   const slide = (key: string) => (
-    <Slide
-      key={key}
-      doc={ctx.doc}
-      state={state}
-      snapshot={snap as never}
-      role={ctx.role}
-      live={ctx.live}
-      participantId={ctx.participant}
-      theme={ctx.theme}
-      ui={mergeUi({}, components)}
-      props={props}
-      instance={instance}
-    />
+    <LayoutGroup key={key} id={`plugin:${id}:${instance}:${key}`}>
+      <Slide
+        doc={ctx.doc}
+        state={state}
+        snapshot={snap as never}
+        role={ctx.role}
+        live={ctx.live}
+        participantId={ctx.participant}
+        theme={ctx.theme}
+        ui={mergeUi({}, components)}
+        props={props}
+        instance={instance}
+      />
+    </LayoutGroup>
   );
 
   // Desktop / fine pointer: inline, as today.

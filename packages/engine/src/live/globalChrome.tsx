@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { ChromeButton } from "@liebstoeckel/plugin-ui";
 import { type ClientProps, type GlobalProps, type PluginDef } from "@liebstoeckel/plugin-sdk";
 import { useLive, usePluginProps, type LiveContextValue } from "./Plugin";
@@ -124,11 +124,15 @@ function PanelHost({ ctx, id, def, open, onClose, coarse }: { ctx: LiveContextVa
         Panel &&
         (sheet ? (
           <BreakoutSheet label={def.client.global?.label ?? id} onClose={onClose}>
-            <Panel {...gprops} />
+            <LayoutGroup id={`plugin-panel:${id}`}>
+              <Panel {...gprops} />
+            </LayoutGroup>
           </BreakoutSheet>
         ) : (
           <ChromePopover onClose={onClose}>
-            <Panel {...gprops} />
+            <LayoutGroup id={`plugin-panel:${id}`}>
+              <Panel {...gprops} />
+            </LayoutGroup>
           </ChromePopover>
         ))}
     </AnimatePresence>
