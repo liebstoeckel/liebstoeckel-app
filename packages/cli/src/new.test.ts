@@ -28,6 +28,20 @@ describe("deckFiles (pure templates)", () => {
     expect(files["main.tsx"]).toContain("My Talk"); // title-cased from the name
   });
 
+  test("ships a packing-safe files allowlist + .gitignore (ADR 0039)", () => {
+    const files = deckFiles("my-talk");
+    const pkg = JSON.parse(files["package.json"]!);
+    // deny-by-default allowlist governs `bun pm pack` → embedded source
+    expect(Array.isArray(pkg.files)).toBe(true);
+    // bunfig.toml is default-ignored by pack; it MUST be allowlisted so eject's deck runs in dev
+    expect(pkg.files).toContain("bunfig.toml");
+    expect(pkg.files).toEqual(expect.arrayContaining(["index.html", "main.tsx", "build.ts", "slides"]));
+    // a stray .env must never be tracked nor packed
+    expect(pkg.files).not.toContain(".env");
+    expect(files[".gitignore"]).toMatch(/^\.env$/m);
+    expect(files[".gitignore"]).toContain("dist/");
+  });
+
   test("--brand flows into the html + main", () => {
     const files = deckFiles("x", "acme");
     expect(files["index.html"]).toContain('data-brand="acme"');

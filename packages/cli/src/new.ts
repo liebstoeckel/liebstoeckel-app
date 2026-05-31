@@ -20,6 +20,24 @@ export function deckFiles(name: string, brand = "liebstoeckel"): Record<string, 
     version: "0.0.0",
     private: true,
     type: "module",
+    // Allowlist of what `bun pm pack` ships — and therefore what `liebstoeckel build`
+    // embeds as recoverable source and `eject` restores (ADR 0039). Deny-by-default:
+    // a stray .env / secret is never packed because it isn't listed here. bunfig.toml
+    // MUST stay listed — pack default-ignores it, and the ejected deck needs it for dev.
+    // Add new top-level source dirs here as the deck grows (the build warns if you forget).
+    files: [
+      "index.html",
+      "main.tsx",
+      "server.ts",
+      "build.ts",
+      "bunfig.toml",
+      "slides",
+      "elements",
+      "components",
+      "charts",
+      "assets",
+      "public",
+    ],
     scripts: { dev: "bun --hot ./server.ts", build: "bun run build.ts" },
     dependencies: {
       "@liebstoeckel/engine": "workspace:*",
@@ -30,6 +48,16 @@ export function deckFiles(name: string, brand = "liebstoeckel"): Record<string, 
 
   return {
     "package.json": JSON.stringify(pkg, null, 2) + "\n",
+
+    // Defense-in-depth for decks used outside the monorepo: keep build output and
+    // secrets out of version control (and the `files` allowlist above keeps them out
+    // of the packed/embedded source regardless).
+    ".gitignore": `node_modules/
+dist/
+*.tgz
+.env
+.env.*
+`,
 
     "index.html": `<!doctype html>
 <html lang="en">

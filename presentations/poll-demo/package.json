@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "files": ["index.html", "main.tsx", "server.ts", "build.ts", "bunfig.toml", "slides"],
   "scripts": {
     "dev": "bun --hot ./server.ts",
     "build": "bun run build.ts"

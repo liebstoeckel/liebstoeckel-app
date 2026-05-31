@@ -1,13 +1,15 @@
 #!/usr/bin/env bun
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, basename } from "node:path";
 import { scaffold } from "./new";
 
 const HELP = `liebstoeckel — code-first presentations
 
 usage:
   liebstoeckel new <name> [--brand <brand>]   scaffold a new deck under ./presentations
-  liebstoeckel build [dir]                     build a deck → one self-contained .html (+ thumbnails)
+  liebstoeckel build [dir] [--no-inline-package]   build a deck → one self-contained .html (+ thumbnails)
+  liebstoeckel eject <deck.html> [outdir] [--force]   recover a built deck's editable source
+  liebstoeckel pack [dir] [-o <file.tgz>] [--allow-secret]   inspect/emit the source a build embeds
   liebstoeckel live <deck|dir> [opts]          present live (LAN, or --relay <url> --relay-token <tok>)
   liebstoeckel relay [opts]                    run a public relay (--port, --tokens, --public-url)
   liebstoeckel thumbs <deck.html> [opts]       (re)generate thumbnails for a built deck
@@ -21,6 +23,8 @@ function flag(argv: string[], name: string): string | undefined {
   const i = argv.indexOf(name);
   return i >= 0 ? argv[i + 1] : undefined;
 }
+
+const has = (argv: string[], name: string): boolean => argv.includes(name);
 
 const looksLikeDeck = (s: string | undefined): boolean =>
   !!s && (/\.html?$/i.test(s) || existsSync(resolve(s)));
@@ -50,9 +54,57 @@ async function runBuild(argv: string[]) {
   const prev = process.cwd();
   if (target) process.chdir(resolve(target));
   try {
-    await buildDeck({ entry: "./index.html", outdir: "./dist" });
+    await buildDeck({
+      entry: "./index.html",
+      outdir: "./dist",
+      inlinePackage: !has(argv, "--no-inline-package"),
+      allowSecret: has(argv, "--allow-secret"),
+    });
   } finally {
     process.chdir(prev);
+  }
+}
+
+async function runEject(argv: string[]) {
+  const positional = argv.filter((a) => !a.startsWith("-"));
+  const htmlPath = positional[0];
+  if (!htmlPath) {
+    console.error("usage: liebstoeckel eject <deck.html> [outdir] [--force]");
+    process.exit(1);
+  }
+  const outDir = positional[1] ?? resolve(basename(htmlPath).replace(/\.html?$/i, "") + "-source");
+  const { ejectSource } = await import("@liebstoeckel/engine/build/source-package");
+  try {
+    const html = await Bun.file(resolve(htmlPath)).text();
+    const written = await ejectSource(html, resolve(outDir), { force: has(argv, "--force") });
+    console.log(`\n✓ ejected ${written.length} files → ${outDir}\n`);
+    for (const f of written) console.log(`   ${f}`);
+    console.log(`\n   rebuild (untrusted deck? keep --ignore-scripts):`);
+    console.log(`     cd ${outDir} && bun install --ignore-scripts && bun run build\n`);
+  } catch (e) {
+    console.error(`✕ ${(e as Error).message}`);
+    process.exit(1);
+  }
+}
+
+async function runPack(argv: string[]) {
+  const dir = resolve(argv.find((a) => !a.startsWith("-")) ?? ".");
+  const out = flag(argv, "-o");
+  const { collectDeckTarball } = await import("@liebstoeckel/engine/build/source-package");
+  try {
+    const { gzip, files } = await collectDeckTarball(dir, { allowSecret: has(argv, "--allow-secret") });
+    if (out) {
+      // pack's native gzip — `bun add ./<file>.tgz`-installable (zstd is embed-only).
+      await Bun.write(resolve(out), gzip);
+      console.log(`\n✓ wrote ${files.length}-file source package → ${out}  (gzip; bun add-compatible)\n`);
+    } else {
+      console.log(`\nsource package (${files.length} files) — what a build would embed:\n`);
+    }
+    for (const f of files) console.log(`   ${f}`);
+    console.log();
+  } catch (e) {
+    console.error(`✕ ${(e as Error).message}`);
+    process.exit(1);
   }
 }
 
@@ -63,6 +115,10 @@ async function main() {
       return runNew(rest);
     case "build":
       return runBuild(rest);
+    case "eject":
+      return runEject(rest);
+    case "pack":
+      return runPack(rest);
     case "live":
       return (await import("@liebstoeckel/live-server/cli")).runLive(rest);
     case "relay":

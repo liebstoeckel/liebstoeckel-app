@@ -8,6 +8,10 @@ export interface BuildDeckOptions {
   outdir?: string;
   minify?: boolean;
   pkgJson?: string;
+  /** Embed the deck's own source as a recoverable package so the .html is ejectable (ADR 0039). */
+  inlinePackage?: boolean;
+  /** Force the source-embed past its secret gate (loud, explicit). */
+  allowSecret?: boolean;
 }
 
 /** Build a deck to a single self-contained `.html` and, **by default**, capture +

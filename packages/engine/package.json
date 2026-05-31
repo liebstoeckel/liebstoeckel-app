@@ -21,6 +21,7 @@
     ".": "./src/index.ts",
     "./live": "./src/live/index.ts",
     "./build": "./src/build/buildDeck.ts",
+    "./build/source-package": "./src/build/source-package.ts",
     "./build/thumbnails": "./src/build/thumbnails.ts",
     "./build/capture-protocol": "./src/build/capture-protocol.ts",
     "./mdx-plugin": "./src/build/mdx-plugin.ts",

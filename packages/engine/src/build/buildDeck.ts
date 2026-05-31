@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import tailwind from "bun-plugin-tailwind";
 import { discoverFromPackageJson } from "@liebstoeckel/plugin-sdk/discovery";
 import {
@@ -71,11 +71,17 @@ export async function bundleDeck({
   outdir = "./dist",
   minify = true,
   pkgJson = "./package.json",
+  inlinePackage = true,
+  allowSecret = false,
 }: {
   entry?: string;
   outdir?: string;
   minify?: boolean;
   pkgJson?: string;
+  /** Embed the deck's own source as a recoverable package so the .html is ejectable (ADR 0039). */
+  inlinePackage?: boolean;
+  /** Force the source-embed past its secret gate (loud, explicit). */
+  allowSecret?: boolean;
 } = {}) {
   const result = await Bun.build({
     entrypoints: [entry],
@@ -97,6 +103,15 @@ export async function bundleDeck({
   let html = escapeInlineModuleScript(await Bun.file(outHtml).text());
   const manifest = await buildPluginManifest(pkgJson);
   if (manifest) html = embedManifest(html, manifest);
+
+  // Embed the deck's own source so the compiled .html ejects back to an editable project.
+  if (inlinePackage) {
+    const { collectDeckTarball, embedSource } = await import("./source-package");
+    const { zstd, files } = await collectDeckTarball(dirname(pkgJson), { allowSecret });
+    html = embedSource(html, zstd);
+    console.log(`✓ embedded source package (${files.length} files, ${(zstd.length / 1024).toFixed(1)}KB)`);
+  }
+
   await Bun.write(outHtml, html);
 
   return result;

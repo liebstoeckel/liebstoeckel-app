@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: The umbrella liebstoeckel command — new, build, live, relay, thumbs.
+description: The umbrella liebstoeckel command — new, build, eject, pack, live, relay, thumbs.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -24,12 +24,57 @@ Generates `index.html`, `main.tsx`, `build.ts` (using `buildDeck` from `@liebsto
 
 ## `build`
 
-Build a deck to a single self-contained `.html` (+ thumbnails).
+Build a deck to a single self-contained `.html` (+ thumbnails). By default the build also
+embeds a compressed copy of the deck's **own source** (slides, `package.json`, etc. — not
+`node_modules`), so the compiled `.html` can later be [`eject`](#eject)ed back to an editable
+project. Source collection uses `bun pm pack`, so your deck's `package.json` `"files"` list
+controls exactly what's embedded.
 
 ```bash
-liebstoeckel build [dir]          # defaults to the current directory
+liebstoeckel build [dir]                       # defaults to the current directory
+liebstoeckel build [dir] --no-inline-package   # build WITHOUT the recoverable source
 LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build [dir]   # skip thumbnails
 ```
+
+| Flag | Meaning |
+| --- | --- |
+| `--no-inline-package` | don't embed the deck's source (smaller file, not ejectable) |
+| `--allow-secret` | override the secret gate that aborts if a packed file looks like a credential |
+
+<Aside type="caution" title="Anyone with the file has the source">
+The embedded source is recoverable by anyone with the `.html`. A `"files"` allowlist in the deck's
+`package.json` (the scaffold ships one) keeps secrets out by construction; the build also refuses to
+embed a `.env` or a file matching a credential signature. Use `--no-inline-package` to ship an opaque deck.
+</Aside>
+
+## `eject`
+
+Recover a built deck's editable source from its `.html`.
+
+```bash
+liebstoeckel eject <deck.html> [outdir] [--force]
+```
+
+`outdir` defaults to `<deck>-source/`. Eject refuses a non-empty directory unless `--force`, and
+errors clearly if the HTML carries no embedded source (e.g. it was built `--no-inline-package`). To
+rebuild an **untrusted** deck, keep lifecycle scripts off:
+
+```bash
+cd <outdir> && bun install --ignore-scripts && bun run build
+```
+
+## `pack`
+
+Inspect — or emit — exactly the source a build would embed, without running a full build.
+
+```bash
+liebstoeckel pack [dir]                  # print the file list
+liebstoeckel pack [dir] -o deck.tgz      # write a gzip tarball (bun add-compatible)
+liebstoeckel pack [dir] --allow-secret   # override the secret gate
+```
+
+Useful for verifying your `"files"` allowlist before shipping. The `-o` tarball is standard gzip
+(`bun add ./deck.tgz`-installable); the in-HTML embed uses zstd internally.
 
 ## `live`
 
