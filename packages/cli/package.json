@@ -29,6 +29,7 @@
     "@liebstoeckel/engine": "workspace:*",
     "@liebstoeckel/live-server": "workspace:*",
     "@liebstoeckel/present-relay": "workspace:*",
+    "@liebstoeckel/registry": "workspace:*",
     "@liebstoeckel/theme": "workspace:*",
     "@liebstoeckel/thumbnails": "workspace:*"
   },

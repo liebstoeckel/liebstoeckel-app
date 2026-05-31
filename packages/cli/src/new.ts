@@ -76,7 +76,7 @@ dist/
     "bunfig.toml": `# Plugins for the HMR dev server (Bun.serve HTML routes). The build path uses
 # Bun.build()'s plugins array in build.ts instead.
 [serve.static]
-plugins = ["bun-plugin-tailwind", "../../packages/engine/src/build/mdx-plugin.ts"]
+plugins = ["bun-plugin-tailwind", "../../packages/engine/src/build/mdx-plugin.ts", "../../packages/engine/src/build/visx-esm-plugin.ts"]
 `,
 
     "server.ts": `import index from "./index.html";

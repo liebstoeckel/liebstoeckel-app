@@ -8,6 +8,7 @@ import {
   type PluginManifestEntry,
 } from "@liebstoeckel/plugin-sdk/manifest";
 import mdx from "./mdx-plugin";
+import visxEsmInterop from "./visx-esm-plugin";
 
 /** Bundle a plugin's server entry into a self-contained, base64-encoded ESM module
  *  (target:"bun"). It externalizes nothing host-specific because the host injects
@@ -89,7 +90,7 @@ export async function bundleDeck({
     minify,
     target: "browser",
     compile: true,
-    plugins: [tailwind, mdx],
+    plugins: [tailwind, mdx, visxEsmInterop],
   });
 
   if (!result.success) {

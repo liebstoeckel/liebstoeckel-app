@@ -1,0 +1,6 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/config.json",
+  "registries": {
+    "@liebstoeckel": "default"
+  }
+}

@@ -7,6 +7,7 @@ const HELP = `liebstoeckel — code-first presentations
 
 usage:
   liebstoeckel new <name> [--brand <brand>]   scaffold a new deck under ./presentations
+  liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force]   scaffold registry items (charts, …) into a deck as owned source
   liebstoeckel build [dir] [--no-inline-package]   build a deck → one self-contained .html (+ thumbnails)
   liebstoeckel eject <deck.html> [outdir] [--force]   recover a built deck's editable source
   liebstoeckel pack [dir] [-o <file.tgz>] [--allow-secret]   inspect/emit the source a build embeds
@@ -113,6 +114,8 @@ async function main() {
   switch (cmd) {
     case "new":
       return runNew(rest);
+    case "add":
+      return (await import("./add")).runAdd(rest);
     case "build":
       return runBuild(rest);
     case "eject":

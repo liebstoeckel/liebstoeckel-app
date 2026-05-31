@@ -1,0 +1,244 @@
+import { existsSync } from "node:fs";
+import { resolve, join } from "node:path";
+import {
+  validateItem,
+  assertSafeTarget,
+  CATEGORIES,
+  type RegistryItem,
+} from "@liebstoeckel/registry/schema";
+
+/**
+ * `liebstoeckel add` — scaffold registry items into a deck as owned source
+ * (ADR 0040), resolved over a pluggable transport (ADR 0041). The resolver core
+ * (`resolveScaffold`) is pure given a transport, so it is unit-tested with an
+ * in-memory transport; only `runAdd` touches disk / spawns `bun add`.
+ */
+
+// ── transport ───────────────────────────────────────────────────────────────
+
+export interface RegistryTransport {
+  /** Namespace label, for messages. */
+  readonly id: string;
+  /** Read an item manifest by name (`items/<name>.json`). */
+  readItem(name: string): Promise<unknown>;
+  /** Read a source file by its registry-relative path (`files/…`). */
+  readFile(path: string): Promise<string>;
+}
+
+function assertSafeRelPath(p: string): void {
+  if (p.startsWith("/") || p.split(/[\\/]/).includes("..")) {
+    throw new Error(`unsafe registry file path "${p}"`);
+  }
+}
+
+/**
+ * Reads a registry laid out as a local directory — the default/workspace registry,
+ * and also how an npm/git carrier is read once installed to a temp dir (ADR 0041).
+ */
+export function localTransport(root: string, id = "@liebstoeckel"): RegistryTransport {
+  return {
+    id,
+    async readItem(name) {
+      const f = Bun.file(join(root, "items", `${name}.json`));
+      if (!(await f.exists())) throw new Error(`item "${name}" not found in registry ${id}`);
+      return f.json();
+    },
+    readFile(path) {
+      assertSafeRelPath(path);
+      return Bun.file(join(root, path)).text();
+    },
+  };
+}
+
+// ── resolver core (pure given a transport) ───────────────────────────────────
+
+export interface ResolvedFile {
+  target: string;
+  content: string;
+  item: string;
+}
+
+export interface ResolvedScaffold {
+  /** Item names in resolution order (registryDependencies before dependents). */
+  items: string[];
+  files: ResolvedFile[];
+  /** Union of leaf npm deps to add to the deck, sorted. */
+  npmDependencies: string[];
+}
+
+/**
+ * Transitively resolve items + their `registryDependencies` into a flat, deduped
+ * plan. Each manifest is validated (which also enforces the banned-visx gate) and
+ * each `target` is checked for path-escape before it can be written.
+ */
+export async function resolveScaffold(
+  transport: RegistryTransport,
+  names: string[],
+): Promise<ResolvedScaffold> {
+  const seen = new Set<string>();
+  const items: string[] = [];
+  const files: ResolvedFile[] = [];
+  const deps = new Set<string>();
+
+  async function visit(name: string): Promise<void> {
+    if (seen.has(name)) return;
+    seen.add(name);
+    const raw = await transport.readItem(name);
+    validateItem(raw);
+    const item = raw as RegistryItem;
+    // deps first, so registryDependencies land before dependents (axes before chart)
+    for (const dep of item.registryDependencies ?? []) await visit(dep);
+    for (const d of item.dependencies ?? []) deps.add(d);
+    for (const f of item.files) {
+      assertSafeTarget(f.target);
+      files.push({ target: f.target, content: await transport.readFile(f.path), item: item.name });
+    }
+    items.push(item.name);
+  }
+
+  for (const n of names) await visit(n);
+  return { items, files, npmDependencies: [...deps].sort() };
+}
+
+// ── command ──────────────────────────────────────────────────────────────────
+
+const flag = (argv: string[], name: string): string | undefined => {
+  const i = argv.indexOf(name);
+  return i >= 0 ? argv[i + 1] : undefined;
+};
+
+interface DeckConfig {
+  registries: Record<string, string>;
+}
+
+async function loadConfig(deckDir: string): Promise<DeckConfig> {
+  const f = Bun.file(join(deckDir, "liebstoeckel.json"));
+  if (await f.exists()) {
+    try {
+      const j = (await f.json()) as Partial<DeckConfig>;
+      return { registries: j.registries ?? {} };
+    } catch {
+      /* fall through to defaults */
+    }
+  }
+  return { registries: {} };
+}
+
+function parseRef(ref: string): { ns: string; name: string } {
+  if (ref.startsWith("@")) {
+    const slash = ref.indexOf("/");
+    if (slash > 0) return { ns: ref.slice(0, slash), name: ref.slice(slash + 1) };
+  }
+  return { ns: "@liebstoeckel", name: ref };
+}
+
+async function transportFor(ns: string, deckDir: string, config: DeckConfig): Promise<RegistryTransport> {
+  const spec = config.registries[ns];
+  // default registry: bundled @liebstoeckel/registry, read as a local file tree
+  if ((ns === "@liebstoeckel" && spec == null) || spec === "default") {
+    const { REGISTRY_ROOT } = await import("@liebstoeckel/registry");
+    return localTransport(REGISTRY_ROOT, ns);
+  }
+  if (spec == null) {
+    throw new Error(`no registry configured for namespace "${ns}" — add it to liebstoeckel.json "registries"`);
+  }
+  if (spec.startsWith(".") || spec.startsWith("/")) {
+    return localTransport(resolve(deckDir, spec), ns);
+  }
+  // ADR 0041 lists npm/git/HTTP transports as planned; only local is wired up so far.
+  throw new Error(
+    `registry transport "${spec}" (namespace ${ns}) is not implemented yet — ` +
+      `only the bundled default and local-path registries are wired up (ADR 0041 plans npm/git/HTTP).`,
+  );
+}
+
+/** Flags that take a value — their following token is not a positional. */
+const VALUE_FLAGS = new Set(["--dir"]);
+
+function positionalArgs(argv: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i]!;
+    if (a.startsWith("-")) {
+      if (VALUE_FLAGS.has(a)) i++; // skip its value
+      continue;
+    }
+    out.push(a);
+  }
+  return out;
+}
+
+export async function runAdd(argv: string[]): Promise<void> {
+  const positionals = positionalArgs(argv);
+  // optional `add <category> <name>` sugar — strip a leading category keyword
+  let refs = positionals;
+  if (positionals.length >= 2 && (CATEGORIES as readonly string[]).includes(positionals[0]!)) {
+    refs = positionals.slice(1);
+  }
+  if (refs.length === 0) {
+    console.error(
+      "usage: liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--no-install]",
+    );
+    process.exit(1);
+  }
+
+  const deckDir = resolve(flag(argv, "--dir") ?? ".");
+  const dry = argv.includes("--dry");
+  const force = argv.includes("--force");
+  const noInstall = argv.includes("--no-install");
+
+  try {
+    const config = await loadConfig(deckDir);
+
+    // group refs by namespace; each namespace resolves through its own transport
+    const groups = new Map<string, { transport: RegistryTransport; names: string[] }>();
+    for (const ref of refs) {
+      const { ns, name } = parseRef(ref);
+      if (!groups.has(ns)) groups.set(ns, { transport: await transportFor(ns, deckDir, config), names: [] });
+      groups.get(ns)!.names.push(name);
+    }
+
+    const items: string[] = [];
+    const files: ResolvedFile[] = [];
+    const deps = new Set<string>();
+    for (const g of groups.values()) {
+      const plan = await resolveScaffold(g.transport, g.names);
+      items.push(...plan.items);
+      files.push(...plan.files);
+      for (const d of plan.npmDependencies) deps.add(d);
+    }
+
+    // plan — show before writing (ADR 0041 review-before-write)
+    console.log(`\nliebstoeckel add — ${items.join(", ")}  →  ${deckDir}\n`);
+    const writes: ResolvedFile[] = [];
+    for (const f of files) {
+      const exists = existsSync(join(deckDir, f.target));
+      const status = exists && !force ? "skip (exists)" : exists ? "overwrite" : "create";
+      console.log(`   ${status.padEnd(14)} ${f.target}   [${f.item}]`);
+      if (!exists || force) writes.push(f);
+    }
+    if (deps.size) console.log(`\n   dependencies: ${[...deps].join(", ")}`);
+    if (dry) {
+      console.log(`\n   (dry run — nothing written)\n`);
+      return;
+    }
+
+    for (const f of writes) await Bun.write(join(deckDir, f.target), f.content);
+    console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped — use --force to overwrite)` : ""));
+
+    if (deps.size && !noInstall) {
+      const list = [...deps];
+      console.log(`   installing: bun add --ignore-scripts ${list.join(" ")}`);
+      const { $ } = await import("bun");
+      // pin the interpreter; --ignore-scripts per the registry trust model (ADR 0041)
+      await $`${process.execPath} add --ignore-scripts ${list}`.cwd(deckDir);
+      console.log(`   ✓ dependencies installed`);
+    } else if (deps.size) {
+      console.log(`   → install deps yourself: bun add --ignore-scripts ${[...deps].join(" ")}`);
+    }
+    console.log();
+  } catch (e) {
+    console.error(`✕ ${(e as Error).message}`);
+    process.exit(1);
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "@liebstoeckel/registry-demo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "index.html",
+    "main.tsx",
+    "server.ts",
+    "build.ts",
+    "bunfig.toml",
+    "liebstoeckel.json",
+    "slides",
+    "elements",
+    "components",
+    "charts",
+    "assets",
+    "public"
+  ],
+  "scripts": {
+    "dev": "bun --hot ./server.ts",
+    "build": "bun run build.ts"
+  },
+  "dependencies": {
+    "@liebstoeckel/engine": "workspace:*",
+    "@liebstoeckel/theme": "workspace:*",
+    "@visx/axis": "^3.12.0",
+    "@visx/curve": "^3.12.0",
+    "@visx/gradient": "^3.12.0",
+    "@visx/grid": "^3.12.0",
+    "@visx/group": "^3.12.0",
+    "@visx/heatmap": "^3.12.0",
+    "@visx/hierarchy": "^3.12.0",
+    "@visx/legend": "^3.12.0",
+    "@visx/scale": "^3.12.0",
+    "@visx/shape": "^3.12.0"
+  },
+  "devDependencies": {
+    "@liebstoeckel/thumbnails": "workspace:*"
+  }
+}

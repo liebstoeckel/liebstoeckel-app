@@ -35,7 +35,9 @@
       "@liebstoeckel/cli": ["./packages/cli/src/cli.ts"],
       "@liebstoeckel/cli/*": ["./packages/cli/src/*"],
       "@liebstoeckel/present-relay": ["./packages/present-relay/src/index.ts"],
-      "@liebstoeckel/present-relay/*": ["./packages/present-relay/src/*"]
+      "@liebstoeckel/present-relay/*": ["./packages/present-relay/src/*"],
+      "@liebstoeckel/registry": ["./packages/registry/src/index.ts"],
+      "@liebstoeckel/registry/*": ["./packages/registry/src/*"]
     }
   },
   "include": ["packages", "presentations", "types"],
