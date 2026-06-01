@@ -103,6 +103,18 @@
         "@types/pg": "8.20.0",
       },
     },
+    "packages/control-dashboard": {
+      "name": "@liebstoeckel/control-dashboard",
+      "version": "0.0.0",
+      "bin": {
+        "liebstoeckel-control-dashboard": "./src/server.ts",
+      },
+      "dependencies": {
+        "@liebstoeckel/control-api": "workspace:*",
+        "@liebstoeckel/control-core": "workspace:*",
+        "hono": "4.12.23",
+      },
+    },
     "packages/docs": {
       "name": "@liebstoeckel/docs",
       "version": "0.0.0",
@@ -510,6 +522,8 @@
     "@liebstoeckel/control-api": ["@liebstoeckel/control-api@workspace:packages/control-api"],
 
     "@liebstoeckel/control-core": ["@liebstoeckel/control-core@workspace:packages/control-core"],
+
+    "@liebstoeckel/control-dashboard": ["@liebstoeckel/control-dashboard@workspace:packages/control-dashboard"],
 
     "@liebstoeckel/demo": ["@liebstoeckel/demo@workspace:presentations/demo"],
 
