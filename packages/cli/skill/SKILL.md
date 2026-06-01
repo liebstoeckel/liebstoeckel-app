@@ -47,6 +47,13 @@ is your correctness signal.
    Then write a slide that imports the component (from the deck's `charts/`) and passes
    data **matching its `dataShape`** — see `references/charts.md`.
 
+   The scaffolded `.tsx` is now **owned source in the deck** — it belongs to the deck,
+   not to a package. Passing data via props is the common path, but when the slide needs
+   something the props don't expose (a different palette, an extra series, an annotation,
+   dropping the legend, a layout or motion tweak), **edit `charts/<Name>.tsx` directly to
+   fit the use case.** That is the whole point of scaffolding owned source; don't work
+   around a chart's limits when you can change the chart.
+
 5. **Write prose slides** as MDX/TSX following `references/authoring.md`.
 
 6. **Validate and fix in a loop:**
@@ -73,8 +80,12 @@ re-theme, see `references/editing.md`. Always finish with the `build --check` lo
 
 - **Never invent component names, props, or data shapes** — read them from
   `registry list/view --json`. The registry is the source of truth.
-- **Charts are owned source**: after `add`, the `.tsx` is in the deck's `charts/` and
-  you may edit it freely (data, colors, motion). Don't import charts from a package.
+- **Charts are owned source — adjust them to fit the use case.** After `add`, the
+  `.tsx` lives in the deck's `charts/` and is the deck's code, not a package API.
+  Prefer props for data, but freely edit the component itself (palette, series,
+  annotations, labels, layout, motion) whenever the slide needs it — re-running `add`
+  won't clobber your edits unless `--force`. Never import a chart from a package, and
+  never treat its props as a hard limit.
 - **Don't hand-write the final HTML** — author slides + components; let `build` render.
 - Keep going until `build --check` passes; that is the definition of done.
 

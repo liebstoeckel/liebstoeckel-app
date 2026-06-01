@@ -58,8 +58,20 @@ Notes:
 - `stacked-bar-chart` / `grouped-bar-chart` take a `keys: string[]` listing the series.
 - All charts read the active brand palette — no color props needed.
 
-## 4. Editing a scaffolded chart
+## 4. Adjust the chart to fit the slide (encouraged)
 
-It's plain source. Change the data default, palette mapping, motion, or labels in
-`charts/<Name>.tsx`. Re-running `add` will **not** overwrite your edits unless
-`--force`.
+A scaffolded chart is **the deck's own source**, not a fixed package API. Wiring data
+through props is the common case, but when the slide needs more, **open
+`charts/<Name>.tsx` and change it** — that's why it was copied in, not imported. Common
+adjustments:
+
+- **Palette** — recolor a series, or map a category to a brand color (`useBrandColors`
+  gives `c.viz[]`, `c.accent`, …).
+- **Shape** — add/remove a series, change the axis range, add a reference line,
+  threshold band, or label/annotation.
+- **Chrome** — drop the legend, change the value-label format, restyle the axis.
+- **Motion** — retime or remove the entrance animation.
+
+Re-running `liebstoeckel add <name>` will **not** overwrite your edits unless you pass
+`--force` (which restores the pristine registry version). So edit freely — your copy is
+yours. Prefer adjusting the component over contorting the data or fighting the props.
