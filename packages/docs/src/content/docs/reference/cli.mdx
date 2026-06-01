@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: The umbrella liebstoeckel command — new, add, registry, build, eject, pack, live, relay, thumbs, export, skill.
+description: The umbrella liebstoeckel command — new, add, registry, build, eject, pack, live, relay, thumbs, export, skill, login, push.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -240,6 +240,36 @@ It writes the same skill to each agent's path (`.claude/skills/`, `.agents/skill
 Codex/Gemini, `.cursor/skills/` + a rule) and merges a managed block into `AGENTS.md` —
 the universal fallback for agents without skill support. Re-running is idempotent. See
 the [Scaffolding guide](/guides/scaffolding/) for how an agent uses it.
+
+## `login`
+
+Sign in to **liebstoeckel cloud** (the hosted control plane) from the terminal using the
+OAuth 2.0 device-authorization grant (RFC 8628) — no password. The CLI prints a URL;
+open it in a browser, sign in with an email one-time code, and approve. The resulting
+token is stored in `~/.config/liebstoeckel/credentials.json` (mode `600`).
+
+```bash
+liebstoeckel login --api https://<your-control-plane-host>
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--api <url>` | the control-plane base URL (or set `LIEBSTOECKEL_API`) |
+
+## `push`
+
+Upload a built single-file deck to your cloud dashboard. Authenticates with the token
+from `login`; the deck appears in your dashboard's deck list.
+
+```bash
+liebstoeckel build                       # produces ./dist/index.html
+liebstoeckel push ./dist/index.html --title "My deck"
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--title <title>` | deck title (default: the file name) |
+| `--api <url>` | override the stored control-plane host |
 
 <Aside type="tip" title="From the repo">
 Root scripts mirror these: `bun run live`, `bun run relay`, `bun run thumbs`, `bun run export`, plus `bun run <deck>:dev` / `:build` for the bundled example decks.
