@@ -12,7 +12,8 @@
   },
   "files": [
     "src",
-    "skill"
+    "skill",
+    "LICENSE"
   ],
   "engines": {
     "bun": ">=1.3"
