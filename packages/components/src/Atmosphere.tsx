@@ -27,8 +27,9 @@ export function Atmosphere({ still = false }: { still?: boolean }) {
         className="absolute inset-x-0 top-0 h-px"
         style={{ background: "linear-gradient(90deg, transparent, var(--brand-accent), transparent)", opacity: 0.35 }}
       />
-      {/* film grain */}
-      <svg className="absolute inset-0 h-full w-full opacity-[0.05] mix-blend-overlay">
+      {/* film grain — tagged so the vector-PDF print view can drop it (an
+          feTurbulence layer rasterizes to a huge full-page bitmap in print). */}
+      <svg data-atmosphere-grain className="absolute inset-0 h-full w-full opacity-[0.05] mix-blend-overlay">
         <filter id="atmo-grain">
           <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" />
         </filter>

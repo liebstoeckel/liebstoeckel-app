@@ -20,6 +20,7 @@
     "live": "bun packages/live-server/src/cli.ts",
     "relay": "bun packages/present-relay/src/cli.ts",
     "thumbs": "bun packages/thumbnails/src/cli.ts",
+    "export": "bun packages/cli/src/cli.ts export",
     "test": "bun test packages",
     "test:e2e": "bun test packages/e2e/src/smoke.test.ts",
     "docs:dev": "cd packages/docs && bun --bun astro dev --host",

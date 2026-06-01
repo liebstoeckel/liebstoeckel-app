@@ -1,36 +1,27 @@
 import { existsSync } from "node:fs";
-import { chromium } from "playwright-core";
+import { chromium, type Page } from "playwright-core";
 import {
   CAPTURE_EVENT,
   CAPTURE_FLAG,
   CAPTURE_READY,
+  PRINT_FLAG,
+  PRINT_READY,
+  PRINT_SELECT_EVENT,
   SLIDE_COUNT,
 } from "@liebstoeckel/engine/build/capture-protocol";
 import type { ThumbnailManifest } from "@liebstoeckel/engine/build/thumbnails";
 
 export type ThumbnailFormat = "webp" | "jpeg" | "png";
 
-export interface CaptureOptions {
-  /** thumbnail width in CSS px (height derived 16:9 unless given). Default 640 ×
-   *  scale 2 = 1280×720, the native authoring canvas — so the overview is never
-   *  upscaled even on large/hi-dpi screens. Lower it to shrink a big deck. */
-  width?: number;
-  height?: number;
+/** Thumbnail capture options — the slide driver's options (ADR 0042) plus the
+ *  image-encoding policy specific to the thumbnail sink. Default width 640 ×
+ *  scale 2 = 1280×720, the native authoring canvas — so the overview is never
+ *  upscaled even on large/hi-dpi screens. Lower `width` to shrink a big deck. */
+export interface CaptureOptions extends RenderDriveOptions {
   /** output image format (default "webp" — ~half a JPEG, alpha, no extra deps) */
   format?: ThumbnailFormat;
   /** lossy quality 0–100 (ignored for png) */
   quality?: number;
-  /** device scale factor — renders at 2× for crisp text, stored at w*scale */
-  scale?: number;
-  /** explicit Chromium/Chrome binary; else $LIEBSTOECKEL_CHROMIUM, else Playwright's */
-  executablePath?: string;
-  /** override the launch flags (defaults are container-friendly) */
-  launchArgs?: string[];
-  /** extra settle time after a slide reports ready (late chart/font paints) */
-  settleMs?: number;
-  /** per-step timeout */
-  timeoutMs?: number;
-  onSlide?(index: number, total: number): void;
 }
 
 // Bun's built-in image codec (Bun.Image) — not yet in @types/bun, so typed here.
@@ -107,10 +98,11 @@ export function thumbnailsEnabled(
   return { enabled: true };
 }
 
-/** Inject the capture flag as a classic (non-deferred) inline script so it runs
- *  before the deck's deferred module bundle boots → Present renders CaptureView. */
-function injectCaptureFlag(html: string): string {
-  const tag = `<script>window.${CAPTURE_FLAG}={"index":0};</script>`;
+/** Inject a static-mode flag as a classic (non-deferred) inline script so it runs
+ *  before the deck's deferred module bundle boots → Present renders the matching
+ *  static view (CaptureView / PrintView) instead of the live deck. */
+function injectFlag(html: string, global: string, value: unknown): string {
+  const tag = `<script>window.${global}=${JSON.stringify(value)};</script>`;
   const head = html.match(/<head[^>]*>/i);
   if (head) return html.replace(head[0], head[0] + tag);
   const body = html.match(/<body[^>]*>/i);
@@ -118,14 +110,60 @@ function injectCaptureFlag(html: string): string {
   return tag + html;
 }
 
-/** Render a built single-file deck in a headless browser and screenshot each slide
- *  as a data-URI (WebP by default, via Bun.Image). Returns a thumbnails manifest
- *  (embed it with `embedThumbnails`). The deck must use `Present`/`CaptureView`. */
-export async function captureThumbnails(html: string, opts: CaptureOptions = {}): Promise<ThumbnailManifest> {
+const injectCaptureFlag = (html: string): string => injectFlag(html, CAPTURE_FLAG, { index: 0 });
+
+/** Options for the sink-agnostic slide driver (ADR 0042). The viewport/scale and
+ *  the per-slide wait policy live here; what the rendered frame *becomes* (a
+ *  data-URI thumbnail, a PNG file, a PDF page) is the caller's `onFrame`. */
+export interface RenderDriveOptions {
+  /** viewport width in CSS px (default 640). */
+  width?: number;
+  /** viewport height in CSS px (default 16:9 of width). */
+  height?: number;
+  /** device scale factor — renders at this multiple for crisp output (default 2). */
+  scale?: number;
+  /** explicit Chromium/Chrome binary; else $LIEBSTOECKEL_CHROMIUM, else Playwright's */
+  executablePath?: string;
+  /** override the launch flags (defaults are container-friendly) */
+  launchArgs?: string[];
+  /** extra settle time after a slide reports ready (late chart/font paints) */
+  settleMs?: number;
+  /** per-step timeout */
+  timeoutMs?: number;
+  /** 0-based slide indices to render, in order (default: every slide). Indices
+   *  outside `[0, count)` are skipped. The capture protocol can jump to any
+   *  index, so a subset is just a shorter list (ADR 0042 / 0043). */
+  indices?: number[];
+  /** Resolve the index list once the deck's slide count is known — for specs that
+   *  are open-ended (e.g. "from slide 3 to the end"). Overrides `indices`. */
+  selectIndices?(count: number): number[];
+  /** progress callback: (nth-rendered, total-to-render). */
+  onSlide?(index: number, total: number): void;
+}
+
+export interface RenderDriveResult {
+  /** total slides the deck reported (not necessarily how many were rendered). */
+  count: number;
+  /** intrinsic pixel size of each frame (`width*scale` × `height*scale`). */
+  w: number;
+  h: number;
+}
+
+/**
+ * The one headless drive loop (ADR 0042): launch a browser, load a built deck in
+ * capture mode, wait for fonts + the slide-count handshake, then step through the
+ * requested slide indices — calling `onFrame(index, page)` once each slide has
+ * painted and settled. Sink-agnostic: the callback decides what a frame becomes.
+ * Both `captureThumbnails` and `exportDeck` ride on this. The deck must render
+ * `Present`/`CaptureView`. **Loud** — throws if no Chromium / never enters capture.
+ */
+export async function renderDeckSlides(
+  html: string,
+  opts: RenderDriveOptions,
+  onFrame: (index: number, page: Page) => Promise<void>,
+): Promise<RenderDriveResult> {
   const width = opts.width ?? 640;
   const height = opts.height ?? Math.round((width * 9) / 16);
-  const format = opts.format ?? "webp";
-  const quality = opts.quality ?? 80;
   const scale = opts.scale ?? 2;
   const settleMs = opts.settleMs ?? 250;
   const timeout = opts.timeoutMs ?? 15000;
@@ -147,9 +185,16 @@ export async function captureThumbnails(html: string, opts: CaptureOptions = {})
     }
     const count = (await page.evaluate((key) => (window as unknown as Record<string, unknown>)[key], SLIDE_COUNT)) as number;
 
-    const thumbs: Record<number, string> = {};
-    for (let i = 0; i < count; i++) {
-      opts.onSlide?.(i, count);
+    // Resolve which slides to render: a count-aware resolver (open-ended specs)
+    // wins, else an explicit list, else every slide — always clamped to real slides.
+    const requested = opts.selectIndices
+      ? opts.selectIndices(count)
+      : (opts.indices ?? Array.from({ length: count }, (_, i) => i));
+    const indices = requested.filter((i) => Number.isInteger(i) && i >= 0 && i < count);
+
+    for (let n = 0; n < indices.length; n++) {
+      const i = indices[n]!;
+      opts.onSlide?.(n, indices.length);
       // tell CaptureView to render slide i; it flips CAPTURE_READY to i when painted
       await page.evaluate(
         ([evt, idx]) => window.dispatchEvent(new CustomEvent(evt as string, { detail: idx })),
@@ -161,11 +206,113 @@ export async function captureThumbnails(html: string, opts: CaptureOptions = {})
         { timeout },
       );
       if (settleMs > 0) await page.waitForTimeout(settleMs);
-      // PNG (lossless) from the browser → transcode natively to the target format
-      const png = await page.screenshot({ type: "png" });
-      thumbs[i] = await encodeDataUri(png, format, quality);
+      await onFrame(i, page);
     }
-    return { v: 1, w: Math.round(width * scale), h: Math.round(height * scale), thumbs };
+    return { count, w: Math.round(width * scale), h: Math.round(height * scale) };
+  } finally {
+    await browser.close();
+  }
+}
+
+/** Render a built single-file deck in a headless browser and screenshot each slide
+ *  as a data-URI (WebP by default, via Bun.Image). Returns a thumbnails manifest
+ *  (embed it with `embedThumbnails`). The deck must use `Present`/`CaptureView`. */
+export async function captureThumbnails(html: string, opts: CaptureOptions = {}): Promise<ThumbnailManifest> {
+  const format = opts.format ?? "webp";
+  const quality = opts.quality ?? 80;
+
+  const thumbs: Record<number, string> = {};
+  const { w, h } = await renderDeckSlides(html, opts, async (i, page) => {
+    // PNG (lossless) from the browser → transcode natively to the target format
+    const png = await page.screenshot({ type: "png" });
+    thumbs[i] = await encodeDataUri(png, format, quality);
+  });
+  return { v: 1, w, h, thumbs };
+}
+
+/** Options for the vector-PDF driver. The logical page is the authoring canvas
+ *  (STAGE_W×STAGE_H, 1280×720) — selectable text, vector output, no raster. */
+export interface PrintDriveOptions {
+  /** logical page width in CSS px (default 1280, the authoring canvas). */
+  pageWidth?: number;
+  /** logical page height in CSS px (default 16:9 of pageWidth). */
+  pageHeight?: number;
+  /** explicit Chromium/Chrome binary; else $LIEBSTOECKEL_CHROMIUM, else Playwright's */
+  executablePath?: string;
+  /** override the launch flags (defaults are container-friendly) */
+  launchArgs?: string[];
+  /** settle time after the print selection paints (lets entrance motion finish).
+   *  More generous than capture's per-slide settle — every slide animates at once. */
+  settleMs?: number;
+  /** per-step timeout */
+  timeoutMs?: number;
+  /** resolve the 0-based slide indices once the count is known (open-ended specs). */
+  selectIndices?(count: number): number[];
+}
+
+export interface PrintDriveResult {
+  /** the produced PDF bytes. */
+  pdf: Uint8Array;
+  /** total slides the deck reported. */
+  count: number;
+  /** number of slides laid out (pages in the PDF). */
+  pages: number;
+}
+
+/**
+ * Render a built deck through `PrintView` and produce a **single, text-preserving**
+ * PDF (ADR 0043): every selected slide is stacked one-per-page in the DOM, so one
+ * `page.pdf()` yields a multi-page vector PDF with selectable text. `emulateMedia`
+ * keeps the deck's *screen* styles (not print CSS). **Loud** — throws if no Chromium.
+ */
+export async function printDeckPdf(html: string, opts: PrintDriveOptions = {}): Promise<PrintDriveResult> {
+  const pageWidth = opts.pageWidth ?? 1280;
+  const pageHeight = opts.pageHeight ?? Math.round((pageWidth * 9) / 16);
+  const settleMs = opts.settleMs ?? 700;
+  const timeout = opts.timeoutMs ?? 30000;
+
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: resolveChromium(opts),
+    args: opts.launchArgs ?? DEFAULT_ARGS,
+  });
+  try {
+    const page = await browser.newPage({ viewport: { width: pageWidth, height: pageHeight } });
+    // print with the deck's screen styling, not print-media CSS
+    await page.emulateMedia({ media: "screen" });
+    await page.setContent(injectFlag(html, PRINT_FLAG, {}), { waitUntil: "load", timeout });
+    await page.evaluate(() => (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts?.ready);
+    try {
+      await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key] != null, SLIDE_COUNT, { timeout });
+    } catch {
+      throw new Error("deck never entered print mode — ensure it renders <Present> (no __LIEBSTOECKEL_SLIDE_COUNT__)");
+    }
+    const count = (await page.evaluate((key) => (window as unknown as Record<string, unknown>)[key], SLIDE_COUNT)) as number;
+
+    const requested = opts.selectIndices ? opts.selectIndices(count) : Array.from({ length: count }, (_, i) => i);
+    const indices = requested.filter((i) => Number.isInteger(i) && i >= 0 && i < count);
+
+    // Hand PrintView the selection + a token it echoes into PRINT_READY once painted.
+    const token = 1;
+    await page.evaluate(
+      ([evt, payload]) => window.dispatchEvent(new CustomEvent(evt as string, { detail: payload })),
+      [PRINT_SELECT_EVENT, { indices, token }] as const,
+    );
+    await page.waitForFunction(
+      ([key, tok]) => (window as unknown as Record<string, unknown>)[key as string] === tok,
+      [PRINT_READY, token] as const,
+      { timeout },
+    );
+    if (settleMs > 0) await page.waitForTimeout(settleMs);
+
+    const pdf = await page.pdf({
+      width: `${pageWidth}px`,
+      height: `${pageHeight}px`,
+      printBackground: true,
+      margin: { top: "0", right: "0", bottom: "0", left: "0" },
+      preferCSSPageSize: false,
+    });
+    return { pdf: new Uint8Array(pdf), count, pages: indices.length };
   } finally {
     await browser.close();
   }

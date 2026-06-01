@@ -14,6 +14,7 @@ usage:
   liebstoeckel live <deck|dir> [opts]          present live (LAN, or --relay <url> --relay-token <tok>)
   liebstoeckel relay [opts]                    run a public relay (--port, --tokens, --public-url)
   liebstoeckel thumbs <deck.html> [opts]       (re)generate thumbnails for a built deck
+  liebstoeckel export <deck.html|dir> [opts]   export slides to PNG or PDF (--format, --slides 1,3,5-7, -o)
 
   liebstoeckel <deck|dir> [opts]               shorthand for \`liebstoeckel live <deck>\`
 
@@ -128,6 +129,8 @@ async function main() {
       return (await import("@liebstoeckel/present-relay/cli")).runRelay(rest);
     case "thumbs":
       return (await import("@liebstoeckel/thumbnails/cli")).runThumbs(rest);
+    case "export":
+      return (await import("@liebstoeckel/thumbnails/cli")).runExport(rest);
     case undefined:
     case "-h":
     case "--help":

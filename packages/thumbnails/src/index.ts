@@ -3,12 +3,27 @@ import { embedThumbnails, type ThumbnailManifest } from "@liebstoeckel/engine/bu
 
 export {
   captureThumbnails,
+  renderDeckSlides,
+  printDeckPdf,
   resolveChromium,
   hasChromium,
   thumbnailsEnabled,
   type CaptureOptions,
+  type RenderDriveOptions,
+  type RenderDriveResult,
+  type PrintDriveOptions,
+  type PrintDriveResult,
   type ThumbnailFormat,
 } from "./capture";
+export {
+  exportDeck,
+  parseSlideRange,
+  pdfFromJpegPages,
+  type ExportFormat,
+  type ExportOptions,
+  type ExportResult,
+  type JpegPage,
+} from "./export";
 export {
   embedThumbnails,
   extractThumbnails,

@@ -16,6 +16,7 @@ export {
   type SlideDirection,
 } from "./transitions";
 export { CaptureView } from "./CaptureView";
+export { PrintView } from "./PrintView";
 export { readThumbnails, type ThumbnailSet } from "./thumbnails";
 export { Step, StepsProvider, useRevealState } from "./steps";
 export { CodeMagic } from "./CodeMagic";

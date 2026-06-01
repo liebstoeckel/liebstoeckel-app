@@ -6,11 +6,12 @@ import { registerPluginInstance, type PluginDef } from "@liebstoeckel/plugin-sdk
 import { Deck, type DeckProps } from "./Deck";
 import { PresenterView } from "./PresenterView";
 import { CaptureView } from "./CaptureView";
+import { PrintView } from "./PrintView";
 import { LiveProvider, type LiveContextValue } from "./live/Plugin";
 import { detectLive } from "./live/detect";
 import { connectLive } from "./live/connect";
 import { getParticipantId } from "./live/participant";
-import { captureRequest } from "./build/capture-protocol";
+import { captureRequest, printRequest } from "./build/capture-protocol";
 
 /** Concatenate deck-defined brand themes into one CSS string of `[data-brand]`
  *  blocks (empty when none). Pure — unit-testable without a DOM. */
@@ -26,7 +27,8 @@ export function Present(props: DeckProps) {
   // no nav, no presenter — just a motionless slide for the headless screenshotter.
   // Gate the live connection on it (hooks still run unconditionally).
   const [capture] = useState(() => captureRequest());
-  const info = useMemo(() => (capture ? null : detectLive()), [capture]);
+  const [print] = useState(() => printRequest());
+  const info = useMemo(() => (capture || print ? null : detectLive()), [capture, print]);
   const participant = useMemo(() => getParticipantId(), []);
   const theme = useTheme();
   const registry = useMemo(
@@ -77,6 +79,14 @@ export function Present(props: DeckProps) {
       <>
         {brandStyle}
         <CaptureView {...props} />
+      </>
+    );
+
+  if (print)
+    return (
+      <>
+        {brandStyle}
+        <PrintView {...props} />
       </>
     );
 
