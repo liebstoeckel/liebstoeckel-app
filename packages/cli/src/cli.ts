@@ -6,7 +6,7 @@ import { scaffold } from "./new";
 const HELP = `liebstoeckel — code-first presentations
 
 usage:
-  liebstoeckel new <name> [--brand <brand>]   scaffold a new deck under ./presentations
+  liebstoeckel new <name> [--brand <brand>] [--dir <parent>]   scaffold a new deck as ./<name> (or under --dir)
   liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--json]   scaffold registry items (charts, …) into a deck as owned source
   liebstoeckel registry list|view <name> [--json]   browse the chart/component registry (JSON for agents)
   liebstoeckel build [dir] [--no-inline-package] [--check]   build a deck → one self-contained .html (+ thumbnails)
@@ -38,11 +38,14 @@ const looksLikeDeck = (s: string | undefined): boolean =>
 async function runNew(argv: string[]) {
   const name = argv.find((a) => !a.startsWith("-"));
   if (!name) {
-    console.error("usage: liebstoeckel new <name> [--brand <brand>]");
+    console.error("usage: liebstoeckel new <name> [--brand <brand>] [--dir <parent>]");
     process.exit(1);
   }
   try {
-    const { dir, files } = await scaffold(name, { brand: flag(argv, "--brand") });
+    const { dir, files } = await scaffold(name, {
+      brand: flag(argv, "--brand"),
+      dir: flag(argv, "--dir"),
+    });
     console.log(`\n✓ created deck "${name}" → ${dir}\n`);
     for (const f of files) console.log(`   ${f}`);
     console.log(`\n   next:`);

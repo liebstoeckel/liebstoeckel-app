@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 export const VALID_NAME = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -7,7 +7,7 @@ const titleCase = (name: string) => name.replace(/[-_]+/g, " ").replace(/\b\w/g,
 
 export interface ScaffoldOptions {
   brand?: string;
-  /** parent directory for the new deck (default: ./presentations) */
+  /** parent directory for the new deck (default: the current working directory) */
   dir?: string;
 }
 
@@ -145,7 +145,9 @@ export async function scaffold(
     throw new Error(`invalid deck name "${name}" — use lower-case letters, digits and hyphens`);
   }
   const brand = opts.brand ?? "liebstoeckel";
-  const root = opts.dir ?? join(process.cwd(), "presentations");
+  // The deck materializes in the current directory as ./<name> (least surprising).
+  // Override the parent with --dir (e.g. --dir presentations).
+  const root = opts.dir ? resolve(opts.dir) : process.cwd();
   const dir = join(root, name);
   if (existsSync(dir)) throw new Error(`${dir} already exists`);
 

@@ -33,7 +33,8 @@ is your correctness signal.
 
 2. **Scaffold the deck:**
    ```bash
-   liebstoeckel new <name> [--brand <brand>]      # creates ./presentations/<name>
+   liebstoeckel new <name> --dir presentations [--brand <brand>]   # creates ./presentations/<name>
+   # without --dir, `new` creates ./<name> in the current directory
    ```
 
 3. **Outline the slides** from the source: a title, then one slide per key point.
