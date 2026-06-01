@@ -17,6 +17,8 @@ usage:
   liebstoeckel thumbs <deck.html> [opts]       (re)generate thumbnails for a built deck
   liebstoeckel export <deck.html|dir> [opts]   export slides to PNG or PDF (--format, --slides 1,3,5-7, -o)
   liebstoeckel skill install [--target all] [--dir <deck>]   install the agent skill (SKILL.md + AGENTS.md) for deck authoring
+  liebstoeckel login --api <https://app-host>   sign in to liebstoeckel cloud (device flow)
+  liebstoeckel push <deck.html> [--title <t>]   upload a built deck to your cloud dashboard
 
   liebstoeckel <deck|dir> [opts]               shorthand for \`liebstoeckel live <deck>\`
 
@@ -143,6 +145,10 @@ async function main() {
       return (await import("./registry")).runRegistry(rest);
     case "skill":
       return (await import("./skill")).runSkill(rest);
+    case "login":
+      return (await import("./cloud")).runLogin(rest);
+    case "push":
+      return (await import("./cloud")).runPush(rest);
     case "build":
       return runBuild(rest);
     case "eject":
