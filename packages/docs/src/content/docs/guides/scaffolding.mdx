@@ -1,0 +1,138 @@
+---
+title: Scaffolding charts & components
+description: Scaffold visx charts and building blocks into a deck as owned source with `liebstoeckel add` — a shadcn-style registry, not a dependency.
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+
+Beautiful data slides shouldn't start from a blank file. `liebstoeckel add` scaffolds
+ready-made charts and building blocks straight into your deck — **as source you own**,
+not a package you import. It's the shadcn model: the code lands in your project, and
+from there it's yours to edit.
+
+```bash
+liebstoeckel add bar-chart        # → charts/BarChart.tsx + its helper, deps installed
+```
+
+## Owned source, not a dependency
+
+A scaffolded item is **copied into your deck**. There is no `@liebstoeckel/charts`
+package to import from and no version to track — `add` writes real `.tsx` files into
+your `charts/` directory, and you change the data, palette, layout, or motion however
+you like. Nothing upstream can override your edits.
+
+What *is* a dependency is the underlying drawing library: charts are built on
+[visx](https://airbnb.io/visx/), so `add` installs the specific `@visx/*` packages an
+item needs into your deck — exactly like shadcn adds Radix. You own the chart; visx is
+a normal npm dep you can see in `package.json`.
+
+<Aside type="tip" title="Why copy instead of import?">
+Composed UI (a chart, a layout) is most useful when you can bend it to the slide —
+re-style it, swap the data shape, retune the spring. A package would freeze those
+decisions; owned source keeps them yours. (Engine-coupled primitives still ship as
+`@liebstoeckel/*` packages — only the composable pieces are scaffolded.)
+</Aside>
+
+## What `add` writes
+
+`add` always **prints its plan before touching disk** — every file it will create,
+overwrite, or skip, plus the dependencies it will install — then writes:
+
+```text
+$ liebstoeckel add bar-chart
+
+liebstoeckel add — use-brand-colors, bar-chart  →  /path/to/deck
+
+   create         charts/useBrandColors.ts   [use-brand-colors]
+   create         charts/BarChart.tsx        [bar-chart]
+
+   dependencies: @visx/axis, @visx/grid, @visx/group, @visx/scale, @visx/shape
+
+   ✓ wrote 2 file(s)
+   installing: bun add --ignore-scripts @visx/axis @visx/grid @visx/group @visx/scale @visx/shape
+   ✓ dependencies installed
+```
+
+Note the **second file you didn't ask for**: `bar-chart` declares a *registry
+dependency* on `use-brand-colors`, so `add` resolves the graph and scaffolds the
+helper too (dependencies first, de-duplicated). Run `add` again for another chart that
+shares the helper and it's reported as `skip (exists)` — your copy is left untouched.
+
+Use the chart in a slide like any component:
+
+```tsx title="slides/03-metrics.tsx"
+import { BarChart } from "../charts/BarChart";
+
+export default function Metrics() {
+  return <BarChart data={[{ label: "Q1", value: 128 }, { label: "Q2", value: 174 }]} />;
+}
+```
+
+Charts read the active brand's palette through the scaffolded `useBrandColors` hook, so
+they pick up your deck's theme automatically — no color props required.
+
+## The catalog
+
+The bundled `@liebstoeckel` registry ships a visx gallery plus a few building blocks:
+
+| Item | Type | What it is |
+| --- | --- | --- |
+| `bar-chart`, `horizontal-bar-chart`, `grouped-bar-chart`, `stacked-bar-chart` | chart | bar families with axes, gridlines, value labels, staggered rise-in |
+| `line-chart`, `area-chart`, `sparkline` | chart | trends — full axes, or a compact inline spark |
+| `scatter-plot`, `heatmap` | chart | point clouds and grids |
+| `donut-chart`, `radar-chart`, `radial-bar-chart` | chart | radial — donut, spider, radial bars |
+| `treemap` | chart | sized hierarchy |
+| `hello-chart` | chart | a minimal starter to copy from |
+| `use-brand-colors` | hook | reads the brand chart palette from CSS vars (no flash) |
+| `brand-axis` | element | brand-styled `@visx/axis` wrappers |
+| `legend` | element | a small brand-styled legend |
+
+A leading **category** word is optional sugar, and you can scaffold several at once:
+
+```bash
+liebstoeckel add chart bar-chart line-chart donut-chart
+```
+
+Categories are `chart`, `hook`, `element`, `component`, `layout`, `motion`.
+
+## Flags
+
+```bash
+liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--no-install]
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--dir <deck>` | target deck directory (default: current directory) |
+| `--dry` | print the plan and stop — write nothing, install nothing |
+| `--force` | overwrite files that already exist (default: skip them) |
+| `--no-install` | scaffold the files but don't run `bun add` for their deps |
+
+Dependencies install with `bun add --ignore-scripts` — lifecycle scripts are off by
+design, since registry items may come from third parties. With `--no-install`, `add`
+prints the exact `bun add` line for you to run yourself.
+
+## Custom & third-party registries
+
+A bare name (`bar-chart`) resolves from the bundled `@liebstoeckel` registry. A scoped
+ref resolves from a registry you map in the deck's `liebstoeckel.json`:
+
+```jsonc title="liebstoeckel.json"
+{
+  "registries": {
+    "@acme": "./design-system/registry"   // a local path…
+  }
+}
+```
+
+```bash
+liebstoeckel add @acme/heatmap
+```
+
+Today a registry maps to the built-in `"default"` or a **local path**; npm, git, and
+HTTP transports are planned. A third-party registry is just a directory (or, later, a
+package) with an `items/<name>.json` manifest pointing at the source files to copy —
+so anyone can publish reusable building blocks, and `add` materializes them the same
+way: as owned source in your deck.
+
+<LinkCard title="CLI reference: add" href="/reference/cli/#add" description="The full add command surface." />
