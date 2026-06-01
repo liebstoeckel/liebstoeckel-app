@@ -13,7 +13,11 @@ export interface ScaffoldOptions {
 
 /** Pure: the file map for a new minimal deck (deck-relative path → contents).
  *  Kept as plain templates so a richer template library can grow from here. */
-export function deckFiles(name: string, brand = "liebstoeckel"): Record<string, string> {
+export function deckFiles(
+  name: string,
+  brand = "liebstoeckel",
+  dep = "workspace:*",
+): Record<string, string> {
   const title = titleCase(name);
   const pkg = {
     name: `@liebstoeckel/${name}`,
@@ -40,10 +44,10 @@ export function deckFiles(name: string, brand = "liebstoeckel"): Record<string, 
     ],
     scripts: { dev: "bun --hot ./server.ts", build: "bun run build.ts" },
     dependencies: {
-      "@liebstoeckel/engine": "workspace:*",
-      "@liebstoeckel/theme": "workspace:*",
+      "@liebstoeckel/engine": dep,
+      "@liebstoeckel/theme": dep,
     },
-    devDependencies: { "@liebstoeckel/thumbnails": "workspace:*" },
+    devDependencies: { "@liebstoeckel/thumbnails": dep },
   };
 
   return {
@@ -136,6 +140,21 @@ export default function Intro() {
   };
 }
 
+/** Real `^<version>` range for the framework deps, read from the CLI's own
+ *  package.json (the framework is released in lockstep, so the CLI version is the
+ *  framework version). Falls back to `workspace:*` if unset/0.0.0 — so an in-repo
+ *  deck still links the local packages either way (ADR 0051). */
+async function frameworkRange(): Promise<string> {
+  try {
+    const pkg = (await Bun.file(new URL("../package.json", import.meta.url)).json()) as {
+      version?: string;
+    };
+    return pkg.version && pkg.version !== "0.0.0" ? `^${pkg.version}` : "workspace:*";
+  } catch {
+    return "workspace:*";
+  }
+}
+
 /** Write a new minimal deck to disk. Throws on an invalid name or existing dir. */
 export async function scaffold(
   name: string,
@@ -151,7 +170,7 @@ export async function scaffold(
   const dir = join(root, name);
   if (existsSync(dir)) throw new Error(`${dir} already exists`);
 
-  const files = deckFiles(name, brand);
+  const files = deckFiles(name, brand, await frameworkRange());
   for (const [rel, content] of Object.entries(files)) {
     await Bun.write(join(dir, rel), content);
   }
