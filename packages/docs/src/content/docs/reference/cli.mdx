@@ -92,8 +92,12 @@ embeds a compressed copy of the deck's **own source** (slides, `package.json`, e
 project. Source collection uses `bun pm pack`, so your deck's `package.json` `"files"` list
 controls exactly what's embedded.
 
+The deck defaults to the **current directory**; pass it as a positional `[dir]` or
+with `--dir <deck>` (the convention shared by `pack`/`live`/`export` — ADR 0050).
+
 ```bash
-liebstoeckel build [dir]                       # defaults to the current directory
+liebstoeckel build                             # the deck in the current directory
+liebstoeckel build --dir <deck>                # or a positional [dir]
 liebstoeckel build [dir] --no-inline-package   # build WITHOUT the recoverable source
 liebstoeckel build [dir] --check               # validate only — no artifact, structured errors
 LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build [dir]   # skip thumbnails
@@ -135,9 +139,10 @@ cd <outdir> && bun install --ignore-scripts && bun run build
 ## `pack`
 
 Inspect — or emit — exactly the source a build would embed, without running a full build.
+The deck defaults to the **current directory**; pass it as `[dir]` or `--dir <deck>` (ADR 0050).
 
 ```bash
-liebstoeckel pack [dir]                  # print the file list
+liebstoeckel pack [dir]                  # print the file list (defaults to cwd)
 liebstoeckel pack [dir] -o deck.tgz      # write a gzip tarball (bun add-compatible)
 liebstoeckel pack [dir] --allow-secret   # override the secret gate
 ```
@@ -151,9 +156,13 @@ Present a deck to a room. Builds the deck if given a project dir, and captures
 slide thumbnails by default (so the overview grid is instant) — skipped, not
 failed, when no Chromium is available.
 
+The deck defaults to the **current directory**; pass it as a positional or with
+`--dir <deck>` (the same convention as `build`/`pack`/`export` — ADR 0050).
+
 ```bash
+liebstoeckel live                               # the deck in the current directory
 liebstoeckel live <deck.html | deck-dir> [--port N]
-liebstoeckel live <deck> --relay <url> --relay-token <token>
+liebstoeckel live --dir <deck> --relay <url> --relay-token <token>
 liebstoeckel live <deck> --no-thumbnails        # skip the capture step
 ```
 
@@ -192,10 +201,11 @@ liebstoeckel thumbs <built-deck.html> [--format webp|jpeg|png] [--width 640] [--
 Export slides to **PNG** files or a single **PDF** — one slide, a range, or the
 whole deck — rendered headless on the native 1280×720 canvas, the same pipeline as
 thumbnails. The input is a built `.html` **or** a deck source directory (built on
-demand).
+demand); it defaults to the **current directory**, or pass it as a positional or
+with `--dir <deck>` (ADR 0050).
 
 ```bash
-liebstoeckel export <deck.html|deck-dir> [opts]
+liebstoeckel export [deck.html|deck-dir|--dir <deck>] [opts]
 ```
 
 | flag | meaning |

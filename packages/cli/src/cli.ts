@@ -9,13 +9,13 @@ usage:
   liebstoeckel new <name> [--brand <brand>] [--dir <parent>]   scaffold a new deck as ./<name> (or under --dir)
   liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--json]   scaffold registry items (charts, …) into a deck as owned source
   liebstoeckel registry list|view <name> [--json]   browse the chart/component registry (JSON for agents)
-  liebstoeckel build [dir] [--no-inline-package] [--check]   build a deck → one self-contained .html (+ thumbnails)
+  liebstoeckel build [dir|--dir <deck>] [--no-inline-package] [--check]   build a deck (default: cwd) → one self-contained .html (+ thumbnails)
   liebstoeckel eject <deck.html> [outdir] [--force]   recover a built deck's editable source
-  liebstoeckel pack [dir] [-o <file.tgz>] [--allow-secret]   inspect/emit the source a build embeds
-  liebstoeckel live <deck|dir> [opts]          present live (LAN, or --relay <url> --relay-token <tok>)
+  liebstoeckel pack [dir|--dir <deck>] [-o <file.tgz>] [--allow-secret]   inspect/emit the source a build embeds (default: cwd)
+  liebstoeckel live [deck|dir|--dir <deck>] [opts]   present live (default: cwd; LAN, or --relay <url> --relay-token <tok>)
   liebstoeckel relay [opts]                    run a public relay (--port, --tokens, --public-url)
   liebstoeckel thumbs <deck.html> [opts]       (re)generate thumbnails for a built deck
-  liebstoeckel export <deck.html|dir> [opts]   export slides to PNG or PDF (--format, --slides 1,3,5-7, -o)
+  liebstoeckel export [deck.html|dir|--dir <deck>] [opts]   export slides (default: cwd) to PNG or PDF (--format, --slides 1,3,5-7, -o)
   liebstoeckel skill install [--target all] [--dir <deck>]   install the agent skill (SKILL.md + AGENTS.md) for deck authoring
   liebstoeckel login --api <https://app-host>   sign in to liebstoeckel cloud (device flow)
   liebstoeckel push <deck.html> [--title <t>]   upload a built deck to your cloud dashboard
@@ -34,6 +34,18 @@ const has = (argv: string[], name: string): boolean => argv.includes(name);
 
 const looksLikeDeck = (s: string | undefined): boolean =>
   !!s && (/\.html?$/i.test(s) || existsSync(resolve(s)));
+
+/** The deck a command acts on (ADR 0050): a leading positional, else `--dir
+ *  <deck>`, else the current directory. Returns the deck and argv with the
+ *  consumed token removed (other flags + their values pass through untouched). */
+function resolveDeck(argv: string[]): { dir: string; rest: string[] } {
+  if (argv[0] && !argv[0].startsWith("-")) return { dir: argv[0], rest: argv.slice(1) };
+  const i = argv.indexOf("--dir");
+  if (i >= 0 && argv[i + 1]) {
+    return { dir: argv[i + 1]!, rest: [...argv.slice(0, i), ...argv.slice(i + 2)] };
+  }
+  return { dir: ".", rest: argv };
+}
 
 async function runNew(argv: string[]) {
   const name = argv.find((a) => !a.startsWith("-"));
@@ -58,9 +70,9 @@ async function runNew(argv: string[]) {
 }
 
 async function runBuild(argv: string[]) {
-  const target = argv.find((a) => !a.startsWith("-"));
+  const { dir } = resolveDeck(argv);
   const prev = process.cwd();
-  if (target) process.chdir(resolve(target));
+  process.chdir(resolve(dir)); // resolve(".") = cwd, so the default is a no-op
   try {
     // `--check`: validate the deck bundles (no artifact, no thumbnails) and report
     // structured diagnostics for an agent's fix loop (ADR 0045).
@@ -117,7 +129,7 @@ async function runEject(argv: string[]) {
 }
 
 async function runPack(argv: string[]) {
-  const dir = resolve(argv.find((a) => !a.startsWith("-")) ?? ".");
+  const dir = resolve(resolveDeck(argv).dir);
   const out = flag(argv, "-o");
   const { collectDeckTarball } = await import("@liebstoeckel/engine/build/source-package");
   try {
@@ -158,14 +170,20 @@ async function main() {
       return runEject(rest);
     case "pack":
       return runPack(rest);
-    case "live":
-      return (await import("@liebstoeckel/live-server/cli")).runLive(rest);
+    case "live": {
+      // Resolve the deck (positional | --dir | cwd) and pass it as the positional
+      // the live runner expects (ADR 0050).
+      const { dir, rest: r } = resolveDeck(rest);
+      return (await import("@liebstoeckel/live-server/cli")).runLive([dir, ...r]);
+    }
     case "relay":
       return (await import("@liebstoeckel/present-relay/cli")).runRelay(rest);
     case "thumbs":
       return (await import("@liebstoeckel/thumbnails/cli")).runThumbs(rest);
-    case "export":
-      return (await import("@liebstoeckel/thumbnails/cli")).runExport(rest);
+    case "export": {
+      const { dir, rest: r } = resolveDeck(rest);
+      return (await import("@liebstoeckel/thumbnails/cli")).runExport([dir, ...r]);
+    }
     case undefined:
     case "-h":
     case "--help":
