@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: The umbrella liebstoeckel command — new, build, eject, pack, live, relay, thumbs, export.
+description: The umbrella liebstoeckel command — new, add, build, eject, pack, live, relay, thumbs, export.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -21,6 +21,40 @@ liebstoeckel new <name> [--brand <brand>]
 ```
 
 Generates `index.html`, `main.tsx`, `build.ts` (using `buildDeck` from `@liebstoeckel/thumbnails/build`), `server.ts`, `bunfig.toml`, and a starter `slides/01-intro.tsx`. The name must be lower-case letters/digits/hyphens; it won't overwrite an existing directory.
+
+## `add`
+
+Scaffold registry items (charts, hooks, layouts, …) into a deck as **owned
+source** — the code is copied into your project, not imported from a package, so
+you can edit it freely. Leaf dependencies the items need (e.g. the relevant
+`@visx/*` packages) are installed into the deck.
+
+```bash
+liebstoeckel add bar-chart                       # one item into the current deck
+liebstoeckel add chart bar-chart line-chart      # several at once (optional category word)
+liebstoeckel add donut-chart --dir ./presentations/demo
+liebstoeckel add bar-chart --dry                 # show the plan, write nothing
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--dir <deck>` | target deck directory (default: current directory) |
+| `--dry` | print the plan (files + dependencies) without writing |
+| `--force` | overwrite files that already exist (default: skip them) |
+| `--no-install` | don't run `bun add` for the items' dependencies |
+
+`add` always **prints its plan before writing** — which files it will create,
+overwrite, or skip, plus the dependencies it will install. Files land under the
+deck's `charts/` (or the item's own path); existing files are skipped unless
+`--force`. Dependencies are installed with `bun add --ignore-scripts` (the registry
+trust model), or skipped with `--no-install` so you can run it yourself.
+
+Items resolve through a registry **namespace**. A bare name (`bar-chart`) comes
+from the bundled default registry (`@liebstoeckel`); a scoped ref (`@acme/heatmap`)
+comes from a registry you map in the deck's `liebstoeckel.json` under
+`"registries"` — a `"default"` keyword or a local path today, with npm/git/HTTP
+transports planned. Categories are `chart`, `hook`, `element`, `component`,
+`layout`, `motion`; the leading category word is optional sugar.
 
 ## `build`
 
