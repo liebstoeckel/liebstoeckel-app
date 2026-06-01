@@ -7,14 +7,16 @@ const HELP = `liebstoeckel — code-first presentations
 
 usage:
   liebstoeckel new <name> [--brand <brand>]   scaffold a new deck under ./presentations
-  liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force]   scaffold registry items (charts, …) into a deck as owned source
-  liebstoeckel build [dir] [--no-inline-package]   build a deck → one self-contained .html (+ thumbnails)
+  liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--json]   scaffold registry items (charts, …) into a deck as owned source
+  liebstoeckel registry list|view <name> [--json]   browse the chart/component registry (JSON for agents)
+  liebstoeckel build [dir] [--no-inline-package] [--check]   build a deck → one self-contained .html (+ thumbnails)
   liebstoeckel eject <deck.html> [outdir] [--force]   recover a built deck's editable source
   liebstoeckel pack [dir] [-o <file.tgz>] [--allow-secret]   inspect/emit the source a build embeds
   liebstoeckel live <deck|dir> [opts]          present live (LAN, or --relay <url> --relay-token <tok>)
   liebstoeckel relay [opts]                    run a public relay (--port, --tokens, --public-url)
   liebstoeckel thumbs <deck.html> [opts]       (re)generate thumbnails for a built deck
   liebstoeckel export <deck.html|dir> [opts]   export slides to PNG or PDF (--format, --slides 1,3,5-7, -o)
+  liebstoeckel skill install [--target all] [--dir <deck>]   install the agent skill (SKILL.md + AGENTS.md) for deck authoring
 
   liebstoeckel <deck|dir> [opts]               shorthand for \`liebstoeckel live <deck>\`
 
@@ -52,10 +54,30 @@ async function runNew(argv: string[]) {
 
 async function runBuild(argv: string[]) {
   const target = argv.find((a) => !a.startsWith("-"));
-  const { buildDeck } = await import("@liebstoeckel/thumbnails/build");
   const prev = process.cwd();
   if (target) process.chdir(resolve(target));
   try {
+    // `--check`: validate the deck bundles (no artifact, no thumbnails) and report
+    // structured diagnostics for an agent's fix loop (ADR 0045).
+    if (has(argv, "--check")) {
+      const { checkDeck } = await import("@liebstoeckel/engine/build");
+      const { ok, diagnostics } = await checkDeck({ entry: "./index.html" });
+      const json = has(argv, "--json") || !process.stdout.isTTY;
+      if (json) {
+        console.log(JSON.stringify({ ok, diagnostics }, null, 2));
+      } else if (ok) {
+        console.log("✓ deck builds (check passed)");
+      } else {
+        for (const d of diagnostics) {
+          const loc = d.file ? ` ${d.file}${d.line ? `:${d.line}` : ""}` : "";
+          console.error(`✕${loc} ${d.message}`);
+        }
+      }
+      if (!ok) process.exit(1);
+      return;
+    }
+
+    const { buildDeck } = await import("@liebstoeckel/thumbnails/build");
     await buildDeck({
       entry: "./index.html",
       outdir: "./dist",
@@ -117,6 +139,10 @@ async function main() {
       return runNew(rest);
     case "add":
       return (await import("./add")).runAdd(rest);
+    case "registry":
+      return (await import("./registry")).runRegistry(rest);
+    case "skill":
+      return (await import("./skill")).runSkill(rest);
     case "build":
       return runBuild(rest);
     case "eject":

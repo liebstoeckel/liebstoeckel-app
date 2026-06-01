@@ -117,3 +117,52 @@ export async function bundleDeck({
 
   return result;
 }
+
+/** A single build diagnostic, shaped for machine consumption (ADR 0045). */
+export interface DeckDiagnostic {
+  level: string;
+  message: string;
+  file?: string;
+  line?: number;
+  column?: number;
+}
+
+function toDiagnostic(log: unknown): DeckDiagnostic {
+  if (typeof log === "string") return { level: "error", message: log };
+  const l = log as { level?: string; message?: string; position?: { file?: string; line?: number; column?: number } | null };
+  const pos = l?.position ?? undefined;
+  const pos1 = (n?: number) => (typeof n === "number" && n > 0 ? n : undefined);
+  return {
+    level: l?.level ?? "error",
+    message: l?.message ?? String(log),
+    file: pos?.file || undefined,
+    line: pos1(pos?.line),
+    column: pos1(pos?.column),
+  };
+}
+
+/**
+ * Validate that a deck **bundles** — resolves, transforms (MDX/Tailwind), and the
+ * visx ESM-interop holds — without writing any artifact or capturing thumbnails
+ * (ADR 0045). Runs the same plugin pipeline as `bundleDeck` with `throw: false` and
+ * returns structured diagnostics for an agent's check → fix loop. It does **not**
+ * type-check (Bun.build doesn't); it answers "does this deck build?".
+ */
+export async function checkDeck({ entry = "./index.html" }: { entry?: string } = {}): Promise<{
+  ok: boolean;
+  diagnostics: DeckDiagnostic[];
+}> {
+  try {
+    const result = await Bun.build({
+      entrypoints: [entry],
+      target: "browser",
+      plugins: [tailwind, mdx, visxEsmInterop],
+      throw: false,
+    });
+    return { ok: result.success, diagnostics: result.logs.map(toDiagnostic) };
+  } catch (err) {
+    // resolution / plugin failures can still throw (e.g. AggregateError)
+    const errs = err instanceof AggregateError ? err.errors : [err];
+    return { ok: false, diagnostics: errs.map(toDiagnostic) };
+  }
+}

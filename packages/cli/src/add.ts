@@ -186,6 +186,8 @@ export async function runAdd(argv: string[]): Promise<void> {
   const dry = argv.includes("--dry");
   const force = argv.includes("--force");
   const noInstall = argv.includes("--no-install");
+  // JSON when asked, or when piped (an agent) — pretty only on an interactive TTY (ADR 0045).
+  const json = argv.includes("--json") || !process.stdout.isTTY;
 
   try {
     const config = await loadConfig(deckDir);
@@ -208,37 +210,66 @@ export async function runAdd(argv: string[]): Promise<void> {
       for (const d of plan.npmDependencies) deps.add(d);
     }
 
-    // plan — show before writing (ADR 0041 review-before-write)
-    console.log(`\nliebstoeckel add — ${items.join(", ")}  →  ${deckDir}\n`);
-    const writes: ResolvedFile[] = [];
-    for (const f of files) {
+    // plan — computed before writing (ADR 0041 review-before-write)
+    const plan = files.map((f) => {
       const exists = existsSync(join(deckDir, f.target));
-      const status = exists && !force ? "skip (exists)" : exists ? "overwrite" : "create";
-      console.log(`   ${status.padEnd(14)} ${f.target}   [${f.item}]`);
-      if (!exists || force) writes.push(f);
+      const action = exists && !force ? "skip" : exists ? "overwrite" : "create";
+      return { target: f.target, item: f.item, action, file: f };
+    });
+    const writes = plan.filter((p) => p.action !== "skip").map((p) => p.file);
+    const dependencies = [...deps];
+
+    if (!json) {
+      console.log(`\nliebstoeckel add — ${items.join(", ")}  →  ${deckDir}\n`);
+      for (const p of plan) console.log(`   ${(p.action === "skip" ? "skip (exists)" : p.action).padEnd(14)} ${p.target}   [${p.item}]`);
+      if (dependencies.length) console.log(`\n   dependencies: ${dependencies.join(", ")}`);
     }
-    if (deps.size) console.log(`\n   dependencies: ${[...deps].join(", ")}`);
+
     if (dry) {
-      console.log(`\n   (dry run — nothing written)\n`);
+      if (json) {
+        console.log(JSON.stringify({ action: "plan", dir: deckDir, items, files: plan.map(({ file, ...p }) => p), dependencies }, null, 2));
+      } else {
+        console.log(`\n   (dry run — nothing written)\n`);
+      }
       return;
     }
 
     for (const f of writes) await Bun.write(join(deckDir, f.target), f.content);
-    console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped — use --force to overwrite)` : ""));
 
+    let installed = false;
     if (deps.size && !noInstall) {
-      const list = [...deps];
-      console.log(`   installing: bun add --ignore-scripts ${list.join(" ")}`);
       const { $ } = await import("bun");
       // pin the interpreter; --ignore-scripts per the registry trust model (ADR 0041)
-      await $`${process.execPath} add --ignore-scripts ${list}`.cwd(deckDir);
-      console.log(`   ✓ dependencies installed`);
-    } else if (deps.size) {
-      console.log(`   → install deps yourself: bun add --ignore-scripts ${[...deps].join(" ")}`);
+      const proc = $`${process.execPath} add --ignore-scripts ${dependencies}`.cwd(deckDir);
+      if (json) await proc.quiet();
+      else {
+        console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped — use --force to overwrite)` : ""));
+        console.log(`   installing: bun add --ignore-scripts ${dependencies.join(" ")}`);
+        await proc;
+        console.log(`   ✓ dependencies installed`);
+      }
+      installed = true;
+    } else if (!json) {
+      console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped — use --force to overwrite)` : ""));
+      if (deps.size) console.log(`   → install deps yourself: bun add --ignore-scripts ${dependencies.join(" ")}`);
     }
-    console.log();
+
+    if (json) {
+      console.log(JSON.stringify({
+        action: "add",
+        dir: deckDir,
+        items,
+        wrote: writes.map((f) => f.target),
+        skipped: plan.filter((p) => p.action === "skip").map((p) => p.target),
+        dependencies,
+        installed,
+      }, null, 2));
+    } else {
+      console.log();
+    }
   } catch (e) {
-    console.error(`✕ ${(e as Error).message}`);
+    if (json) console.log(JSON.stringify({ error: (e as Error).message }));
+    else console.error(`✕ ${(e as Error).message}`);
     process.exit(1);
   }
 }
