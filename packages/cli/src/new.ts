@@ -1,5 +1,6 @@
-import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const VALID_NAME = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -13,11 +14,20 @@ export interface ScaffoldOptions {
 
 /** Pure: the file map for a new minimal deck (deck-relative path → contents).
  *  Kept as plain templates so a richer template library can grow from here. */
+/** Per-dependency version ranges for the scaffolded deck (ADR 0051). Independent
+ *  versioning (RELEASE_PLAN.md), so each is resolved from its OWN package. */
+export interface DeckDeps {
+  engine?: string;
+  theme?: string;
+  thumbnails?: string;
+}
+
 export function deckFiles(
   name: string,
   brand = "liebstoeckel",
-  dep = "workspace:*",
+  deps: DeckDeps = {},
 ): Record<string, string> {
+  const range = (k: keyof DeckDeps) => deps[k] ?? "workspace:*";
   const title = titleCase(name);
   const pkg = {
     name: `@liebstoeckel/${name}`,
@@ -44,10 +54,10 @@ export function deckFiles(
     ],
     scripts: { dev: "bun --hot ./server.ts", build: "bun run build.ts" },
     dependencies: {
-      "@liebstoeckel/engine": dep,
-      "@liebstoeckel/theme": dep,
+      "@liebstoeckel/engine": range("engine"),
+      "@liebstoeckel/theme": range("theme"),
     },
-    devDependencies: { "@liebstoeckel/thumbnails": dep },
+    devDependencies: { "@liebstoeckel/thumbnails": range("thumbnails") },
   };
 
   return {
@@ -140,16 +150,42 @@ export default function Intro() {
   };
 }
 
-/** Real `^<version>` range for the framework deps, read from the CLI's own
- *  package.json (the framework is released in lockstep, so the CLI version is the
- *  framework version). Falls back to `workspace:*` if unset/0.0.0 — so an in-repo
- *  deck still links the local packages either way (ADR 0051). */
-async function frameworkRange(): Promise<string> {
+/** Version string from the nearest package.json above a resolved module path. */
+function nearestPkgVersion(entry: string): string | null {
+  let dir = dirname(entry.startsWith("file://") ? fileURLToPath(entry) : entry);
+  for (let i = 0; i < 6 && dir !== dirname(dir); i++) {
+    const pj = join(dir, "package.json");
+    if (existsSync(pj)) {
+      try {
+        return (JSON.parse(readFileSync(pj, "utf8")) as { version?: string }).version ?? null;
+      } catch {
+        return null;
+      }
+    }
+    dir = dirname(dir);
+  }
+  return null;
+}
+
+const caret = (v: string | null | undefined) => (v && v !== "0.0.0" ? `^${v}` : null);
+
+/** The `^<version>` range to scaffold for a framework dep, read from that dep's
+ *  OWN package (independent versioning — RELEASE_PLAN.md). Falls back to the CLI's
+ *  version (lockstep approximation when the dep can't be resolved, e.g. a
+ *  standalone CLI), then to `workspace:*` so an in-repo deck still links locally
+ *  (ADR 0051). */
+async function depRange(name: string): Promise<string> {
   try {
-    const pkg = (await Bun.file(new URL("../package.json", import.meta.url)).json()) as {
+    const own = caret(nearestPkgVersion(import.meta.resolveSync(name)));
+    if (own) return own;
+  } catch {
+    /* not resolvable from here (e.g. a published standalone CLI) — fall through */
+  }
+  try {
+    const cli = (await Bun.file(new URL("../package.json", import.meta.url)).json()) as {
       version?: string;
     };
-    return pkg.version && pkg.version !== "0.0.0" ? `^${pkg.version}` : "workspace:*";
+    return caret(cli.version) ?? "workspace:*";
   } catch {
     return "workspace:*";
   }
@@ -170,7 +206,11 @@ export async function scaffold(
   const dir = join(root, name);
   if (existsSync(dir)) throw new Error(`${dir} already exists`);
 
-  const files = deckFiles(name, brand, await frameworkRange());
+  const files = deckFiles(name, brand, {
+    engine: await depRange("@liebstoeckel/engine"),
+    theme: await depRange("@liebstoeckel/theme"),
+    thumbnails: await depRange("@liebstoeckel/thumbnails"),
+  });
   for (const [rel, content] of Object.entries(files)) {
     await Bun.write(join(dir, rel), content);
   }
