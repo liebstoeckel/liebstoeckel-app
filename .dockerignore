@@ -3,4 +3,6 @@
 **/node_modules
 **/dist
 **/.astro
+**/.output
+**/.nitro
 *.log
