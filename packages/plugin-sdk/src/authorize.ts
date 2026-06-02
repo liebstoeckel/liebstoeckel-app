@@ -82,7 +82,10 @@ function projectProtected(doc: Y.Doc, scope: AudienceScope): string {
       for (const [field, v] of Object.entries(js as Record<string, unknown>)) {
         if (!allowed.has(field)) filtered[field] = v;
       }
-      out[key] = filtered;
+      // Omit the root when only writable fields remain (empty after filtering): an
+      // audience creating a plugin root by writing its *first* vote (root didn't exist
+      // before) must not read as a protected change.
+      if (Object.keys(filtered).length > 0) out[key] = filtered;
     } else {
       out[key] = js;
     }

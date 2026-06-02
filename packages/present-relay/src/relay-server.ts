@@ -3,11 +3,20 @@ import {
   createSession,
   roleForToken,
   injectBootstrap,
+  audienceScopeFromHtml,
   type Peer,
+  type PeerRole,
   type Role,
   type Session,
 } from "@liebstoeckel/live-server";
 import { bearer, matchAccount, safeEqual } from "./auth";
+
+/** Pluggable object storage for session snapshots (ADR 0061). The hosted deploy wires
+ *  a Bun S3 client; the core stays storage-agnostic + testable. */
+export interface RelayStorage {
+  get(key: string): Promise<Uint8Array | null>;
+  put(key: string, bytes: Uint8Array): Promise<void>;
+}
 
 export interface RelayOptions {
   /** pre-shared account API tokens; a POST must present one as `Bearer` */
@@ -27,6 +36,14 @@ export interface RelayOptions {
   maxFrameBytes?: number;
   /** keepalive period for each session Hub */
   keepaliveMs?: number;
+  /** object storage for session snapshots (ADR 0061). Sessions created with an
+   *  `x-snapshot-key` header are seeded from it on create and snapshotted to it on a
+   *  timer + on end; absent → no persistence (the trusted/transient relay). */
+  storage?: RelayStorage;
+  /** snapshot debounce period (ms) for persisted sessions. */
+  snapshotMs?: number;
+  /** per-audience-peer write rate (enforced sessions). */
+  audienceRate?: { capacity: number; refillPerSec: number };
 }
 
 interface RelaySession {
@@ -39,7 +56,12 @@ interface RelaySession {
   /** privileged peer token: the local deck-runner that applies server-plugin effects */
   runnerToken: string;
   createdAt: number;
+  /** hosted live (ADR 0061): write-scope enforce audience peers. */
+  enforce: boolean;
+  /** object-storage key for this session's Yjs snapshot, if persisted. */
+  snapshotKey?: string;
   ttl?: ReturnType<typeof setTimeout>;
+  snap?: ReturnType<typeof setInterval>;
 }
 
 export interface RelayServer {
@@ -49,7 +71,7 @@ export interface RelayServer {
   stop(): void;
 }
 
-type WSData = { sessionId: string; peer: Peer | null };
+type WSData = { sessionId: string; peer: Peer | null; role: PeerRole };
 
 const hex = (bytes = 16): string => {
   const a = new Uint8Array(bytes);
@@ -63,6 +85,8 @@ const DEFAULTS = {
   sessionTtlMs: 6 * 60 * 60 * 1000,
   maxFrameBytes: 4 * 1024 * 1024,
   keepaliveMs: 25_000,
+  snapshotMs: 20_000,
+  audienceRate: { capacity: 20, refillPerSec: 5 },
 };
 
 /** Resolve the public http/ws origins for the links we return. */
@@ -96,10 +120,21 @@ export function createRelay(opts: RelayOptions): RelayServer {
   if (!opts.accountTokens.length) throw new Error("createRelay: at least one account token is required");
   const sessions = new Map<string, RelaySession>();
 
+  const persist = async (s: RelaySession) => {
+    if (!cfg.storage || !s.snapshotKey) return;
+    try {
+      await cfg.storage.put(s.snapshotKey, s.hub.snapshot());
+    } catch {
+      /* best-effort snapshot — a failed write must never crash the relay */
+    }
+  };
+
   const dropSession = (s: RelaySession) => {
     if (s.ttl) clearTimeout(s.ttl);
-    s.hub.destroy();
+    if (s.snap) clearInterval(s.snap);
     sessions.delete(s.id);
+    // Snapshot the final state before tearing down the doc (results survive — ADR 0061).
+    void persist(s).finally(() => s.hub.destroy());
   };
 
   const server = Bun.serve<WSData>({
@@ -125,18 +160,43 @@ export function createRelay(opts: RelayOptions): RelayServer {
         const count = [...sessions.values()].filter((s) => s.account === account).length;
         if (count >= cfg.maxSessionsPerAccount) return json({ error: "session quota reached" }, 429);
 
+        // Hosted live (ADR 0061): the control plane opts a session into audience
+        // write-scope enforcement (scope read from the deck's own embedded manifest)
+        // and names the object-storage key its Yjs snapshot persists to.
+        const enforce = req.headers.get("x-live-enforce") === "1";
+        const snapshotKey = req.headers.get("x-snapshot-key") || undefined;
+
         const session = createSession();
+        const hub = new Hub({
+          keepaliveMs: cfg.keepaliveMs,
+          audience: enforce ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate } : undefined,
+        });
+        // Re-seed from a prior snapshot if one exists (relay restart / reconnect).
+        if (cfg.storage && snapshotKey) {
+          try {
+            const prior = await cfg.storage.get(snapshotKey);
+            if (prior) hub.seed(prior);
+          } catch {
+            /* no prior snapshot / unreadable → start fresh */
+          }
+        }
         const rs: RelaySession = {
           id: session.id,
           account,
-          hub: new Hub({ keepaliveMs: cfg.keepaliveMs }),
+          hub,
           html,
           session,
           runnerToken: hex(),
           createdAt: Date.now(),
+          enforce,
+          snapshotKey,
         };
         rs.ttl = setTimeout(() => dropSession(rs), cfg.sessionTtlMs);
         (rs.ttl as { unref?: () => void }).unref?.();
+        if (cfg.storage && snapshotKey) {
+          rs.snap = setInterval(() => void persist(rs), cfg.snapshotMs);
+          (rs.snap as { unref?: () => void }).unref?.();
+        }
         sessions.set(rs.id, rs);
 
         const { http, ws } = originOf(req, opts);
@@ -169,10 +229,14 @@ export function createRelay(opts: RelayOptions): RelayServer {
       const sync = pathname.match(/^\/sync\/([^/]+)$/);
       if (sync) {
         const s = sessions.get(sync[1]!);
-        if (!s || !relayRole(s, url.searchParams.get("t"))) {
+        const relRole = s ? relayRole(s, url.searchParams.get("t")) : null;
+        if (!s || !relRole) {
           return new Response("forbidden", { status: 403 });
         }
-        const data: WSData = { sessionId: s.id, peer: null };
+        // viewer → audience (write-scope enforced when the session opted in);
+        // presenter + runner are trusted writers.
+        const role: PeerRole = relRole === "viewer" ? "audience" : "presenter";
+        const data: WSData = { sessionId: s.id, peer: null, role };
         return srv.upgrade(req, { data }) ? undefined : new Response("upgrade failed", { status: 400 });
       }
 
@@ -222,7 +286,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
           socket.close();
           return;
         }
-        socket.data.peer = s.hub.join((d) => socket.send(d));
+        socket.data.peer = s.hub.join((d) => socket.send(d), socket.data.role);
       },
       message(socket, msg) {
         if (typeof msg === "string") return;

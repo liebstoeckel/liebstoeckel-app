@@ -1,5 +1,14 @@
 export { startServer, lanAddress, type ServeOptions, type LiveServer } from "./server";
-export { Hub, type Peer, type Send } from "./relay";
+export { Hub, type Peer, type Send, type HubOptions, type AudiencePolicy } from "./relay";
+export { audienceScopeFromHtml } from "./scope";
+export {
+  buildAudienceScope,
+  authorizeAudienceUpdate,
+  tokenBucket,
+  type AudienceScope,
+  type PeerRole,
+  type TokenBucket,
+} from "@liebstoeckel/plugin-sdk/authorize";
 export { createSession, roleForToken, buildLinks, type Session, type Role, type Links } from "./session";
 export { injectBootstrap, type LiveBootstrap } from "./inject";
 export {

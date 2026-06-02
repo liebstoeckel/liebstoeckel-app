@@ -1,0 +1,161 @@
+import { test, expect, describe, afterEach } from "bun:test";
+import * as Y from "yjs";
+import { createRelay, type RelayServer, type RelayStorage } from "./relay-server";
+
+// Hosted live presenting (ADR 0061): audience write-scope enforcement + snapshot
+// persistence. A deck whose embedded manifest lets the audience write only `votes`
+// on plugin "poll".
+const TOKEN = "acct-secret-token";
+const MANIFEST = JSON.stringify({
+  v: 1,
+  plugins: [{ name: "poll", version: "0", hasServer: false, id: "poll", audienceWrites: ["votes"] }],
+});
+const DECK =
+  `<!doctype html><html><head><title>deck</title></head><body><div id=root></div>` +
+  `<script type="application/json" data-liebstoeckel-plugins>${MANIFEST}</script></body></html>`;
+
+let relay: RelayServer | null = null;
+afterEach(() => {
+  relay?.stop();
+  relay = null;
+});
+
+function memStorage(): RelayStorage & { map: Map<string, Uint8Array> } {
+  const map = new Map<string, Uint8Array>();
+  return {
+    map,
+    async get(k) {
+      return map.get(k) ?? null;
+    },
+    async put(k, b) {
+      map.set(k, b);
+    },
+  };
+}
+
+function start(extra: Partial<Parameters<typeof createRelay>[0]> = {}) {
+  relay = createRelay({ accountTokens: [TOKEN], hostname: "127.0.0.1", port: 0, ...extra });
+  return `http://127.0.0.1:${relay.port}`;
+}
+
+const create = (base: string, headers: Record<string, string> = {}) =>
+  fetch(`${base}/api/sessions`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${TOKEN}`, "content-type": "text/html", ...headers },
+    body: DECK,
+  }).then((r) => r.json());
+
+function wsOpen(url: string): Promise<{ ws: WebSocket; first: Promise<Uint8Array> }> {
+  return new Promise((res, rej) => {
+    const ws = new WebSocket(url);
+    ws.binaryType = "arraybuffer";
+    const first = new Promise<Uint8Array>((r) =>
+      ws.addEventListener("message", (e) => r(new Uint8Array(e.data as ArrayBuffer)), { once: true }),
+    );
+    ws.addEventListener("open", () => res({ ws, first }));
+    ws.addEventListener("error", rej);
+  });
+}
+
+/** Encode an update that sets `root[key][...]` so we can craft scoped/out-of-scope writes. */
+function setUpdate(build: (d: Y.Doc) => void): Uint8Array<ArrayBuffer> {
+  const d = new Y.Doc();
+  build(d);
+  return new Uint8Array(Y.encodeStateAsUpdate(d)); // copy into a plain ArrayBuffer for ws.send
+}
+
+const settle = () => new Promise((r) => setTimeout(r, 150));
+
+describe("hosted relay: audience write-scope enforcement", () => {
+  test("an audience (viewer) vote propagates, but an out-of-scope write is dropped", async () => {
+    const base = start();
+    const { id, presenterToken, viewerToken } = await create(base, { "x-live-enforce": "1" });
+    const wsBase = `ws://127.0.0.1:${relay!.port}/sync/${id}`;
+
+    const pres = await wsOpen(`${wsBase}?t=${presenterToken}`);
+    await pres.first;
+    const view = await wsOpen(`${wsBase}?t=${viewerToken}`);
+    await view.first;
+
+    // In-scope: a vote (plugin:poll.votes) — must reach the presenter.
+    view.ws.send(
+      setUpdate((d) => {
+        const votes = new Y.Map<string>();
+        votes.set("pidA", "red");
+        d.getMap("plugin:poll").set("votes", votes);
+      }),
+    );
+    // Out-of-scope: hijack navigation — must be dropped.
+    view.ws.send(setUpdate((d) => d.getMap("nav").set("slide", 99)));
+    await settle();
+
+    // Read the relay's authoritative doc via a fresh presenter connection (full replay).
+    const probe = await wsOpen(`${wsBase}?t=${presenterToken}`);
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, await probe.first);
+    expect((doc.getMap("plugin:poll").get("votes") as Y.Map<string>)?.get("pidA")).toBe("red"); // vote applied
+    expect(doc.getMap("nav").get("slide")).toBeUndefined(); // nav hijack dropped
+
+    pres.ws.close();
+    view.ws.close();
+    probe.ws.close();
+  });
+
+  test("without enforcement (CLI/trusted), a viewer may write anything", async () => {
+    const base = start();
+    const { id, presenterToken, viewerToken } = await create(base); // no x-live-enforce
+    const wsBase = `ws://127.0.0.1:${relay!.port}/sync/${id}`;
+    const pres = await wsOpen(`${wsBase}?t=${presenterToken}`);
+    await pres.first;
+    const view = await wsOpen(`${wsBase}?t=${viewerToken}`);
+    await view.first;
+    view.ws.send(setUpdate((d) => d.getMap("nav").set("slide", 7)));
+    await settle();
+    const probe = await wsOpen(`${wsBase}?t=${presenterToken}`);
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, await probe.first);
+    expect(doc.getMap("nav").get("slide")).toBe(7); // trusted model: applied
+    pres.ws.close();
+    view.ws.close();
+    probe.ws.close();
+  });
+});
+
+describe("hosted relay: snapshot persistence", () => {
+  test("a session snapshots its doc to storage on end, decodable later", async () => {
+    const storage = memStorage();
+    const base = start({ storage });
+    const { id, presenterToken } = await create(base, { "x-snapshot-key": "org1/sess1.snap" });
+    const pres = await wsOpen(`ws://127.0.0.1:${relay!.port}/sync/${id}?t=${presenterToken}`);
+    await pres.first;
+    pres.ws.send(setUpdate((d) => d.getMap("plugin:poll").set("question", "Q?")));
+    await settle();
+    pres.ws.close();
+
+    // End the session → snapshot persists.
+    await fetch(`${base}/api/sessions/${id}`, { method: "DELETE", headers: { authorization: `Bearer ${TOKEN}` } });
+    await settle();
+
+    const bytes = storage.map.get("org1/sess1.snap");
+    expect(bytes).toBeTruthy();
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, bytes!);
+    expect(doc.getMap("plugin:poll").get("question")).toBe("Q?");
+  });
+
+  test("re-creating with the same snapshot key re-seeds the doc", async () => {
+    const storage = memStorage();
+    // Pre-seed a snapshot as if a prior session had persisted it.
+    const seed = new Y.Doc();
+    seed.getMap("plugin:poll").set("question", "seeded");
+    storage.map.set("org1/resume.snap", new Uint8Array(Y.encodeStateAsUpdate(seed)));
+
+    const base = start({ storage });
+    const { id, viewerToken } = await create(base, { "x-snapshot-key": "org1/resume.snap" });
+    const view = await wsOpen(`ws://127.0.0.1:${relay!.port}/sync/${id}?t=${viewerToken}`);
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, await view.first); // full-state replay on join
+    expect(doc.getMap("plugin:poll").get("question")).toBe("seeded");
+    view.ws.close();
+  });
+});

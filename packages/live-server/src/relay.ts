@@ -79,6 +79,21 @@ export class Hub {
     return this.peers.size;
   }
 
+  /** Encode the full doc state as opaque Yjs update bytes — for persisting a session
+   *  snapshot to object storage (ADR 0061). Persisting bytes runs no deck code. */
+  snapshot(): Uint8Array {
+    return Y.encodeStateAsUpdate(this.doc);
+  }
+
+  /** Seed the doc from a prior snapshot (re-seed on relay restart). No-op on garbage. */
+  seed(update: Uint8Array): void {
+    try {
+      Y.applyUpdate(this.doc, update);
+    } catch {
+      /* ignore bad seed */
+    }
+  }
+
   join(send: Send, role: PeerRole = "presenter"): Peer {
     const key = Symbol("peer");
     this.peers.set(key, send);
