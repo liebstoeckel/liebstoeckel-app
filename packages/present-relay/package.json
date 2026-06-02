@@ -23,7 +23,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./cli": "./src/cli.ts"
+    "./cli": "./src/cli.ts",
+    "./grant": "./src/grant.ts"
   },
   "dependencies": {
     "@liebstoeckel/live-server": "workspace:*"
