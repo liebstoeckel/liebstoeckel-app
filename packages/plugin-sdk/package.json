@@ -24,7 +24,8 @@
     "./state": "./src/state.ts",
     "./manifest": "./src/manifest.ts",
     "./discovery": "./src/discovery.ts",
-    "./authorize": "./src/authorize.ts"
+    "./authorize": "./src/authorize.ts",
+    "./decode": "./src/decode.ts"
   },
   "peerDependencies": {
     "react": ">=19",
