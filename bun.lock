@@ -164,6 +164,7 @@
         "@liebstoeckel/plugin-poll": "workspace:*",
         "@liebstoeckel/plugin-qa": "workspace:*",
         "@liebstoeckel/plugin-reactions": "workspace:*",
+        "@liebstoeckel/present-relay": "workspace:*",
         "@liebstoeckel/theme": "workspace:*",
         "playwright-core": "1.60.0",
       },
