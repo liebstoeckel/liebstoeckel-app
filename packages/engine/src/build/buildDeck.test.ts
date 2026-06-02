@@ -6,18 +6,26 @@ import { rehydrateServerBundle } from "@liebstoeckel/plugin-sdk/manifest";
 import { buildServerBundle, buildPluginManifest, escapeInlineModuleScript } from "./buildDeck";
 
 describe("buildServerBundle", () => {
-  test("bundles a server entry (target:bun) → base64 that rehydrates & runs with ctx", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "srvplugin-"));
-    const entry = join(dir, "server.ts");
-    // a server plugin that bundles a local helper (proves bundling, not just copying)
-    await Bun.write(join(dir, "helper.ts"), `export const bump = (n: number): number => n + 100;`);
-    await Bun.write(entry, `import { bump } from "./helper"; export default (ctx: { n: number }) => bump(ctx.n);`);
+  // Real `Bun.build` (target:bun). Isolated (unique tmp dir), but bundling is
+  // CPU-heavy and slows sharply under full-suite/loaded-CI host load — the default
+  // 5s timeout flakes there. ~0.5s unloaded; 60s is generous headroom for a loaded
+  // box while still catching a genuine hang.
+  test(
+    "bundles a server entry (target:bun) → base64 that rehydrates & runs with ctx",
+    async () => {
+      const dir = mkdtempSync(join(tmpdir(), "srvplugin-"));
+      const entry = join(dir, "server.ts");
+      // a server plugin that bundles a local helper (proves bundling, not just copying)
+      await Bun.write(join(dir, "helper.ts"), `export const bump = (n: number): number => n + 100;`);
+      await Bun.write(entry, `import { bump } from "./helper"; export default (ctx: { n: number }) => bump(ctx.n);`);
 
-    const b64 = await buildServerBundle(entry);
-    expect(typeof b64).toBe("string");
-    const mod = await rehydrateServerBundle(b64, "fixture");
-    expect((mod.default as (c: { n: number }) => number)({ n: 5 })).toBe(105);
-  });
+      const b64 = await buildServerBundle(entry);
+      expect(typeof b64).toBe("string");
+      const mod = await rehydrateServerBundle(b64, "fixture");
+      expect((mod.default as (c: { n: number }) => number)({ n: 5 })).toBe(105);
+    },
+    60_000,
+  );
 });
 
 describe("buildPluginManifest", () => {
