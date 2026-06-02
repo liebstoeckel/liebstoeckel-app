@@ -22,16 +22,28 @@ async function deepImportIsFunction(plugins: import("bun").BunPlugin[]): Promise
   }
 }
 
+// Each case does a real `Bun.build` (bundling visx) — CPU-heavy and slow under
+// loaded-CI host load, so give a generous explicit timeout (the default 5s flakes).
+const BUILD_TIMEOUT = 60_000;
+
 describe("visx-esm-interop plugin", () => {
   // Documents the underlying Bun.build bug: without the plugin the deep CJS
   // default import is mis-resolved to an object (renders as "Element type is invalid").
-  test("baseline: Bun.build mis-resolves the deep CJS default import to an object", async () => {
-    expect(await deepImportIsFunction([])).toBe(false);
-  });
+  test(
+    "baseline: Bun.build mis-resolves the deep CJS default import to an object",
+    async () => {
+      expect(await deepImportIsFunction([])).toBe(false);
+    },
+    BUILD_TIMEOUT,
+  );
 
   // The guarantee users/agents rely on: with the plugin, the whole visx surface
   // (grid, heatmap, hierarchy, …) resolves to real components and renders.
-  test("with plugin: the deep CJS default import resolves to the real component", async () => {
-    expect(await deepImportIsFunction([visxEsmInterop])).toBe(true);
-  });
+  test(
+    "with plugin: the deep CJS default import resolves to the real component",
+    async () => {
+      expect(await deepImportIsFunction([visxEsmInterop])).toBe(true);
+    },
+    BUILD_TIMEOUT,
+  );
 });

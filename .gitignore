@@ -16,6 +16,12 @@ dist/
 _shot.png
 _ft/
 
+# test temp dirs created IN the source tree (need repo node_modules for bundling);
+# leak only if a test is killed/timed-out before its cleanup runs — never commit them
+.vt-*/
+.verify-*/
+srvplugin-*/
+
 # editor / OS
 .DS_Store
 .idea/
