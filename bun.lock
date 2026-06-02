@@ -336,17 +336,6 @@
         "@liebstoeckel/thumbnails": "workspace:*",
       },
     },
-    "presentations/test123": {
-      "name": "@liebstoeckel/test123",
-      "version": "0.0.0",
-      "dependencies": {
-        "@liebstoeckel/engine": "workspace:*",
-        "@liebstoeckel/theme": "workspace:*",
-      },
-      "devDependencies": {
-        "@liebstoeckel/thumbnails": "workspace:*",
-      },
-    },
     "presentations/visx-showcase": {
       "name": "@liebstoeckel/visx-showcase",
       "version": "0.0.0",
@@ -622,8 +611,6 @@
     "@liebstoeckel/registry": ["@liebstoeckel/registry@workspace:packages/registry"],
 
     "@liebstoeckel/registry-demo": ["@liebstoeckel/registry-demo@workspace:presentations/registry-demo"],
-
-    "@liebstoeckel/test123": ["@liebstoeckel/test123@workspace:presentations/test123"],
 
     "@liebstoeckel/theme": ["@liebstoeckel/theme@workspace:packages/theme"],
 
