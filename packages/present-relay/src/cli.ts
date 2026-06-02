@@ -1,5 +1,31 @@
 #!/usr/bin/env bun
-import { createRelay } from "./relay-server";
+import { S3Client } from "bun";
+import { createRelay, type RelayStorage } from "./relay-server";
+
+/** Object storage for session snapshots (ADR 0061), wired from S3_* env when present.
+ *  Absent → the relay runs without persistence (transient/CLI use). */
+function s3Storage(): RelayStorage | undefined {
+  const endpoint = process.env.S3_ENDPOINT;
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+  if (!endpoint || !accessKeyId || !secretAccessKey) return undefined;
+  const client = new S3Client({
+    endpoint,
+    accessKeyId,
+    secretAccessKey,
+    bucket: process.env.S3_BUCKET ?? "decks",
+    region: process.env.S3_REGION ?? "us-east-1",
+  });
+  return {
+    async get(key) {
+      const f = client.file(key);
+      return (await f.exists()) ? new Uint8Array(await f.arrayBuffer()) : null;
+    },
+    async put(key, bytes) {
+      await client.write(key, bytes);
+    },
+  };
+}
 
 const hex = (bytes = 24): string => {
   const a = new Uint8Array(bytes);
@@ -26,7 +52,8 @@ export function runRelay(argv: string[]) {
     generated = true;
   }
 
-  const relay = createRelay({ accountTokens: tokens, port, publicBaseUrl });
+  const storage = s3Storage();
+  const relay = createRelay({ accountTokens: tokens, port, publicBaseUrl, storage });
   const base = publicBaseUrl?.replace(/\/$/, "") ?? `http://localhost:${relay.port}`;
 
   console.log(`\n▶  liebstoeckel relay listening on :${relay.port}`);
