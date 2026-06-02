@@ -19,7 +19,7 @@ describe("deckFiles (pure templates)", () => {
       ]),
     );
     const pkg = JSON.parse(files["package.json"]!);
-    expect(pkg.name).toBe("@liebstoeckel/my-talk");
+    expect(pkg.name).toBe("my-talk"); // bare name — not the framework npm scope (ADR 0054)
     expect(pkg.dependencies["@liebstoeckel/engine"]).toBe("workspace:*");
     expect(pkg.devDependencies["@liebstoeckel/thumbnails"]).toBe("workspace:*");
     expect(files["build.ts"]).toContain('buildDeck } from "@liebstoeckel/thumbnails/build"');
@@ -70,7 +70,7 @@ describe("scaffold (writes to disk)", () => {
     const res = await scaffold("demo-x", { dir: root });
     expect(res.dir).toBe(join(root, "demo-x"));
     for (const f of res.files) expect(existsSync(join(res.dir, f))).toBe(true);
-    expect(JSON.parse(readFileSync(join(res.dir, "package.json"), "utf8")).name).toBe("@liebstoeckel/demo-x");
+    expect(JSON.parse(readFileSync(join(res.dir, "package.json"), "utf8")).name).toBe("demo-x");
   });
 
   test("refuses to overwrite an existing dir", async () => {

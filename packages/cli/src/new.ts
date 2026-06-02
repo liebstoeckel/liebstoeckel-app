@@ -30,7 +30,10 @@ export function deckFiles(
   const range = (k: keyof DeckDeps) => deps[k] ?? "workspace:*";
   const title = titleCase(name);
   const pkg = {
-    name: `@liebstoeckel/${name}`,
+    // A scaffolded deck is the user's own private project — a BARE name, not the
+    // framework's `@liebstoeckel/` npm scope (ADR 0054). Only the framework
+    // *dependencies* below keep that scope.
+    name,
     version: "0.0.0",
     private: true,
     type: "module",

@@ -3,6 +3,10 @@ node_modules/
 
 # build output (single-file decks are generated)
 dist/
+# TanStack Start / Nitro build output — rebuilt in-image by the Dockerfile
+.output/
+.nitro/
+.tanstack/
 
 # astro docs cache
 .astro/

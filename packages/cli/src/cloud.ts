@@ -1,10 +1,11 @@
-// `liebstoeckel login` + `liebstoeckel push` — the cloud upload path (ADR 0047).
-// login runs the OAuth 2.0 device-authorization grant (RFC 8628) against the
-// control plane's /api/auth/device/* endpoints; push uploads a single-file deck
-// to the versioned /api/v1/decks with the resulting bearer token.
+// `liebstoeckel login` + `liebstoeckel push` + `liebstoeckel orgs` — the cloud
+// path (ADR 0047/0053). login runs the OAuth 2.0 device-authorization grant
+// (RFC 8628) against the control plane's /api/auth/device/* endpoints; push
+// uploads a single-file deck to the versioned /api/v1/decks with the resulting
+// bearer token; orgs lists/sets the active organization decks are pushed into.
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 
 const CLIENT_ID = "liebstoeckel-cli";
 const CONFIG_DIR = join(homedir(), ".config", "liebstoeckel");
@@ -13,6 +14,8 @@ const CONFIG_FILE = join(CONFIG_DIR, "credentials.json");
 interface Creds {
   api: string;
   token: string;
+  /** Default organization slug to push into (ADR 0053); omitted = personal. */
+  org?: string;
 }
 
 function flag(argv: string[], name: string): string | undefined {
@@ -33,6 +36,28 @@ async function saveCreds(c: Creds): Promise<void> {
   await Bun.write(CONFIG_FILE, JSON.stringify(c, null, 2));
   // Best-effort lock-down of the token file.
   await Bun.$`chmod 600 ${CONFIG_FILE}`.quiet().catch(() => {});
+}
+
+/** The deck's title from its built HTML `<title>` (mirrors control-core). */
+function titleFromHtml(html: string): string | null {
+  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (!m) return null;
+  const t = m[1]!
+    .replace(/&(amp|lt|gt|quot|#39|apos);/g, (e) =>
+      ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&apos;": "'" })[e] ?? e,
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+  return t || null;
+}
+
+/** The deck name from the build path: the folder above `dist/`, else the parent
+ *  folder (so `…/my-talk/dist/index.html` → "my-talk", never "index"). */
+function deckNameFromPath(absFile: string): string | null {
+  const parts = absFile.split(sep);
+  const di = parts.lastIndexOf("dist");
+  if (di > 0) return parts[di - 1] ?? null;
+  return basename(dirname(absFile)) || null;
 }
 
 export async function runLogin(argv: string[]): Promise<void> {
@@ -84,7 +109,9 @@ export async function runLogin(argv: string[]): Promise<void> {
       error_description?: string;
     };
     if (tRes.ok && t.access_token) {
-      await saveCreds({ api, token: t.access_token });
+      // Preserve any previously chosen default org.
+      const prev = await loadCreds();
+      await saveCreds({ api, token: t.access_token, org: prev?.api === api ? prev.org : undefined });
       console.log("\n✓ logged in. Credentials saved to ~/.config/liebstoeckel/credentials.json\n");
       return;
     }
@@ -101,7 +128,7 @@ export async function runLogin(argv: string[]): Promise<void> {
 export async function runPush(argv: string[]): Promise<void> {
   const file = argv.find((a) => !a.startsWith("-"));
   if (!file) {
-    console.error("usage: liebstoeckel push <deck.html> [--title <title>] [--api <host>]");
+    console.error("usage: liebstoeckel push <deck.html> [--title <t>] [--org <slug>] [--api <host>]");
     process.exit(1);
   }
   const creds = await loadCreds();
@@ -116,20 +143,26 @@ export async function runPush(argv: string[]): Promise<void> {
     console.error(`✕ no such file: ${file}`);
     process.exit(1);
   }
-  const title = flag(argv, "--title") ?? basename(file).replace(/\.html?$/i, "");
-  const body = await Bun.file(path).arrayBuffer();
+  const html = await Bun.file(path).text();
+  // Title precedence (ADR 0054): --title → embedded <title> → deck folder name.
+  const title =
+    flag(argv, "--title") ?? titleFromHtml(html) ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
+  const org = flag(argv, "--org") ?? creds.org;
 
-  const res = await fetch(`${api}/api/v1/decks`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${creds.token}`,
-      "content-type": "text/html",
-      "x-deck-title": title,
-    },
-    body,
-  });
+  const headers: Record<string, string> = {
+    authorization: `Bearer ${creds.token}`,
+    "content-type": "text/html",
+    "x-deck-title": title,
+  };
+  if (org) headers["x-org-slug"] = org;
+
+  const res = await fetch(`${api}/api/v1/decks`, { method: "POST", headers, body: html });
   if (res.status === 401) {
     console.error("✕ session expired — run `liebstoeckel login` again.");
+    process.exit(1);
+  }
+  if (res.status === 403) {
+    console.error(`✕ you're not a member of org "${org}". Run \`liebstoeckel orgs\` to see your teams.`);
     process.exit(1);
   }
   if (!res.ok) {
@@ -137,5 +170,61 @@ export async function runPush(argv: string[]): Promise<void> {
     process.exit(1);
   }
   const { deck } = (await res.json()) as { deck: { id: string; title: string } };
-  console.log(`\n✓ pushed "${deck.title}" — view it at ${api}\n`);
+  console.log(`\n✓ pushed "${deck.title}"${org ? ` to ${org}` : ""} — view it at ${api}\n`);
+}
+
+interface OrgList {
+  active: { slug: string; name: string; role: string; personal: boolean };
+  orgs: Array<{ slug: string; name: string; personal: boolean }>;
+}
+
+async function fetchOrgs(api: string, token: string): Promise<OrgList> {
+  const res = await fetch(`${api}/api/v1/orgs`, { headers: { authorization: `Bearer ${token}` } });
+  if (res.status === 401) {
+    console.error("✕ session expired — run `liebstoeckel login` again.");
+    process.exit(1);
+  }
+  if (!res.ok) {
+    console.error(`✕ could not list orgs: ${res.status} ${await res.text()}`);
+    process.exit(1);
+  }
+  return (await res.json()) as OrgList;
+}
+
+export async function runOrgs(argv: string[]): Promise<void> {
+  const creds = await loadCreds();
+  const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
+  if (!creds || !api) {
+    console.error("✕ not logged in — run: liebstoeckel login --api <https://app-host>");
+    process.exit(1);
+  }
+
+  const [sub, slug] = argv.filter((a) => !a.startsWith("-"));
+
+  if (sub === "use") {
+    if (!slug) {
+      console.error("usage: liebstoeckel orgs use <slug>");
+      process.exit(1);
+    }
+    const { orgs } = await fetchOrgs(api, creds.token);
+    const match = orgs.find((o) => o.slug === slug);
+    if (!match) {
+      console.error(`✕ no org "${slug}" — you're a member of: ${orgs.map((o) => o.slug).join(", ")}`);
+      process.exit(1);
+    }
+    await saveCreds({ ...creds, org: match.personal ? undefined : match.slug });
+    console.log(`\n✓ pushes now go to ${match.name} (${match.slug})\n`);
+    return;
+  }
+
+  // Default: list.
+  const { orgs } = await fetchOrgs(api, creds.token);
+  const def = creds.org;
+  console.log("\n  your workspaces:\n");
+  for (const o of orgs) {
+    const marker = (def ? o.slug === def : o.personal) ? "→" : " ";
+    const tags = o.personal ? "  (personal)" : "";
+    console.log(`   ${marker} ${o.slug.padEnd(24)} ${o.name}${tags}`);
+  }
+  console.log(`\n  → = default for \`push\`. Change it with: liebstoeckel orgs use <slug>\n`);
 }
