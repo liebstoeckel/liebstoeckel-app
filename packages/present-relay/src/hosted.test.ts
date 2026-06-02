@@ -164,6 +164,24 @@ describe("hosted relay: plan limits (ADR 0061)", () => {
   });
 });
 
+describe("hosted relay: audience white-label (ADR 0061)", () => {
+  test("the audience view carries the provenance badge when watermarked; presenter never does", async () => {
+    const base = start();
+    const { id, presenterToken, viewerToken } = await create(base, { "x-watermark": "1" });
+    const aud = await fetch(`${base}/s/${id}?t=${viewerToken}`).then((r) => r.text());
+    const pres = await fetch(`${base}/s/${id}?t=${presenterToken}`).then((r) => r.text());
+    expect(aud).toContain("Published with liebstoeckel");
+    expect(pres).not.toContain("Published with liebstoeckel");
+  });
+
+  test("a white-label session omits the badge on the audience view", async () => {
+    const base = start();
+    const { id, viewerToken } = await create(base); // no x-watermark
+    const aud = await fetch(`${base}/s/${id}?t=${viewerToken}`).then((r) => r.text());
+    expect(aud).not.toContain("Published with liebstoeckel");
+  });
+});
+
 describe("hosted relay: snapshot persistence", () => {
   test("a session snapshots its doc to storage on end, decodable later", async () => {
     const storage = memStorage();

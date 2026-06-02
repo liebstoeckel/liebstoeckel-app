@@ -10,7 +10,7 @@ export {
   type TokenBucket,
 } from "@liebstoeckel/plugin-sdk/authorize";
 export { createSession, roleForToken, buildLinks, type Session, type Role, type Links } from "./session";
-export { injectBootstrap, type LiveBootstrap } from "./inject";
+export { injectBootstrap, injectWatermark, type LiveBootstrap } from "./inject";
 export {
   embedManifest,
   extractManifest,

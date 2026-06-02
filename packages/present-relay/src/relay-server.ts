@@ -3,6 +3,7 @@ import {
   createSession,
   roleForToken,
   injectBootstrap,
+  injectWatermark,
   audienceScopeFromHtml,
   type Peer,
   type PeerRole,
@@ -65,6 +66,8 @@ interface RelaySession {
   audienceCap?: number;
   /** current connected audience peers (for the cap). */
   audienceCount: number;
+  /** show the "Published with liebstoeckel" provenance badge (free tier; ADR 0061). */
+  watermark: boolean;
   /** object-storage key for this session's Yjs snapshot, if persisted. */
   snapshotKey?: string;
   ttl?: ReturnType<typeof setTimeout>;
@@ -179,6 +182,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         const ttlMs = Number.isFinite(reqTtl) && reqTtl > 0 ? Math.min(reqTtl, cfg.sessionTtlMs) : cfg.sessionTtlMs;
         const capHdr = Number(req.headers.get("x-audience-cap") ?? "");
         const audienceCap = Number.isFinite(capHdr) && capHdr > 0 ? capHdr : undefined;
+        const watermark = req.headers.get("x-watermark") === "1";
 
         const session = createSession();
         const hub = new Hub({
@@ -206,6 +210,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
           enforce,
           audienceCap,
           audienceCount: 0,
+          watermark,
           snapshotKey,
         };
         rs.ttl = setTimeout(() => dropSession(rs), ttlMs);
@@ -274,7 +279,10 @@ export function createRelay(opts: RelayOptions): RelayServer {
         const { http, ws } = originOf(req, opts);
         const wsUrl = `${ws}/sync/${s.id}?t=${token}`;
         const viewer = `${http}/s/${s.id}?t=${s.session.viewerToken}`;
-        const body = injectBootstrap(s.html, { ws: wsUrl, session: s.id, role, token, participant: "", viewer });
+        // Free-tier provenance badge on the public audience view (ADR 0061); paid
+        // (white-label) sessions omit it. Presenter view is never watermarked.
+        const html = s.watermark && role === "viewer" ? injectWatermark(s.html) : s.html;
+        const body = injectBootstrap(html, { ws: wsUrl, session: s.id, role, token, participant: "", viewer });
         return new Response(body, {
           headers: {
             "content-type": "text/html; charset=utf-8",
