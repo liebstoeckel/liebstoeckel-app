@@ -72,6 +72,17 @@ function deckNameFromPath(absFile: string): string | null {
   return basename(dirname(absFile)) || null;
 }
 
+/** A stable, url-safe deck key from a name (ADR 0058: re-push upserts by it). */
+function slugifyKey(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "deck"
+  );
+}
+
 export async function runLogin(argv: string[]): Promise<void> {
   const api = (flag(argv, "--api") ?? process.env.LIEBSTOECKEL_API ?? "").replace(/\/+$/, "");
   if (!api) {
@@ -142,7 +153,9 @@ export async function runPush(argv: string[]): Promise<void> {
   const { org, rest } = resolveOrg(argv, creds?.org);
   const file = rest.find((a) => !a.startsWith("-"));
   if (!file) {
-    console.error("usage: liebstoeckel push <deck.html> [--title <t>] [--org <slug>] [--api <host>]");
+    console.error(
+      "usage: liebstoeckel push <deck.html> [--title <t>] [--name <key>] [--new] [--org <slug>] [--api <host>]",
+    );
     process.exit(1);
   }
   const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
@@ -157,14 +170,19 @@ export async function runPush(argv: string[]): Promise<void> {
     process.exit(1);
   }
   const html = await Bun.file(path).text();
+  const deckName = flag(argv, "--name") ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
   // Title precedence (ADR 0054): --title → embedded <title> → deck folder name.
-  const title =
-    flag(argv, "--title") ?? titleFromHtml(html) ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
+  const title = flag(argv, "--title") ?? titleFromHtml(html) ?? deckName;
+  // Deck key (ADR 0058): re-push upserts by it. `--new` forces a fresh deck by
+  // uniquifying the key, so the same folder can also start a separate deck.
+  const fresh = argv.includes("--new");
+  const deckKey = fresh ? `${slugifyKey(deckName)}-${Math.random().toString(36).slice(2, 8)}` : slugifyKey(deckName);
 
   const headers: Record<string, string> = {
     authorization: `Bearer ${creds.token}`,
     "content-type": "text/html",
     "x-deck-title": title,
+    "x-deck-key": deckKey,
   };
   if (org) headers["x-org-slug"] = org;
 
@@ -181,8 +199,13 @@ export async function runPush(argv: string[]): Promise<void> {
     console.error(`✕ upload failed: ${res.status} ${await res.text()}`);
     process.exit(1);
   }
-  const { deck } = (await res.json()) as { deck: { id: string; title: string } };
-  console.log(`\n✓ pushed "${deck.title}"${org ? ` to ${org}` : ""} — view it at ${api}\n`);
+  const { deck, version, isNew } = (await res.json()) as {
+    deck: { id: string; title: string };
+    version: number;
+    isNew: boolean;
+  };
+  const what = isNew ? "created" : `updated to v${version}`;
+  console.log(`\n✓ pushed "${deck.title}" (${what})${org ? ` in ${org}` : ""} — view it at ${api}\n`);
 }
 
 interface OrgList {
@@ -244,6 +267,7 @@ export async function runOrgs(argv: string[]): Promise<void> {
 interface CloudDeck {
   id: string;
   title: string;
+  version: number;
   shared: boolean;
   shareSlug: string | null;
   views: number;
@@ -282,7 +306,8 @@ export async function runDecks(argv: string[]): Promise<void> {
   console.log(`\n  decks${org ? ` in ${org}` : ""}:\n`);
   for (const d of decks) {
     const share = d.shared ? "shared" : "private";
-    console.log(`   ${d.title.slice(0, 40).padEnd(40)}  ${String(d.views).padStart(5)} views  ${share}`);
+    const ver = `v${d.version}`.padStart(4);
+    console.log(`   ${d.title.slice(0, 36).padEnd(36)} ${ver}  ${String(d.views).padStart(5)} views  ${share}`);
   }
   console.log();
 }

@@ -18,7 +18,7 @@ usage:
   liebstoeckel export [deck.html|dir|--dir <deck>] [opts]   export slides (default: cwd) to PNG or PDF (--format, --slides 1,3,5-7, -o)
   liebstoeckel skill install [--target all] [--dir <deck>]   install the agent skill (SKILL.md + AGENTS.md) for deck authoring
   liebstoeckel login --api <https://app-host>   sign in to liebstoeckel cloud (device flow)
-  liebstoeckel push <deck.html> [--title <t>] [--org <slug>]   upload a built deck to your cloud dashboard
+  liebstoeckel push <deck.html> [--title <t>] [--name <key>] [--new] [--org <slug>]   upload/update a deck (re-push = new version)
   liebstoeckel orgs [use <slug>]               list your workspaces / set the default org for \`push\`
   liebstoeckel decks [--org <slug>]            list your cloud decks (with view counts) in an org
 
