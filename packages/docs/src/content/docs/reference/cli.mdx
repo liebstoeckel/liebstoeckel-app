@@ -283,15 +283,21 @@ visible to every member (the shared library).
 liebstoeckel build                       # produces ./dist/index.html
 liebstoeckel push ./dist/index.html --title "My deck"
 liebstoeckel push --org acme             # push into a team you belong to
+liebstoeckel push                        # edit + re-push → a new VERSION of the same deck
 ```
 
-The **title** is taken from `--title`, else the deck's embedded `<title>`, else the deck
-folder name (never "index"). A **cover thumbnail** is read from the deck's built-in slide
-thumbnails — no extra flags. With no positional path, `push` looks for `./dist/index.html`.
+**Re-push = a new version.** `push` identifies a deck by a stable **key** (the deck
+folder name, or `--name <key>`); pushing the same key again updates that deck **in place
+at the same URL** (a new version on Pro; the latest is replaced on free). `--new` forces a
+separate deck. The **title** comes from `--title` → the embedded `<title>` → the folder
+name (never "index"); a **cover** is read from the deck's built-in thumbnails. With no
+path, `push` looks for `./dist/index.html`.
 
 | Flag | Meaning |
 | --- | --- |
 | `--title <title>` | deck title (default: the deck's `<title>`, then its folder name) |
+| `--name <key>` | the deck key to upsert (default: the deck folder name) |
+| `--new` | create a separate deck instead of updating the matching one |
 | `--org <slug>` | push into this organization (default: the one set by `orgs use`, else personal) |
 | `--api <url>` | override the stored control-plane host |
 

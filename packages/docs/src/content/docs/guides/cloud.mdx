@@ -79,6 +79,18 @@ to set:
 - **White-label** *(paid)* — drop the "Published with liebstoeckel" banner. The abuse-report
   path always remains.
 
+## Versions
+
+A deck has a **stable identity** across re-pushes. `push` keys a deck by its folder name
+(or `--name`), so editing and pushing again **updates the same deck at the same URL** —
+the share link and view counts carry over. `--new` starts a separate deck.
+
+- **Free** keeps the **latest** version (a re-push replaces it; the URL and stats are
+  preserved).
+- **Pro / Team** keep **full version history** with one-click **rollback** — open a deck's
+  **Versions** panel to see every version, preview one (`/d/:id?v=N`), or make an older
+  version current.
+
 ## View analytics
 
 Every deck shows **view counts** (total and unique) — for both private opens and public
