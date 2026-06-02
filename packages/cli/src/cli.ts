@@ -20,6 +20,7 @@ usage:
   liebstoeckel login --api <https://app-host>   sign in to liebstoeckel cloud (device flow)
   liebstoeckel push <deck.html> [--title <t>] [--org <slug>]   upload a built deck to your cloud dashboard
   liebstoeckel orgs [use <slug>]               list your workspaces / set the default org for \`push\`
+  liebstoeckel decks [--org <slug>]            list your cloud decks (with view counts) in an org
 
   liebstoeckel <deck|dir> [opts]               shorthand for \`liebstoeckel live <deck>\`
 
@@ -167,6 +168,8 @@ async function main() {
       return (await import("./cloud")).runPush(rest);
     case "orgs":
       return (await import("./cloud")).runOrgs(rest);
+    case "decks":
+      return (await import("./cloud")).runDecks(rest);
     case "build":
       return runBuild(rest);
     case "eject":

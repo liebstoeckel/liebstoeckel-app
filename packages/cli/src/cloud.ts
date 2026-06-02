@@ -23,6 +23,18 @@ function flag(argv: string[], name: string): string | undefined {
   return i >= 0 ? argv[i + 1] : undefined;
 }
 
+/** Uniform cloud org-targeting (ADR 0057): an explicit `--org <slug>` wins, else
+ *  the stored default (`creds.org`), else undefined (= the personal workspace,
+ *  the server's no-`x-org-slug` default). Strips the flag so a following
+ *  positional (e.g. a deck path) isn't mistaken for the org value. */
+export function resolveOrg(argv: string[], defaultOrg?: string): { org?: string; rest: string[] } {
+  const i = argv.indexOf("--org");
+  if (i >= 0 && argv[i + 1]) {
+    return { org: argv[i + 1], rest: [...argv.slice(0, i), ...argv.slice(i + 2)] };
+  }
+  return { org: defaultOrg, rest: argv };
+}
+
 async function loadCreds(): Promise<Creds | null> {
   try {
     return JSON.parse(await Bun.file(CONFIG_FILE).text()) as Creds;
@@ -126,12 +138,13 @@ export async function runLogin(argv: string[]): Promise<void> {
 }
 
 export async function runPush(argv: string[]): Promise<void> {
-  const file = argv.find((a) => !a.startsWith("-"));
+  const creds = await loadCreds();
+  const { org, rest } = resolveOrg(argv, creds?.org);
+  const file = rest.find((a) => !a.startsWith("-"));
   if (!file) {
     console.error("usage: liebstoeckel push <deck.html> [--title <t>] [--org <slug>] [--api <host>]");
     process.exit(1);
   }
-  const creds = await loadCreds();
   const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
   if (!creds || !api) {
     console.error("✕ not logged in — run: liebstoeckel login --api <https://app-host>");
@@ -147,7 +160,6 @@ export async function runPush(argv: string[]): Promise<void> {
   // Title precedence (ADR 0054): --title → embedded <title> → deck folder name.
   const title =
     flag(argv, "--title") ?? titleFromHtml(html) ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
-  const org = flag(argv, "--org") ?? creds.org;
 
   const headers: Record<string, string> = {
     authorization: `Bearer ${creds.token}`,
@@ -174,7 +186,7 @@ export async function runPush(argv: string[]): Promise<void> {
 }
 
 interface OrgList {
-  active: { slug: string; name: string; role: string; personal: boolean };
+  active: { slug: string; name: string; role: string; personal: boolean; plan: string };
   orgs: Array<{ slug: string; name: string; personal: boolean }>;
 }
 
@@ -218,7 +230,7 @@ export async function runOrgs(argv: string[]): Promise<void> {
   }
 
   // Default: list.
-  const { orgs } = await fetchOrgs(api, creds.token);
+  const { active, orgs } = await fetchOrgs(api, creds.token);
   const def = creds.org;
   console.log("\n  your workspaces:\n");
   for (const o of orgs) {
@@ -226,5 +238,51 @@ export async function runOrgs(argv: string[]): Promise<void> {
     const tags = o.personal ? "  (personal)" : "";
     console.log(`   ${marker} ${o.slug.padEnd(24)} ${o.name}${tags}`);
   }
-  console.log(`\n  → = default for \`push\`. Change it with: liebstoeckel orgs use <slug>\n`);
+  console.log(`\n  plan: ${active.plan}   → = default for \`push\` (change: liebstoeckel orgs use <slug>)\n`);
+}
+
+interface CloudDeck {
+  id: string;
+  title: string;
+  shared: boolean;
+  shareSlug: string | null;
+  views: number;
+  uniqueViews: number;
+}
+
+/** `liebstoeckel decks [--org <slug>]` — list the active org's decks + views. */
+export async function runDecks(argv: string[]): Promise<void> {
+  const creds = await loadCreds();
+  const { org } = resolveOrg(argv, creds?.org);
+  const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
+  if (!creds || !api) {
+    console.error("✕ not logged in — run: liebstoeckel login --api <https://app-host>");
+    process.exit(1);
+  }
+  const headers: Record<string, string> = { authorization: `Bearer ${creds.token}` };
+  if (org) headers["x-org-slug"] = org;
+  const res = await fetch(`${api}/api/v1/decks`, { headers });
+  if (res.status === 401) {
+    console.error("✕ session expired — run `liebstoeckel login` again.");
+    process.exit(1);
+  }
+  if (res.status === 403) {
+    console.error(`✕ you're not a member of org "${org}".`);
+    process.exit(1);
+  }
+  if (!res.ok) {
+    console.error(`✕ could not list decks: ${res.status} ${await res.text()}`);
+    process.exit(1);
+  }
+  const { decks } = (await res.json()) as { decks: CloudDeck[] };
+  if (!decks.length) {
+    console.log(`\n  no decks${org ? ` in ${org}` : ""} yet — push one with: liebstoeckel push\n`);
+    return;
+  }
+  console.log(`\n  decks${org ? ` in ${org}` : ""}:\n`);
+  for (const d of decks) {
+    const share = d.shared ? "shared" : "private";
+    console.log(`   ${d.title.slice(0, 40).padEnd(40)}  ${String(d.views).padStart(5)} views  ${share}`);
+  }
+  console.log();
 }
