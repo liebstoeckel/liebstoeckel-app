@@ -79,6 +79,32 @@ to set:
 - **White-label** *(paid)* — drop the "Published with liebstoeckel" banner. The abuse-report
   path always remains.
 
+## Present live from the dashboard
+
+Turn any hosted deck into a **live, interactive session** straight from the browser — no
+CLI, no local runtime. Open a deck's **● present live** action and **Start live session**:
+
+- A **presenter view** opens (you drive the slides); a **shareable audience link** appears
+  that you can copy or hand out — your audience opens it on any device and follows along,
+  voting in polls, asking questions, and reacting in real time.
+- Press **End session** when you're done. The audience link stops working immediately.
+
+The deck runs in an isolated sandbox for the audience, and the relay that carries the
+session **never executes deck code** — the same isolation as a [public relay](/guides/relay/).
+Audience members can only interact through plugins (votes, questions, reactions); they can't
+drive navigation or tamper with results.
+
+**Free** gives you a real, usable live session — capped audience and duration, and
+**results aren't kept** once the session ends. **Pro / Team** raise the limits, drop the
+audience watermark, and **persist results**: open a past session under **present live** to
+see decoded poll tallies, the Q&A backlog, and reaction totals.
+
+<Aside type="note">
+Built-in plugins (poll, Q&A, reactions) sync purely peer-to-peer over the shared document,
+so hosted live presenting needs no server-side plugin code. Plugins with custom server logic
+run in the presenter's own browser tab.
+</Aside>
+
 ## Shared brand
 
 Your org is an **authenticated registry** — the same protocol as `liebstoeckel add`,
@@ -119,7 +145,8 @@ abuse that doubles as the upgrade nudge; paid plans are uncapped.
 ## Plans
 
 Workspaces are **free** by default. Paid plans (**Pro** / **Team**) unlock uncapped share
-views, view history with longer retention, white-label shares, and longer/no-expiry links.
+views, view history with longer retention, white-label shares, longer/no-expiry links, and
+larger live sessions with **persisted results**.
 Plans attach to the **organization** (one subscription per workspace). The CLI shows your
 current plan under `liebstoeckel orgs`.
 
