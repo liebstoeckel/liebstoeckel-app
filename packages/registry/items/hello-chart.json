@@ -1,0 +1,27 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "hello-chart",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "A tiny animated visx bar chart that reads the active brand palette — the registry's hello world.",
+  "dependencies": [
+    "@visx/group",
+    "@visx/scale"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/HelloChart.tsx",
+      "type": "registry:chart",
+      "target": "charts/HelloChart.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "HelloChart",
+    "props": "{ data?: HelloChartDatum[]; width?: number; height?: number }",
+    "dataShape": "{ label: string; value: number }[]",
+    "example": "<HelloChart data={[{ label: 'A', value: 10 }, { label: 'B', value: 24 }]} />"
+  }
+}

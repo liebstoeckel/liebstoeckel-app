@@ -1,0 +1,27 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "treemap",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Squarified treemap of hierarchical data, colored from the brand palette.",
+  "dependencies": [
+    "@visx/group",
+    "@visx/hierarchy"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/Treemap.tsx",
+      "type": "registry:chart",
+      "target": "charts/Treemap.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "TreemapChart",
+    "props": "{ data?: TreemapNode; width?: number; height?: number }",
+    "dataShape": "{ name: string; value?: number; children?: TreemapNode[] }  // leaves carry value",
+    "example": "<TreemapChart data={{ name: 'Spend', children: [{ name: 'GPU', value: 320 }, { name: 'Storage', value: 210 }] }} />"
+  }
+}

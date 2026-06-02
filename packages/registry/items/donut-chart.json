@@ -1,0 +1,27 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "donut-chart",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Animated donut (Pie) with a legend and a centered total.",
+  "dependencies": [
+    "@visx/group",
+    "@visx/shape"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/DonutChart.tsx",
+      "type": "registry:chart",
+      "target": "charts/DonutChart.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "DonutChart",
+    "props": "{ data?: DonutDatum[]; width?: number; height?: number }",
+    "dataShape": "{ label: string; value: number }[]",
+    "example": "<DonutChart data={[{ label: 'Direct', value: 38 }, { label: 'Organic', value: 27 }]} />"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "radial-bar-chart",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Bars arranged around a circle (Arc + scaleRadial), sweeping in.",
+  "dependencies": [
+    "@visx/group",
+    "@visx/scale",
+    "@visx/shape"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/RadialBarChart.tsx",
+      "type": "registry:chart",
+      "target": "charts/RadialBarChart.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "RadialBarChart",
+    "props": "{ data?: RadialBarDatum[]; width?: number; height?: number }",
+    "dataShape": "{ label: string; value: number }[]",
+    "example": "<RadialBarChart data={[{ label: 'Mon', value: 68 }, { label: 'Tue', value: 92 }]} />"
+  }
+}

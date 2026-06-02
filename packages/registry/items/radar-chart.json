@@ -1,0 +1,27 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "radar-chart",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Radar/spider chart with concentric grid and 1–2 filled series.",
+  "dependencies": [
+    "@visx/group",
+    "@visx/scale"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/RadarChart.tsx",
+      "type": "registry:chart",
+      "target": "charts/RadarChart.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "RadarChart",
+    "props": "{ data?: RadarSeries[]; width?: number; height?: number }",
+    "dataShape": "{ name: string; data: { axis: string; value: number }[] }[]  // 1–2 series",
+    "example": "<RadarChart data={[{ name: 'v2', data: [{ axis: 'Speed', value: 82 }, { axis: 'Cost', value: 58 }] }]} />"
+  }
+}

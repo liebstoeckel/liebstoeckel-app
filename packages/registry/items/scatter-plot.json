@@ -1,0 +1,29 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "scatter-plot",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Scatter plot on linear scales with brand-styled axes and gridlines.",
+  "dependencies": [
+    "@visx/grid",
+    "@visx/group",
+    "@visx/scale"
+  ],
+  "registryDependencies": [
+    "brand-axis",
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/ScatterPlot.tsx",
+      "type": "registry:chart",
+      "target": "charts/ScatterPlot.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "ScatterPlot",
+    "props": "{ data?: ScatterDatum[]; width?: number; height?: number }",
+    "dataShape": "{ x: number; y: number; z?: number }[]  // z scales the point radius",
+    "example": "<ScatterPlot data={[{ x: 10, y: 20, z: 5 }, { x: 30, y: 45 }]} />"
+  }
+}

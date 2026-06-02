@@ -1,0 +1,28 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "heatmap",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Rectangular heatmap (HeatmapRect) with value-scaled opacity from the brand palette.",
+  "dependencies": [
+    "@visx/group",
+    "@visx/heatmap",
+    "@visx/scale"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/Heatmap.tsx",
+      "type": "registry:chart",
+      "target": "charts/Heatmap.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "Heatmap",
+    "props": "{ data?: HeatmapDatum[]; width?: number; height?: number }",
+    "dataShape": "{ day: string; values: number[] }[]  // one row per column, values down the column",
+    "example": "<Heatmap data={[{ day: 'Mon', values: [3, 7, 2, 9] }, { day: 'Tue', values: [5, 1, 8, 4] }]} />"
+  }
+}

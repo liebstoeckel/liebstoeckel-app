@@ -1,0 +1,31 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "line-chart",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Multi-series smooth line chart with axes, gridlines and a left-to-right draw-in.",
+  "dependencies": [
+    "@visx/axis",
+    "@visx/curve",
+    "@visx/grid",
+    "@visx/group",
+    "@visx/scale",
+    "@visx/shape"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/LineChart.tsx",
+      "type": "registry:chart",
+      "target": "charts/LineChart.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "LineChart",
+    "props": "{ data?: LineSeries[]; width?: number; height?: number }",
+    "dataShape": "{ label: string; points: { x: number; y: number }[] }[]",
+    "example": "<LineChart data={[{ label: 'Revenue', points: [{ x: 0, y: 10 }, { x: 1, y: 22 }] }]} />"
+  }
+}

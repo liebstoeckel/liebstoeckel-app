@@ -1,0 +1,28 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "horizontal-bar-chart",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Horizontal ranking bars with category + value labels and a grow-in animation.",
+  "dependencies": [
+    "@visx/group",
+    "@visx/scale",
+    "@visx/shape"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/HorizontalBarChart.tsx",
+      "type": "registry:chart",
+      "target": "charts/HorizontalBarChart.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "HorizontalBarChart",
+    "props": "{ data?: HorizontalBarChartDatum[]; width?: number; height?: number }",
+    "dataShape": "{ label: string; value: number }[]",
+    "example": "<HorizontalBarChart data={[{ label: 'Rust', value: 82 }, { label: 'Go', value: 67 }]} />"
+  }
+}

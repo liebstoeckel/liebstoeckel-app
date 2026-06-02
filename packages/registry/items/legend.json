@@ -1,0 +1,27 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "legend",
+  "type": "registry:element",
+  "version": "0.1.0",
+  "description": "Brand-styled ordinal legend (@visx/legend) for placing beside a chart.",
+  "dependencies": [
+    "@visx/legend",
+    "@visx/scale"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/Legend.tsx",
+      "type": "registry:element",
+      "target": "charts/Legend.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "Legend",
+    "props": "{ entries: LegendEntry[]; title?: string }",
+    "dataShape": "{ label: string; color: string }[]  // passed as the `entries` prop",
+    "example": "<Legend entries={[{ label: 'Direct', color: '#6ee7b7' }]} />"
+  }
+}

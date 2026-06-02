@@ -1,0 +1,32 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "area-chart",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Gradient area + line with axes and a clip-path reveal.",
+  "dependencies": [
+    "@visx/axis",
+    "@visx/curve",
+    "@visx/gradient",
+    "@visx/grid",
+    "@visx/group",
+    "@visx/scale",
+    "@visx/shape"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/AreaChart.tsx",
+      "type": "registry:chart",
+      "target": "charts/AreaChart.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "AreaChart",
+    "props": "{ data?: AreaPoint[]; width?: number; height?: number }",
+    "dataShape": "{ x: number; y: number }[]",
+    "example": "<AreaChart data={[{ x: 0, y: 120 }, { x: 1, y: 180 }, { x: 2, y: 150 }]} />"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "use-brand-colors",
+  "type": "registry:hook",
+  "version": "0.1.0",
+  "description": "Reads the active brand's chart palette from CSS variables, synchronously (no flash).",
+  "dependencies": [],
+  "registryDependencies": [],
+  "files": [
+    {
+      "path": "files/charts/useBrandColors.ts",
+      "type": "registry:hook",
+      "target": "charts/useBrandColors.ts"
+    }
+  ],
+  "meta": {
+    "exports": "useBrandColors",
+    "props": "()",
+    "example": "const c = useBrandColors(); // c.viz[], c.text, c.accent, c.surface, c.muted, c.border"
+  }
+}

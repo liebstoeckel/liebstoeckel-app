@@ -1,0 +1,30 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "bar-chart",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Vertical bar chart with axes, gridlines, value labels and a staggered spring rise-in.",
+  "dependencies": [
+    "@visx/axis",
+    "@visx/grid",
+    "@visx/group",
+    "@visx/scale",
+    "@visx/shape"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/BarChart.tsx",
+      "type": "registry:chart",
+      "target": "charts/BarChart.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "BarChart",
+    "props": "{ data?: BarChartDatum[]; width?: number; height?: number }",
+    "dataShape": "{ label: string; value: number }[]",
+    "example": "<BarChart data={[{ label: 'Q1', value: 128 }, { label: 'Q2', value: 174 }]} />"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "grouped-bar-chart",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Side-by-side grouped bars (BarGroup) with a legend, axes and rise-in.",
+  "dependencies": [
+    "@visx/axis",
+    "@visx/grid",
+    "@visx/group",
+    "@visx/scale",
+    "@visx/shape"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/GroupedBarChart.tsx",
+      "type": "registry:chart",
+      "target": "charts/GroupedBarChart.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "GroupedBarChart",
+    "props": "{ data?: GroupedDatum[]; keys?: string[]; width?: number; height?: number }",
+    "dataShape": "{ label: string; [series: string]: number | string }[]  // + keys: string[] of the series",
+    "example": "<GroupedBarChart data={[{ label: 'Q1', '2024': 10, '2025': 14 }]} keys={['2024', '2025']} />"
+  }
+}

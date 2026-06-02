@@ -1,0 +1,30 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "stacked-bar-chart",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "Stacked bars across categories (BarStack) with a legend, axes and rise-in.",
+  "dependencies": [
+    "@visx/axis",
+    "@visx/grid",
+    "@visx/group",
+    "@visx/scale",
+    "@visx/shape"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/StackedBarChart.tsx",
+      "type": "registry:chart",
+      "target": "charts/StackedBarChart.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "StackedBarChart",
+    "props": "{ data?: StackedDatum[]; keys?: string[]; width?: number; height?: number }",
+    "dataShape": "{ label: string; [series: string]: number | string }[]  // + keys: string[] of the series",
+    "example": "<StackedBarChart data={[{ label: 'Q1', Direct: 10, Social: 5 }]} keys={['Direct', 'Social']} />"
+  }
+}

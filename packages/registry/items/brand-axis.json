@@ -1,0 +1,25 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "brand-axis",
+  "type": "registry:element",
+  "version": "0.1.0",
+  "description": "Brand-styled wrappers around @visx/axis (BrandAxisBottom / BrandAxisLeft).",
+  "dependencies": [
+    "@visx/axis"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/BrandAxis.tsx",
+      "type": "registry:element",
+      "target": "charts/BrandAxis.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "BrandAxisBottom, BrandAxisLeft",
+    "props": "(@visx/axis props: scale, top?, left?, …)",
+    "example": "<BrandAxisLeft scale={yScale} /> <BrandAxisBottom top={h} scale={xScale} />"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "name": "sparkline",
+  "type": "registry:chart",
+  "version": "0.1.0",
+  "description": "A tiny inline area+line sparkline (no axes) — takes data: number[] and a unique id.",
+  "dependencies": [
+    "@visx/curve",
+    "@visx/gradient",
+    "@visx/group",
+    "@visx/scale",
+    "@visx/shape"
+  ],
+  "registryDependencies": [
+    "use-brand-colors"
+  ],
+  "files": [
+    {
+      "path": "files/charts/Sparkline.tsx",
+      "type": "registry:chart",
+      "target": "charts/Sparkline.tsx"
+    }
+  ],
+  "meta": {
+    "exports": "Sparkline",
+    "props": "{ data?: number[]; id: string; width?: number; height?: number }",
+    "dataShape": "number[]  // note: a unique `id` prop is required",
+    "example": "<Sparkline id=\"rev\" data={[12, 14, 11, 18, 22, 27]} />"
+  }
+}
