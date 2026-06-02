@@ -1,0 +1,20 @@
+# Changelog
+
+## [0.2.0](https://github.com/limond/liebstoeckel-app/compare/components-v0.1.0...components-v0.2.0) (2026-06-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* npm scope, CLI binary, env vars and runtime globals renamed.
+
+### Features
+
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **code:** build-time Shiki highlighting + animated CodeMagic ([90a4b56](https://github.com/limond/liebstoeckel-app/commit/90a4b56d39b0640caaec9bfb7799e600d958a0f3))
+* **export:** PNG/PDF slide export — single slide, range, or whole deck ([430a687](https://github.com/limond/liebstoeckel-app/commit/430a687704ba94910317e7d15ec78142f199903d))
+* **featureset-3:** build-time thumbnails + secure public relay ([dd3feba](https://github.com/limond/liebstoeckel-app/commit/dd3febadd8641f64657d5298b29ea5242f34bc64))
+
+
+### Code Refactoring
+
+* rename present-it → liebstoeckel ([1c1dba6](https://github.com/limond/liebstoeckel-app/commit/1c1dba6e34502aff8df6bab2f1183ef40bc83a0b))

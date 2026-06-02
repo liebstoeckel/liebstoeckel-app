@@ -1,0 +1,37 @@
+# Changelog
+
+## [0.2.0](https://github.com/limond/liebstoeckel-app/compare/thumbnails-v0.1.0...thumbnails-v0.2.0) (2026-06-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* npm scope, CLI binary, env vars and runtime globals renamed.
+
+### Features
+
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** umbrella present-it CLI with deck scaffolding ([92e03b0](https://github.com/limond/liebstoeckel-app/commit/92e03b0b23f213bbf53261abb21fd74535a533d3))
+* **engine,cli:** inline source package — compiled decks are ejectable (ADR 0039) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
+* **export:** PNG/PDF slide export — single slide, range, or whole deck ([430a687](https://github.com/limond/liebstoeckel-app/commit/430a687704ba94910317e7d15ec78142f199903d))
+* **featureset-3:** build-time thumbnails + secure public relay ([dd3feba](https://github.com/limond/liebstoeckel-app/commit/dd3febadd8641f64657d5298b29ea5242f34bc64))
+* **plugins:** audience Q&A + live reactions ([d7f0055](https://github.com/limond/liebstoeckel-app/commit/d7f00554d486bf20f7229044bb874813c1e29f8e))
+* **thumbnails:** encode WebP via Bun.Image (default), drop JPEG-only ([2d8408e](https://github.com/limond/liebstoeckel-app/commit/2d8408e668fe2507687967bb9aed20f0c25e6548))
+* **thumbnails:** generate by default at build time (graceful skip) ([27b3b75](https://github.com/limond/liebstoeckel-app/commit/27b3b75a2f0f2658821098c016499eb478cd187c))
+* **thumbnails:** render plugin fallbacks in captured thumbnails ([d9f2df9](https://github.com/limond/liebstoeckel-app/commit/d9f2df9622700968c81fc20634c3feacfe7f20bb))
+
+
+### Bug Fixes
+
+* **presenter:** render previews live (crisp), raise thumbnail res to native 1280x720 ([29c7a42](https://github.com/limond/liebstoeckel-app/commit/29c7a42e75b2cbc77ee4101593d56738f65ab749))
+
+
+### Code Refactoring
+
+* rename present-it → liebstoeckel ([1c1dba6](https://github.com/limond/liebstoeckel-app/commit/1c1dba6e34502aff8df6bab2f1183ef40bc83a0b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.2.0
