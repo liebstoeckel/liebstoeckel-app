@@ -1,0 +1,77 @@
+---
+title: Cloud & teams
+description: Host decks on the liebstoeckel control plane, work as a team with organizations, roles, and a shared deck library.
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+
+A built deck is one self-contained `.html` you can host anywhere. **liebstoeckel cloud**
+(the hosted control plane) adds a private, always-on home for your decks behind a login —
+and, for teams, a shared library with members, roles, and invitations.
+
+<Aside type="note">
+The framework is MPL-2.0 and fully self-hostable. The cloud is the operated layer; the
+CLI talks to it over a versioned REST API, so you can point it at your own deployment.
+</Aside>
+
+## Sign in from the terminal
+
+Authentication is passwordless. `login` runs the OAuth 2.0 device-authorization grant:
+the CLI prints a URL, you open it, sign in with a one-time email code, and approve.
+
+```bash
+liebstoeckel login --api https://<your-control-plane-host>
+```
+
+The token is stored in `~/.config/liebstoeckel/credentials.json` (mode `600`).
+
+## Push a deck
+
+```bash
+liebstoeckel build          # → ./dist/index.html
+liebstoeckel push           # uploads ./dist/index.html
+```
+
+The deck's **title** comes from its embedded `<title>` (or `--title`), and its **cover
+thumbnail** is read from the slide thumbnails already baked into the file — nothing extra
+to send. It appears in your dashboard immediately.
+
+## Organizations: personal and teams
+
+Every account has a **personal workspace** (just you) and can create or join **team
+organizations**. A deck always belongs to exactly one organization — the *active* one.
+
+- In the **dashboard**, switch the active workspace with the switcher in the top-left.
+- From the **CLI**, list your workspaces and choose where `push` lands:
+
+```bash
+liebstoeckel orgs            # list workspaces; → marks the push default
+liebstoeckel orgs use acme   # make the "acme" team the default
+liebstoeckel push --org acme # …or target a team for one push
+```
+
+## Teams: shared library, members & roles
+
+Every deck pushed to a team is visible to **all its members** — a shared library, with
+"uploaded by" attribution. Who can do what is governed by three roles:
+
+| Role | Can |
+| --- | --- |
+| **owner** | everything, incl. manage any deck, manage members, delete the org |
+| **admin** | manage any deck, invite/remove members, change roles |
+| **member** | upload decks; manage **their own** decks; view all team decks |
+
+Manage all of this on the dashboard's **Team** page:
+
+- **Invite a colleague** by email. They get a link, sign in with a one-time code, and join
+  automatically (still passwordless).
+- **Change roles** or **remove** members.
+- **Leave** a team you no longer need (your personal workspace always stays).
+
+## Share a deck publicly
+
+Any deck can be published to a time-limited public link served on a separate domain, with
+provenance chrome and an abuse-report path. See the deck's **share** action in the
+dashboard.
+
+<LinkCard title="CLI reference: login · push · orgs" href="/reference/cli/#login" />

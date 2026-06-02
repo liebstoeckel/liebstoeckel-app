@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: The umbrella liebstoeckel command — new, add, registry, build, eject, pack, live, relay, thumbs, export, skill, login, push.
+description: The umbrella liebstoeckel command — new, add, registry, build, eject, pack, live, relay, thumbs, export, skill, login, push, orgs.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -276,17 +276,37 @@ liebstoeckel login --api https://<your-control-plane-host>
 ## `push`
 
 Upload a built single-file deck to your cloud dashboard. Authenticates with the token
-from `login`; the deck appears in your dashboard's deck list.
+from `login`; the deck appears in your dashboard's deck list — for a **team org**, it's
+visible to every member (the shared library).
 
 ```bash
 liebstoeckel build                       # produces ./dist/index.html
 liebstoeckel push ./dist/index.html --title "My deck"
+liebstoeckel push --org acme             # push into a team you belong to
 ```
+
+The **title** is taken from `--title`, else the deck's embedded `<title>`, else the deck
+folder name (never "index"). A **cover thumbnail** is read from the deck's built-in slide
+thumbnails — no extra flags. With no positional path, `push` looks for `./dist/index.html`.
 
 | Flag | Meaning |
 | --- | --- |
-| `--title <title>` | deck title (default: the file name) |
+| `--title <title>` | deck title (default: the deck's `<title>`, then its folder name) |
+| `--org <slug>` | push into this organization (default: the one set by `orgs use`, else personal) |
 | `--api <url>` | override the stored control-plane host |
+
+## `orgs`
+
+List the organizations (personal workspace + teams) you belong to, and choose which one
+`push` targets by default.
+
+```bash
+liebstoeckel orgs                        # list workspaces; → marks the push default
+liebstoeckel orgs use acme               # make "acme" the default for push
+```
+
+Teams, members, roles (`owner` / `admin` / `member`), and invitations are managed in the
+dashboard's **Team** page; the CLI only needs to pick which org a deck lands in.
 
 <Aside type="tip" title="From the repo">
 Root scripts mirror these: `bun run live`, `bun run relay`, `bun run thumbs`, `bun run export`, plus `bun run <deck>:dev` / `:build` for the bundled example decks.

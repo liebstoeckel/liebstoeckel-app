@@ -46,6 +46,10 @@ export default defineConfig({
           items: ["guides/building", "guides/thumbnails"],
         },
         {
+          label: "Cloud & teams",
+          items: ["guides/cloud"],
+        },
+        {
           label: "Concepts",
           items: ["concepts/architecture", "concepts/rendering", "concepts/state-model", "concepts/testing"],
         },
