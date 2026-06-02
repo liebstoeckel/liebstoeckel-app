@@ -33,6 +33,8 @@
     "liebstoeckel-plugin"
   ],
   "liebstoeckel": {
-    "client": "./src/client.tsx"
+    "client": "./src/client.tsx",
+    "id": "poll",
+    "audienceWrites": ["votes"]
   }
 }

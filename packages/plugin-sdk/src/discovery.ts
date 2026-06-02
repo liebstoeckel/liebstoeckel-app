@@ -6,6 +6,11 @@ export interface DiscoveredPlugin {
   dir: string;
   clientEntry?: string;
   serverEntry?: string;
+  /** the plugin's runtime def id (e.g. "poll") — keys its state at `plugin:<id>`. */
+  id?: string;
+  /** state fields an audience peer may write live (ADR 0061); everything else is
+   *  presenter-only. Declared statically so the relay can enforce it without the def. */
+  audienceWrites?: string[];
 }
 
 export interface PkgJson {
@@ -13,7 +18,7 @@ export interface PkgJson {
   version?: string;
   keywords?: string[];
   dependencies?: Record<string, string>;
-  liebstoeckel?: { client?: string; server?: string };
+  liebstoeckel?: { client?: string; server?: string; id?: string; audienceWrites?: string[] };
 }
 
 export const PLUGIN_KEYWORD = "liebstoeckel-plugin";
@@ -28,6 +33,8 @@ export function classifyPlugin(pkg: PkgJson, dir: string): DiscoveredPlugin | nu
     dir,
     clientEntry: pkg.liebstoeckel!.client ? join(dir, pkg.liebstoeckel!.client) : undefined,
     serverEntry: pkg.liebstoeckel!.server ? join(dir, pkg.liebstoeckel!.server) : undefined,
+    id: pkg.liebstoeckel!.id,
+    audienceWrites: pkg.liebstoeckel!.audienceWrites,
   };
 }
 

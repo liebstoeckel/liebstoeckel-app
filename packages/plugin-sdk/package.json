@@ -23,7 +23,8 @@
     "./schema": "./src/schema.ts",
     "./state": "./src/state.ts",
     "./manifest": "./src/manifest.ts",
-    "./discovery": "./src/discovery.ts"
+    "./discovery": "./src/discovery.ts",
+    "./authorize": "./src/authorize.ts"
   },
   "peerDependencies": {
     "react": ">=19",

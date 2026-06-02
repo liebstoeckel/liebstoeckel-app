@@ -36,7 +36,14 @@ export async function buildPluginManifest(pkgJsonPath: string): Promise<PluginMa
   const entries: PluginManifestEntry[] = [];
   for (const p of plugins) {
     const server = p.serverEntry ? await buildServerBundle(p.serverEntry) : undefined;
-    entries.push({ name: p.name, version: p.version, hasServer: !!server, server });
+    entries.push({
+      name: p.name,
+      version: p.version,
+      hasServer: !!server,
+      server,
+      id: p.id,
+      audienceWrites: p.audienceWrites,
+    });
   }
   return { v: 1, plugins: entries };
 }

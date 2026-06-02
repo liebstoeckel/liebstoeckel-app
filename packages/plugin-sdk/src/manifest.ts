@@ -8,6 +8,11 @@ export interface PluginManifestEntry {
   hasServer: boolean;
   /** base64-encoded, self-contained server bundle (target:"bun"); present iff hasServer */
   server?: string;
+  /** runtime def id (e.g. "poll"); keys this plugin's state at `plugin:<id>`. Used by
+   *  the live relay to scope audience writes (ADR 0061). */
+  id?: string;
+  /** state fields an audience peer may write live; everything else is presenter-only. */
+  audienceWrites?: string[];
 }
 
 export interface PluginManifest {
