@@ -1,6 +1,7 @@
 import { test, expect, describe, afterEach } from "bun:test";
 import * as Y from "yjs";
 import { createRelay, type RelayServer, type RelayStorage } from "./relay-server";
+import { mintGrant } from "./grant";
 
 // Hosted live presenting (ADR 0061): audience write-scope enforcement + snapshot
 // persistence. A deck whose embedded manifest lets the audience write only `votes`
@@ -118,6 +119,36 @@ describe("hosted relay: audience write-scope enforcement", () => {
     pres.ws.close();
     view.ws.close();
     probe.ws.close();
+  });
+});
+
+describe("hosted relay: signed-grant connection auth (ADR 0061)", () => {
+  test("the returned links carry grants that authenticate; raw tokens still work", async () => {
+    const base = start();
+    const s = await create(base);
+    // the viewer link carries a grant, not the raw token
+    const grant = new URL(s.urls.viewer).searchParams.get("t")!;
+    expect(grant).not.toBe(s.viewerToken);
+    expect((await fetch(`${base}/s/${s.id}?t=${grant}`)).status).toBe(200); // grant works
+    expect((await fetch(`${base}/s/${s.id}?t=${s.viewerToken}`)).status).toBe(200); // token fallback works
+    const html = await (await fetch(`${base}/s/${s.id}?t=${grant}`)).text();
+    expect(html).toContain('"role":"viewer"');
+  });
+
+  test("a forged grant (wrong secret) or wrong-session grant is rejected", async () => {
+    const base = start();
+    const s = await create(base);
+    const forged = mintGrant({ session: s.id, role: "presenter", exp: Date.now() + 60_000 }, "not-the-account-token");
+    expect((await fetch(`${base}/s/${s.id}?t=${forged}`)).status).toBe(403);
+    const wrongSession = mintGrant({ session: "other", role: "viewer", exp: Date.now() + 60_000 }, TOKEN);
+    expect((await fetch(`${base}/s/${s.id}?t=${wrongSession}`)).status).toBe(403);
+  });
+
+  test("an expired grant is rejected", async () => {
+    const base = start();
+    const s = await create(base);
+    const expired = mintGrant({ session: s.id, role: "viewer", exp: Date.now() - 1 }, TOKEN);
+    expect((await fetch(`${base}/s/${s.id}?t=${expired}`)).status).toBe(403);
   });
 });
 

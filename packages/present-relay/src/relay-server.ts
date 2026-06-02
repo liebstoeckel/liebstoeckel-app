@@ -11,6 +11,7 @@ import {
   type Session,
 } from "@liebstoeckel/live-server";
 import { bearer, matchAccount, safeEqual } from "./auth";
+import { mintGrant, verifyGrant } from "./grant";
 
 /** Pluggable object storage for session snapshots (ADR 0061). The hosted deploy wires
  *  a Bun S3 client; the core stays storage-agnostic + testable. */
@@ -125,6 +126,17 @@ function relayRole(s: RelaySession, token: string | null): Role | "runner" | nul
   return roleForToken(s.session, token);
 }
 
+/** Resolve a connection's role from `?t=…`, preferring a **signed grant** (ADR 0061):
+ *  the control plane mints presenter/viewer grants the relay verifies statelessly with
+ *  the session's account token — no per-session token lookup. Falls back to the raw
+ *  session tokens (CLI presenter/viewer) and the runner token. null = deny. */
+function resolveRole(s: RelaySession, token: string | null, now: number): Role | "runner" | null {
+  if (!token) return null;
+  const g = verifyGrant(token, s.account, now);
+  if (g && g.session === s.id && (g.role === "presenter" || g.role === "viewer")) return g.role;
+  return relayRole(s, token);
+}
+
 /** A public relay: account-token-gated deck upload, opaque-origin deck serving,
  *  and a token-gated Yjs WebSocket per session. Decks run their code locally (the
  *  runner connects as a privileged peer); the relay only relays + serves bytes. */
@@ -230,16 +242,26 @@ export function createRelay(opts: RelayOptions): RelayServer {
         }
         sessions.set(rs.id, rs);
 
+        // Mint signed, expiring presenter/viewer grants (ADR 0061) — the links carry
+        // these, and the relay verifies them statelessly with the account token; no
+        // per-session token is stored client-side. (Raw tokens are still returned for
+        // CLI/runner back-compat.)
+        const exp = rs.createdAt + ttlMs;
+        const presenterGrant = mintGrant({ session: rs.id, role: "presenter", exp }, account);
+        const viewerGrant = mintGrant({ session: rs.id, role: "viewer", exp }, account);
+
         const { http, ws } = originOf(req, opts);
         return json({
           id: rs.id,
           presenterToken: session.presenterToken,
           viewerToken: session.viewerToken,
           runnerToken: rs.runnerToken,
-          expiresAt: rs.createdAt + ttlMs,
+          presenterGrant,
+          viewerGrant,
+          expiresAt: exp,
           urls: {
-            presenter: `${http}/s/${rs.id}?t=${session.presenterToken}`,
-            viewer: `${http}/s/${rs.id}?t=${session.viewerToken}`,
+            presenter: `${http}/s/${rs.id}?t=${presenterGrant}`,
+            viewer: `${http}/s/${rs.id}?t=${viewerGrant}`,
             sync: `${ws}/sync/${rs.id}`,
           },
         });
@@ -260,7 +282,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       const sync = pathname.match(/^\/sync\/([^/]+)$/);
       if (sync) {
         const s = sessions.get(sync[1]!);
-        const relRole = s ? relayRole(s, url.searchParams.get("t")) : null;
+        const relRole = s ? resolveRole(s, url.searchParams.get("t"), Date.now()) : null;
         if (!s || !relRole) {
           return new Response("forbidden", { status: 403 });
         }
@@ -280,7 +302,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       if (serve) {
         const s = sessions.get(serve[1]!);
         const token = url.searchParams.get("t");
-        const role = s ? relayRole(s, token) : null;
+        const role = s ? resolveRole(s, token, Date.now()) : null;
         // runner token must not load the page (it's WS-only)
         if (!s || !role || role === "runner" || !token) {
           return new Response("Invalid or expired link.", { status: 403 });

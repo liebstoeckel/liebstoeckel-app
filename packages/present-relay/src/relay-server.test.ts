@@ -50,7 +50,10 @@ describe("relay control API auth", () => {
     expect(body.presenterToken).toBeTruthy();
     expect(body.viewerToken).toBeTruthy();
     expect(body.runnerToken).toBeTruthy();
-    expect(body.urls.viewer).toContain(`/s/${body.id}?t=${body.viewerToken}`);
+    // Links carry signed grants (ADR 0061), not the raw session token.
+    expect(body.urls.viewer).toContain(`/s/${body.id}?t=`);
+    expect(body.urls.viewer).not.toContain(body.viewerToken);
+    expect(body.viewerGrant).toBeTruthy();
     expect(body.urls.sync).toContain(`/sync/${body.id}`);
     expect(body.urls.sync.startsWith("ws://")).toBe(true);
   });
