@@ -29,5 +29,8 @@
   },
   "peerDependencies": {
     "yjs": "^13.6.30"
+  },
+  "devDependencies": {
+    "@liebstoeckel/plugin-poll": "workspace:*"
   }
 }

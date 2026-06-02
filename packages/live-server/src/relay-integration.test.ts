@@ -1,5 +1,9 @@
 import { test, expect, describe, afterEach } from "bun:test";
-import { createRelay, type RelayServer } from "@liebstoeckel/present-relay";
+// Relative import (not the `@liebstoeckel/present-relay` package name) on purpose:
+// present-relay depends on live-server, so declaring present-relay as a live-server
+// (dev)dependency would re-form the release-please workspace cycle. This is a
+// test-only reach into the sibling to exercise the relay↔live-server integration.
+import { createRelay, type RelayServer } from "../../present-relay/src/index.ts";
 import { connectLive, type LiveConnection } from "@liebstoeckel/engine/live";
 import { pluginState } from "@liebstoeckel/plugin-sdk";
 import { pollSchema, tally, totalVotes } from "@liebstoeckel/plugin-poll/logic";

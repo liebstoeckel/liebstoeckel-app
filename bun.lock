@@ -196,6 +196,9 @@
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/thumbnails": "workspace:*",
       },
+      "devDependencies": {
+        "@liebstoeckel/plugin-poll": "workspace:*",
+      },
       "peerDependencies": {
         "yjs": "^13.6.30",
       },
