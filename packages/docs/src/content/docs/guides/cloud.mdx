@@ -71,7 +71,28 @@ Manage all of this on the dashboard's **Team** page:
 ## Share a deck publicly
 
 Any deck can be published to a time-limited public link served on a separate domain, with
-provenance chrome and an abuse-report path. See the deck's **share** action in the
-dashboard.
+provenance chrome and an abuse-report path. Open a deck's **share** action in the dashboard
+to set:
 
-<LinkCard title="CLI reference: login · push · orgs" href="/reference/cli/#login" />
+- **Expiry** — how long the link lives (7 days on the free plan; longer, or *no expiry*, on
+  paid).
+- **White-label** *(paid)* — drop the "Published with liebstoeckel" banner. The abuse-report
+  path always remains.
+
+## View analytics
+
+Every deck shows **view counts** (total and unique) — for both private opens and public
+share links. Counts are privacy-preserving (no raw IP/UA is stored). Expand a deck to see a
+**14-day history** strip on paid plans; the free plan shows counts only.
+
+Public share links also carry a **view cap** on the free plan — a built-in guardrail against
+abuse that doubles as the upgrade nudge; paid plans are uncapped.
+
+## Plans
+
+Workspaces are **free** by default. Paid plans (**Pro** / **Team**) unlock uncapped share
+views, view history with longer retention, white-label shares, and longer/no-expiry links.
+Plans attach to the **organization** (one subscription per workspace). The CLI shows your
+current plan under `liebstoeckel orgs`.
+
+<LinkCard title="CLI reference: login · push · orgs · decks" href="/reference/cli/#login" />
