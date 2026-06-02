@@ -50,6 +50,49 @@ export function localTransport(root: string, id = "@liebstoeckel"): RegistryTran
   };
 }
 
+/**
+ * Reads a registry over authenticated HTTP — an org's cloud registry, or any
+ * `https://…` registry configured in `liebstoeckel.json` (ADR 0041/0059). Speaks
+ * the same protocol: `<base>/items/<name>.json` and `<base>/files/<path>`.
+ */
+export function httpTransport(baseUrl: string, headers: Record<string, string>, id: string): RegistryTransport {
+  const base = baseUrl.replace(/\/+$/, "");
+  const fail = (what: string, res: Response): Error => {
+    if (res.status === 401) return new Error(`registry ${id}: not signed in — run \`liebstoeckel login\``);
+    if (res.status === 403) return new Error(`registry ${id}: forbidden (membership/plan) — check \`liebstoeckel orgs\``);
+    return new Error(`registry ${id}: ${what} (HTTP ${res.status})`);
+  };
+  return {
+    id,
+    async readItem(name) {
+      const res = await fetch(`${base}/items/${encodeURIComponent(name)}.json`, { headers });
+      if (!res.ok) throw fail(`item "${name}" not found`, res);
+      return res.json();
+    },
+    async readFile(path) {
+      assertSafeRelPath(path);
+      // `path` already includes its `files/…` prefix (same as localTransport's
+      // join(root, path)); the registry base serves it directly.
+      const safe = path.split("/").map(encodeURIComponent).join("/");
+      const res = await fetch(`${base}/${safe}`, { headers });
+      if (!res.ok) throw fail(`file "${path}" not found`, res);
+      return res.text();
+    },
+  };
+}
+
+/** Auth headers for the logged-in org's registry (`@org`). Throws if not logged in. */
+export async function orgRegistryAuth(): Promise<{ baseUrl: string; headers: Record<string, string> }> {
+  const { loadCreds } = await import("./creds");
+  const creds = await loadCreds();
+  if (!creds?.token || !creds.api) {
+    throw new Error("the @org registry needs login — run `liebstoeckel login --api <host>`");
+  }
+  const headers: Record<string, string> = { authorization: `Bearer ${creds.token}` };
+  if (creds.org) headers["x-org-slug"] = creds.org;
+  return { baseUrl: `${creds.api.replace(/\/+$/, "")}/api/v1/orgs/registry`, headers };
+}
+
 // ── resolver core (pure given a transport) ───────────────────────────────────
 
 export interface ResolvedFile {
@@ -139,16 +182,32 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
     const { REGISTRY_ROOT } = await import("@liebstoeckel/registry");
     return localTransport(REGISTRY_ROOT, ns);
   }
+  // @org: the logged-in org's authenticated cloud registry (ADR 0059), no config needed
+  if (ns === "@org" && (spec == null || spec === "org")) {
+    const { baseUrl, headers } = await orgRegistryAuth();
+    return httpTransport(baseUrl, headers, ns);
+  }
   if (spec == null) {
     throw new Error(`no registry configured for namespace "${ns}" — add it to liebstoeckel.json "registries"`);
   }
   if (spec.startsWith(".") || spec.startsWith("/")) {
     return localTransport(resolve(deckDir, spec), ns);
   }
-  // ADR 0041 lists npm/git/HTTP transports as planned; only local is wired up so far.
+  if (spec.startsWith("http://") || spec.startsWith("https://")) {
+    // Authenticated HTTP registry (ADR 0041/0059). Auto-attach the stored bearer
+    // token when the URL is the host we're logged into.
+    const headers: Record<string, string> = {};
+    const { loadCreds } = await import("./creds");
+    const creds = await loadCreds();
+    if (creds?.token && creds.api && spec.startsWith(creds.api.replace(/\/+$/, ""))) {
+      headers.authorization = `Bearer ${creds.token}`;
+    }
+    return httpTransport(spec, headers, ns);
+  }
+  // ADR 0041 also lists npm/git transports as planned; not wired yet.
   throw new Error(
     `registry transport "${spec}" (namespace ${ns}) is not implemented yet — ` +
-      `only the bundled default and local-path registries are wired up (ADR 0041 plans npm/git/HTTP).`,
+      `bundled default, local-path, @org, and http(s) registries are wired (ADR 0041 plans npm/git).`,
   );
 }
 

@@ -67,7 +67,7 @@ describe("scaffold (writes to disk)", () => {
 
   test("creates every file under <root>/<name>", async () => {
     root = mkdtempSync(join(tmpdir(), "pi-new-"));
-    const res = await scaffold("demo-x", { dir: root });
+    const res = await scaffold("demo-x", { dir: root, noOrgBrand: true });
     expect(res.dir).toBe(join(root, "demo-x"));
     for (const f of res.files) expect(existsSync(join(res.dir, f))).toBe(true);
     expect(JSON.parse(readFileSync(join(res.dir, "package.json"), "utf8")).name).toBe("demo-x");
@@ -75,8 +75,8 @@ describe("scaffold (writes to disk)", () => {
 
   test("refuses to overwrite an existing dir", async () => {
     root = mkdtempSync(join(tmpdir(), "pi-new-"));
-    await scaffold("dup", { dir: root });
-    await expect(scaffold("dup", { dir: root })).rejects.toThrow(/already exists/);
+    await scaffold("dup", { dir: root, noOrgBrand: true });
+    await expect(scaffold("dup", { dir: root, noOrgBrand: true })).rejects.toThrow(/already exists/);
   });
 
   test("rejects an invalid name before touching disk", async () => {

@@ -10,6 +10,8 @@ export interface ScaffoldOptions {
   brand?: string;
   /** parent directory for the new deck (default: the current working directory) */
   dir?: string;
+  /** opt out of auto-applying the logged-in org's default brand (ADR 0059) */
+  noOrgBrand?: boolean;
 }
 
 /** Pure: the file map for a new minimal deck (deck-relative path → contents).
@@ -26,9 +28,15 @@ export function deckFiles(
   name: string,
   brand = "liebstoeckel",
   deps: DeckDeps = {},
+  orgBrand?: { name: string; source: string },
 ): Record<string, string> {
   const range = (k: keyof DeckDeps) => deps[k] ?? "workspace:*";
   const title = titleCase(name);
+  // When `new` is run logged-in, the org's default brand (ADR 0059) is baked in:
+  // a local brands/<name>.ts wired via <Present brandThemes>, self-contained.
+  const brandId = orgBrand?.name ?? brand;
+  const brandImport = orgBrand ? `import orgBrand from "./brands/${orgBrand.name}";\n` : "";
+  const brandThemesProp = orgBrand ? " brandThemes={[orgBrand]}" : "";
   const pkg = {
     // A scaffolded deck is the user's own private project — a BARE name, not the
     // framework's `@liebstoeckel/` npm scope (ADR 0054). Only the framework
@@ -52,6 +60,7 @@ export function deckFiles(
       "elements",
       "components",
       "charts",
+      "brands",
       "assets",
       "public",
     ],
@@ -83,7 +92,7 @@ dist/
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title}</title>
   </head>
-  <body data-brand="${brand}">
+  <body data-brand="${brandId}">
     <div id="root"></div>
     <script type="module" src="./main.tsx"></script>
   </body>
@@ -119,12 +128,12 @@ await buildDeck({ entry: "./index.html", outdir: "./dist" });
 import { createRoot } from "react-dom/client";
 import { Present } from "@liebstoeckel/engine";
 import "@liebstoeckel/theme/styles.css";
-
+${brandImport}
 import Intro from "./slides/01-intro";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Present title="${title}" brands={["${brand}"]} slides={[Intro]} />
+    <Present title="${title}" brands={["${brandId}"]}${brandThemesProp} slides={[Intro]} />
   </StrictMode>,
 );
 `,
@@ -150,6 +159,8 @@ export default function Intro() {
   );
 }
 `,
+    // Org default brand baked in as owned source (ADR 0059).
+    ...(orgBrand ? { [`brands/${orgBrand.name}.ts`]: orgBrand.source } : {}),
   };
 }
 
@@ -198,24 +209,34 @@ async function depRange(name: string): Promise<string> {
 export async function scaffold(
   name: string,
   opts: ScaffoldOptions = {},
-): Promise<{ dir: string; files: string[] }> {
+): Promise<{ dir: string; files: string[]; brand: string }> {
   if (!VALID_NAME.test(name)) {
     throw new Error(`invalid deck name "${name}" — use lower-case letters, digits and hyphens`);
   }
   const brand = opts.brand ?? "liebstoeckel";
+  // Unless a brand was named explicitly (or opted out), bake the logged-in org's
+  // default brand so new decks are on-brand instantly (ADR 0059). Best effort —
+  // never blocks scaffolding when offline / not logged in.
+  const orgBrand = !opts.brand && !opts.noOrgBrand ? await (await import("./cloud")).fetchDefaultBrand() : null;
+
   // The deck materializes in the current directory as ./<name> (least surprising).
   // Override the parent with --dir (e.g. --dir presentations).
   const root = opts.dir ? resolve(opts.dir) : process.cwd();
   const dir = join(root, name);
   if (existsSync(dir)) throw new Error(`${dir} already exists`);
 
-  const files = deckFiles(name, brand, {
-    engine: await depRange("@liebstoeckel/engine"),
-    theme: await depRange("@liebstoeckel/theme"),
-    thumbnails: await depRange("@liebstoeckel/thumbnails"),
-  });
+  const files = deckFiles(
+    name,
+    brand,
+    {
+      engine: await depRange("@liebstoeckel/engine"),
+      theme: await depRange("@liebstoeckel/theme"),
+      thumbnails: await depRange("@liebstoeckel/thumbnails"),
+    },
+    orgBrand ?? undefined,
+  );
   for (const [rel, content] of Object.entries(files)) {
     await Bun.write(join(dir, rel), content);
   }
-  return { dir, files: Object.keys(files) };
+  return { dir, files: Object.keys(files), brand: orgBrand?.name ?? brand };
 }

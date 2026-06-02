@@ -3,20 +3,10 @@
 // (RFC 8628) against the control plane's /api/auth/device/* endpoints; push
 // uploads a single-file deck to the versioned /api/v1/decks with the resulting
 // bearer token; orgs lists/sets the active organization decks are pushed into.
-import { mkdir } from "node:fs/promises";
-import { homedir } from "node:os";
 import { basename, dirname, join, resolve, sep } from "node:path";
+import { loadCreds, saveCreds } from "./creds";
 
 const CLIENT_ID = "liebstoeckel-cli";
-const CONFIG_DIR = join(homedir(), ".config", "liebstoeckel");
-const CONFIG_FILE = join(CONFIG_DIR, "credentials.json");
-
-interface Creds {
-  api: string;
-  token: string;
-  /** Default organization slug to push into (ADR 0053); omitted = personal. */
-  org?: string;
-}
 
 function flag(argv: string[], name: string): string | undefined {
   const i = argv.indexOf(name);
@@ -35,20 +25,6 @@ export function resolveOrg(argv: string[], defaultOrg?: string): { org?: string;
   return { org: defaultOrg, rest: argv };
 }
 
-async function loadCreds(): Promise<Creds | null> {
-  try {
-    return JSON.parse(await Bun.file(CONFIG_FILE).text()) as Creds;
-  } catch {
-    return null;
-  }
-}
-
-async function saveCreds(c: Creds): Promise<void> {
-  await mkdir(CONFIG_DIR, { recursive: true });
-  await Bun.write(CONFIG_FILE, JSON.stringify(c, null, 2));
-  // Best-effort lock-down of the token file.
-  await Bun.$`chmod 600 ${CONFIG_FILE}`.quiet().catch(() => {});
-}
 
 /** The deck's title from its built HTML `<title>` (mirrors control-core). */
 function titleFromHtml(html: string): string | null {
@@ -310,4 +286,161 @@ export async function runDecks(argv: string[]): Promise<void> {
     console.log(`   ${d.title.slice(0, 36).padEnd(36)} ${ver}  ${String(d.views).padStart(5)} views  ${share}`);
   }
   console.log();
+}
+
+// ── brand registry (ADR 0059): the org is an authenticated registry; brands are
+// items pulled into decks as owned source (brands/<name>.ts), baked at build. ──
+
+interface BrandRow {
+  name: string;
+  isDefault: boolean;
+  tokens: Record<string, string>;
+}
+
+/** Map a `defineTheme(...)` Theme (or a flat tokens object) → the server's flat
+ *  token shape. Used by `brand push`. */
+function themeToTokens(input: unknown): Record<string, string> {
+  const m = input as { colors?: Record<string, string>; fonts?: Record<string, string>; glow?: { a?: string; b?: string } };
+  if (!m.colors) return (input ?? {}) as Record<string, string>; // already flat
+  const c = m.colors, f = m.fonts ?? {}, g = m.glow ?? {};
+  return {
+    bg: c.bg, surface: c.surface, border: c.border ?? "", text: c.text, muted: c.muted,
+    primary: c.primary, accent: c.accent, accent2: c.accent2 ?? "", onPrimary: c.onPrimary,
+    fontHeading: f.heading ?? "", fontBody: f.body ?? "", fontMono: f.mono ?? "",
+    glowA: g.a ?? "", glowB: g.b ?? "",
+  };
+}
+
+async function brandApi(argv: string[]): Promise<{ api: string; token: string; org?: string }> {
+  const creds = await loadCreds();
+  const { org } = resolveOrg(argv, creds?.org);
+  const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
+  if (!creds || !api) {
+    console.error("✕ not logged in — run: liebstoeckel login --api <https://app-host>");
+    process.exit(1);
+  }
+  return { api, token: creds.token, org };
+}
+
+function brandHeaders(token: string, org?: string): Record<string, string> {
+  const h: Record<string, string> = { authorization: `Bearer ${token}` };
+  if (org) h["x-org-slug"] = org;
+  return h;
+}
+
+/** `liebstoeckel brand list|push|pull` */
+export async function runBrand(argv: string[]): Promise<void> {
+  const [sub] = argv.filter((a) => !a.startsWith("-"));
+
+  if (sub === "push") {
+    const { api, token, org } = await brandApi(argv);
+    const file = argv.filter((a) => !a.startsWith("-"))[1];
+    if (!file) {
+      console.error("usage: liebstoeckel brand push <brand.ts|tokens.json> [--name <key>] [--default] [--org <slug>]");
+      process.exit(1);
+    }
+    const path = resolve(file);
+    if (!(await Bun.file(path).exists())) {
+      console.error(`✕ no such file: ${file}`);
+      process.exit(1);
+    }
+    let parsed: unknown;
+    if (/\.json$/i.test(path)) parsed = await Bun.file(path).json();
+    else parsed = (await import(path)).default; // a defineTheme(...) module
+    const tokens = themeToTokens(parsed);
+    const name =
+      flag(argv, "--name") ??
+      (parsed as { name?: string })?.name ??
+      basename(file).replace(/\.(ts|tsx|js|json)$/i, "");
+    const res = await fetch(`${api}/api/v1/orgs/brands/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      headers: { ...brandHeaders(token, org), "content-type": "application/json" },
+      body: JSON.stringify({ tokens, default: argv.includes("--default") }),
+    });
+    if (res.status === 403) {
+      console.error("✕ forbidden — managing brands needs an admin/owner role on a paid org.");
+      process.exit(1);
+    }
+    if (!res.ok) {
+      console.error(`✕ push failed: ${res.status} ${await res.text()}`);
+      process.exit(1);
+    }
+    console.log(`\n✓ pushed brand "${name}"${argv.includes("--default") ? " (default)" : ""}${org ? ` to ${org}` : ""}\n`);
+    return;
+  }
+
+  if (sub === "pull") {
+    const { api, token, org } = await brandApi(argv);
+    let name = argv.filter((a) => !a.startsWith("-"))[1];
+    const dir = flag(argv, "--dir") ?? ".";
+    if (!name) {
+      const def = (await fetchBrands(api, token, org)).find((b) => b.isDefault);
+      if (!def) {
+        console.error("✕ no default brand set — run `liebstoeckel brand list` or pass a name.");
+        process.exit(1);
+      }
+      name = def.name;
+    }
+    // The brand IS a registry item — resolve it through the @org transport and
+    // write it as owned source, exactly like `add @org/<name>` (ADR 0059).
+    const { httpTransport, resolveScaffold } = await import("./add");
+    const transport = httpTransport(`${api}/api/v1/orgs/registry`, brandHeaders(token, org), "@org");
+    const plan = await resolveScaffold(transport, [name]);
+    for (const f of plan.files) await Bun.write(join(resolve(dir), f.target), f.content);
+    console.log(`\n✓ pulled brand "${name}" → ${plan.files.map((f) => f.target).join(", ")}\n`);
+    console.log(`   wire it in main.tsx:\n     import ${camel(name)} from "./brands/${name}";`);
+    console.log(`     <Present brands={["${name}"]} brandThemes={[${camel(name)}]} … />\n`);
+    return;
+  }
+
+  // default: list
+  const { api, token, org } = await brandApi(argv);
+  const brands = await fetchBrands(api, token, org);
+  if (!brands.length) {
+    console.log(`\n  no brands${org ? ` in ${org}` : ""} yet — push one: liebstoeckel brand push ./brand.ts --default\n`);
+    return;
+  }
+  console.log(`\n  brands${org ? ` in ${org}` : ""}:\n`);
+  for (const b of brands) console.log(`   ${b.isDefault ? "→" : " "} ${b.name}`);
+  console.log(`\n  → = default (applied by \`liebstoeckel new\`). Pull one: liebstoeckel brand pull <name>\n`);
+}
+
+async function fetchBrands(api: string, token: string, org?: string): Promise<BrandRow[]> {
+  const res = await fetch(`${api}/api/v1/orgs/brands`, { headers: brandHeaders(token, org) });
+  if (res.status === 401) {
+    console.error("✕ session expired — run `liebstoeckel login` again.");
+    process.exit(1);
+  }
+  if (res.status === 403) {
+    console.error("✕ the org registry is a paid feature for this workspace.");
+    process.exit(1);
+  }
+  if (!res.ok) {
+    console.error(`✕ could not list brands: ${res.status} ${await res.text()}`);
+    process.exit(1);
+  }
+  return (await res.json() as { brands: BrandRow[] }).brands;
+}
+
+const camel = (s: string) => s.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
+
+/** For `liebstoeckel new`: the org default brand's source + name, or null. Best
+ *  effort — never blocks scaffolding if not logged in / no default. */
+export async function fetchDefaultBrand(): Promise<{ name: string; source: string } | null> {
+  try {
+    const creds = await loadCreds();
+    if (!creds?.token || !creds.api) return null;
+    const api = creds.api.replace(/\/+$/, "");
+    const list = await fetch(`${api}/api/v1/orgs/brands`, { headers: brandHeaders(creds.token, creds.org) });
+    if (!list.ok) return null;
+    const def = ((await list.json()) as { brands: BrandRow[] }).brands.find((b) => b.isDefault);
+    if (!def) return null;
+    const src = await fetch(`${api}/api/v1/orgs/registry/files/brands/${encodeURIComponent(def.name)}.ts`, {
+      headers: brandHeaders(creds.token, creds.org),
+    });
+    if (!src.ok) return null;
+    return { name: def.name, source: await src.text() };
+  } catch {
+    return null;
+  }
 }

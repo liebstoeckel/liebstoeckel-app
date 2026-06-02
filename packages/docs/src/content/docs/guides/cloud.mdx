@@ -79,6 +79,22 @@ to set:
 - **White-label** *(paid)* — drop the "Published with liebstoeckel" banner. The abuse-report
   path always remains.
 
+## Shared brand
+
+Your org is an **authenticated registry** — the same protocol as `liebstoeckel add`,
+but private to your team. A **brand** (a theme token set: colours, fonts, glow) is its
+first item type; custom company components can ride the same rails later.
+
+- **Define it** once — push a `defineTheme(...)` file (`liebstoeckel brand push ./brand.ts
+  --default`) or edit it visually in the dashboard's **Brand** page.
+- **Use it** — `liebstoeckel brand pull <name>` writes `brands/<name>.ts` into a deck;
+  `liebstoeckel new` auto-applies the org **default** brand. The brand is **owned source,
+  baked into the deck at build** — self-contained and WYSIWYG, never a serve-time surprise.
+- **Update it** — change the brand centrally, then authors (or CI) **re-pull + rebuild**.
+  Deliberate, not silent.
+
+Shared brand is a Pro/Team feature.
+
 ## Versions
 
 A deck has a **stable identity** across re-pushes. `push` keys a deck by its folder name

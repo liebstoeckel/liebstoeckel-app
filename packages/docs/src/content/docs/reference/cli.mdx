@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: The umbrella liebstoeckel command — new, add, registry, build, eject, pack, live, relay, thumbs, export, skill, login, push, orgs, decks.
+description: The umbrella liebstoeckel command — new, add, registry, build, eject, pack, live, relay, thumbs, export, skill, login, push, orgs, decks, brand.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -313,6 +313,29 @@ liebstoeckel orgs use acme               # make "acme" the default for push
 
 Teams, members, roles (`owner` / `admin` / `member`), and invitations are managed in the
 dashboard's **Team** page; the CLI only needs to pick which org a deck lands in.
+
+## `brand`
+
+Share governed **brand token sets** across a team. Your org is an authenticated registry
+(the same protocol as `add`/`registry`); a brand is pulled into a deck as **owned source**
+(`brands/<name>.ts`) and baked at build — so the deck stays self-contained and WYSIWYG.
+
+```bash
+liebstoeckel brand list                  # brands in your org (→ marks the default)
+liebstoeckel brand push ./brand.ts --default   # upload a theme token file (admins/owners)
+liebstoeckel brand pull acme             # write brands/acme.ts into the current deck
+liebstoeckel new my-deck                 # auto-applies the org's default brand
+```
+
+`brand push` accepts a `defineTheme(...)` module or a flat tokens JSON. Editing is also
+available in the dashboard's **Brand** page. Brand sharing is a paid (Pro/Team) feature.
+
+| Flag | Meaning |
+| --- | --- |
+| `--default` | (push) make this the org default that `new` applies |
+| `--name <key>` | (push) brand name (default: the theme's `name`, then the file name) |
+| `--dir <deck>` | (pull) the deck to write `brands/<name>.ts` into (default: cwd) |
+| `--org <slug>` | the organization to act on |
 
 ## `decks`
 

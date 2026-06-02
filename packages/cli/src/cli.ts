@@ -21,6 +21,7 @@ usage:
   liebstoeckel push <deck.html> [--title <t>] [--name <key>] [--new] [--org <slug>]   upload/update a deck (re-push = new version)
   liebstoeckel orgs [use <slug>]               list your workspaces / set the default org for \`push\`
   liebstoeckel decks [--org <slug>]            list your cloud decks (with view counts) in an org
+  liebstoeckel brand list|push <file>|pull [name]   share org brands: push/pull theme token sets (registry, ADR 0059)
 
   liebstoeckel <deck|dir> [opts]               shorthand for \`liebstoeckel live <deck>\`
 
@@ -59,6 +60,7 @@ async function runNew(argv: string[]) {
     const { dir, files } = await scaffold(name, {
       brand: flag(argv, "--brand"),
       dir: flag(argv, "--dir"),
+      noOrgBrand: has(argv, "--no-org-brand"),
     });
     console.log(`\n✓ created deck "${name}" → ${dir}\n`);
     for (const f of files) console.log(`   ${f}`);
@@ -170,6 +172,8 @@ async function main() {
       return (await import("./cloud")).runOrgs(rest);
     case "decks":
       return (await import("./cloud")).runDecks(rest);
+    case "brand":
+      return (await import("./cloud")).runBrand(rest);
     case "build":
       return runBuild(rest);
     case "eject":
