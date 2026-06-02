@@ -56,8 +56,15 @@ interface RelaySession {
   /** privileged peer token: the local deck-runner that applies server-plugin effects */
   runnerToken: string;
   createdAt: number;
+  /** effective lifetime (ms) — the plan duration for hosted sessions (ADR 0061),
+   *  else the relay default. */
+  ttlMs: number;
   /** hosted live (ADR 0061): write-scope enforce audience peers. */
   enforce: boolean;
+  /** max concurrent audience peers (plan's liveAudienceCap); undefined = uncapped. */
+  audienceCap?: number;
+  /** current connected audience peers (for the cap). */
+  audienceCount: number;
   /** object-storage key for this session's Yjs snapshot, if persisted. */
   snapshotKey?: string;
   ttl?: ReturnType<typeof setTimeout>;
@@ -165,6 +172,13 @@ export function createRelay(opts: RelayOptions): RelayServer {
         // and names the object-storage key its Yjs snapshot persists to.
         const enforce = req.headers.get("x-live-enforce") === "1";
         const snapshotKey = req.headers.get("x-snapshot-key") || undefined;
+        // Plan limits the control plane passes per session (ADR 0061): the duration
+        // (so a free session's link dies on time, not at the relay's 6h default) and
+        // the audience cap. TTL is clamped to the relay max; absent → relay default.
+        const reqTtl = Number(req.headers.get("x-session-ttl-ms") ?? "");
+        const ttlMs = Number.isFinite(reqTtl) && reqTtl > 0 ? Math.min(reqTtl, cfg.sessionTtlMs) : cfg.sessionTtlMs;
+        const capHdr = Number(req.headers.get("x-audience-cap") ?? "");
+        const audienceCap = Number.isFinite(capHdr) && capHdr > 0 ? capHdr : undefined;
 
         const session = createSession();
         const hub = new Hub({
@@ -188,10 +202,13 @@ export function createRelay(opts: RelayOptions): RelayServer {
           session,
           runnerToken: hex(),
           createdAt: Date.now(),
+          ttlMs,
           enforce,
+          audienceCap,
+          audienceCount: 0,
           snapshotKey,
         };
-        rs.ttl = setTimeout(() => dropSession(rs), cfg.sessionTtlMs);
+        rs.ttl = setTimeout(() => dropSession(rs), ttlMs);
         (rs.ttl as { unref?: () => void }).unref?.();
         if (cfg.storage && snapshotKey) {
           rs.snap = setInterval(() => void persist(rs), cfg.snapshotMs);
@@ -205,7 +222,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
           presenterToken: session.presenterToken,
           viewerToken: session.viewerToken,
           runnerToken: rs.runnerToken,
-          expiresAt: rs.createdAt + cfg.sessionTtlMs,
+          expiresAt: rs.createdAt + ttlMs,
           urls: {
             presenter: `${http}/s/${rs.id}?t=${session.presenterToken}`,
             viewer: `${http}/s/${rs.id}?t=${session.viewerToken}`,
@@ -236,6 +253,10 @@ export function createRelay(opts: RelayOptions): RelayServer {
         // viewer → audience (write-scope enforced when the session opted in);
         // presenter + runner are trusted writers.
         const role: PeerRole = relRole === "viewer" ? "audience" : "presenter";
+        // Enforce the plan's audience cap (ADR 0061) — presenter/runner never count.
+        if (role === "audience" && s.audienceCap !== undefined && s.audienceCount >= s.audienceCap) {
+          return new Response("audience full", { status: 503 });
+        }
         const data: WSData = { sessionId: s.id, peer: null, role };
         return srv.upgrade(req, { data }) ? undefined : new Response("upgrade failed", { status: 400 });
       }
@@ -286,6 +307,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
           socket.close();
           return;
         }
+        if (socket.data.role === "audience") s.audienceCount++;
         socket.data.peer = s.hub.join((d) => socket.send(d), socket.data.role);
       },
       message(socket, msg) {
@@ -296,6 +318,8 @@ export function createRelay(opts: RelayOptions): RelayServer {
       },
       close(socket) {
         socket.data.peer?.leave();
+        const s = sessions.get(socket.data.sessionId);
+        if (s && socket.data.role === "audience" && s.audienceCount > 0) s.audienceCount--;
       },
     },
   });

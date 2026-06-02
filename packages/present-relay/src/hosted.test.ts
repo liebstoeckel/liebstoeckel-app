@@ -121,6 +121,49 @@ describe("hosted relay: audience write-scope enforcement", () => {
   });
 });
 
+describe("hosted relay: plan limits (ADR 0061)", () => {
+  test("a per-session TTL shortens expiry below the relay default", async () => {
+    const base = start({ sessionTtlMs: 6 * 60 * 60 * 1000 });
+    const r = await fetch(`${base}/api/sessions`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${TOKEN}`, "content-type": "text/html", "x-session-ttl-ms": "60000" },
+      body: DECK,
+    });
+    const body = await r.json();
+    const lifetime = body.expiresAt - Date.now();
+    expect(lifetime).toBeLessThanOrEqual(60_000 + 2000); // ~60s, not 6h
+    expect(lifetime).toBeGreaterThan(30_000);
+  });
+
+  test("a requested TTL can't exceed the relay max (clamped)", async () => {
+    const base = start({ sessionTtlMs: 60_000 });
+    const r = await fetch(`${base}/api/sessions`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${TOKEN}`, "content-type": "text/html", "x-session-ttl-ms": "999999999" },
+      body: DECK,
+    });
+    const body = await r.json();
+    expect(body.expiresAt - Date.now()).toBeLessThanOrEqual(60_000 + 2000); // clamped to max
+  });
+
+  test("the audience cap rejects the (cap+1)th audience peer; presenter is never capped", async () => {
+    const base = start();
+    const { id, presenterToken, viewerToken } = await create(base, { "x-audience-cap": "1" });
+    const wsBase = `ws://127.0.0.1:${relay!.port}/sync/${id}`;
+    // presenter (uncapped) + one audience fill the cap
+    const pres = await wsOpen(`${wsBase}?t=${presenterToken}`);
+    await pres.first;
+    const a1 = await wsOpen(`${wsBase}?t=${viewerToken}`);
+    await a1.first;
+    await settle();
+    // a 2nd audience peer is refused at upgrade (503)
+    const res = await fetch(`${base}/sync/${id}?t=${viewerToken}`, { headers: { upgrade: "websocket" } });
+    expect(res.status).toBe(503);
+    pres.ws.close();
+    a1.ws.close();
+  });
+});
+
 describe("hosted relay: snapshot persistence", () => {
   test("a session snapshots its doc to storage on end, decodable later", async () => {
     const storage = memStorage();
