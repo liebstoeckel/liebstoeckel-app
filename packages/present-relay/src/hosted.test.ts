@@ -204,6 +204,22 @@ describe("hosted relay: snapshot persistence", () => {
     expect(doc.getMap("plugin:poll").get("question")).toBe("Q?");
   });
 
+  test("a failing snapshot write is counted, not swallowed silently", async () => {
+    const storage: RelayStorage = {
+      async get() {
+        return null;
+      },
+      async put() {
+        throw new Error("s3 down");
+      },
+    };
+    const base = start({ storage });
+    const { id } = await create(base, { "x-snapshot-key": "org1/boom.snap" });
+    await fetch(`${base}/api/sessions/${id}`, { method: "DELETE", headers: { authorization: `Bearer ${TOKEN}` } });
+    await settle();
+    expect(relay!.stats().snapshotFailures).toBeGreaterThanOrEqual(1);
+  });
+
   test("re-creating with the same snapshot key re-seeds the doc", async () => {
     const storage = memStorage();
     // Pre-seed a snapshot as if a prior session had persisted it.

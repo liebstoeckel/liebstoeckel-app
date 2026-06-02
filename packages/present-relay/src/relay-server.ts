@@ -78,6 +78,9 @@ export interface RelayServer {
   port: number;
   baseUrl: string;
   sessions: Map<string, RelaySession>;
+  /** operational counters (ADR 0061 / ticket 0015) — snapshot write failures so a
+   *  silently-lost result surfaces in logs/metrics instead of vanishing. */
+  stats(): { snapshotFailures: number };
   stop(): void;
 }
 
@@ -129,13 +132,19 @@ export function createRelay(opts: RelayOptions): RelayServer {
   const cfg = { ...DEFAULTS, ...opts };
   if (!opts.accountTokens.length) throw new Error("createRelay: at least one account token is required");
   const sessions = new Map<string, RelaySession>();
+  let snapshotFailures = 0;
 
   const persist = async (s: RelaySession) => {
     if (!cfg.storage || !s.snapshotKey) return;
     try {
       await cfg.storage.put(s.snapshotKey, s.hub.snapshot());
-    } catch {
-      /* best-effort snapshot — a failed write must never crash the relay */
+    } catch (e) {
+      // Best-effort: a failed write must never crash the relay — but it must NOT be
+      // silent (results would vanish). Structured log + a counter (ADR 0061).
+      snapshotFailures++;
+      console.error(
+        JSON.stringify({ level: "error", msg: "relay snapshot persist failed", key: s.snapshotKey, err: String(e) }),
+      );
     }
   };
 
@@ -337,6 +346,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     port,
     baseUrl: opts.publicBaseUrl?.replace(/\/$/, "") ?? `http://${opts.hostname ?? "0.0.0.0"}:${port}`,
     sessions,
+    stats: () => ({ snapshotFailures }),
     stop() {
       for (const s of [...sessions.values()]) dropSession(s);
       server.stop(true);
