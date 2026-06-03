@@ -16,8 +16,8 @@ const DECK =
   `<script type="application/json" data-liebstoeckel-plugins>${MANIFEST}</script></body></html>`;
 
 let relay: RelayServer | null = null;
-afterEach(() => {
-  relay?.stop();
+afterEach(async () => {
+  await relay?.stop();
   relay = null;
 });
 

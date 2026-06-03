@@ -70,12 +70,15 @@ export function runRelay(argv: string[]) {
     console.log(`   note: serve behind TLS (wss://) for public use; set --public-url to the https origin.\n`);
   }
 
-  const shutdown = () => {
-    relay.stop();
+  // Await the snapshot flush before exiting so a rolling deploy / drain doesn't lose
+  // the last interval's live state (ADR 0071 §5 / ticket 0018). k8s gives us
+  // terminationGracePeriodSeconds (set on the StatefulSet) to finish.
+  const shutdown = async () => {
+    await relay.stop();
     process.exit(0);
   };
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", () => void shutdown());
+  process.on("SIGTERM", () => void shutdown());
 }
 
 if (import.meta.main) runRelay(process.argv.slice(2));

@@ -82,7 +82,10 @@ export interface RelayServer {
   /** operational counters (ADR 0061 / ticket 0015) — snapshot write failures so a
    *  silently-lost result surfaces in logs/metrics instead of vanishing. */
   stats(): { snapshotFailures: number };
-  stop(): void;
+  /** Flush every active session's final snapshot, then tear down. Awaitable so a
+   *  SIGTERM handler can guarantee the writes land before the process exits
+   *  (ADR 0071 §5 / ticket 0018 — the racy fire-and-forget path lost results). */
+  stop(): Promise<void>;
 }
 
 type WSData = { sessionId: string; peer: Peer | null; role: PeerRole };
@@ -376,8 +379,19 @@ export function createRelay(opts: RelayOptions): RelayServer {
     baseUrl: opts.publicBaseUrl?.replace(/\/$/, "") ?? `http://${opts.hostname ?? "0.0.0.0"}:${port}`,
     sessions,
     stats: () => ({ snapshotFailures }),
-    stop() {
-      for (const s of [...sessions.values()]) dropSession(s);
+    async stop() {
+      const active = [...sessions.values()];
+      // Flush every active session's final snapshot and AWAIT the writes before
+      // tearing down. The old path fired `dropSession` (un-awaited persist) then
+      // returned, so a SIGTERM + process.exit raced the S3 PUTs and lost the last
+      // interval's state. Now a graceful shutdown is lossless (ADR 0071 §5).
+      await Promise.allSettled(active.map((s) => persist(s)));
+      for (const s of active) {
+        if (s.ttl) clearTimeout(s.ttl);
+        if (s.snap) clearInterval(s.snap);
+        sessions.delete(s.id);
+        s.hub.destroy();
+      }
       server.stop(true);
     },
   };

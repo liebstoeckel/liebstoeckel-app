@@ -6,8 +6,8 @@ const TOKEN = "acct-secret-token";
 const DECK = "<!doctype html><html><head><title>deck</title></head><body><div id=root></div></body></html>";
 
 let relay: RelayServer | null = null;
-afterEach(() => {
-  relay?.stop();
+afterEach(async () => {
+  await relay?.stop();
   relay = null;
 });
 
@@ -151,5 +151,45 @@ describe("relay WebSocket sync", () => {
     const { id } = await (await createSession(base)).json();
     const res = await fetch(`${base}/sync/${id}?t=bad`, { headers: { upgrade: "websocket" } });
     expect(res.status).toBe(403);
+  });
+});
+
+describe("graceful shutdown flushes snapshots (ADR 0071 / ticket 0018)", () => {
+  function memStorage() {
+    const store = new Map<string, Uint8Array>();
+    return {
+      store,
+      get: async (k: string) => store.get(k) ?? null,
+      put: async (k: string, b: Uint8Array) => {
+        store.set(k, b);
+      },
+    };
+  }
+
+  test("stop() awaits the final snapshot write for active persisted sessions", async () => {
+    const storage = memStorage();
+    const base = start({ storage, snapshotMs: 1_000_000 }); // disable the timer; only stop() flushes
+    const res = await fetch(`${base}/api/sessions`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        "content-type": "text/html",
+        "x-snapshot-key": "org/live/flush.snap",
+      },
+      body: DECK,
+    });
+    expect(res.status).toBe(200);
+    // Nothing flushed yet (timer disabled).
+    expect(storage.store.has("org/live/flush.snap")).toBe(false);
+
+    await relay!.stop();
+    relay = null; // already stopped — keep afterEach a no-op
+
+    // The flush must have completed before stop() resolved (no lost results).
+    expect(storage.store.has("org/live/flush.snap")).toBe(true);
+    const snap = storage.store.get("org/live/flush.snap")!;
+    expect(snap.byteLength).toBeGreaterThan(0);
+    // It is a valid Yjs update (applying it to a fresh doc does not throw).
+    Y.applyUpdate(new Y.Doc(), snap);
   });
 });
