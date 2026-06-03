@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { S3Client } from "bun";
 import { createRelay, type RelayStorage } from "./relay-server";
+import { relayPublicBaseFromPod } from "./addressing";
 
 /** Object storage for session snapshots (ADR 0061), wired from S3_* env when present.
  *  Absent → the relay runs without persistence (transient/CLI use). */
@@ -40,7 +41,13 @@ function flag(argv: string[], name: string): string | undefined {
 
 export function runRelay(argv: string[]) {
   const port = Number(flag(argv, "--port") ?? process.env.PORT ?? 0) || 0;
-  const publicBaseUrl = flag(argv, "--public-url") ?? process.env.PRESENT_RELAY_PUBLIC_URL;
+  // Public base: an explicit override wins (CLI / single-pod env); otherwise a
+  // StatefulSet pod derives its OWN per-pod base from its ordinal + host template
+  // (ADR 0071 §3 / ticket 0016 — POD_NAME via the downward API).
+  const publicBaseUrl =
+    flag(argv, "--public-url") ??
+    process.env.PRESENT_RELAY_PUBLIC_URL ??
+    relayPublicBaseFromPod(process.env.POD_NAME, process.env.PRESENT_RELAY_HOST_TEMPLATE);
   let tokens = (flag(argv, "--tokens") ?? process.env.PRESENT_RELAY_TOKENS ?? "")
     .split(",")
     .map((s) => s.trim())
