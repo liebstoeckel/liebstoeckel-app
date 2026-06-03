@@ -119,3 +119,51 @@ describe("connectLive (mock WS)", () => {
     conn.close();
   });
 });
+
+describe("connectLive recovery escalation (ticket 0018)", () => {
+  test("fires onUnrecoverable once after N consecutive failed reconnects", async () => {
+    const created: MockWS[] = [];
+    const WS = function (url: string) {
+      const s = new MockWS(url);
+      created.push(s);
+      queueMicrotask(() => s.close()); // simulate connection refused (session gone)
+      return s;
+    } as unknown as typeof WebSocket;
+
+    let recovered = 0;
+    const conn = connectLive(info, "p", {
+      WS,
+      staleMs: 0,
+      reconnectBaseMs: 1,
+      reconnectMaxMs: 1,
+      reloadAfterAttempts: 3,
+      onUnrecoverable: () => recovered++,
+    });
+
+    await new Promise((r) => setTimeout(r, 80));
+    expect(recovered).toBe(1); // escalated exactly once
+    expect(created.length).toBeGreaterThanOrEqual(3); // retried, then gave up
+    conn.close();
+  });
+
+  test("a successful open resets the attempt counter (no false escalation)", async () => {
+    const created: MockWS[] = [];
+    const WS = function (url: string) {
+      const s = new MockWS(url);
+      created.push(s);
+      return s;
+    } as unknown as typeof WebSocket;
+    let recovered = 0;
+    const conn = connectLive(info, "p", {
+      WS,
+      staleMs: 0,
+      reconnectBaseMs: 1,
+      reloadAfterAttempts: 2,
+      onUnrecoverable: () => recovered++,
+    });
+    created[0]!.open(); // immediate success resets attempt to 0
+    await new Promise((r) => setTimeout(r, 30));
+    expect(recovered).toBe(0);
+    conn.close();
+  });
+});

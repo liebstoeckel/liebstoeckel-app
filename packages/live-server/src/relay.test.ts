@@ -92,3 +92,25 @@ describe("Hub (Yjs relay)", () => {
     expect(hub.size).toBe(0);
   });
 });
+
+describe("Hub snapshot/seed round-trip (re-provision continuity, ticket 0018)", () => {
+  test("seed restores a prior snapshot's doc state into a fresh Hub", () => {
+    const a = new Hub();
+    const local = new Y.Doc();
+    local.getMap("deck").set("index", 7);
+    local.getMap("plugin:poll").set("votes", 3);
+    a.join(() => {}).recv(new Uint8Array(Y.encodeStateAsUpdate(local)));
+    const snap = a.snapshot();
+    a.destroy();
+
+    // a brand-new Hub on a "new pod" seeded from the snapshot carries the same state —
+    // the audience's poll/Q&A survives a re-provision (ADR 0071 §5).
+    const b = new Hub();
+    b.seed(snap);
+    const out = new Y.Doc();
+    Y.applyUpdate(out, b.snapshot());
+    expect(out.getMap("deck").get("index")).toBe(7);
+    expect(out.getMap("plugin:poll").get("votes")).toBe(3);
+    b.destroy();
+  });
+});

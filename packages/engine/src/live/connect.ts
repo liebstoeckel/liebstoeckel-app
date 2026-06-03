@@ -15,6 +15,14 @@ export interface ConnectOptions {
   /** force-reconnect if no frame (incl. server keepalives) arrives within this
    *  window — detects half-open sockets the browser won't `close`. 0 = disabled. */
   staleMs?: number;
+  /** After this many consecutive failed (re)connect attempts the session is likely
+   *  *gone* (re-provisioned to a new relay session) rather than a transient blip — so
+   *  retrying the same URL will 403 forever (ADR 0071 §5 / ticket 0018). Fire
+   *  `onUnrecoverable` once to recover via the stable link. 0 = never (default). */
+  reloadAfterAttempts?: number;
+  /** Recovery action when the session looks gone. Default: reload the page (which
+   *  re-resolves the stable `/live/:slug` → the new relay session) where possible. */
+  onUnrecoverable?: () => void;
 }
 
 /** Connect a Yjs doc to the live server over WebSocket, with auto-reconnect and a
@@ -26,6 +34,13 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   const baseMs = opts.reconnectBaseMs ?? 1000;
   const maxMs = opts.reconnectMaxMs ?? 15000;
   const staleMs = opts.staleMs ?? 60000;
+  const reloadAfter = opts.reloadAfterAttempts ?? 0;
+  const onUnrecoverable =
+    opts.onUnrecoverable ??
+    (() => {
+      if (typeof location !== "undefined") location.reload();
+    });
+  let escalated = false;
   const doc = new Y.Doc();
   const sep = info.ws.includes("?") ? "&" : "?";
   const url = `${info.ws}${sep}p=${encodeURIComponent(participant)}`;
@@ -46,6 +61,13 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
 
   const schedule = () => {
     if (closed) return;
+    // Persistent failure → the session is likely gone (re-provisioned). Stop hammering
+    // the dead URL and escalate to stable-link recovery exactly once (ticket 0018).
+    if (reloadAfter > 0 && attempt >= reloadAfter && !escalated) {
+      escalated = true;
+      onUnrecoverable();
+      return;
+    }
     const delay = Math.min(baseMs * 2 ** attempt, maxMs);
     attempt++;
     timer = setTimeout(open, delay);
