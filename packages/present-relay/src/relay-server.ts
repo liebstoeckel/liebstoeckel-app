@@ -98,7 +98,11 @@ const hex = (bytes = 16): string => {
 
 const DEFAULTS = {
   maxDeckBytes: 8 * 1024 * 1024,
-  maxSessionsPerAccount: 20,
+  // Per-pod safety valve, NOT the platform ceiling (ADR 0071 §2 / ticket 0017): real
+  // concurrency is gated by per-org entitlements + per-pod capacity in the control
+  // plane's choosePod, and sessions spread across the StatefulSet's pods. This just
+  // backstops a single pod's RAM.
+  maxSessionsPerAccount: 200,
   sessionTtlMs: 6 * 60 * 60 * 1000,
   maxFrameBytes: 4 * 1024 * 1024,
   keepaliveMs: 25_000,
@@ -179,6 +183,14 @@ export function createRelay(opts: RelayOptions): RelayServer {
       const { pathname } = url;
 
       if (pathname === "/healthz") return new Response("ok");
+
+      // --- fleet stats: this pod's live load, for control-plane placement ----
+      // (ADR 0071 §2 / ticket 0017). Account-gated because the per-pod Ingress makes
+      // it publicly reachable; only the control plane (with the account token) reads it.
+      if (pathname === "/stats") {
+        if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
+        return json({ ok: true, sessions: sessions.size });
+      }
 
       // --- control API: create a session by uploading a deck ---------------
       if (pathname === "/api/sessions" && req.method === "POST") {

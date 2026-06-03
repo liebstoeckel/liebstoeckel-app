@@ -193,3 +193,17 @@ describe("graceful shutdown flushes snapshots (ADR 0071 / ticket 0018)", () => {
     Y.applyUpdate(new Y.Doc(), snap);
   });
 });
+
+describe("relay /stats (control-plane placement, ticket 0017)", () => {
+  test("returns this pod's live load, account-gated", async () => {
+    const base = start();
+    expect((await fetch(`${base}/stats`)).status).toBe(401); // no token
+    const empty = await fetch(`${base}/stats`, { headers: { authorization: `Bearer ${TOKEN}` } });
+    expect(empty.status).toBe(200);
+    expect((await empty.json()).sessions).toBe(0);
+    await createSession(base);
+    const one = await (await fetch(`${base}/stats`, { headers: { authorization: `Bearer ${TOKEN}` } })).json();
+    expect(one.ok).toBe(true);
+    expect(one.sessions).toBe(1);
+  });
+});
