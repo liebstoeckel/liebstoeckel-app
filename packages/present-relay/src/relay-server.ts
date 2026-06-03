@@ -152,6 +152,10 @@ export function createRelay(opts: RelayOptions): RelayServer {
   if (!opts.accountTokens.length) throw new Error("createRelay: at least one account token is required");
   const sessions = new Map<string, RelaySession>();
   let snapshotFailures = 0;
+  // Process start time — reported in /stats so the reconciler can tell when a pod has
+  // RESTARTED (same name, fresh memory) and re-provision sessions it lost, not just when
+  // a pod is gone (ADR 0071 §5 / ticket 0018+0019).
+  const startedAt = Date.now();
   // Drain flag (ADR 0071 §4 / ticket 0019): the reconciler cordons a pod (POST /cordon)
   // to stop NEW placement while existing sessions finish. Reported in /stats so the
   // control plane's choosePod skips it; in-memory, so a recreated pod starts uncordoned.
@@ -193,7 +197,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       // it publicly reachable; only the control plane (with the account token) reads it.
       if (pathname === "/stats") {
         if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
-        return json({ ok: true, sessions: sessions.size, cordoned });
+        return json({ ok: true, sessions: sessions.size, cordoned, startedAt });
       }
 
       // --- drain control: cordon/uncordon this pod (reconciler only) ---------
