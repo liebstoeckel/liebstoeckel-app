@@ -1,4 +1,5 @@
-import { join, dirname } from "node:path";
+import { rm } from "node:fs/promises";
+import { basename, join, dirname } from "node:path";
 import tailwind from "bun-plugin-tailwind";
 import { discoverFromPackageJson } from "@liebstoeckel/plugin-sdk/discovery";
 import {
@@ -77,6 +78,7 @@ export function escapeInlineModuleScript(html: string): string {
 export async function bundleDeck({
   entry = "./index.html",
   outdir = "./dist",
+  outfile = "index.html",
   minify = true,
   pkgJson = "./package.json",
   inlinePackage = true,
@@ -84,6 +86,9 @@ export async function bundleDeck({
 }: {
   entry?: string;
   outdir?: string;
+  /** Final artifact name within `outdir` (default `index.html`; the user-facing
+   *  `buildDeck` wrapper passes the deck slug, e.g. `poll-demo.html` — ADR 0068). */
+  outfile?: string;
   minify?: boolean;
   pkgJson?: string;
   /** Embed the deck's own source as a recoverable package so the .html is ejectable (ADR 0039). */
@@ -106,9 +111,12 @@ export async function bundleDeck({
   }
 
   // Escape `</script>` inside the inlined bundle, then embed the plugin manifest
-  // (incl. base64 server bundles) into the single file.
-  const outHtml = join(outdir, "index.html");
-  let html = escapeInlineModuleScript(await Bun.file(outHtml).text());
+  // (incl. base64 server bundles) into the single file. Bun.build names its output
+  // after the entry basename (`index.html`); we post-process that and ship it under
+  // `outfile` (the deck slug for the user-facing build — ADR 0068).
+  const built = join(outdir, basename(entry));
+  const outHtml = join(outdir, outfile);
+  let html = escapeInlineModuleScript(await Bun.file(built).text());
   const manifest = await buildPluginManifest(pkgJson);
   if (manifest) html = embedManifest(html, manifest);
 
@@ -121,6 +129,8 @@ export async function bundleDeck({
   }
 
   await Bun.write(outHtml, html);
+  // Drop Bun's `index.html` emit when shipping under a different slug name.
+  if (built !== outHtml) await rm(built, { force: true });
 
   return result;
 }

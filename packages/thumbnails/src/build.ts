@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { bundleDeck } from "@liebstoeckel/engine/build";
 import { withThumbnails } from "./index";
 import type { CaptureOptions } from "./capture";
@@ -6,12 +6,29 @@ import type { CaptureOptions } from "./capture";
 export interface BuildDeckOptions {
   entry?: string;
   outdir?: string;
+  /** Final artifact name within `outdir`. Defaults to `<deck-slug>.html` derived
+   *  from the deck folder (ADR 0068) — the same key `liebstoeckel push` upserts by. */
+  outfile?: string;
   minify?: boolean;
   pkgJson?: string;
   /** Embed the deck's own source as a recoverable package so the .html is ejectable (ADR 0039). */
   inlinePackage?: boolean;
   /** Force the source-embed past its secret gate (loud, explicit). */
   allowSecret?: boolean;
+}
+
+/** `<deck-slug>.html` from the deck folder name (the dir holding `package.json`),
+ *  e.g. `…/poll-demo/package.json` → `poll-demo.html`. Mirrors the CLI's deck-key
+ *  slugify so the built file and the pushed deck key agree (ADR 0058/0068). */
+function deckHtmlName(pkgJson?: string): string {
+  const dir = dirname(resolve(pkgJson ?? "./package.json"));
+  const slug =
+    basename(dir)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "deck";
+  return `${slug}.html`;
 }
 
 /** Build a deck to a single self-contained `.html` and, **by default**, capture +
@@ -21,8 +38,9 @@ export interface BuildDeckOptions {
  *  (the policy lives in `withThumbnails`). */
 export async function buildDeck(build: BuildDeckOptions = {}, capture: CaptureOptions = {}): Promise<void> {
   const outdir = build.outdir ?? "./dist";
-  await bundleDeck(build);
-  const out = join(outdir, "index.html");
+  const outfile = build.outfile ?? deckHtmlName(build.pkgJson);
+  await bundleDeck({ ...build, outfile });
+  const out = join(outdir, outfile);
   console.log(`✓ built ${out}`);
 
   const onSlide = capture.onSlide ?? ((i: number, n: number) => process.stderr.write(`\r  thumbnail ${i + 1}/${n}   `));

@@ -28,13 +28,15 @@ The token is stored in `~/.config/liebstoeckel/credentials.json` (mode `600`).
 ## Push a deck
 
 ```bash
-liebstoeckel build          # → ./dist/index.html
-liebstoeckel push           # uploads ./dist/index.html
+liebstoeckel build          # → ./dist/<deck-slug>.html
+liebstoeckel push           # uploads the built deck in ./dist
 ```
 
-The deck's **title** comes from its embedded `<title>` (or `--title`), and its **cover
-thumbnail** is read from the slide thumbnails already baked into the file — nothing extra
-to send. It appears in your dashboard immediately.
+The deck's **title** comes from its embedded `<title>` (or an explicit `--title`
+override), and its **cover thumbnail** is read from the slide thumbnails already baked
+into the file — nothing extra to send. The server reads both straight out of the uploaded
+file, so titles with em-dashes, smart quotes, or emoji just work. It appears in your
+dashboard immediately.
 
 ## Organizations: personal and teams
 

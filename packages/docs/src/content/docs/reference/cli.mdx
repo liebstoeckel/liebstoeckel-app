@@ -86,7 +86,9 @@ reads the bundled `@liebstoeckel` registry.
 
 ## `build`
 
-Build a deck to a single self-contained `.html` (+ thumbnails). By default the build also
+Build a deck to a single self-contained `.html` (+ thumbnails), written to
+`./dist/<deck-slug>.html` — the slug is the deck folder name, e.g. `poll-demo/` →
+`dist/poll-demo.html` (ADR 0068). By default the build also
 embeds a compressed copy of the deck's **own source** (slides, `package.json`, etc. — not
 `node_modules`), so the compiled `.html` can later be [`eject`](#eject)ed back to an editable
 project. Source collection uses `bun pm pack`, so your deck's `package.json` `"files"` list
@@ -220,7 +222,7 @@ liebstoeckel export [deck.html|deck-dir|--dir <deck>] [opts]
 
 ```bash
 # slide 3 of a built deck → PNG
-liebstoeckel export ./dist/index.html --slides 3 -o ./out
+liebstoeckel export ./dist/my-deck.html --slides 3 -o ./out
 
 # whole deck as a PDF, building the source dir on demand
 liebstoeckel export ./presentations/demo --format pdf -o demo.pdf
@@ -280,22 +282,25 @@ from `login`; the deck appears in your dashboard's deck list — for a **team or
 visible to every member (the shared library).
 
 ```bash
-liebstoeckel build                       # produces ./dist/index.html
-liebstoeckel push ./dist/index.html --title "My deck"
+liebstoeckel build                       # produces ./dist/<deck-slug>.html
+liebstoeckel push                        # no path → that built deck in ./dist
 liebstoeckel push --org acme             # push into a team you belong to
-liebstoeckel push                        # edit + re-push → a new VERSION of the same deck
+liebstoeckel push ./dist/my-deck.html --title "My deck"   # explicit path + title override
 ```
 
 **Re-push = a new version.** `push` identifies a deck by a stable **key** (the deck
 folder name, or `--name <key>`); pushing the same key again updates that deck **in place
 at the same URL** (a new version on Pro; the latest is replaced on free). `--new` forces a
-separate deck. The **title** comes from `--title` → the embedded `<title>` → the folder
-name (never "index"); a **cover** is read from the deck's built-in thumbnails. With no
-path, `push` looks for `./dist/index.html`.
+separate deck. With **no path**, `push` uploads the single built `.html` in `./dist`
+(run `build` first). The **title** comes from `--title` → the deck's own embedded
+`<title>` → the deck key (ADR 0068): the server reads the `<title>` straight from the
+uploaded file, so any Unicode (em-dashes, smart quotes, emoji) just works. Only an
+explicit `--title` override travels as a header (URL-encoded). A **cover** is read from
+the deck's built-in thumbnails.
 
 | Flag | Meaning |
 | --- | --- |
-| `--title <title>` | deck title (default: the deck's `<title>`, then its folder name) |
+| `--title <title>` | override the title (default: the deck's embedded `<title>`, then its key) |
 | `--name <key>` | the deck key to upsert (default: the deck folder name) |
 | `--new` | create a separate deck instead of updating the matching one |
 | `--org <slug>` | push into this organization (default: the one set by `orgs use`, else personal) |

@@ -3,6 +3,7 @@
 // (RFC 8628) against the control plane's /api/auth/device/* endpoints; push
 // uploads a single-file deck to the versioned /api/v1/decks with the resulting
 // bearer token; orgs lists/sets the active organization decks are pushed into.
+import { existsSync, readdirSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { loadCreds, saveCreds } from "./creds";
 
@@ -26,17 +27,17 @@ export function resolveOrg(argv: string[], defaultOrg?: string): { org?: string;
 }
 
 
-/** The deck's title from its built HTML `<title>` (mirrors control-core). */
-function titleFromHtml(html: string): string | null {
-  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if (!m) return null;
-  const t = m[1]!
-    .replace(/&(amp|lt|gt|quot|#39|apos);/g, (e) =>
-      ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&apos;": "'" })[e] ?? e,
-    )
-    .replace(/\s+/g, " ")
-    .trim();
-  return t || null;
+/** Default `push` target when no path is given: the single built `.html` in
+ *  `./dist` (the deck slug, e.g. `dist/poll-demo.html`), preferring `index.html`
+ *  if several exist. The server derives the title from the file's own `<title>`,
+ *  so the CLI no longer parses it (ADR 0068, superseding 0054's client-side parse). */
+function defaultDeckHtml(): string | null {
+  const dir = resolve("dist");
+  if (!existsSync(dir)) return null;
+  const htmls = readdirSync(dir).filter((f) => /\.html?$/i.test(f));
+  if (htmls.length === 1) return join("dist", htmls[0]!);
+  if (htmls.includes("index.html")) return join("dist", "index.html");
+  return null;
 }
 
 /** The deck name from the build path: the folder above `dist/`, else the parent
@@ -127,10 +128,12 @@ export async function runLogin(argv: string[]): Promise<void> {
 export async function runPush(argv: string[]): Promise<void> {
   const creds = await loadCreds();
   const { org, rest } = resolveOrg(argv, creds?.org);
-  const file = rest.find((a) => !a.startsWith("-"));
+  // With no path, push the built deck in ./dist (ADR 0068) — matching `liebstoeckel build`.
+  const file = rest.find((a) => !a.startsWith("-")) ?? defaultDeckHtml();
   if (!file) {
     console.error(
-      "usage: liebstoeckel push <deck.html> [--title <t>] [--name <key>] [--new] [--org <slug>] [--api <host>]",
+      "usage: liebstoeckel push [deck.html] [--title <t>] [--name <key>] [--new] [--org <slug>] [--api <host>]\n" +
+        "  (no path → the built deck in ./dist; run `liebstoeckel build` first)",
     );
     process.exit(1);
   }
@@ -147,8 +150,6 @@ export async function runPush(argv: string[]): Promise<void> {
   }
   const html = await Bun.file(path).text();
   const deckName = flag(argv, "--name") ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
-  // Title precedence (ADR 0054): --title → embedded <title> → deck folder name.
-  const title = flag(argv, "--title") ?? titleFromHtml(html) ?? deckName;
   // Deck key (ADR 0058): re-push upserts by it. `--new` forces a fresh deck by
   // uniquifying the key, so the same folder can also start a separate deck.
   const fresh = argv.includes("--new");
@@ -157,9 +158,14 @@ export async function runPush(argv: string[]): Promise<void> {
   const headers: Record<string, string> = {
     authorization: `Bearer ${creds.token}`,
     "content-type": "text/html",
-    "x-deck-title": title,
     "x-deck-key": deckKey,
   };
+  // Title precedence (ADR 0068): the server parses the deck's own `<title>`, so we
+  // only send a header when the user explicitly overrides it with `--title`. It's
+  // URL-encoded because non-Latin1 chars (em-dash, smart quotes, emoji) are illegal
+  // in HTTP header values.
+  const titleOverride = flag(argv, "--title");
+  if (titleOverride) headers["x-deck-title"] = encodeURIComponent(titleOverride);
   if (org) headers["x-org-slug"] = org;
 
   const res = await fetch(`${api}/api/v1/decks`, { method: "POST", headers, body: html });
