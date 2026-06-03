@@ -152,6 +152,10 @@ export function createRelay(opts: RelayOptions): RelayServer {
   if (!opts.accountTokens.length) throw new Error("createRelay: at least one account token is required");
   const sessions = new Map<string, RelaySession>();
   let snapshotFailures = 0;
+  // Drain flag (ADR 0071 §4 / ticket 0019): the reconciler cordons a pod (POST /cordon)
+  // to stop NEW placement while existing sessions finish. Reported in /stats so the
+  // control plane's choosePod skips it; in-memory, so a recreated pod starts uncordoned.
+  let cordoned = false;
 
   const persist = async (s: RelaySession) => {
     if (!cfg.storage || !s.snapshotKey) return;
@@ -189,13 +193,25 @@ export function createRelay(opts: RelayOptions): RelayServer {
       // it publicly reachable; only the control plane (with the account token) reads it.
       if (pathname === "/stats") {
         if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
-        return json({ ok: true, sessions: sessions.size });
+        return json({ ok: true, sessions: sessions.size, cordoned });
+      }
+
+      // --- drain control: cordon/uncordon this pod (reconciler only) ---------
+      // (ADR 0071 §4 / ticket 0019). Cordoned → refuse NEW sessions; existing ones
+      // run to completion. `{ "cordoned": false }` lifts it (e.g. a recreated pod).
+      if (pathname === "/cordon" && req.method === "POST") {
+        if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
+        const body = (await req.json().catch(() => ({}))) as { cordoned?: boolean };
+        cordoned = body.cordoned !== false;
+        return json({ ok: true, cordoned });
       }
 
       // --- control API: create a session by uploading a deck ---------------
       if (pathname === "/api/sessions" && req.method === "POST") {
         const account = matchAccount(cfg.accountTokens, bearer(req));
         if (!account) return json({ error: "unauthorized" }, 401);
+        // Cordoned pods take no new sessions — a backstop; placement already skips us.
+        if (cordoned) return json({ error: "relay draining" }, 503);
 
         const declared = Number(req.headers.get("content-length") ?? "0");
         if (declared > cfg.maxDeckBytes) return json({ error: "deck too large" }, 413);

@@ -207,3 +207,25 @@ describe("relay /stats (control-plane placement, ticket 0017)", () => {
     expect(one.sessions).toBe(1);
   });
 });
+
+describe("relay cordon — drain control (ticket 0019)", () => {
+  test("POST /cordon flips the flag in /stats and refuses new sessions; uncordon lifts it", async () => {
+    const base = start();
+    expect((await fetch(`${base}/cordon`, { method: "POST" })).status).toBe(401); // account-gated
+    const c = await fetch(`${base}/cordon`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${TOKEN}` },
+      body: JSON.stringify({ cordoned: true }),
+    });
+    expect(c.status).toBe(200);
+    const stats = await (await fetch(`${base}/stats`, { headers: { authorization: `Bearer ${TOKEN}` } })).json();
+    expect(stats.cordoned).toBe(true);
+    expect((await createSession(base)).status).toBe(503); // cordoned → no new sessions
+    await fetch(`${base}/cordon`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${TOKEN}` },
+      body: JSON.stringify({ cordoned: false }),
+    });
+    expect((await createSession(base)).status).toBe(200); // uncordoned again
+  });
+});
