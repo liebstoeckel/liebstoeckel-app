@@ -72,6 +72,10 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   const liveDeck = useLiveDeck(liveCtx?.doc ?? fallbackDoc, count, liveCtx?.role !== "viewer");
   const isLive = !!liveCtx?.live;
   const role = isLive ? liveCtx?.role : undefined;
+  // A live viewer follows the presenter — overview + the presenter pop-out are
+  // presenter-only (they'd reach the confidence monitor / drive nav). Standalone
+  // (no live role) drives its own deck, so canDrive is true (ADR 0070).
+  const canDrive = role !== "viewer";
   const ctrl = isLive ? liveDeck : sync;
   const { index, step, total } = ctrl;
 
@@ -122,11 +126,11 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
     onNext: ctrl.next,
     onPrev: ctrl.prev,
     onToggleBrand: brands.length > 1 ? () => setBrandIdx((n) => n + 1) : undefined,
-    onOpenPresenter: openPresenter,
+    onOpenPresenter: canDrive ? openPresenter : undefined,
     onToggleHelp: () => setHelp((v) => !v),
     onFullscreen: () => void toggleFullscreen(document.documentElement),
     onBlur: () => setBlurred((v) => !v),
-    onOverview: () => setOverview((v) => !v),
+    onOverview: canDrive ? () => setOverview((v) => !v) : undefined,
     onQr: () => setQr((v) => !v),
     onDigit,
   });
@@ -267,7 +271,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
           count={count}
           isLive={isLive}
           role={role}
-          canDrive={role !== "viewer"}
+          canDrive={canDrive}
           viewerUrl={liveCtx?.viewerUrl}
           onHelp={() => setHelp(true)}
           onOverview={() => setOverview((v) => !v)}

@@ -46,7 +46,11 @@ State lives in a **Yjs** document (a CRDT) shared over WebSocket. A small relay 
 - **Presenter** — drives the slide index; everyone follows. Can moderate plugins.
 - **Viewer** — follows the presenter's index; can still interact with plugins (vote, ask, react).
 
-Roles come from an **unguessable token in the URL** (`?t=…`), not a login.
+Roles come from an **unguessable token in the URL** (`?t=…`), not a login. A viewer's
+client is scoped to match: the **presenter view** (<kbd>p</kbd> / `#presenter`) and the
+**overview grid** (<kbd>o</kbd>) are presenter-only — they stay disabled and dimmed in the
+shortcut help (<kbd>?</kbd>) for viewers, so the speaker notes and plugin consoles aren't
+reachable from a shared audience link.
 
 ## Where code runs
 

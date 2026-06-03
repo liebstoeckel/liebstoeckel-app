@@ -19,6 +19,14 @@ export function brandThemesCss(themes?: Theme[]): string {
   return (themes ?? []).map(themeToCss).join("\n");
 }
 
+/** Whether to render the presenter confidence monitor: the `#presenter` hash asks
+ *  for it, but a live **viewer** must never reach it (it exposes speaker notes and
+ *  the plugin presenter consoles). Standalone (`role === undefined`) keeps the
+ *  hash-gate as the presenter mechanism (ADR 0027/0070). Pure — DOM-free. */
+export function presenterViewRequested(hash: string, role?: string): boolean {
+  return hash.includes("presenter") && role !== "viewer";
+}
+
 // Single entry point for a presentation. Detects a live server (the bootstrap the
 // server injects), connects the shared Yjs doc, and provides plugin context. Falls
 // back to the standalone deck (BroadcastChannel presenter view via the P key).
@@ -65,8 +73,11 @@ export function Present(props: DeckProps) {
     plugins: registry,
   };
 
+  // The presenter confidence monitor is selected by the #presenter hash — but in a
+  // live session a *viewer* must never reach it (it leaks speaker notes + presenter
+  // consoles). Standalone (no live role) keeps the hash-gate (ADR 0027/0070).
   const [isPresenterWindow] = useState(
-    () => typeof location !== "undefined" && location.hash.includes("presenter"),
+    () => typeof location !== "undefined" && presenterViewRequested(location.hash, info?.role),
   );
 
   // Deck-defined brands → an injected `[data-brand]` stylesheet (so a deck can ship

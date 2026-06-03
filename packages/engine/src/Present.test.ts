@@ -1,6 +1,22 @@
 import { test, expect, describe } from "bun:test";
-import { brandThemesCss } from "./Present";
+import { brandThemesCss, presenterViewRequested } from "./Present";
 import { defineTheme, nocturne } from "@liebstoeckel/theme";
+
+describe("presenterViewRequested", () => {
+  test("standalone (no role): #presenter opens the presenter view", () => {
+    expect(presenterViewRequested("#presenter", undefined)).toBe(true);
+    expect(presenterViewRequested("", undefined)).toBe(false);
+  });
+
+  test("live presenter: #presenter opens the presenter view", () => {
+    expect(presenterViewRequested("#presenter", "presenter")).toBe(true);
+  });
+
+  test("live viewer: #presenter is denied (no notes/console leak)", () => {
+    expect(presenterViewRequested("#presenter", "viewer")).toBe(false);
+    expect(presenterViewRequested("", "viewer")).toBe(false);
+  });
+});
 
 describe("brandThemesCss", () => {
   test("empty string when no themes", () => {
