@@ -83,6 +83,10 @@ describe("relay deck serving (opaque sandbox)", () => {
     expect(csp).not.toContain("allow-same-origin");
     expect(csp).not.toContain("allow-fullscreen"); // invalid sandbox token — must not regress
     expect(csp).toContain("connect-src");
+    // ADR 0069: default-src lockdown closes the remote-load / GET-exfil gap.
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("img-src data: blob:");
+    expect(csp).toContain("frame-ancestors 'none'");
     const html = await res.text();
     expect(html).toContain("window.__LIEBSTOECKEL_LIVE__");
     expect(html).toContain(`/sync/${id}?t=${viewerToken}`);

