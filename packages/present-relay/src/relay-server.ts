@@ -239,8 +239,20 @@ export function createRelay(opts: RelayOptions): RelayServer {
         const capHdr = Number(req.headers.get("x-audience-cap") ?? "");
         const audienceCap = Number.isFinite(capHdr) && capHdr > 0 ? capHdr : undefined;
         const watermark = req.headers.get("x-watermark") === "1";
+        // Stable session id across re-provision (ADR 0072): the control plane re-creates
+        // a recovered session under the SAME id on a new pod, so the audience URL
+        // (`/s/<id>?t=<grant>`) and its stateless grant stay valid — only the pod the
+        // multi-layer ForwardAuth route resolves to changes. Absent (CLI) → relay mints one.
+        const providedId = (req.headers.get("x-session-id") || "").trim() || undefined;
 
         const session = createSession();
+        if (providedId) {
+          // A stale entry under this id (re-provision raced its predecessor's teardown)
+          // is dropped + snapshotted first so the fresh, re-seeded one wins.
+          const stale = sessions.get(providedId);
+          if (stale) dropSession(stale);
+          session.id = providedId;
+        }
         const hub = new Hub({
           keepaliveMs: cfg.keepaliveMs,
           audience: enforce ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate } : undefined,

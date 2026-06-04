@@ -69,6 +69,30 @@ describe("relay control API auth", () => {
     expect((await createSession(base)).status).toBe(200);
     expect((await createSession(base)).status).toBe(429);
   });
+
+  // ADR 0072: a caller-supplied stable id lets re-provision re-create a session under the
+  // SAME id on a new pod, so the audience URL + its stateless grant survive the move.
+  test("pins the session id from x-session-id and re-creates idempotently", async () => {
+    const base = start();
+    const withId = (id: string) =>
+      fetch(`${base}/api/sessions`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${TOKEN}`, "content-type": "text/html", "x-session-id": id },
+        body: DECK,
+      });
+    const a = await (await withId("stable-abc")).json();
+    expect(a.id).toBe("stable-abc");
+    expect(a.urls.viewer).toContain("/s/stable-abc?t=");
+    expect(a.urls.sync).toContain("/sync/stable-abc");
+    // The viewer grant the relay minted validates against this id — connecting works.
+    const ok = await fetch(`${base}/s/stable-abc?t=${a.viewerGrant}`);
+    expect(ok.status).toBe(200);
+    // Re-creating under the same id (a re-provision) succeeds and stays the same id; the
+    // FIRST provision's grant still validates on the "new" session (grants are stateless).
+    const b = await (await withId("stable-abc")).json();
+    expect(b.id).toBe("stable-abc");
+    expect((await fetch(`${base}/s/stable-abc?t=${a.viewerGrant}`)).status).toBe(200);
+  });
 });
 
 describe("relay deck serving (opaque sandbox)", () => {
