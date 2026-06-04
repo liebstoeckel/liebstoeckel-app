@@ -12,6 +12,7 @@ import {
 } from "@liebstoeckel/live-server";
 import { bearer, matchAccount, safeEqual } from "./auth";
 import { mintGrant, verifyGrant } from "./grant";
+import { createRelayMetrics } from "./metrics";
 
 /** Pluggable object storage for session snapshots (ADR 0061). The hosted deploy wires
  *  a Bun S3 client; the core stays storage-agnostic + testable. */
@@ -46,6 +47,8 @@ export interface RelayOptions {
   snapshotMs?: number;
   /** per-audience-peer write rate (enforced sessions). */
   audienceRate?: { capacity: number; refillPerSec: number };
+  /** image tag for the `liebstoeckel_relay_build_info` metric (ADR 0073). */
+  version?: string;
 }
 
 interface RelaySession {
@@ -161,14 +164,33 @@ export function createRelay(opts: RelayOptions): RelayServer {
   // control plane's choosePod skips it; in-memory, so a recreated pod starts uncordoned.
   let cordoned = false;
 
+  // Metrics (ADR 0073 / ticket 0023). Per-instance registry; scrape-time gauges are read
+  // from the live `sessions` map. Served bearer-gated at GET /metrics below.
+  const metrics = createRelayMetrics(opts.version ?? process.env.PRESENT_RELAY_VERSION ?? "unknown");
+  metrics.registry.onCollect(() => {
+    let audience = 0;
+    let deckBytes = 0;
+    for (const s of sessions.values()) {
+      audience += s.audienceCount;
+      deckBytes += Buffer.byteLength(s.html, "utf8");
+    }
+    metrics.sessions.set(sessions.size);
+    metrics.audiencePeers.set(audience);
+    metrics.deckBytes.set(deckBytes);
+    metrics.cordoned.set(cordoned ? 1 : 0);
+    metrics.startedAt.set(Math.floor(startedAt / 1000));
+  });
+
   const persist = async (s: RelaySession) => {
     if (!cfg.storage || !s.snapshotKey) return;
+    metrics.snapshotWrites.inc();
     try {
       await cfg.storage.put(s.snapshotKey, s.hub.snapshot());
     } catch (e) {
       // Best-effort: a failed write must never crash the relay — but it must NOT be
       // silent (results would vanish). Structured log + a counter (ADR 0061).
       snapshotFailures++;
+      metrics.snapshotFailures.inc();
       console.error(
         JSON.stringify({ level: "error", msg: "relay snapshot persist failed", key: s.snapshotKey, err: String(e) }),
       );
@@ -200,6 +222,17 @@ export function createRelay(opts: RelayOptions): RelayServer {
         return json({ ok: true, sessions: sessions.size, cordoned, startedAt });
       }
 
+      // --- Prometheus metrics: this pod's logical state (ADR 0073 / ticket 0023). ---
+      // Account-gated like /stats — the round-robin + per-pod ingresses route all paths, so
+      // the bearer keeps it off the public surface; Alloy scrapes it on the pod network with
+      // the account token. NOT routed by the stable host (ForwardAuth denies non-session paths).
+      if (pathname === "/metrics") {
+        if (!matchAccount(cfg.accountTokens, bearer(req))) return new Response("unauthorized", { status: 401 });
+        return new Response(metrics.registry.render(), {
+          headers: { "content-type": "text/plain; version=0.0.4; charset=utf-8" },
+        });
+      }
+
       // --- drain control: cordon/uncordon this pod (reconciler only) ---------
       // (ADR 0071 §4 / ticket 0019). Cordoned → refuse NEW sessions; existing ones
       // run to completion. `{ "cordoned": false }` lifts it (e.g. a recreated pod).
@@ -213,18 +246,36 @@ export function createRelay(opts: RelayOptions): RelayServer {
       // --- control API: create a session by uploading a deck ---------------
       if (pathname === "/api/sessions" && req.method === "POST") {
         const account = matchAccount(cfg.accountTokens, bearer(req));
-        if (!account) return json({ error: "unauthorized" }, 401);
+        if (!account) {
+          metrics.sessionRejects.inc({ reason: "unauthorized" });
+          return json({ error: "unauthorized" }, 401);
+        }
         // Cordoned pods take no new sessions — a backstop; placement already skips us.
-        if (cordoned) return json({ error: "relay draining" }, 503);
+        if (cordoned) {
+          metrics.sessionRejects.inc({ reason: "cordoned" });
+          return json({ error: "relay draining" }, 503);
+        }
 
         const declared = Number(req.headers.get("content-length") ?? "0");
-        if (declared > cfg.maxDeckBytes) return json({ error: "deck too large" }, 413);
+        if (declared > cfg.maxDeckBytes) {
+          metrics.sessionRejects.inc({ reason: "too_large" });
+          return json({ error: "deck too large" }, 413);
+        }
         const html = await req.text();
-        if (Buffer.byteLength(html, "utf8") > cfg.maxDeckBytes) return json({ error: "deck too large" }, 413);
-        if (!html.trim()) return json({ error: "empty deck" }, 400);
+        if (Buffer.byteLength(html, "utf8") > cfg.maxDeckBytes) {
+          metrics.sessionRejects.inc({ reason: "too_large" });
+          return json({ error: "deck too large" }, 413);
+        }
+        if (!html.trim()) {
+          metrics.sessionRejects.inc({ reason: "empty" });
+          return json({ error: "empty deck" }, 400);
+        }
 
         const count = [...sessions.values()].filter((s) => s.account === account).length;
-        if (count >= cfg.maxSessionsPerAccount) return json({ error: "session quota reached" }, 429);
+        if (count >= cfg.maxSessionsPerAccount) {
+          metrics.sessionRejects.inc({ reason: "quota" });
+          return json({ error: "session quota reached" }, 429);
+        }
 
         // Hosted live (ADR 0061): the control plane opts a session into audience
         // write-scope enforcement (scope read from the deck's own embedded manifest)
@@ -261,9 +312,15 @@ export function createRelay(opts: RelayOptions): RelayServer {
         if (cfg.storage && snapshotKey) {
           try {
             const prior = await cfg.storage.get(snapshotKey);
-            if (prior) hub.seed(prior);
+            if (prior) {
+              hub.seed(prior);
+              metrics.snapshotSeed.inc({ result: "hit" });
+            } else {
+              metrics.snapshotSeed.inc({ result: "miss" });
+            }
           } catch {
             /* no prior snapshot / unreadable → start fresh */
+            metrics.snapshotSeed.inc({ result: "error" });
           }
         }
         const rs: RelaySession = {
@@ -288,6 +345,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
           (rs.snap as { unref?: () => void }).unref?.();
         }
         sessions.set(rs.id, rs);
+        metrics.sessionCreates.inc();
 
         // Mint signed, expiring presenter/viewer grants (ADR 0061) — the links carry
         // these, and the relay verifies them statelessly with the account token; no
@@ -331,6 +389,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         const s = sessions.get(sync[1]!);
         const relRole = s ? resolveRole(s, url.searchParams.get("t"), Date.now()) : null;
         if (!s || !relRole) {
+          metrics.grantDenials.inc();
           return new Response("forbidden", { status: 403 });
         }
         // viewer → audience (write-scope enforced when the session opted in);
@@ -338,6 +397,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         const role: PeerRole = relRole === "viewer" ? "audience" : "presenter";
         // Enforce the plan's audience cap (ADR 0061) — presenter/runner never count.
         if (role === "audience" && s.audienceCap !== undefined && s.audienceCount >= s.audienceCap) {
+          metrics.audienceCapRejects.inc();
           return new Response("audience full", { status: 503 });
         }
         const data: WSData = { sessionId: s.id, peer: null, role };
@@ -352,6 +412,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         const role = s ? resolveRole(s, token, Date.now()) : null;
         // runner token must not load the page (it's WS-only)
         if (!s || !role || role === "runner" || !token) {
+          metrics.grantDenials.inc();
           return new Response("Invalid or expired link.", { status: 403 });
         }
         const { http, ws } = originOf(req, opts);
@@ -401,16 +462,26 @@ export function createRelay(opts: RelayOptions): RelayServer {
           return;
         }
         if (socket.data.role === "audience") s.audienceCount++;
-        socket.data.peer = s.hub.join((d) => socket.send(d), socket.data.role);
+        metrics.wsOpens.inc({ role: socket.data.role });
+        metrics.wsConnections.inc({ role: socket.data.role });
+        socket.data.peer = s.hub.join((d) => {
+          metrics.wsFrames.inc({ dir: "out" });
+          metrics.wsBytes.inc({ dir: "out" }, d.byteLength);
+          socket.send(d);
+        }, socket.data.role);
       },
       message(socket, msg) {
         if (typeof msg === "string") return;
         const bytes = new Uint8Array(msg as unknown as ArrayBufferLike);
         if (bytes.byteLength > cfg.maxFrameBytes) return;
+        metrics.wsFrames.inc({ dir: "in" });
+        metrics.wsBytes.inc({ dir: "in" }, bytes.byteLength);
         socket.data.peer?.recv(bytes);
       },
       close(socket) {
         socket.data.peer?.leave();
+        metrics.wsCloses.inc({ role: socket.data.role });
+        metrics.wsConnections.dec({ role: socket.data.role });
         const s = sessions.get(socket.data.sessionId);
         if (s && socket.data.role === "audience" && s.audienceCount > 0) s.audienceCount--;
       },
