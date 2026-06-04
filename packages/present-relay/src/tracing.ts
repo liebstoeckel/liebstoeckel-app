@@ -1,4 +1,4 @@
-import { trace, context, propagation, SpanStatusCode, type Span, type Context } from "@opentelemetry/api";
+import { trace, context, propagation, SpanStatusCode, SpanKind, type Span, type Context } from "@opentelemetry/api";
 import { BasicTracerProvider, BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
@@ -65,9 +65,13 @@ export async function withSpan<T>(
   parent: Context | undefined,
   attrs: Record<string, string | number | boolean>,
   fn: (span: Span) => Promise<T> | T,
+  // Default INTERNAL; set SERVER on ingress handlers and CLIENT on outbound calls so the
+  // service graph + Traces-Drilldown "structure" view can build the trace hierarchy (those
+  // views key off SERVER spans with CLIENT edges — INTERNAL-only traces show no structure).
+  kind: SpanKind = SpanKind.INTERNAL,
 ): Promise<T> {
   const base = parent ?? context.active();
-  const span = tracer().startSpan(name, { attributes: attrs }, base);
+  const span = tracer().startSpan(name, { kind, attributes: attrs }, base);
   try {
     return await context.with(trace.setSpan(base, span), () => fn(span));
   } catch (e) {
