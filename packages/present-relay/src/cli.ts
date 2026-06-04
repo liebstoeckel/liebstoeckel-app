@@ -2,6 +2,7 @@
 import { S3Client } from "bun";
 import { createRelay, type RelayStorage } from "./relay-server";
 import { relayPublicBaseFromPod } from "./addressing";
+import { initTracing } from "./tracing";
 
 /** Object storage for session snapshots (ADR 0061), wired from S3_* env when present.
  *  Absent → the relay runs without persistence (transient/CLI use). */
@@ -40,6 +41,7 @@ function flag(argv: string[], name: string): string | undefined {
 }
 
 export function runRelay(argv: string[]) {
+  initTracing("present-relay"); // gated by OTEL_EXPORTER_OTLP_ENDPOINT (ADR 0073 step 3b)
   const port = Number(flag(argv, "--port") ?? process.env.PORT ?? 0) || 0;
   // Public base: an explicit override wins (CLI / single-pod env); otherwise a
   // StatefulSet pod derives its OWN per-pod base from its ordinal + host template
