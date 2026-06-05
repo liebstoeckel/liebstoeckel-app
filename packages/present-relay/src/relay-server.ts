@@ -13,6 +13,15 @@ import {
 import { bearer, matchAccount, safeEqual } from "./auth";
 import { mintGrant, verifyGrant } from "./grant";
 import { createRelayMetrics } from "./metrics";
+import { withSpan, SpanKind, ctxFromHeaders } from "./tracing";
+
+/** Templated path for relay span names — collapse session ids so the span name stays bounded
+ *  (`/sync/<id>` → `/sync/:id`), the trace-name equivalent of the metric cardinality rule. */
+function tracePath(pathname: string): string {
+  return pathname
+    .replace(/^\/api\/sessions\/[^/]+/, "/api/sessions/:id")
+    .replace(/^\/(s|sync)\/[^/]+/, "/$1/:id");
+}
 
 /** Pluggable object storage for session snapshots (ADR 0061). The hosted deploy wires
  *  a Bun S3 client; the core stays storage-agnostic + testable. */
@@ -205,10 +214,10 @@ export function createRelay(opts: RelayOptions): RelayServer {
     void persist(s).finally(() => s.hub.destroy());
   };
 
-  const server = Bun.serve<WSData>({
-    port: opts.port ?? 0,
-    hostname: opts.hostname ?? "0.0.0.0",
-    async fetch(req, srv) {
+  // The HTTP handler, extracted as a closure (so it keeps access to sessions/cfg/cordoned) — the
+  // Bun.serve `fetch` below wraps it in a SERVER span. Returns a Response, or undefined for a
+  // successful WebSocket upgrade (Bun's hold-the-socket signal).
+  const handleFetch = async (req: Request, srv: Bun.Server<WSData>): Promise<Response | undefined> => {
       const url = new URL(req.url);
       const { pathname } = url;
 
@@ -451,6 +460,27 @@ export function createRelay(opts: RelayOptions): RelayServer {
       }
 
       return new Response("not found", { status: 404 });
+  };
+
+  const server = Bun.serve<WSData>({
+    port: opts.port ?? 0,
+    hostname: opts.hostname ?? "0.0.0.0",
+    // OSS-safe ingress tracing: gated by OTEL_EXPORTER_OTLP_ENDPOINT (a no-op with NO egress when
+    // unset — a standalone/offline relay emits nothing). A SERVER span continuing the inbound W3C
+    // traceparent so the relay JOINS the trace: control → relay (session create) and the audience
+    // traefik → relay path. Infra/control paths (probes, scrapes, cordon) are not traced.
+    fetch(req, srv) {
+      const { pathname } = new URL(req.url);
+      if (pathname === "/healthz" || pathname === "/stats" || pathname === "/metrics" || pathname === "/cordon") {
+        return handleFetch(req, srv);
+      }
+      return withSpan(
+        `relay ${req.method} ${tracePath(pathname)}`,
+        ctxFromHeaders(req.headers),
+        { "http.request.method": req.method, "url.path": pathname },
+        () => handleFetch(req, srv),
+        SpanKind.SERVER,
+      );
     },
     websocket: {
       idleTimeout: 120,

@@ -1,5 +1,8 @@
 import { trace, context, propagation, SpanStatusCode, SpanKind, type Span, type Context } from "@opentelemetry/api";
 import { BasicTracerProvider, BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+
+// Re-export so call sites set span kind via the tracing module (centralized OTel access).
+export { SpanKind };
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
