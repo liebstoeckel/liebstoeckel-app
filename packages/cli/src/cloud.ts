@@ -305,15 +305,22 @@ interface BrandRow {
 
 /** Map a `defineTheme(...)` Theme (or a flat tokens object) → the server's flat
  *  token shape. Used by `brand push`. */
-function themeToTokens(input: unknown): Record<string, string> {
-  const m = input as { colors?: Record<string, string>; fonts?: Record<string, string>; glow?: { a?: string; b?: string } };
-  if (!m.colors) return (input ?? {}) as Record<string, string>; // already flat
+export function themeToTokens(input: unknown): Record<string, unknown> {
+  const m = input as {
+    colors?: Record<string, string>;
+    fonts?: Record<string, string>;
+    glow?: { a?: string; b?: string };
+    viz?: string[];
+  };
+  if (!m.colors) return (input ?? {}) as Record<string, unknown>; // already flat
   const c = m.colors, f = m.fonts ?? {}, g = m.glow ?? {};
   return {
     bg: c.bg, surface: c.surface, border: c.border ?? "", text: c.text, muted: c.muted,
     primary: c.primary, accent: c.accent, accent2: c.accent2 ?? "", onPrimary: c.onPrimary,
     fontHeading: f.heading ?? "", fontBody: f.body ?? "", fontMono: f.mono ?? "",
     glowA: g.a ?? "", glowB: g.b ?? "",
+    // The viz palette rides along (ticket 0029); the server normalizes/bounds it.
+    ...(Array.isArray(m.viz) ? { viz: m.viz } : {}),
   };
 }
 

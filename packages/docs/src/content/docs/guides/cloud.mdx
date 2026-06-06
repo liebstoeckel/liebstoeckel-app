@@ -110,8 +110,9 @@ run in the presenter's own browser tab.
 ## Shared brand
 
 Your org is an **authenticated registry** — the same protocol as `liebstoeckel add`,
-but private to your team. A **brand** (a theme token set: colours, fonts, glow) is its
-first item type; custom company components can ride the same rails later.
+but private to your team. A **brand** (a theme token set: colours, fonts, glow, and an
+ordered **chart palette**) is its first item type; custom company components can ride the
+same rails later.
 
 - **Define it** once — push a `defineTheme(...)` file (`liebstoeckel brand push ./brand.ts
   --default`) or edit it visually in the dashboard's **Brand** page.
@@ -142,6 +143,13 @@ If you author a brand as a file instead (`brand push ./brand.ts`), any font fami
 isn't in the catalog is accepted but **flagged with a warning** (with a *did you mean* when
 it's close, e.g. `"Inter"` → `"Inter Variable"`) — so the file path is as honest as the
 picker about which fonts actually ship a webfont.
+
+### Chart palette
+
+A brand also carries an ordered **chart-series palette** (`viz`) — the colours charts cycle
+through, exposed as `--brand-viz-0..n`. Edit it on the Brand page (add / reorder / remove
+swatches) or set `viz: [...]` in a pushed `defineTheme(...)`; it's baked into pulled decks
+so charts match the brand, not just the page chrome.
 
 ## Versions
 
