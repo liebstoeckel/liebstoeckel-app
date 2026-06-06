@@ -27,3 +27,6 @@ srvplugin-*/
 .idea/
 *.swp
 .npmrc
+
+# stray verification screenshots (root, hidden)
+/.*.png
