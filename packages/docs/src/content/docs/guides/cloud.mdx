@@ -123,6 +123,26 @@ first item type; custom company components can ride the same rails later.
 
 Shared brand is a Pro/Team feature.
 
+### Fonts
+
+The Brand page's **Heading**, **Body**, and **Mono** fields are a picker over a curated
+catalog of [Fontsource](https://fontsource.org) variable fonts (grouped sans / serif /
+display / monospace), with a **Custom…** option for any other `font-family` you type. The
+preview shows the real typeface as you choose.
+
+When you `liebstoeckel brand pull <name>`, a catalog font comes with its webfont: the
+generated `brands/<name>.ts` `import`s the matching `@fontsource-variable/*` package, and
+`pull` runs `bun add` to install it (so the font is **inlined into your single-file deck at
+build** — no CDN, fully self-contained). `liebstoeckel new` does the same for the org
+default brand. Pass `--no-install` to write the files and install the font packages
+yourself. A **Custom…** font carries no package — supply its `@font-face` yourself, or it
+falls back to the system font.
+
+If you author a brand as a file instead (`brand push ./brand.ts`), any font family that
+isn't in the catalog is accepted but **flagged with a warning** (with a *did you mean* when
+it's close, e.g. `"Inter"` → `"Inter Variable"`) — so the file path is as honest as the
+picker about which fonts actually ship a webfont.
+
 ## Versions
 
 A deck has a **stable identity** across re-pushes. `push` keys a deck by its folder name

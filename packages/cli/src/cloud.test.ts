@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveOrg } from "./cloud";
+import { fontPackagesFromSource, resolveOrg } from "./cloud";
 
 describe("resolveOrg (ADR 0057)", () => {
   test("explicit --org wins and is stripped from rest", () => {
@@ -16,5 +16,22 @@ describe("resolveOrg (ADR 0057)", () => {
   });
   test("undefined (personal) when no flag and no default", () => {
     expect(resolveOrg(["x"]).org).toBeUndefined();
+  });
+});
+
+describe("fontPackagesFromSource (ADR 0074)", () => {
+  test("extracts the brand's @fontsource side-effect imports, deduped + sorted", () => {
+    const src = `// header
+import "@fontsource-variable/schibsted-grotesk";
+import "@fontsource-variable/jetbrains-mono";
+import { defineTheme } from "@liebstoeckel/theme";
+export default defineTheme({});`;
+    expect(fontPackagesFromSource(src)).toEqual([
+      "@fontsource-variable/jetbrains-mono",
+      "@fontsource-variable/schibsted-grotesk",
+    ]);
+  });
+  test("no font imports → empty (e.g. an all-custom brand)", () => {
+    expect(fontPackagesFromSource('import { defineTheme } from "@liebstoeckel/theme";')).toEqual([]);
   });
 });

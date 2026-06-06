@@ -28,7 +28,7 @@ export function deckFiles(
   name: string,
   brand = "liebstoeckel",
   deps: DeckDeps = {},
-  orgBrand?: { name: string; source: string },
+  orgBrand?: { name: string; source: string; dependencies?: string[] },
 ): Record<string, string> {
   const range = (k: keyof DeckDeps) => deps[k] ?? "workspace:*";
   const title = titleCase(name);
@@ -37,6 +37,11 @@ export function deckFiles(
   const brandId = orgBrand?.name ?? brand;
   const brandImport = orgBrand ? `import orgBrand from "./brands/${orgBrand.name}";\n` : "";
   const brandThemesProp = orgBrand ? " brandThemes={[orgBrand]}" : "";
+  // The default brand's catalog fonts (ADR 0074) are @fontsource packages the baked
+  // brands/<name>.ts imports — add them so the deck's `bun install` fetches the
+  // webfont (built decks inline it). `latest` (a third-party dist-tag) since the CLI
+  // can't resolve their version like the framework deps; the lockfile pins on install.
+  const fontDeps = Object.fromEntries((orgBrand?.dependencies ?? []).map((p) => [p, "latest"]));
   const pkg = {
     // A scaffolded deck is the user's own private project — a BARE name, not the
     // framework's `@liebstoeckel/` npm scope (ADR 0054). Only the framework
@@ -68,6 +73,7 @@ export function deckFiles(
     dependencies: {
       "@liebstoeckel/engine": range("engine"),
       "@liebstoeckel/theme": range("theme"),
+      ...fontDeps,
     },
     devDependencies: { "@liebstoeckel/thumbnails": range("thumbnails") },
   };

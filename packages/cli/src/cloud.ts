@@ -371,7 +371,20 @@ export async function runBrand(argv: string[]): Promise<void> {
       console.error(`✕ push failed: ${res.status} ${await res.text()}`);
       process.exit(1);
     }
-    console.log(`\n✓ pushed brand "${name}"${argv.includes("--default") ? " (default)" : ""}${org ? ` to ${org}` : ""}\n`);
+    console.log(`\n✓ pushed brand "${name}"${argv.includes("--default") ? " (default)" : ""}${org ? ` to ${org}` : ""}`);
+    // Warn about fonts the catalog can't ship a webfont for (ADR 0074); they fall
+    // back to system fonts on pull unless the deck supplies its own @font-face.
+    const { warnings } = (await res.json().catch(() => ({}))) as {
+      warnings?: { field: string; family: string; suggestion?: string }[];
+    };
+    if (warnings?.length) {
+      console.log("⚠ these fonts aren't in the catalog — they'll fall back to system fonts on pull");
+      console.log("  unless the deck supplies @font-face:");
+      for (const w of warnings) {
+        console.log(`    ${w.field}: ${w.family}${w.suggestion ? `   (did you mean "${w.suggestion}"?)` : ""}`);
+      }
+    }
+    console.log();
     return;
   }
 
@@ -392,8 +405,22 @@ export async function runBrand(argv: string[]): Promise<void> {
     const { httpTransport, resolveScaffold } = await import("./add");
     const transport = httpTransport(`${api}/api/v1/orgs/registry`, brandHeaders(token, org), "@org");
     const plan = await resolveScaffold(transport, [name]);
-    for (const f of plan.files) await Bun.write(join(resolve(dir), f.target), f.content);
+    const deckDir = resolve(dir);
+    for (const f of plan.files) await Bun.write(join(deckDir, f.target), f.content);
     console.log(`\n✓ pulled brand "${name}" → ${plan.files.map((f) => f.target).join(", ")}\n`);
+    // The brand's catalog fonts (ADR 0074) ride along as npm deps; install them so the
+    // deck bundles the webfont at build (the brand file `import`s the package).
+    const deps = plan.npmDependencies;
+    const noInstall = argv.includes("--no-install");
+    if (deps.length && !noInstall) {
+      const { $ } = await import("bun");
+      console.log(`   installing fonts: bun add --ignore-scripts ${deps.join(" ")}`);
+      // pin the interpreter; --ignore-scripts per the registry trust model (ADR 0041)
+      await $`${process.execPath} add --ignore-scripts ${deps}`.cwd(deckDir);
+      console.log(`   ✓ fonts installed\n`);
+    } else if (deps.length) {
+      console.log(`   → install its fonts: bun add --ignore-scripts ${deps.join(" ")}\n`);
+    }
     console.log(`   wire it in main.tsx:\n     import ${camel(name)} from "./brands/${name}";`);
     console.log(`     <Present brands={["${name}"]} brandThemes={[${camel(name)}]} … />\n`);
     return;
@@ -430,9 +457,10 @@ async function fetchBrands(api: string, token: string, org?: string): Promise<Br
 
 const camel = (s: string) => s.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
 
-/** For `liebstoeckel new`: the org default brand's source + name, or null. Best
+/** For `liebstoeckel new`: the org default brand's source + name (+ its `@fontsource`
+ *  deps, ADR 0074, so the scaffolded package.json installs them), or null. Best
  *  effort — never blocks scaffolding if not logged in / no default. */
-export async function fetchDefaultBrand(): Promise<{ name: string; source: string } | null> {
+export async function fetchDefaultBrand(): Promise<{ name: string; source: string; dependencies: string[] } | null> {
   try {
     const creds = await loadCreds();
     if (!creds?.token || !creds.api) return null;
@@ -445,8 +473,18 @@ export async function fetchDefaultBrand(): Promise<{ name: string; source: strin
       headers: brandHeaders(creds.token, creds.org),
     });
     if (!src.ok) return null;
-    return { name: def.name, source: await src.text() };
+    const source = await src.text();
+    return { name: def.name, source, dependencies: fontPackagesFromSource(source) };
   } catch {
     return null;
   }
+}
+
+/** The `@fontsource` side-effect imports a pulled brand source declares (ADR 0074) —
+ *  the deck's font deps. Inlined here (not imported from control-core) to keep the
+ *  OSS CLI free of the private control plane. */
+export function fontPackagesFromSource(source: string): string[] {
+  const pkgs = new Set<string>();
+  for (const m of source.matchAll(/^import\s+"(@fontsource[^"]+)";/gm)) pkgs.add(m[1]!);
+  return [...pkgs].sort();
 }

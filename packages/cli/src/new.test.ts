@@ -47,6 +47,21 @@ describe("deckFiles (pure templates)", () => {
     expect(files["index.html"]).toContain('data-brand="acme"');
     expect(files["main.tsx"]).toContain('brands={["acme"]}');
   });
+
+  test("an org brand bakes its source + adds its @fontsource deps (ADR 0074)", () => {
+    const files = deckFiles("x", "liebstoeckel", {}, {
+      name: "acme",
+      source: `import "@fontsource-variable/inter";\nexport default {};\n`,
+      dependencies: ["@fontsource-variable/inter"],
+    });
+    // the brand source is written as owned source, wired in main.tsx
+    expect(files["brands/acme.ts"]).toContain("@fontsource-variable/inter");
+    expect(files["main.tsx"]).toContain('import orgBrand from "./brands/acme"');
+    expect(files["main.tsx"]).toContain("brandThemes={[orgBrand]}");
+    // its font package lands in package.json so `bun install` fetches the webfont
+    const pkg = JSON.parse(files["package.json"]!);
+    expect(pkg.dependencies["@fontsource-variable/inter"]).toBe("latest");
+  });
 });
 
 describe("VALID_NAME", () => {

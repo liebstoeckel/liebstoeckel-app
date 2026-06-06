@@ -335,11 +335,19 @@ liebstoeckel new my-deck                 # auto-applies the org's default brand
 `brand push` accepts a `defineTheme(...)` module or a flat tokens JSON. Editing is also
 available in the dashboard's **Brand** page. Brand sharing is a paid (Pro/Team) feature.
 
+A brand's fonts are picked from a curated [Fontsource](https://fontsource.org) catalog in
+the Brand page. `brand pull` writes the `import "@fontsource-variable/…"` into
+`brands/<name>.ts` **and runs `bun add`** to install those font packages, so the webfont is
+inlined into your single-file deck at build (pass `--no-install` to install them yourself).
+A **Custom…** font carries no package and falls back to the system font unless you supply
+its own `@font-face`.
+
 | Flag | Meaning |
 | --- | --- |
 | `--default` | (push) make this the org default that `new` applies |
 | `--name <key>` | (push) brand name (default: the theme's `name`, then the file name) |
 | `--dir <deck>` | (pull) the deck to write `brands/<name>.ts` into (default: cwd) |
+| `--no-install` | (pull) write the files but don't `bun add` the brand's font packages |
 | `--org <slug>` | the organization to act on |
 
 ## `decks`

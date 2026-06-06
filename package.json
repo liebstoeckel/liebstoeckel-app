@@ -7,7 +7,8 @@
     "presentations/*"
   ],
   "scripts": {
-    "gen": "bun run packages/theme/src/gen.ts",
+    "gen": "bun run packages/theme/src/gen.ts && bun run packages/control-core/src/gen-fonts.ts",
+    "gen:fonts": "bun run packages/control-core/src/gen-fonts.ts",
     "demo:dev": "cd presentations/demo && bun --hot ./server.ts",
     "demo:build": "cd presentations/demo && bun run build.ts",
     "showcase:dev": "cd presentations/visx-showcase && bun --hot ./server.ts",
