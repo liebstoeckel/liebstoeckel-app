@@ -23,14 +23,14 @@
     "./cli": "./src/cli.ts"
   },
   "dependencies": {
-    "@liebstoeckel/engine": "workspace:^",
-    "@liebstoeckel/plugin-sdk": "workspace:^",
-    "@liebstoeckel/thumbnails": "workspace:^"
+    "@liebstoeckel/engine": "workspace:*",
+    "@liebstoeckel/plugin-sdk": "workspace:*",
+    "@liebstoeckel/thumbnails": "workspace:*"
   },
   "peerDependencies": {
     "yjs": "^13.6.30"
   },
   "devDependencies": {
-    "@liebstoeckel/plugin-poll": "workspace:^"
+    "@liebstoeckel/plugin-poll": "workspace:*"
   }
 }

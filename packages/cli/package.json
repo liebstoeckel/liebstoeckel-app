@@ -28,12 +28,12 @@
     "./new": "./src/new.ts"
   },
   "dependencies": {
-    "@liebstoeckel/engine": "workspace:^",
-    "@liebstoeckel/live-server": "workspace:^",
-    "@liebstoeckel/present-relay": "workspace:^",
-    "@liebstoeckel/registry": "workspace:^",
-    "@liebstoeckel/theme": "workspace:^",
-    "@liebstoeckel/thumbnails": "workspace:^"
+    "@liebstoeckel/engine": "workspace:*",
+    "@liebstoeckel/live-server": "workspace:*",
+    "@liebstoeckel/present-relay": "workspace:*",
+    "@liebstoeckel/registry": "workspace:*",
+    "@liebstoeckel/theme": "workspace:*",
+    "@liebstoeckel/thumbnails": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=19",

@@ -29,10 +29,10 @@
     "./code": "./src/code/macro.ts"
   },
   "dependencies": {
-    "@liebstoeckel/components": "workspace:^",
-    "@liebstoeckel/plugin-sdk": "workspace:^",
-    "@liebstoeckel/plugin-ui": "workspace:^",
-    "@liebstoeckel/theme": "workspace:^",
+    "@liebstoeckel/components": "workspace:*",
+    "@liebstoeckel/plugin-sdk": "workspace:*",
+    "@liebstoeckel/plugin-ui": "workspace:*",
+    "@liebstoeckel/theme": "workspace:*",
     "@mdx-js/mdx": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
     "@shikijs/rehype": "^3.0.0",
