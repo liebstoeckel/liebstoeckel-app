@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.1](https://github.com/limond/liebstoeckel-app/compare/live-server-v0.2.0...live-server-v0.2.1) (2026-06-07)
+
+
+### Features
+
+* **live:** recovery primitives — crash detection + reconnect escalation (ticket 0018) ([ec86815](https://github.com/limond/liebstoeckel-app/commit/ec8681564c361853006e9d1514c605caf051e64d))
+
+
+### Bug Fixes
+
+* **cli:** fix --help on subcommands + docs/usability papercuts (audit) ([b68882b](https://github.com/limond/liebstoeckel-app/commit/b68882beaa60a714ac215e3124f13a7209a74b35))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.2.1
+    * @liebstoeckel/thumbnails bumped to 0.2.1
+
 ## [0.2.0](https://github.com/limond/liebstoeckel-app/compare/live-server-v0.1.0...live-server-v0.2.0) (2026-06-02)
 
 

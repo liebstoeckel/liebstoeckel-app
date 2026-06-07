@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.1](https://github.com/limond/liebstoeckel-app/compare/thumbnails-v0.2.0...thumbnails-v0.2.1) (2026-06-07)
+
+
+### Features
+
+* **deck:** build output as &lt;slug&gt;.html + server-side title precedence (ADR 0068) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
+
+
+### Bug Fixes
+
+* **cli:** fix --help on subcommands + docs/usability papercuts (audit) ([b68882b](https://github.com/limond/liebstoeckel-app/commit/b68882beaa60a714ac215e3124f13a7209a74b35))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.2.1
+
 ## [0.2.0](https://github.com/limond/liebstoeckel-app/compare/thumbnails-v0.1.0...thumbnails-v0.2.0) (2026-06-02)
 
 

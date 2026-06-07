@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.2.1](https://github.com/limond/liebstoeckel-app/compare/present-relay-v0.2.0...present-relay-v0.2.1) (2026-06-07)
+
+
+### Features
+
+* **control:** control-reconciler — relay fleet drain + crash recovery (ticket 0019) ([dbe3e5c](https://github.com/limond/liebstoeckel-app/commit/dbe3e5ca5aacde637cbb64a106ce2a29577ad453))
+* **control:** sticky relay session placement (ticket 0017) ([4f8159e](https://github.com/limond/liebstoeckel-app/commit/4f8159e96fb4d16243cd33331269b4440328f463))
+* **observability:** step 2 — OpenMetrics /metrics on relay, control-api, reconciler (ticket 0023) ([48a09e2](https://github.com/limond/liebstoeckel-app/commit/48a09e2996197cc9a7d196fcc145b51a8d326741))
+* **observability:** step 3b.ii — OTLP span instrumentation + W3C propagation (ticket 0024) ([4e42044](https://github.com/limond/liebstoeckel-app/commit/4e42044e812705449a1f2c36fdffc0da05761e7c))
+* **relay:** SERVER span at HTTP/WS ingress so the relay joins traces ([863d656](https://github.com/limond/liebstoeckel-app/commit/863d656d15f58f59950f1f48cdb7b664792ff06e))
+* **relay:** StatefulSet + per-pod addressing (ticket 0016) ([a5d1a89](https://github.com/limond/liebstoeckel-app/commit/a5d1a892fc46aeb5f4bc4d3d11e452180338f5ef))
+* **relay:** tighten deck CSP with default-src 'none' (ADR 0069) ([14434bb](https://github.com/limond/liebstoeckel-app/commit/14434bb1cfe3ca4194504496ab46cbf382215d0e))
+* **relay:** transparent session routing — stable host + multi-layer ForwardAuth (ticket 0021) ([cc96ca9](https://github.com/limond/liebstoeckel-app/commit/cc96ca9617f56865c4224623a139cab9b26536df))
+
+
+### Bug Fixes
+
+* **cli:** fix --help on subcommands + docs/usability papercuts (audit) ([b68882b](https://github.com/limond/liebstoeckel-app/commit/b68882beaa60a714ac215e3124f13a7209a74b35))
+* **live:** detect a restarted relay pod, not just a missing one (ticket 0018/0019) ([79a079d](https://github.com/limond/liebstoeckel-app/commit/79a079d48fa51e0c2fb25048e16739e5e16f6c36))
+* **relay:** await final snapshot flush on graceful shutdown (ticket 0018) ([cf12426](https://github.com/limond/liebstoeckel-app/commit/cf12426fb437cdc00ca362f7a0b2b8b4905382fb))
+* **tracing:** set SpanKind on ingress/egress spans so trace structure builds ([1f9730a](https://github.com/limond/liebstoeckel-app/commit/1f9730ae8da6053c459593fa2161de7a55ae0509))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/live-server bumped to 0.2.1
+
 ## [0.2.0](https://github.com/limond/liebstoeckel-app/compare/present-relay-v0.1.0...present-relay-v0.2.0) (2026-06-02)
 
 

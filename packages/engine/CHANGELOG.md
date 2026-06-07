@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.1](https://github.com/limond/liebstoeckel-app/compare/engine-v0.2.0...engine-v0.2.1) (2026-06-07)
+
+
+### Features
+
+* **deck:** build output as &lt;slug&gt;.html + server-side title precedence (ADR 0068) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
+* **live:** recovery primitives — crash detection + reconnect escalation (ticket 0018) ([ec86815](https://github.com/limond/liebstoeckel-app/commit/ec8681564c361853006e9d1514c605caf051e64d))
+
+
+### Bug Fixes
+
+* **engine:** gate presenter view + presenter-only shortcuts on live role (ADR 0070) ([e6844d9](https://github.com/limond/liebstoeckel-app/commit/e6844d9de020420c10b7acc3d9b0179a335a3c5a))
+
 ## [0.2.0](https://github.com/limond/liebstoeckel-app/compare/engine-v0.1.0...engine-v0.2.0) (2026-06-02)
 
 

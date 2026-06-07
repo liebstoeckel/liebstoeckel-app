@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.2.1](https://github.com/limond/liebstoeckel-app/compare/cli-v0.2.0...cli-v0.2.1) (2026-06-07)
+
+
+### Features
+
+* **brand:** carry the viz (chart-series) palette in org brands (ticket 0029) ([df9e825](https://github.com/limond/liebstoeckel-app/commit/df9e825357561dc0302b368a2448ef891554e364))
+* **brand:** font catalog — pulled brands import + install their [@fontsource](https://github.com/fontsource) webfonts (ADR 0074) ([406cd8f](https://github.com/limond/liebstoeckel-app/commit/406cd8f376f3324504f27973f1bd2fe1e76c4a7f))
+* **deck:** build output as &lt;slug&gt;.html + server-side title precedence (ADR 0068) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
+
+
+### Bug Fixes
+
+* **cli:** fix --help on subcommands + docs/usability papercuts (audit) ([b68882b](https://github.com/limond/liebstoeckel-app/commit/b68882beaa60a714ac215e3124f13a7209a74b35))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.2.1
+    * @liebstoeckel/live-server bumped to 0.2.1
+    * @liebstoeckel/present-relay bumped to 0.2.1
+    * @liebstoeckel/thumbnails bumped to 0.2.1
+
 ## [0.2.0](https://github.com/limond/liebstoeckel-app/compare/cli-v0.1.0...cli-v0.2.0) (2026-06-02)
 
 
