@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/limond/liebstoeckel-app/compare/plugin-sdk-v0.2.0...plugin-sdk-v0.3.0) (2026-06-07)
+
+
+### Miscellaneous Chores
+
+* **plugin-sdk:** Synchronize liebstoeckel versions
+
 ## [0.2.0](https://github.com/limond/liebstoeckel-app/compare/plugin-sdk-v0.1.0...plugin-sdk-v0.2.0) (2026-06-02)
 
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/limond/liebstoeckel-app/compare/plugin-qa-v0.2.0...plugin-qa-v0.3.0) (2026-06-07)
+
+
+### Bug Fixes
+
+* **deps:** keep exact workspace pins for cross-deps (revert caret) ([6526a68](https://github.com/limond/liebstoeckel-app/commit/6526a68b799a724bfbe6e9467e79d531c9227cb5))
+* **deps:** use caret ranges for workspace cross-deps ([3675d30](https://github.com/limond/liebstoeckel-app/commit/3675d30829a97ffcf9a47c4e8d9f9f505d86b4a4))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/plugin-sdk bumped to 0.3.0
+    * @liebstoeckel/plugin-ui bumped to 0.3.0
+
 ## [0.2.0](https://github.com/limond/liebstoeckel-app/compare/plugin-qa-v0.1.0...plugin-qa-v0.2.0) (2026-06-02)
 
 
