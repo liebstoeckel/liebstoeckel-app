@@ -51,7 +51,7 @@
     },
     "packages/cli": {
       "name": "@liebstoeckel/cli",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "bin": {
         "liebstoeckel": "./src/cli.ts",
         "lst": "./src/cli.ts",
@@ -71,7 +71,7 @@
     },
     "packages/components": {
       "name": "@liebstoeckel/components",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "dependencies": {
         "motion": "^12.40.0",
       },
@@ -193,7 +193,7 @@
     },
     "packages/engine": {
       "name": "@liebstoeckel/engine",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "dependencies": {
         "@liebstoeckel/components": "workspace:*",
         "@liebstoeckel/plugin-sdk": "workspace:*",
@@ -215,7 +215,7 @@
     },
     "packages/live-server": {
       "name": "@liebstoeckel/live-server",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "dependencies": {
         "@liebstoeckel/engine": "workspace:*",
         "@liebstoeckel/plugin-sdk": "workspace:*",
@@ -230,7 +230,7 @@
     },
     "packages/plugin-poll": {
       "name": "@liebstoeckel/plugin-poll",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "dependencies": {
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/plugin-ui": "workspace:*",
@@ -241,7 +241,7 @@
     },
     "packages/plugin-qa": {
       "name": "@liebstoeckel/plugin-qa",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "dependencies": {
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/plugin-ui": "workspace:*",
@@ -253,7 +253,7 @@
     },
     "packages/plugin-reactions": {
       "name": "@liebstoeckel/plugin-reactions",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "dependencies": {
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/plugin-ui": "workspace:*",
@@ -265,7 +265,7 @@
     },
     "packages/plugin-sdk": {
       "name": "@liebstoeckel/plugin-sdk",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "peerDependencies": {
         "react": ">=19",
         "yjs": "^13.6.30",
@@ -273,7 +273,7 @@
     },
     "packages/plugin-ui": {
       "name": "@liebstoeckel/plugin-ui",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "dependencies": {
         "@liebstoeckel/plugin-sdk": "workspace:*",
       },
@@ -283,7 +283,7 @@
     },
     "packages/present-relay": {
       "name": "@liebstoeckel/present-relay",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "bin": {
         "liebstoeckel-relay": "./src/cli.ts",
       },
@@ -300,7 +300,7 @@
     },
     "packages/registry": {
       "name": "@liebstoeckel/registry",
-      "version": "0.1.1",
+      "version": "0.3.1",
       "peerDependencies": {
         "react": ">=19",
         "react-dom": ">=19",
@@ -308,14 +308,20 @@
     },
     "packages/theme": {
       "name": "@liebstoeckel/theme",
-      "version": "0.2.0",
+      "version": "0.3.1",
+      "dependencies": {
+        "@fontsource-variable/fraunces": "^5.2.9",
+        "@fontsource-variable/hanken-grotesk": "^5.2.8",
+        "@fontsource-variable/jetbrains-mono": "^5.2.8",
+        "@fontsource-variable/schibsted-grotesk": "^5.2.8",
+      },
       "peerDependencies": {
         "tailwindcss": "^4.3.0",
       },
     },
     "packages/thumbnails": {
       "name": "@liebstoeckel/thumbnails",
-      "version": "0.2.0",
+      "version": "0.3.1",
       "bin": {
         "liebstoeckel-thumbnails": "./src/cli.ts",
       },

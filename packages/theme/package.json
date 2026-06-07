@@ -23,6 +23,12 @@
     "./styles.css": "./src/index.css",
     "./tokens": "./src/tokens.ts"
   },
+  "dependencies": {
+    "@fontsource-variable/fraunces": "^5.2.9",
+    "@fontsource-variable/hanken-grotesk": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/schibsted-grotesk": "^5.2.8"
+  },
   "peerDependencies": {
     "tailwindcss": "^4.3.0"
   }
