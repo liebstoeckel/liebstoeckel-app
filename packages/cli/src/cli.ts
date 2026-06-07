@@ -6,8 +6,8 @@ import { scaffold } from "./new";
 const HELP = `liebstoeckel — code-first presentations
 
 usage:
-  liebstoeckel new <name> [--brand <brand>] [--dir <parent>]   scaffold a new deck as ./<name> (or under --dir)
-  liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--json]   scaffold registry items (charts, …) into a deck as owned source
+  liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand]   scaffold a new deck as ./<name> (or under --dir)
+  liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--json]   scaffold registry items (chart, hook, …) into a deck as owned source
   liebstoeckel registry list|view <name> [--json]   browse the chart/component registry (JSON for agents)
   liebstoeckel build [dir|--dir <deck>] [--no-inline-package] [--check]   build a deck (default: cwd) → one self-contained .html (+ thumbnails)
   liebstoeckel eject <deck.html> [outdir] [--force]   recover a built deck's editable source
@@ -53,7 +53,7 @@ function resolveDeck(argv: string[]): { dir: string; rest: string[] } {
 async function runNew(argv: string[]) {
   const name = argv.find((a) => !a.startsWith("-"));
   if (!name) {
-    console.error("usage: liebstoeckel new <name> [--brand <brand>] [--dir <parent>]");
+    console.error("usage: liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand]");
     process.exit(1);
   }
   try {

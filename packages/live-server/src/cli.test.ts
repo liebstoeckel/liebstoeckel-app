@@ -1,5 +1,15 @@
 import { test, expect, describe } from "bun:test";
-import { thumbSettings, classifyTargetPath } from "./cli";
+import { thumbSettings, classifyTargetPath, isHelp } from "./cli";
+
+describe("isHelp", () => {
+  test("detects -h / --help anywhere in argv", () => {
+    expect(isHelp(["--help"])).toBe(true);
+    expect(isHelp(["-h"])).toBe(true);
+    expect(isHelp([".", "--help"])).toBe(true); // cli.ts injects a positional before flags
+    expect(isHelp(["deck.html", "--port", "3000"])).toBe(false);
+    expect(isHelp([])).toBe(false);
+  });
+});
 
 describe("classifyTargetPath", () => {
   test("recognizes html files, project dirs, and package.json", () => {

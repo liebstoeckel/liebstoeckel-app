@@ -18,10 +18,17 @@ function flagFormat(argv: string[]): ThumbnailFormat | undefined {
   return v === "webp" || v === "jpeg" || v === "png" ? v : undefined;
 }
 
+const THUMBS_USAGE =
+  "usage: liebstoeckel thumbs <built-deck.html> [--format webp|jpeg|png] [--width 640] [--quality 80] [--scale 2]";
+
 export async function runThumbs(argv: string[]) {
+  if (argv.includes("-h") || argv.includes("--help")) {
+    console.log(THUMBS_USAGE);
+    return;
+  }
   const file = argv.find((a) => !a.startsWith("-"));
   if (!file) {
-    console.error("usage: liebstoeckel thumbs <built-deck.html> [--format webp|jpeg|png] [--width 320] [--quality 80] [--scale 2]");
+    console.error(THUMBS_USAGE);
     process.exit(1);
   }
   const abs = resolve(file);
@@ -106,17 +113,30 @@ async function resolveDeckHtml(target: string): Promise<{ html: string; base: st
   return { html: await Bun.file(join(outdir, "index.html")).text(), base: basename(abs) };
 }
 
+const EXPORT_USAGE =
+  "usage: liebstoeckel export <deck.html|deck-dir> [--format png|pdf] [--slides 1,3,5-7] [-o <path>] [--scale 2] [--width 1280] [--raster] [--quality 92]\n" +
+  "       PNG: -o is an output DIRECTORY (one file per slide). PDF: -o is the .pdf file.";
+
 export async function runExport(argv: string[]) {
+  if (argv.includes("-h") || argv.includes("--help")) {
+    console.log(EXPORT_USAGE);
+    return;
+  }
   const target = argv.find((a) => !a.startsWith("-"));
   if (!target) {
-    console.error(
-      "usage: liebstoeckel export <deck.html|deck-dir> [--format png|pdf] [--slides 1,3,5-7] [-o <path>] [--scale 2] [--width 1280] [--raster] [--quality 92]",
-    );
+    console.error(EXPORT_USAGE);
     process.exit(1);
   }
 
   const out = flagStr(argv, "-o", "--out");
   const format = inferFormat(argv, out);
+  // PNG writes one file per slide into a directory; a `.png`-looking `-o` is almost
+  // always a mistake (you'd get a directory literally named "foo.png") — warn (ticket 0030).
+  if (format === "png" && out && /\.png$/i.test(out)) {
+    process.stderr.write(
+      `⚠  --format png writes one file per slide into a DIRECTORY; "-o ${out}" will be a directory (created if needed), not a single PNG.\n`,
+    );
+  }
   const slides = flagStr(argv, "--slides");
   const width = flagNum(argv, "--width") ?? 1280;
   const scale = flagNum(argv, "--scale");

@@ -88,6 +88,17 @@ describe("scaffold (writes to disk)", () => {
     expect(JSON.parse(readFileSync(join(res.dir, "package.json"), "utf8")).name).toBe("demo-x");
   });
 
+  test("--no-org-brand scaffolds the default brand with no baked brand file", async () => {
+    root = mkdtempSync(join(tmpdir(), "pi-new-"));
+    const res = await scaffold("plain", { dir: root, noOrgBrand: true });
+    expect(res.brand).toBe("liebstoeckel");
+    expect(res.files.some((f) => f.startsWith("brands/"))).toBe(false);
+    expect(existsSync(join(res.dir, "brands"))).toBe(false);
+    const html = readFileSync(join(res.dir, "index.html"), "utf8");
+    expect(html).toContain('data-brand="liebstoeckel"');
+    expect(readFileSync(join(res.dir, "main.tsx"), "utf8")).not.toContain("brandThemes");
+  });
+
   test("refuses to overwrite an existing dir", async () => {
     root = mkdtempSync(join(tmpdir(), "pi-new-"));
     await scaffold("dup", { dir: root, noOrgBrand: true });

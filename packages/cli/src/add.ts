@@ -227,13 +227,19 @@ function positionalArgs(argv: string[]): string[] {
   return out;
 }
 
+/** Optional `add <category> <name>...` sugar: strip a leading **singular** category
+ *  keyword (`chart`, `hook`, …) when at least one item name follows it. Pure — the
+ *  category words are exactly `CATEGORIES`, never their plurals (ticket 0030). */
+export function stripCategory(positionals: string[]): string[] {
+  if (positionals.length >= 2 && (CATEGORIES as readonly string[]).includes(positionals[0]!)) {
+    return positionals.slice(1);
+  }
+  return positionals;
+}
+
 export async function runAdd(argv: string[]): Promise<void> {
   const positionals = positionalArgs(argv);
-  // optional `add <category> <name>` sugar — strip a leading category keyword
-  let refs = positionals;
-  if (positionals.length >= 2 && (CATEGORIES as readonly string[]).includes(positionals[0]!)) {
-    refs = positionals.slice(1);
-  }
+  const refs = stripCategory(positionals);
   if (refs.length === 0) {
     console.error(
       "usage: liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--no-install]",

@@ -4,11 +4,13 @@
 
 Part of **[liebstoeckel](https://liebstoeckel.app)** — a code-first presentation framework: author decks in **MDX + TSX**, get one self-contained HTML file that's animated, interactive, and live-shareable. Built on **Bun + React 19 + Motion + Tailwind v4**.
 
-> ⚠️ Pre-release (`0.0.0`). APIs may change.
+> ⚠️ Pre-release. APIs may change.
 
 The umbrella CLI for liebstoeckel: create a deck, run a hot-reloading dev server, build the single-file HTML, capture thumbnails, and drive live presenter mode — all from one command.
 
 ## Install
+
+> Not on the public npm registry yet — the commands below are how it will install once published. For now, run it from a checkout of the repo (`bun run live|relay|thumbs …`) or a workspace that links the packages.
 
 ```sh
 bun add -d @liebstoeckel/cli
@@ -22,15 +24,24 @@ bunx @liebstoeckel/cli <command>
 
 ```sh
 liebstoeckel new <name>          # scaffold a new deck in ./<name>
-liebstoeckel dev [dir]           # hot-reloading dev server (default: current dir)
-liebstoeckel build [dir]         # build a deck to a single HTML file
-liebstoeckel live <deck|dir>     # serve a built deck for presenter↔audience sync
+liebstoeckel add <name>...       # scaffold registry items (charts, …) into a deck as owned source
+liebstoeckel registry list|view  # browse the chart/component registry (--json for agents)
+liebstoeckel build [dir]         # build a deck → one self-contained .html (+ thumbnails)
+liebstoeckel eject <deck.html>   # recover a built deck's editable source
+liebstoeckel pack [dir]          # inspect/emit the source a build embeds
+liebstoeckel live <deck|dir>     # present live (LAN, or through a --relay)
 liebstoeckel relay               # run a public relay server for WAN presenting
-liebstoeckel thumbs <deck.html>  # capture slide thumbnails into a built deck
-liebstoeckel present <deck|dir>  # build + serve in one step
+liebstoeckel thumbs <deck.html>  # (re)generate thumbnails for a built deck
+liebstoeckel export [deck|dir]   # export slides to PNG or PDF
+liebstoeckel skill install       # install the agent skill for deck authoring
+liebstoeckel login|push|orgs|decks|brand   # liebstoeckel cloud (upload, share, brands)
+
+liebstoeckel <deck|dir>          # shorthand for `liebstoeckel live <deck>`
 ```
 
-Installed as both `liebstoeckel` and the short alias `lst`. Each command wraps the matching package (`engine`, `live-server`, `present-relay`, `thumbnails`). Run a command with `--help`, or see the reference, for its flags.
+There's no `dev` subcommand — for the hot-reloading dev server, run `bun run dev` inside the deck (the scaffold wires the script), or use `liebstoeckel live`.
+
+Installed as both `liebstoeckel` and the short alias `lst`. Each command wraps the matching package (`engine`, `live-server`, `present-relay`, `thumbnails`, `registry`). Run a command with `--help`, or see the reference, for its flags. The full, authoritative command + flag reference is **[liebstoeckel.app/reference/cli](https://liebstoeckel.app/reference/cli/)**.
 
 ## Architecture
 
@@ -38,18 +49,22 @@ A thin, dependency-free dispatcher. The CLI owns no presentation logic of its ow
 
 | File | Role |
 |---|---|
-| `src/cli.ts` | The `liebstoeckel`/`lst` bin. A `switch` over the first arg routes to each command; `--help`/no-arg prints `HELP`. Tiny helpers: `flag()` reads `--name value` pairs, `looksLikeDeck()` decides the bare-arg shorthand. |
-| `src/new.ts` | The only command implemented in-package. `scaffold()` validates the name against `VALID_NAME`, refuses an existing dir, and writes the file map from the pure `deckFiles()` template (`package.json`, `index.html` + `data-brand`, `bunfig.toml`, `server.ts`, `build.ts`, `main.tsx`, `slides/01-intro.tsx`). |
+| `src/cli.ts` | The `liebstoeckel`/`lst` bin. A `switch` over the first arg routes to each command; `--help`/no-arg prints `HELP`. Tiny helpers: `flag()` reads `--name value` pairs, `looksLikeDeck()` decides the bare-arg shorthand, `resolveDeck()` applies the deck-targeting convention (positional · `--dir` · cwd). |
+| `src/new.ts` | `scaffold()` validates the name against `VALID_NAME`, refuses an existing dir, and writes the file map from the pure `deckFiles()` template (`package.json`, `index.html` + `data-brand`, `bunfig.toml`, `server.ts`, `build.ts`, `main.tsx`, `slides/01-intro.tsx`). |
+| `src/add.ts` · `src/registry.ts` | Scaffold registry items into a deck as owned source, and browse the registry. |
+| `src/skill.ts` | `skill install` — write the agent skill into a deck for each agent target. |
+| `src/cloud.ts` · `src/creds.ts` | The cloud path: `login` (RFC 8628 device flow), `push`, `orgs`, `decks`, `brand`, and credential storage. |
 
 Control flow per command:
 
-- **`new`** → `scaffold()` (local).
-- **`build`** → dynamic `import("@liebstoeckel/thumbnails/build")`, `chdir` into the target, then `buildDeckWithThumbnails({ entry: "./index.html", outdir: "./dist" })`.
+- **`new`** → `scaffold()` (local). **`add`/`registry`/`skill`** and the cloud commands (**`login`/`push`/`orgs`/`decks`/`brand`**) are implemented in-package (`add.ts`/`registry.ts`/`skill.ts`/`cloud.ts`).
+- **`build`** → dynamic `import("@liebstoeckel/thumbnails/build")`, `chdir` into the target, then `buildDeck({ entry: "./index.html", outdir: "./dist" })`.
+- **`eject`/`pack`** → `@liebstoeckel/engine/build/source-package`.
 - **`live`** / bare-deck shorthand → `@liebstoeckel/live-server/cli` `runLive`.
 - **`relay`** → `@liebstoeckel/present-relay/cli` `runRelay`.
-- **`thumbs`** → `@liebstoeckel/thumbnails/cli` `runThumbs`.
+- **`thumbs`/`export`** → `@liebstoeckel/thumbnails/cli` `runThumbs` / `runExport`.
 
-Each wrapped package does its own flag parsing, so the CLI forwards `rest` (the remaining argv) untouched.
+Each wrapped package does its own flag parsing (including `--help`), so the CLI forwards `rest` (the remaining argv) untouched.
 
 ## Docs
 

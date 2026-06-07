@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { statSync } from "node:fs";
+import { mkdtempSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { startServer } from "./server";
 import { buildLinks } from "./session";
@@ -29,11 +30,14 @@ export async function loadDeckHtml(arg: string): Promise<string> {
   if (kind === "project") {
     const dir = abs.endsWith("package.json") ? dirname(abs) : abs;
     const { bundleDeck } = await import("@liebstoeckel/engine/build");
-    const outdir = join(dir, "dist");
+    // Build to a throwaway dir, NOT the deck's own dist/. `liebstoeckel build` owns
+    // dist/<slug>.html (ADR 0068); a stray dist/index.html written here would shadow
+    // it for `push`'s default-file pick and confuse the two artifacts (ticket 0030).
+    const outdir = mkdtempSync(join(tmpdir(), "lst-live-"));
     const prev = process.cwd();
     process.chdir(dir);
     try {
-      await bundleDeck({ entry: "./index.html", outdir: "./dist" });
+      await bundleDeck({ entry: "./index.html", outdir, inlinePackage: false });
     } finally {
       process.chdir(prev);
     }
@@ -155,14 +159,22 @@ async function relayMain(arg: string, relayUrl: string, relayToken: string, thum
   process.on("SIGTERM", () => void shutdown());
 }
 
+/** Pure: did the user ask for help? (`-h`/`--help` anywhere in argv.) */
+export const isHelp = (argv: string[]): boolean => argv.includes("-h") || argv.includes("--help");
+
+const LIVE_USAGE =
+  "usage: liebstoeckel live <deck.html | deck-project-dir> [--relay <url> --relay-token <tok>] [--port N]\n" +
+  "       thumbnails are captured by default (needs Chromium); --no-thumbnails to skip,\n" +
+  "       --format webp|jpeg|png --width N --quality N --scale N to tune them";
+
 export async function runLive(argv: string[]) {
+  if (isHelp(argv)) {
+    console.log(LIVE_USAGE);
+    return;
+  }
   const arg = argv.find((a) => !a.startsWith("-"));
   if (!arg) {
-    console.error(
-      "usage: liebstoeckel live <deck.html | deck-project-dir> [--relay <url> --relay-token <tok>] [--port N]\n" +
-        "       thumbnails are captured by default (needs Chromium); --no-thumbnails to skip,\n" +
-        "       --format webp|jpeg|png --width N --quality N --scale N to tune them",
-    );
+    console.error(LIVE_USAGE);
     process.exit(1);
   }
   const thumbs = thumbSettings(argv);

@@ -40,7 +40,19 @@ function flag(argv: string[], name: string): string | undefined {
   return i >= 0 ? argv[i + 1] : undefined;
 }
 
+const RELAY_USAGE =
+  "usage: liebstoeckel relay [--port N] [--tokens tok1,tok2] [--public-url https://…]\n" +
+  "       --port N         listen port (or PORT); auto if omitted\n" +
+  "       --tokens         comma-separated account tokens (or PRESENT_RELAY_TOKENS); one is generated if omitted\n" +
+  "       --public-url     public https origin so links/WebSocket use wss:// (or PRESENT_RELAY_PUBLIC_URL)";
+
 export function runRelay(argv: string[]) {
+  // Print usage and exit WITHOUT binding a port — `relay --help` must not start a
+  // server (ticket 0030).
+  if (argv.includes("-h") || argv.includes("--help")) {
+    console.log(RELAY_USAGE);
+    return;
+  }
   initTracing("present-relay"); // gated by OTEL_EXPORTER_OTLP_ENDPOINT (ADR 0073 step 3b)
   const port = Number(flag(argv, "--port") ?? process.env.PORT ?? 0) || 0;
   // Public base: an explicit override wins (CLI / single-pod env); otherwise a

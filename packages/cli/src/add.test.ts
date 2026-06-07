@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { resolveScaffold, localTransport, type RegistryTransport } from "./add";
+import { resolveScaffold, localTransport, stripCategory, type RegistryTransport } from "./add";
 import { validateItem, assertSafeTarget } from "@liebstoeckel/registry/schema";
 import { REGISTRY_ROOT } from "@liebstoeckel/registry";
 
@@ -67,6 +67,25 @@ describe("resolveScaffold", () => {
     };
     const plan = await resolveScaffold(fakeTransport(items, { x: "x" }), ["withAxis"]);
     expect(plan.npmDependencies).toContain("@visx/axis");
+  });
+});
+
+describe("stripCategory", () => {
+  test("strips a singular category keyword before an item name", () => {
+    expect(stripCategory(["chart", "bar-chart"])).toEqual(["bar-chart"]);
+    expect(stripCategory(["hook", "use-brand-colors"])).toEqual(["use-brand-colors"]);
+    expect(stripCategory(["chart", "bar-chart", "line-chart"])).toEqual(["bar-chart", "line-chart"]);
+  });
+
+  test("does NOT strip a plural/non-category first word (it's an item name)", () => {
+    // "charts" is not a category — `add charts bar-chart` keeps both, so the resolver
+    // reports the real "item charts not found" rather than silently dropping it.
+    expect(stripCategory(["charts", "bar-chart"])).toEqual(["charts", "bar-chart"]);
+  });
+
+  test("leaves a lone item (or a lone category-looking word) untouched", () => {
+    expect(stripCategory(["bar-chart"])).toEqual(["bar-chart"]);
+    expect(stripCategory(["chart"])).toEqual(["chart"]); // no item after it → treat as the item
   });
 });
 

@@ -19,15 +19,23 @@ pass `--dir <parent>` to put it elsewhere (e.g. `--dir presentations` to drop it
 into a monorepo's workspace glob).
 
 ```bash
-liebstoeckel new <name> [--brand <brand>] [--dir <parent>]
+liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand]
 ```
 
 | Flag | Meaning |
 | --- | --- |
-| `--brand <brand>` | brand theme to wire in (default: `liebstoeckel`) |
+| `--brand <brand>` | brand theme to wire in (default: `liebstoeckel`, or your org's default brand when logged in) |
 | `--dir <parent>` | parent directory for the deck (default: the current directory) |
+| `--no-org-brand` | don't bake the logged-in org's default brand; use the plain `liebstoeckel` brand |
 
 Generates `index.html`, `main.tsx`, `build.ts` (using `buildDeck` from `@liebstoeckel/thumbnails/build`), `server.ts`, `bunfig.toml`, and a starter `slides/01-intro.tsx`. The name must be lower-case letters/digits/hyphens; it won't overwrite an existing directory.
+
+When you're **logged in** (and didn't pass `--brand`), `new` automatically bakes your
+org's **default brand** into the deck as owned source — `brands/<name>.ts`, wired into
+`<Present brandThemes={…}>`, with `data-brand` set — so new decks are on-brand
+instantly (see [`brand`](#brand)). Pass `--no-org-brand` to opt out, or `--brand` to
+choose a specific one. It's best-effort: offline or signed-out, you just get the
+default `liebstoeckel` brand.
 
 ## `add`
 
@@ -43,8 +51,6 @@ liebstoeckel add donut-chart --dir ./presentations/demo
 liebstoeckel add bar-chart --dry                 # show the plan, write nothing
 ```
 
-| Flag | Meaning |
-| --- | --- |
 | Flag | Meaning |
 | --- | --- |
 | `--dir <deck>` | target deck directory (default: current directory) |
