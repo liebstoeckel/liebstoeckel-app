@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.2](https://github.com/limond/liebstoeckel-app/compare/cli-v0.3.1...cli-v0.3.2) (2026-06-07)
+
+
+### Miscellaneous Chores
+
+* **cli:** Synchronize liebstoeckel versions
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.2
+    * @liebstoeckel/live-server bumped to 0.3.2
+    * @liebstoeckel/present-relay bumped to 0.3.2
+    * @liebstoeckel/registry bumped to 0.3.2
+    * @liebstoeckel/theme bumped to 0.3.2
+    * @liebstoeckel/thumbnails bumped to 0.3.2
+
 ## [0.3.1](https://github.com/limond/liebstoeckel-app/compare/cli-v0.3.0...cli-v0.3.1) (2026-06-07)
 
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.2](https://github.com/limond/liebstoeckel-app/compare/live-server-v0.3.1...live-server-v0.3.2) (2026-06-07)
+
+
+### Miscellaneous Chores
+
+* **live-server:** Synchronize liebstoeckel versions
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.2
+    * @liebstoeckel/plugin-sdk bumped to 0.3.2
+    * @liebstoeckel/thumbnails bumped to 0.3.2
+  * devDependencies
+    * @liebstoeckel/plugin-poll bumped to 0.3.2
+
 ## [0.3.1](https://github.com/limond/liebstoeckel-app/compare/live-server-v0.3.0...live-server-v0.3.1) (2026-06-07)
 
 

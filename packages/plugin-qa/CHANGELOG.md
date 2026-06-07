@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.2](https://github.com/limond/liebstoeckel-app/compare/plugin-qa-v0.3.1...plugin-qa-v0.3.2) (2026-06-07)
+
+
+### Miscellaneous Chores
+
+* **plugin-qa:** Synchronize liebstoeckel versions
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/plugin-sdk bumped to 0.3.2
+    * @liebstoeckel/plugin-ui bumped to 0.3.2
+
 ## [0.3.1](https://github.com/limond/liebstoeckel-app/compare/plugin-qa-v0.3.0...plugin-qa-v0.3.1) (2026-06-07)
 
 

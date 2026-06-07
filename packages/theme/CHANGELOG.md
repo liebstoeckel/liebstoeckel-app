@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/limond/liebstoeckel-app/compare/theme-v0.3.1...theme-v0.3.2) (2026-06-07)
+
+
+### Bug Fixes
+
+* **theme:** declare [@fontsource-variable](https://github.com/fontsource-variable) font deps (phantom dep broke deck build) ([15fd909](https://github.com/limond/liebstoeckel-app/commit/15fd909132571853014f0ed2693a18e6dd458516))
+
 ## [0.3.1](https://github.com/limond/liebstoeckel-app/compare/theme-v0.3.0...theme-v0.3.1) (2026-06-07)
 
 
