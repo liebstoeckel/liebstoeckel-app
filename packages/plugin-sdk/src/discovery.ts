@@ -8,7 +8,7 @@ export interface DiscoveredPlugin {
   serverEntry?: string;
   /** the plugin's runtime def id (e.g. "poll") — keys its state at `plugin:<id>`. */
   id?: string;
-  /** state fields an audience peer may write live (ADR 0061); everything else is
+  /** state fields an audience peer may write live ((internal ADR)); everything else is
    *  presenter-only. Declared statically so the relay can enforce it without the def. */
   audienceWrites?: string[];
 }

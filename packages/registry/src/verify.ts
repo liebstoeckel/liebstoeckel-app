@@ -6,7 +6,7 @@
  * This catches the true failure class — e.g. a *default* import of a CJS-origin
  * package whose ESM entry has no default export (`import X from "@visx/text"`),
  * which fails loudly at build time — for ANY package, not a memorized list, and
- * stays correct as Bun's CJS/ESM interop evolves. See ADR 0040 / 0041.
+ * stays correct as Bun's CJS/ESM interop evolves. See (internal ADR) / 0041.
  */
 
 export interface BundleVerifyResult {

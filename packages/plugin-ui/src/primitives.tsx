@@ -157,7 +157,7 @@ export function Stack({ children, gap = "0.6rem", style }: { children?: ReactNod
 }
 
 /** A bounded, internally-scrolling region. The inline slide canvas is a fixed
- *  1280×720 surface with `overflow:hidden` (ADR 0006) and never scrolls, so a
+ *  1280×720 surface with `overflow:hidden` ((internal ADR)) and never scrolls, so a
  *  plugin whose content grows without bound (a Q&A queue, a chat, any feed) must
  *  cap its own height and scroll inside it — pin the header/input, wrap the growing
  *  list in a ScrollArea. On mobile the breakout sheet already scrolls; this gives

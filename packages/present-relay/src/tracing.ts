@@ -9,7 +9,7 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 
-// OTLP tracing for the relay (ADR 0073 step 3b / ticket 0024). MANUAL spans + W3C
+// OTLP tracing for the relay ((internal ADR) step 3b / (internal ticket)). MANUAL spans + W3C
 // `traceparent` propagation — not auto-instrumentation (require-in-the-middle is unreliable
 // under Bun; the propagator + AsyncLocalStorage context API work, verified). **Gated**: a no-op
 // unless OTEL_EXPORTER_OTLP_ENDPOINT is set, so the services run identically with tracing off —

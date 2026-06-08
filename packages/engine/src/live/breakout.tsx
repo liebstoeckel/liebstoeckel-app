@@ -142,7 +142,7 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
       exit={{ opacity: 0 }}
       style={{
         // pin to the visual viewport so the on-screen keyboard can't bury the sheet
-        // (it overlays the layout viewport; `inset:0` would sit behind it). ADR 0037.
+        // (it overlays the layout viewport; `inset:0` would sit behind it). (internal ADR).
         position: "fixed",
         left: 0,
         right: 0,

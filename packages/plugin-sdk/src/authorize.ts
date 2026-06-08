@@ -1,7 +1,7 @@
 import * as Y from "yjs";
 import type { PluginManifest } from "./manifest";
 
-// Relay-side write authorization for hosted live sessions (ADR 0061). A public
+// Relay-side write authorization for hosted live sessions ((internal ADR)). A public
 // audience link invites strangers, so roles must be *enforced*, not honor-system:
 // the presenter/runner may write the whole doc, but an audience peer may only touch
 // the interaction fields a plugin explicitly declares (poll votes, Q&A questions/
@@ -11,7 +11,7 @@ import type { PluginManifest } from "./manifest";
 export type PeerRole = "presenter" | "runner" | "audience";
 
 /** The doc-level index a client appends to when it renders a `<Plugin>` (instance
- *  discovery, ADR 0033). A legitimate audience write — the audience renders the deck. */
+ *  discovery, (internal ADR)). A legitimate audience write — the audience renders the deck. */
 export const PLUGIN_INDEX_KEY = "plugin-index";
 
 export interface AudienceScope {

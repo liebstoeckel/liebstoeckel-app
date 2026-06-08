@@ -9,10 +9,10 @@
 
 ### Features
 
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
 * **cli:** umbrella present-it CLI with deck scaffolding ([92e03b0](https://github.com/limond/liebstoeckel-app/commit/92e03b0b23f213bbf53261abb21fd74535a533d3))
-* **deck:** build output as &lt;slug&gt;.html + server-side title precedence (ADR 0068) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
-* **engine,cli:** inline source package — compiled decks are ejectable (ADR 0039) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
+* **deck:** build output as &lt;slug&gt;.html + server-side title precedence ((internal ADR)) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
+* **engine,cli:** inline source package — compiled decks are ejectable ((internal ADR)) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
 * **export:** PNG/PDF slide export — single slide, range, or whole deck ([430a687](https://github.com/limond/liebstoeckel-app/commit/430a687704ba94910317e7d15ec78142f199903d))
 * **featureset-3:** build-time thumbnails + secure public relay ([dd3feba](https://github.com/limond/liebstoeckel-app/commit/dd3febadd8641f64657d5298b29ea5242f34bc64))
 * **plugins:** audience Q&A + live reactions ([d7f0055](https://github.com/limond/liebstoeckel-app/commit/d7f00554d486bf20f7229044bb874813c1e29f8e))
@@ -54,10 +54,10 @@
 
 ### Features
 
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
 * **cli:** umbrella present-it CLI with deck scaffolding ([92e03b0](https://github.com/limond/liebstoeckel-app/commit/92e03b0b23f213bbf53261abb21fd74535a533d3))
-* **deck:** build output as &lt;slug&gt;.html + server-side title precedence (ADR 0068) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
-* **engine,cli:** inline source package — compiled decks are ejectable (ADR 0039) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
+* **deck:** build output as &lt;slug&gt;.html + server-side title precedence ((internal ADR)) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
+* **engine,cli:** inline source package — compiled decks are ejectable ((internal ADR)) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
 * **export:** PNG/PDF slide export — single slide, range, or whole deck ([430a687](https://github.com/limond/liebstoeckel-app/commit/430a687704ba94910317e7d15ec78142f199903d))
 * **featureset-3:** build-time thumbnails + secure public relay ([dd3feba](https://github.com/limond/liebstoeckel-app/commit/dd3febadd8641f64657d5298b29ea5242f34bc64))
 * **plugins:** audience Q&A + live reactions ([d7f0055](https://github.com/limond/liebstoeckel-app/commit/d7f00554d486bf20f7229044bb874813c1e29f8e))
@@ -99,10 +99,10 @@
 
 ### Features
 
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
 * **cli:** umbrella present-it CLI with deck scaffolding ([92e03b0](https://github.com/limond/liebstoeckel-app/commit/92e03b0b23f213bbf53261abb21fd74535a533d3))
-* **deck:** build output as &lt;slug&gt;.html + server-side title precedence (ADR 0068) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
-* **engine,cli:** inline source package — compiled decks are ejectable (ADR 0039) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
+* **deck:** build output as &lt;slug&gt;.html + server-side title precedence ((internal ADR)) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
+* **engine,cli:** inline source package — compiled decks are ejectable ((internal ADR)) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
 * **export:** PNG/PDF slide export — single slide, range, or whole deck ([430a687](https://github.com/limond/liebstoeckel-app/commit/430a687704ba94910317e7d15ec78142f199903d))
 * **featureset-3:** build-time thumbnails + secure public relay ([dd3feba](https://github.com/limond/liebstoeckel-app/commit/dd3febadd8641f64657d5298b29ea5242f34bc64))
 * **plugins:** audience Q&A + live reactions ([d7f0055](https://github.com/limond/liebstoeckel-app/commit/d7f00554d486bf20f7229044bb874813c1e29f8e))
@@ -135,7 +135,7 @@
 
 ### Features
 
-* **deck:** build output as &lt;slug&gt;.html + server-side title precedence (ADR 0068) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
+* **deck:** build output as &lt;slug&gt;.html + server-side title precedence ((internal ADR)) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
 
 
 ### Bug Fixes
@@ -158,9 +158,9 @@
 
 ### Features
 
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
 * **cli:** umbrella present-it CLI with deck scaffolding ([92e03b0](https://github.com/limond/liebstoeckel-app/commit/92e03b0b23f213bbf53261abb21fd74535a533d3))
-* **engine,cli:** inline source package — compiled decks are ejectable (ADR 0039) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
+* **engine,cli:** inline source package — compiled decks are ejectable ((internal ADR)) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
 * **export:** PNG/PDF slide export — single slide, range, or whole deck ([430a687](https://github.com/limond/liebstoeckel-app/commit/430a687704ba94910317e7d15ec78142f199903d))
 * **featureset-3:** build-time thumbnails + secure public relay ([dd3feba](https://github.com/limond/liebstoeckel-app/commit/dd3febadd8641f64657d5298b29ea5242f34bc64))
 * **plugins:** audience Q&A + live reactions ([d7f0055](https://github.com/limond/liebstoeckel-app/commit/d7f00554d486bf20f7229044bb874813c1e29f8e))

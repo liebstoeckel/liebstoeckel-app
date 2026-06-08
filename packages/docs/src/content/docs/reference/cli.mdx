@@ -94,14 +94,14 @@ reads the bundled `@liebstoeckel` registry.
 
 Build a deck to a single self-contained `.html` (+ thumbnails), written to
 `./dist/<deck-slug>.html` — the slug is the deck folder name, e.g. `poll-demo/` →
-`dist/poll-demo.html` (ADR 0068). By default the build also
+`dist/poll-demo.html` ((internal ADR)). By default the build also
 embeds a compressed copy of the deck's **own source** (slides, `package.json`, etc. — not
 `node_modules`), so the compiled `.html` can later be [`eject`](#eject)ed back to an editable
 project. Source collection uses `bun pm pack`, so your deck's `package.json` `"files"` list
 controls exactly what's embedded.
 
 The deck defaults to the **current directory**; pass it as a positional `[dir]` or
-with `--dir <deck>` (the convention shared by `pack`/`live`/`export` — ADR 0050).
+with `--dir <deck>` (the convention shared by `pack`/`live`/`export` — (internal ADR)).
 
 ```bash
 liebstoeckel build                             # the deck in the current directory
@@ -147,7 +147,7 @@ cd <outdir> && bun install --ignore-scripts && bun run build
 ## `pack`
 
 Inspect — or emit — exactly the source a build would embed, without running a full build.
-The deck defaults to the **current directory**; pass it as `[dir]` or `--dir <deck>` (ADR 0050).
+The deck defaults to the **current directory**; pass it as `[dir]` or `--dir <deck>` ((internal ADR)).
 
 ```bash
 liebstoeckel pack [dir]                  # print the file list (defaults to cwd)
@@ -165,7 +165,7 @@ slide thumbnails by default (so the overview grid is instant) — skipped, not
 failed, when no Chromium is available.
 
 The deck defaults to the **current directory**; pass it as a positional or with
-`--dir <deck>` (the same convention as `build`/`pack`/`export` — ADR 0050).
+`--dir <deck>` (the same convention as `build`/`pack`/`export` — (internal ADR)).
 
 ```bash
 liebstoeckel live                               # the deck in the current directory
@@ -210,7 +210,7 @@ Export slides to **PNG** files or a single **PDF** — one slide, a range, or th
 whole deck — rendered headless on the native 1280×720 canvas, the same pipeline as
 thumbnails. The input is a built `.html` **or** a deck source directory (built on
 demand); it defaults to the **current directory**, or pass it as a positional or
-with `--dir <deck>` (ADR 0050).
+with `--dir <deck>` ((internal ADR)).
 
 ```bash
 liebstoeckel export [deck.html|deck-dir|--dir <deck>] [opts]
@@ -299,7 +299,7 @@ folder name, or `--name <key>`); pushing the same key again updates that deck **
 at the same URL** (a new version on Pro; the latest is replaced on free). `--new` forces a
 separate deck. With **no path**, `push` uploads the single built `.html` in `./dist`
 (run `build` first). The **title** comes from `--title` → the deck's own embedded
-`<title>` → the deck key (ADR 0068): the server reads the `<title>` straight from the
+`<title>` → the deck key ((internal ADR)): the server reads the `<title>` straight from the
 uploaded file, so any Unicode (em-dashes, smart quotes, emoji) just works. Only an
 explicit `--title` override travels as a header (URL-encoded). A **cover** is read from
 the deck's built-in thumbnails.

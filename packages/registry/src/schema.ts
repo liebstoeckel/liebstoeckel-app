@@ -1,5 +1,5 @@
 /**
- * The registry item contract — ADR 0040 (ownership) / ADR 0041 (protocol).
+ * The registry item contract — (internal ADR) (ownership) / (internal ADR) (protocol).
  *
  * This is the single published schema that BOTH the registry data and the CLI
  * resolver validate against, so a malformed or unsafe item is rejected before any
@@ -16,7 +16,7 @@ export type RegistryItemType =
   | "registry:brand";
 
 /** Optional `add <category> <name>` sugar — the bare words behind each type.
- *  `brand` (ADR 0059) is a theme token set served by an org registry. */
+ *  `brand` ((internal ADR)) is a theme token set served by an org registry. */
 export const CATEGORIES = ["chart", "hook", "element", "component", "layout", "motion", "brand"] as const;
 
 const TYPES = new Set<string>(CATEGORIES.map((c) => `registry:${c}`));
@@ -40,12 +40,12 @@ export interface RegistryItem {
   /** Other registry items (owned source) scaffolded alongside this one. */
   registryDependencies?: string[];
   files: RegistryItemFile[];
-  /** Agent-facing usage metadata (ADR 0045) — does not affect scaffolding. */
+  /** Agent-facing usage metadata ((internal ADR)) — does not affect scaffolding. */
   meta?: RegistryItemMeta;
 }
 
 /**
- * Agent-facing metadata (ADR 0045): terse TS-shaped strings so an agent can wire a
+ * Agent-facing metadata ((internal ADR)): terse TS-shaped strings so an agent can wire a
  * component without reading its source. `dataShape` is the headline — the type of the
  * primary data prop a chart expects (e.g. `{ label: string; value: number }[]`).
  */

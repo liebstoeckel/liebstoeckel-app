@@ -4,7 +4,7 @@ import { createRelay, type RelayStorage } from "./relay-server";
 import { relayPublicBaseFromPod } from "./addressing";
 import { initTracing } from "./tracing";
 
-/** Object storage for session snapshots (ADR 0061), wired from S3_* env when present.
+/** Object storage for session snapshots ((internal ADR)), wired from S3_* env when present.
  *  Absent → the relay runs without persistence (transient/CLI use). */
 function s3Storage(): RelayStorage | undefined {
   const endpoint = process.env.S3_ENDPOINT;
@@ -48,16 +48,16 @@ const RELAY_USAGE =
 
 export function runRelay(argv: string[]) {
   // Print usage and exit WITHOUT binding a port — `relay --help` must not start a
-  // server (ticket 0030).
+  // server ((internal ticket)).
   if (argv.includes("-h") || argv.includes("--help")) {
     console.log(RELAY_USAGE);
     return;
   }
-  initTracing("present-relay"); // gated by OTEL_EXPORTER_OTLP_ENDPOINT (ADR 0073 step 3b)
+  initTracing("present-relay"); // gated by OTEL_EXPORTER_OTLP_ENDPOINT ((internal ADR) step 3b)
   const port = Number(flag(argv, "--port") ?? process.env.PORT ?? 0) || 0;
   // Public base: an explicit override wins (CLI / single-pod env); otherwise a
   // StatefulSet pod derives its OWN per-pod base from its ordinal + host template
-  // (ADR 0071 §3 / ticket 0016 — POD_NAME via the downward API).
+  // ((internal ADR) §3 / (internal ticket) — POD_NAME via the downward API).
   const publicBaseUrl =
     flag(argv, "--public-url") ??
     process.env.PRESENT_RELAY_PUBLIC_URL ??
@@ -92,7 +92,7 @@ export function runRelay(argv: string[]) {
   }
 
   // Await the snapshot flush before exiting so a rolling deploy / drain doesn't lose
-  // the last interval's live state (ADR 0071 §5 / ticket 0018). k8s gives us
+  // the last interval's live state ((internal ADR) §5 / (internal ticket)). k8s gives us
   // terminationGracePeriodSeconds (set on the StatefulSet) to finish.
   const shutdown = async () => {
     await relay.stop();

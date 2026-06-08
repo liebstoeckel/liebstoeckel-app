@@ -1,4 +1,4 @@
-// Per-pod public addressing for the relay StatefulSet (ADR 0071 §3 / ticket 0016).
+// Per-pod public addressing for the relay StatefulSet ((internal ADR) §3 / (internal ticket)).
 // Each relay pod owns a live session's Yjs Hub in memory, so the control plane pins a
 // session to one pod and hands audiences a per-pod host (`liebstoeckel-relayNNN…`). A
 // StatefulSet shares a single pod template, so a pod can't be handed a static per-pod

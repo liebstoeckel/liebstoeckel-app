@@ -37,13 +37,9 @@
       "@liebstoeckel/present-relay": ["./packages/present-relay/src/index.ts"],
       "@liebstoeckel/present-relay/*": ["./packages/present-relay/src/*"],
       "@liebstoeckel/registry": ["./packages/registry/src/index.ts"],
-      "@liebstoeckel/registry/*": ["./packages/registry/src/*"],
-      "@liebstoeckel/control-core": ["./packages/control-core/src/index.ts"],
-      "@liebstoeckel/control-core/*": ["./packages/control-core/src/*"],
-      "@liebstoeckel/control-api": ["./packages/control-api/src/index.ts"],
-      "@liebstoeckel/control-api/*": ["./packages/control-api/src/*"]
+      "@liebstoeckel/registry/*": ["./packages/registry/src/*"]
     }
   },
   "include": ["packages", "presentations", "types"],
-  "exclude": ["**/node_modules", "**/dist", "packages/docs", "packages/control-dashboard"]
+  "exclude": ["**/node_modules", "**/dist", "packages/docs"]
 }

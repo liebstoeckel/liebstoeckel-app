@@ -3,7 +3,7 @@ import * as Y from "yjs";
 import { createRelay, type RelayServer, type RelayStorage } from "./relay-server";
 import { mintGrant } from "./grant";
 
-// Hosted live presenting (ADR 0061): audience write-scope enforcement + snapshot
+// Hosted live presenting ((internal ADR)): audience write-scope enforcement + snapshot
 // persistence. A deck whose embedded manifest lets the audience write only `votes`
 // on plugin "poll".
 const TOKEN = "acct-secret-token";
@@ -122,7 +122,7 @@ describe("hosted relay: audience write-scope enforcement", () => {
   });
 });
 
-describe("hosted relay: signed-grant connection auth (ADR 0061)", () => {
+describe("hosted relay: signed-grant connection auth ((internal ADR))", () => {
   test("the returned links carry grants that authenticate; raw tokens still work", async () => {
     const base = start();
     const s = await create(base);
@@ -152,7 +152,7 @@ describe("hosted relay: signed-grant connection auth (ADR 0061)", () => {
   });
 });
 
-describe("hosted relay: plan limits (ADR 0061)", () => {
+describe("hosted relay: plan limits ((internal ADR))", () => {
   test("a per-session TTL shortens expiry below the relay default", async () => {
     const base = start({ sessionTtlMs: 6 * 60 * 60 * 1000 });
     const r = await fetch(`${base}/api/sessions`, {
@@ -195,7 +195,7 @@ describe("hosted relay: plan limits (ADR 0061)", () => {
   });
 });
 
-describe("hosted relay: audience white-label (ADR 0061)", () => {
+describe("hosted relay: audience white-label ((internal ADR))", () => {
   test("the audience view carries the provenance badge when watermarked; presenter never does", async () => {
     const base = start();
     const { id, presenterToken, viewerToken } = await create(base, { "x-watermark": "1" });

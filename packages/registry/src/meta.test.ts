@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { REGISTRY_ROOT } from "./index.ts";
 import { validateItem, type RegistryIndex, type RegistryItem } from "./schema.ts";
 
-// The generated registry data is the agent-facing API (ADR 0045). These tests are the
+// The generated registry data is the agent-facing API ((internal ADR)). These tests are the
 // regression guard against `meta` drifting away from the source it documents.
 
 const index = (await Bun.file(join(REGISTRY_ROOT, "registry.json")).json()) as RegistryIndex;
@@ -11,7 +11,7 @@ const items = await Promise.all(
   index.items.map((i) => Bun.file(join(REGISTRY_ROOT, "items", `${i.name}.json`)).json() as Promise<RegistryItem>),
 );
 
-describe("registry item agent-metadata (ADR 0045)", () => {
+describe("registry item agent-metadata ((internal ADR))", () => {
   test("registry.json is non-empty and every entry has an item file", () => {
     expect(index.items.length).toBeGreaterThan(0);
     expect(items.length).toBe(index.items.length);

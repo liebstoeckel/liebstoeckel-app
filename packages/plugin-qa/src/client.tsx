@@ -174,7 +174,7 @@ function Composer({ onSubmit, autoFocus }: { onSubmit: (text: string) => void; a
 }
 
 /** The live, springy, ranked queue. Moderation buttons appear only for `role==="presenter"`.
- *  Bounded + internally scrolling so it never overflows the fixed slide canvas (ADR 0006). */
+ *  Bounded + internally scrolling so it never overflows the fixed slide canvas ((internal ADR)). */
 function Queue({ fill, ...p }: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId" | "role"> & { fill?: boolean }) {
   const { snapshot, state, participantId, role } = p;
   const { toggleVote } = useQaActions(p);
@@ -202,7 +202,7 @@ function Queue({ fill, ...p }: Pick<ClientProps<QaState>, "snapshot" | "state" |
     </Stack>
   );
   // `fill`: the presenter console already gives us a tall scrolling box, so don't impose
-  // the slide-canvas cap (ADR 0006) — let the list use the full panel height. On the slide
+  // the slide-canvas cap ((internal ADR)) — let the list use the full panel height. On the slide
   // and in the popover panel we keep the bounded ScrollArea.
   return fill ? list : <ScrollArea>{list}</ScrollArea>;
 }
@@ -228,7 +228,7 @@ function QaSlide(p: ClientProps<QaState>) {
 
 /** Presenter console: the live ranked queue with privileged moderation — mark
  *  answered, dismiss, upvote. Each action writes the plugin's own state, so the
- *  audience Q&A slide reflects it instantly (ADR 0031). */
+ *  audience Q&A slide reflects it instantly ((internal ADR)). */
 function QaConsole(p: ClientProps<QaState>) {
   const ranked = rankedQuestions(p.snapshot);
   const open = ranked.filter((q) => !q.answered).length;
@@ -334,9 +334,9 @@ export default definePlugin<QaState>({
       Console: QaConsole,
     },
     fallback: QaFallback,
-    // ask from any slide, even with no Q&A slide placed (ADR 0021/0036). Unpinned → folds
-    // into the ⋮ menu on mobile (ADR 0038); opens as a sheet on touch so the keyboard
-    // doesn't bury it (ADR 0037).
+    // ask from any slide, even with no Q&A slide placed ((internal ADR)/0036). Unpinned → folds
+    // into the ⋮ menu on mobile ((internal ADR)); opens as a sheet on touch so the keyboard
+    // doesn't bury it ((internal ADR)).
     global: { icon: <QaIcon />, label: "Q&A", Panel: QaPanel, panelMode: "sheet" },
   },
 });

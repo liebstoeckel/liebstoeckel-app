@@ -7,8 +7,7 @@
     "presentations/*"
   ],
   "scripts": {
-    "gen": "bun run packages/theme/src/gen.ts && bun run packages/control-core/src/gen-fonts.ts",
-    "gen:fonts": "bun run packages/control-core/src/gen-fonts.ts",
+    "gen": "bun run packages/theme/src/gen.ts",
     "demo:dev": "cd presentations/demo && bun --hot ./server.ts",
     "demo:build": "cd presentations/demo && bun run build.ts",
     "showcase:dev": "cd presentations/visx-showcase && bun --hot ./server.ts",
@@ -23,7 +22,6 @@
     "thumbs": "bun packages/thumbnails/src/cli.ts",
     "export": "bun packages/cli/src/cli.ts export",
     "test": "bun test packages",
-    "test:e2e": "bun test packages/e2e/src/smoke.test.ts",
     "docs:dev": "cd packages/docs && bun --bun astro dev --host",
     "docs:build": "cd packages/docs && bun --bun astro build",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"

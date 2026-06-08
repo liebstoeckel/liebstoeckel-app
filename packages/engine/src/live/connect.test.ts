@@ -120,7 +120,7 @@ describe("connectLive (mock WS)", () => {
   });
 });
 
-describe("connectLive recovery escalation (ticket 0018)", () => {
+describe("connectLive recovery escalation ((internal ticket))", () => {
   test("fires onUnrecoverable once after N consecutive failed reconnects", async () => {
     const created: MockWS[] = [];
     const WS = function (url: string) {

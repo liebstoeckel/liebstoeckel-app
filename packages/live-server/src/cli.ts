@@ -31,8 +31,8 @@ export async function loadDeckHtml(arg: string): Promise<string> {
     const dir = abs.endsWith("package.json") ? dirname(abs) : abs;
     const { bundleDeck } = await import("@liebstoeckel/engine/build");
     // Build to a throwaway dir, NOT the deck's own dist/. `liebstoeckel build` owns
-    // dist/<slug>.html (ADR 0068); a stray dist/index.html written here would shadow
-    // it for `push`'s default-file pick and confuse the two artifacts (ticket 0030).
+    // dist/<slug>.html ((internal ADR)); a stray dist/index.html written here would shadow
+    // it for `push`'s default-file pick and confuse the two artifacts ((internal ticket)).
     const outdir = mkdtempSync(join(tmpdir(), "lst-live-"));
     const prev = process.cwd();
     process.chdir(dir);

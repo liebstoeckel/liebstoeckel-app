@@ -65,7 +65,7 @@ export function Plugin({
   components = {},
 }: {
   id: string;
-  /** instance discriminator (ADR 0033); omit for the default slice. Two placements with
+  /** instance discriminator ((internal ADR)); omit for the default slice. Two placements with
    *  the same (id, instance) share state — that's how you intentionally mirror one. */
   instance?: string;
   /** optional human label for this instance, used in the presenter tabs to tell
@@ -93,7 +93,7 @@ export function Plugin({
     return state.subscribe(setSnap);
   }, [state]);
 
-  // Register this instance so the presenter console / server can discover it (ADR 0033).
+  // Register this instance so the presenter console / server can discover it ((internal ADR)).
   useEffect(() => {
     if (ctx?.live && def) registerPluginInstance(ctx.doc, id, instance, { title });
   }, [ctx?.live, ctx?.doc, def, id, instance, title]);
@@ -111,7 +111,7 @@ export function Plugin({
   // the presenter console, the mobile breakout. Sharing one `layoutId` across them makes
   // Motion morph one into another (rows "disappear" from the slide). A per-surface
   // LayoutGroup namespaces the ids so intra-surface animation still works but they never
-  // collide across surfaces (the ADR 0026 hazard, generalised).
+  // collide across surfaces (the (internal ADR) hazard, generalised).
   const slide = (key: string) => (
     <LayoutGroup key={key} id={`plugin:${id}:${instance}:${key}`}>
       <Slide

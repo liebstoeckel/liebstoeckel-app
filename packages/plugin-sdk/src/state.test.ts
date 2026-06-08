@@ -65,7 +65,7 @@ describe("pluginState over Yjs", () => {
     expect(sb.snapshot().votes).toEqual({ p1: "A", p2: "B" });
   });
 
-  test("instances of one type are independent; default stays at the old address (ADR 0033)", () => {
+  test("instances of one type are independent; default stays at the old address ((internal ADR))", () => {
     const doc = new Y.Doc();
     const def = pluginState(doc, "poll", pollSchema); // default instance
     const lunch = pluginState(doc, "poll", pollSchema, "lunch");

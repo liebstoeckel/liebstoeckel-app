@@ -93,7 +93,7 @@ describe("Hub (Yjs relay)", () => {
   });
 });
 
-describe("Hub snapshot/seed round-trip (re-provision continuity, ticket 0018)", () => {
+describe("Hub snapshot/seed round-trip (re-provision continuity, (internal ticket))", () => {
   test("seed restores a prior snapshot's doc state into a fresh Hub", () => {
     const a = new Hub();
     const local = new Y.Doc();
@@ -104,7 +104,7 @@ describe("Hub snapshot/seed round-trip (re-provision continuity, ticket 0018)", 
     a.destroy();
 
     // a brand-new Hub on a "new pod" seeded from the snapshot carries the same state —
-    // the audience's poll/Q&A survives a re-provision (ADR 0071 §5).
+    // the audience's poll/Q&A survives a re-provision ((internal ADR) §5).
     const b = new Hub();
     b.seed(snap);
     const out = new Y.Doc();

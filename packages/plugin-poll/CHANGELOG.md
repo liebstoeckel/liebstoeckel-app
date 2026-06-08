@@ -24,10 +24,10 @@
 
 ### Features
 
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
-* **engine,plugins:** consistent control icons + mobile chrome overflow (ADR 0038) ([05ae897](https://github.com/limond/liebstoeckel-app/commit/05ae89720ef05cb11e1ba2fa518f3a8c7080cc90))
-* **live:** audience write-scope enforcement for hosted sessions (ADR 0061, phase 1) ([c65e4ea](https://github.com/limond/liebstoeckel-app/commit/c65e4ea11ac1780e9542d5fabfb57e6ad36e132a))
-* **live:** deck-free plugin-state decoder for persisted results (ADR 0061, phase 7-core) ([2dd664e](https://github.com/limond/liebstoeckel-app/commit/2dd664efd54a67539702f20815c7e05b04be11c5))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **engine,plugins:** consistent control icons + mobile chrome overflow ((internal ADR)) ([05ae897](https://github.com/limond/liebstoeckel-app/commit/05ae89720ef05cb11e1ba2fa518f3a8c7080cc90))
+* **live:** audience write-scope enforcement for hosted sessions ((internal ADR), phase 1) ([c65e4ea](https://github.com/limond/liebstoeckel-app/commit/c65e4ea11ac1780e9542d5fabfb57e6ad36e132a))
+* **live:** deck-free plugin-state decoder for persisted results ((internal ADR), phase 7-core) ([2dd664e](https://github.com/limond/liebstoeckel-app/commit/2dd664efd54a67539702f20815c7e05b04be11c5))
 * **mobile:** tap-to-interact plugin breakout on touch screens ([584174d](https://github.com/limond/liebstoeckel-app/commit/584174d26479ef02889664770b62cf0b6554cd79))
 * **plugin-poll,plugin-qa:** presenter consoles ([dec07dd](https://github.com/limond/liebstoeckel-app/commit/dec07dddaf18bd43b3951e967fc1877962abbd8b))
 * **plugin-poll:** presenter.title so sibling poll instances are labelled by question ([ee9aa64](https://github.com/limond/liebstoeckel-app/commit/ee9aa642ba05df449d7fde166681e720fbd4fbc8))
@@ -84,10 +84,10 @@
 
 ### Features
 
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
-* **engine,plugins:** consistent control icons + mobile chrome overflow (ADR 0038) ([05ae897](https://github.com/limond/liebstoeckel-app/commit/05ae89720ef05cb11e1ba2fa518f3a8c7080cc90))
-* **live:** audience write-scope enforcement for hosted sessions (ADR 0061, phase 1) ([c65e4ea](https://github.com/limond/liebstoeckel-app/commit/c65e4ea11ac1780e9542d5fabfb57e6ad36e132a))
-* **live:** deck-free plugin-state decoder for persisted results (ADR 0061, phase 7-core) ([2dd664e](https://github.com/limond/liebstoeckel-app/commit/2dd664efd54a67539702f20815c7e05b04be11c5))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **engine,plugins:** consistent control icons + mobile chrome overflow ((internal ADR)) ([05ae897](https://github.com/limond/liebstoeckel-app/commit/05ae89720ef05cb11e1ba2fa518f3a8c7080cc90))
+* **live:** audience write-scope enforcement for hosted sessions ((internal ADR), phase 1) ([c65e4ea](https://github.com/limond/liebstoeckel-app/commit/c65e4ea11ac1780e9542d5fabfb57e6ad36e132a))
+* **live:** deck-free plugin-state decoder for persisted results ((internal ADR), phase 7-core) ([2dd664e](https://github.com/limond/liebstoeckel-app/commit/2dd664efd54a67539702f20815c7e05b04be11c5))
 * **mobile:** tap-to-interact plugin breakout on touch screens ([584174d](https://github.com/limond/liebstoeckel-app/commit/584174d26479ef02889664770b62cf0b6554cd79))
 * **plugin-poll,plugin-qa:** presenter consoles ([dec07dd](https://github.com/limond/liebstoeckel-app/commit/dec07dddaf18bd43b3951e967fc1877962abbd8b))
 * **plugin-poll:** presenter.title so sibling poll instances are labelled by question ([ee9aa64](https://github.com/limond/liebstoeckel-app/commit/ee9aa642ba05df449d7fde166681e720fbd4fbc8))

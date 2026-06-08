@@ -24,7 +24,7 @@ export function injectBootstrap(html: string, boot: LiveBootstrap): string {
 const WATERMARK_HREF = "https://liebstoeckel.app";
 
 /** Inject a small, unobtrusive "Published with liebstoeckel" provenance badge for the
- *  free-tier live audience view (ADR 0061 / ADR 0056). White-labelled (paid) sessions
+ *  free-tier live audience view ((internal ADR) / (internal ADR)). White-labelled (paid) sessions
  *  omit it. Inserted before the last </body>; self-contained inline styles (the deck
  *  runs in an opaque sandbox). The corner link opens in a new tab (allow-popups). */
 export function injectWatermark(html: string): string {

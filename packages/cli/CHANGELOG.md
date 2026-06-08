@@ -28,18 +28,18 @@
 
 ### Features
 
-* **agent:** agent-readable CLI/registry + liebstoeckel-deck skill (ADR 0044/0045) ([a760569](https://github.com/limond/liebstoeckel-app/commit/a760569749e40cbc85a96c5d187e375221cabb01))
-* **brand:** carry the viz (chart-series) palette in org brands (ticket 0029) ([df9e825](https://github.com/limond/liebstoeckel-app/commit/df9e825357561dc0302b368a2448ef891554e364))
-* **brand:** font catalog — pulled brands import + install their [@fontsource](https://github.com/fontsource) webfonts (ADR 0074) ([406cd8f](https://github.com/limond/liebstoeckel-app/commit/406cd8f376f3324504f27973f1bd2fe1e76c4a7f))
-* **brand:** the org as an authenticated registry; shared brands as items (ADR 0059) ([a114adf](https://github.com/limond/liebstoeckel-app/commit/a114adf10a0d4346e83e54545c9960f279e4647c))
+* **agent:** agent-readable CLI/registry + liebstoeckel-deck skill ((internal ADR)/0045) ([a760569](https://github.com/limond/liebstoeckel-app/commit/a760569749e40cbc85a96c5d187e375221cabb01))
+* **brand:** carry the viz (chart-series) palette in org brands ((internal ticket)) ([df9e825](https://github.com/limond/liebstoeckel-app/commit/df9e825357561dc0302b368a2448ef891554e364))
+* **brand:** font catalog — pulled brands import + install their [@fontsource](https://github.com/fontsource) webfonts ((internal ADR)) ([406cd8f](https://github.com/limond/liebstoeckel-app/commit/406cd8f376f3324504f27973f1bd2fe1e76c4a7f))
+* **brand:** the org as an authenticated registry; shared brands as items ((internal ADR)) ([a114adf](https://github.com/limond/liebstoeckel-app/commit/a114adf10a0d4346e83e54545c9960f279e4647c))
 * **cli:** liebstoeckel login (device flow) + push (deck upload) ([911f810](https://github.com/limond/liebstoeckel-app/commit/911f810bc14cadd57862b6826f587833ab2b2436))
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
 * **cli:** umbrella present-it CLI with deck scaffolding ([92e03b0](https://github.com/limond/liebstoeckel-app/commit/92e03b0b23f213bbf53261abb21fd74535a533d3))
-* **cli:** uniform deck targeting — cwd default + --dir override (ADR 0050) ([1d8ddf5](https://github.com/limond/liebstoeckel-app/commit/1d8ddf538d2c59265b29d8d81dbd73775dd9b8d2))
-* **control-plane:** teams — organizations, members, roles & deck metadata (ADR 0053/0054) ([6444374](https://github.com/limond/liebstoeckel-app/commit/6444374578509157f6692e955c6fbf47abd43ca9))
-* **deck:** build output as &lt;slug&gt;.html + server-side title precedence (ADR 0068) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
-* **decks:** versioning — update-in-place at a stable URL (ADR 0058) ([bc87aba](https://github.com/limond/liebstoeckel-app/commit/bc87aba16e96d99fd8fd2e8c169412eda7fbb9a8))
-* **engine,cli:** inline source package — compiled decks are ejectable (ADR 0039) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
+* **cli:** uniform deck targeting — cwd default + --dir override ((internal ADR)) ([1d8ddf5](https://github.com/limond/liebstoeckel-app/commit/1d8ddf538d2c59265b29d8d81dbd73775dd9b8d2))
+* **control-plane:** teams — organizations, members, roles & deck metadata ((internal ADR)/0054) ([6444374](https://github.com/limond/liebstoeckel-app/commit/6444374578509157f6692e955c6fbf47abd43ca9))
+* **deck:** build output as &lt;slug&gt;.html + server-side title precedence ((internal ADR)) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
+* **decks:** versioning — update-in-place at a stable URL ((internal ADR)) ([bc87aba](https://github.com/limond/liebstoeckel-app/commit/bc87aba16e96d99fd8fd2e8c169412eda7fbb9a8))
+* **engine,cli:** inline source package — compiled decks are ejectable ((internal ADR)) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
 * **export:** PNG/PDF slide export — single slide, range, or whole deck ([430a687](https://github.com/limond/liebstoeckel-app/commit/430a687704ba94910317e7d15ec78142f199903d))
 * **registry:** shadcn-style component registry + visx chart gallery ([00fd894](https://github.com/limond/liebstoeckel-app/commit/00fd8944f888a990afe6d4dfef5463478d6324cd))
 * **saas:** view analytics, custom share controls, plan entitlements & CLI org targeting ([73a7ec4](https://github.com/limond/liebstoeckel-app/commit/73a7ec48aff4bfe7b9d816640ecd901a30e086ce))
@@ -101,9 +101,9 @@
 
 ### Features
 
-* **brand:** carry the viz (chart-series) palette in org brands (ticket 0029) ([df9e825](https://github.com/limond/liebstoeckel-app/commit/df9e825357561dc0302b368a2448ef891554e364))
-* **brand:** font catalog — pulled brands import + install their [@fontsource](https://github.com/fontsource) webfonts (ADR 0074) ([406cd8f](https://github.com/limond/liebstoeckel-app/commit/406cd8f376f3324504f27973f1bd2fe1e76c4a7f))
-* **deck:** build output as &lt;slug&gt;.html + server-side title precedence (ADR 0068) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
+* **brand:** carry the viz (chart-series) palette in org brands ((internal ticket)) ([df9e825](https://github.com/limond/liebstoeckel-app/commit/df9e825357561dc0302b368a2448ef891554e364))
+* **brand:** font catalog — pulled brands import + install their [@fontsource](https://github.com/fontsource) webfonts ((internal ADR)) ([406cd8f](https://github.com/limond/liebstoeckel-app/commit/406cd8f376f3324504f27973f1bd2fe1e76c4a7f))
+* **deck:** build output as &lt;slug&gt;.html + server-side title precedence ((internal ADR)) ([968ec51](https://github.com/limond/liebstoeckel-app/commit/968ec513e017002fbeef03c76d72c3961156c406))
 
 
 ### Bug Fixes
@@ -129,15 +129,15 @@
 
 ### Features
 
-* **agent:** agent-readable CLI/registry + liebstoeckel-deck skill (ADR 0044/0045) ([a760569](https://github.com/limond/liebstoeckel-app/commit/a760569749e40cbc85a96c5d187e375221cabb01))
-* **brand:** the org as an authenticated registry; shared brands as items (ADR 0059) ([a114adf](https://github.com/limond/liebstoeckel-app/commit/a114adf10a0d4346e83e54545c9960f279e4647c))
+* **agent:** agent-readable CLI/registry + liebstoeckel-deck skill ((internal ADR)/0045) ([a760569](https://github.com/limond/liebstoeckel-app/commit/a760569749e40cbc85a96c5d187e375221cabb01))
+* **brand:** the org as an authenticated registry; shared brands as items ((internal ADR)) ([a114adf](https://github.com/limond/liebstoeckel-app/commit/a114adf10a0d4346e83e54545c9960f279e4647c))
 * **cli:** liebstoeckel login (device flow) + push (deck upload) ([911f810](https://github.com/limond/liebstoeckel-app/commit/911f810bc14cadd57862b6826f587833ab2b2436))
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
 * **cli:** umbrella present-it CLI with deck scaffolding ([92e03b0](https://github.com/limond/liebstoeckel-app/commit/92e03b0b23f213bbf53261abb21fd74535a533d3))
-* **cli:** uniform deck targeting — cwd default + --dir override (ADR 0050) ([1d8ddf5](https://github.com/limond/liebstoeckel-app/commit/1d8ddf538d2c59265b29d8d81dbd73775dd9b8d2))
-* **control-plane:** teams — organizations, members, roles & deck metadata (ADR 0053/0054) ([6444374](https://github.com/limond/liebstoeckel-app/commit/6444374578509157f6692e955c6fbf47abd43ca9))
-* **decks:** versioning — update-in-place at a stable URL (ADR 0058) ([bc87aba](https://github.com/limond/liebstoeckel-app/commit/bc87aba16e96d99fd8fd2e8c169412eda7fbb9a8))
-* **engine,cli:** inline source package — compiled decks are ejectable (ADR 0039) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
+* **cli:** uniform deck targeting — cwd default + --dir override ((internal ADR)) ([1d8ddf5](https://github.com/limond/liebstoeckel-app/commit/1d8ddf538d2c59265b29d8d81dbd73775dd9b8d2))
+* **control-plane:** teams — organizations, members, roles & deck metadata ((internal ADR)/0054) ([6444374](https://github.com/limond/liebstoeckel-app/commit/6444374578509157f6692e955c6fbf47abd43ca9))
+* **decks:** versioning — update-in-place at a stable URL ((internal ADR)) ([bc87aba](https://github.com/limond/liebstoeckel-app/commit/bc87aba16e96d99fd8fd2e8c169412eda7fbb9a8))
+* **engine,cli:** inline source package — compiled decks are ejectable ((internal ADR)) ([370fba0](https://github.com/limond/liebstoeckel-app/commit/370fba0078b77c7dc8122c2d3e8045ebedfc888a))
 * **export:** PNG/PDF slide export — single slide, range, or whole deck ([430a687](https://github.com/limond/liebstoeckel-app/commit/430a687704ba94910317e7d15ec78142f199903d))
 * **registry:** shadcn-style component registry + visx chart gallery ([00fd894](https://github.com/limond/liebstoeckel-app/commit/00fd8944f888a990afe6d4dfef5463478d6324cd))
 * **saas:** view analytics, custom share controls, plan entitlements & CLI org targeting ([73a7ec4](https://github.com/limond/liebstoeckel-app/commit/73a7ec48aff4bfe7b9d816640ecd901a30e086ce))

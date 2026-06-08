@@ -18,7 +18,7 @@ export interface Peer {
 }
 
 export interface AudiencePolicy {
-  /** which doc areas an audience peer may write (ADR 0061). */
+  /** which doc areas an audience peer may write ((internal ADR)). */
   scope: AudienceScope;
   /** per-audience-peer write rate limit; omit for no limit. */
   rate?: { capacity: number; refillPerSec: number };
@@ -29,9 +29,9 @@ export interface HubOptions {
    *  sessions still surface a "message" on the client (drives its watchdog) and
    *  dead peers are pruned. 0/undefined = off. */
   keepaliveMs?: number;
-  /** if set, `audience`-role peers are write-scope enforced (ADR 0061): updates that
+  /** if set, `audience`-role peers are write-scope enforced ((internal ADR)): updates that
    *  touch anything outside the scope are dropped, not applied. Absent → no
-   *  enforcement (every peer may write — the local/LAN trusted model, ADR 0012). */
+   *  enforcement (every peer may write — the local/LAN trusted model, (internal ADR)). */
   audience?: AudiencePolicy;
 }
 
@@ -80,7 +80,7 @@ export class Hub {
   }
 
   /** Encode the full doc state as opaque Yjs update bytes — for persisting a session
-   *  snapshot to object storage (ADR 0061). Persisting bytes runs no deck code. */
+   *  snapshot to object storage ((internal ADR)). Persisting bytes runs no deck code. */
   snapshot(): Uint8Array {
     return Y.encodeStateAsUpdate(this.doc);
   }
@@ -100,9 +100,9 @@ export class Hub {
     // hand the newcomer the full current state (late-join replay)
     this.deliver(key, send, Y.encodeStateAsUpdate(this.doc));
 
-    // An audience peer is write-scope enforced when a policy is configured (ADR 0061);
+    // An audience peer is write-scope enforced when a policy is configured ((internal ADR));
     // presenter/runner peers are trusted and write the whole doc. With no policy the
-    // Hub is the open, trusted relay (ADR 0012) — every peer may write.
+    // Hub is the open, trusted relay ((internal ADR)) — every peer may write.
     const enforced = role === "audience" && this.audience !== undefined;
     const bucket: TokenBucket | undefined =
       enforced && this.audience!.rate

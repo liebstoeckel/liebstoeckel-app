@@ -1,5 +1,5 @@
 // Minimal Prometheus / OpenMetrics text-exposition registry + the relay's metric set
-// (ADR 0073 / ticket 0023). Pure, dependency-free, unit-testable. Intentionally NOT a shared
+// ((internal ADR) / (internal ticket)). Pure, dependency-free, unit-testable. Intentionally NOT a shared
 // package: present-relay is OSS-published, so a shared `@liebstoeckel/metrics` would force the
 // five-place OSS lock-step for ~80 lines — the registry is duplicated in control-core instead.
 
@@ -121,7 +121,7 @@ export class Registry {
   }
 }
 
-/** The relay's metric set (ADR 0073). One registry per relay instance (test-friendly). */
+/** The relay's metric set ((internal ADR)). One registry per relay instance (test-friendly). */
 export function createRelayMetrics(version = "unknown") {
   const r = new Registry();
   const m = {

@@ -26,7 +26,7 @@ const DEFAULT_DATA: HelloChartDatum[] = [
  *
  * Uses only single-file-bundler-safe visx packages (scale / group / shape) and
  * draws its own baseline. `@visx/axis` is intentionally avoided — the bundler
- * mangles it (DESIGN.md:395), which is why the registry ships axes as source.
+ * mangles it, which is why the registry ships axes as source.
  */
 export function HelloChart({
   data = DEFAULT_DATA,

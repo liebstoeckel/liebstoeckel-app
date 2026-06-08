@@ -16,7 +16,7 @@
 
 ### Features
 
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
 * **code:** build-time Shiki highlighting + animated CodeMagic ([90a4b56](https://github.com/limond/liebstoeckel-app/commit/90a4b56d39b0640caaec9bfb7799e600d958a0f3))
 * **theme:** liebstoeckel "Noir" house brand + Schibsted font ([c8549b6](https://github.com/limond/liebstoeckel-app/commit/c8549b64f18d12a811983188cc598e2e09b1f51b))
 
@@ -51,7 +51,7 @@
 
 ### Features
 
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
 * **code:** build-time Shiki highlighting + animated CodeMagic ([90a4b56](https://github.com/limond/liebstoeckel-app/commit/90a4b56d39b0640caaec9bfb7799e600d958a0f3))
 * **theme:** liebstoeckel "Noir" house brand + Schibsted font ([c8549b6](https://github.com/limond/liebstoeckel-app/commit/c8549b64f18d12a811983188cc598e2e09b1f51b))
 

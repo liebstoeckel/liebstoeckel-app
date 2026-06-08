@@ -50,7 +50,7 @@ describe("relay control API auth", () => {
     expect(body.presenterToken).toBeTruthy();
     expect(body.viewerToken).toBeTruthy();
     expect(body.runnerToken).toBeTruthy();
-    // Links carry signed grants (ADR 0061), not the raw session token.
+    // Links carry signed grants ((internal ADR)), not the raw session token.
     expect(body.urls.viewer).toContain(`/s/${body.id}?t=`);
     expect(body.urls.viewer).not.toContain(body.viewerToken);
     expect(body.viewerGrant).toBeTruthy();
@@ -70,7 +70,7 @@ describe("relay control API auth", () => {
     expect((await createSession(base)).status).toBe(429);
   });
 
-  // ADR 0072: a caller-supplied stable id lets re-provision re-create a session under the
+  // (internal ADR): a caller-supplied stable id lets re-provision re-create a session under the
   // SAME id on a new pod, so the audience URL + its stateless grant survive the move.
   test("pins the session id from x-session-id and re-creates idempotently", async () => {
     const base = start();
@@ -103,11 +103,11 @@ describe("relay deck serving (opaque sandbox)", () => {
     expect(res.status).toBe(200);
     const csp = res.headers.get("content-security-policy") ?? "";
     expect(csp).toContain("sandbox allow-scripts");
-    expect(csp).toContain("allow-popups"); // presenter pop-out (window.open) — ADR 0014
+    expect(csp).toContain("allow-popups"); // presenter pop-out (window.open) — (internal ADR)
     expect(csp).not.toContain("allow-same-origin");
     expect(csp).not.toContain("allow-fullscreen"); // invalid sandbox token — must not regress
     expect(csp).toContain("connect-src");
-    // ADR 0069: default-src lockdown closes the remote-load / GET-exfil gap.
+    // (internal ADR): default-src lockdown closes the remote-load / GET-exfil gap.
     expect(csp).toContain("default-src 'none'");
     expect(csp).toContain("img-src data: blob:");
     expect(csp).toContain("frame-ancestors 'none'");
@@ -178,7 +178,7 @@ describe("relay WebSocket sync", () => {
   });
 });
 
-describe("graceful shutdown flushes snapshots (ADR 0071 / ticket 0018)", () => {
+describe("graceful shutdown flushes snapshots ((internal ADR) / (internal ticket))", () => {
   function memStorage() {
     const store = new Map<string, Uint8Array>();
     return {
@@ -218,7 +218,7 @@ describe("graceful shutdown flushes snapshots (ADR 0071 / ticket 0018)", () => {
   });
 });
 
-describe("relay /stats (control-plane placement, ticket 0017)", () => {
+describe("relay /stats (control-plane placement, (internal ticket))", () => {
   test("returns this pod's live load, account-gated", async () => {
     const base = start();
     expect((await fetch(`${base}/stats`)).status).toBe(401); // no token
@@ -232,7 +232,7 @@ describe("relay /stats (control-plane placement, ticket 0017)", () => {
   });
 });
 
-describe("relay cordon — drain control (ticket 0019)", () => {
+describe("relay cordon — drain control ((internal ticket))", () => {
   test("POST /cordon flips the flag in /stats and refuses new sessions; uncordon lifts it", async () => {
     const base = start();
     expect((await fetch(`${base}/cordon`, { method: "POST" })).status).toBe(401); // account-gated

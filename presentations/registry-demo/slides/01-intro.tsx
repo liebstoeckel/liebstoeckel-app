@@ -2,7 +2,7 @@ import { Step } from "@liebstoeckel/engine";
 
 export const notes = (
   <div>
-    <p>This deck demonstrates the component registry (ADR 0040 / 0041).</p>
+    <p>This deck demonstrates the component registry ((internal ADR) / 0041).</p>
     <ul>
       <li>The next slide's chart was scaffolded with <code>liebstoeckel add hello-chart</code>.</li>
       <li>Its source lives in <code>charts/</code> — the deck owns it.</li>

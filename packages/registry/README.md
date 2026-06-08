@@ -2,9 +2,7 @@
 
 The **default registry** — building blocks (`charts`, hooks, …) that
 `liebstoeckel add <name>` scaffolds as **owned source** into a deck.
-See [ADR 0040](../../docs/adr/0040-scaffolded-component-registry-ownership.mdx)
-(ownership) and [ADR 0041](../../docs/adr/0041-registry-protocol-transports-and-third-party.mdx)
-(protocol).
+See (internal ADR) (ownership) and (internal ADR) (protocol).
 
 This package is **data + a contract**, not a runtime dependency of any deck. When
 you `add` an item, its source files are copied into your deck and you own them;
@@ -34,7 +32,7 @@ manifest can't drift from the code it ships.
    actually bundles under a deck's `target:"browser"` + `minify` build. This is
    checked by `src/verify.ts` (a real bundle, not a static denylist), exercised in
    the package tests.
-2. Add a catalog entry — with its hand-authored agent `meta` (ADR 0045) — to the
+2. Add a catalog entry — with its hand-authored agent `meta` ((internal ADR)) — to the
    catalog in `src/gen.ts`.
 3. Run `bun run packages/registry/src/gen.ts` — it (re)writes `items/<name>.json`
    + `registry.json`, deriving deps from the source's imports.

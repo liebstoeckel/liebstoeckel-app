@@ -3,7 +3,7 @@ import * as Y from "yjs";
 import { decodePluginState } from "@liebstoeckel/plugin-sdk/decode";
 import { leader, pollSchema, tally, totalVotes, type PollState } from "./logic";
 
-// Parity check (ADR 0061): the deck-free decoder feeds the *same* pure derivations the
+// Parity check ((internal ADR)): the deck-free decoder feeds the *same* pure derivations the
 // live deck uses, so a persisted session's results match what the audience saw.
 describe("decoded poll snapshot → in-session derivations", () => {
   test("tally / totalVotes / leader match the live computation", () => {

@@ -2,7 +2,7 @@
 
 Code-first presentations that are **real software** — authored in MDX + React, animated with Motion, themed from a single token file, and shipped as **one self-contained `.html`**. Built on Bun + React 19 + Tailwind v4.
 
-> See [`DESIGN.md`](./DESIGN.md) for the architecture and the validated engineering findings.
+> See the docs [architecture](https://liebstoeckel.app/concepts/architecture/) and [state model](https://liebstoeckel.app/concepts/state-model/) pages for the architecture and validated engineering findings.
 >
 > **Docs:** [liebstoeckel.app](https://liebstoeckel.app) — guides, concepts (incl. the [state model](https://liebstoeckel.app/concepts/state-model/)), plugin authoring & API reference. Source lives in [`packages/docs`](./packages/docs).
 
@@ -108,7 +108,7 @@ liebstoeckel is a Bun monorepo. The flow is **author → compile → render → 
 
 `cli` is the umbrella command over all of it; `thumbnails` captures slide previews; `docs`/`docs-dist` build & serve the docs site; `ci-poller` and `e2e` are internal CI/test infra.
 
-> Deep dive: [`DESIGN.md`](./DESIGN.md) and the docs [architecture](https://liebstoeckel.app/concepts/architecture/) / [state model](https://liebstoeckel.app/concepts/state-model/) pages. Each package README has an **Architecture** section covering its internals.
+> Deep dive: the docs [architecture](https://liebstoeckel.app/concepts/architecture/) / [state model](https://liebstoeckel.app/concepts/state-model/) pages. Each package README has an **Architecture** section covering its internals.
 
 ## Packages
 
@@ -146,9 +146,9 @@ Every package has its own README (linked below) detailing usage and internal arc
 | [`@liebstoeckel/cli`](./packages/cli/README.md) | The `liebstoeckel` / `lst` umbrella command (`new`, `dev`, `build`, `live`, `relay`, `thumbs`, `present`). |
 | [`@liebstoeckel/thumbnails`](./packages/thumbnails/README.md) | Headless-Chromium slide-thumbnail capture embedded back into a built deck. |
 | [`@liebstoeckel/docs`](./packages/docs/README.md) | Astro Starlight source for [liebstoeckel.app](https://liebstoeckel.app) *(private)*. |
-| [`@liebstoeckel/docs-dist`](./packages/docs-dist/README.md) | nginx container image that serves the built docs *(private)*. |
-| [`@liebstoeckel/ci-poller`](./packages/ci-poller/README.md) | Pull-based Tekton CI trigger; reconciles repo refs into PipelineRuns *(private)*. |
-| [`@liebstoeckel/e2e`](./packages/e2e/README.md) | Headless-browser smoke-test tier over a real built fixture deck *(private)*. |
+| `@liebstoeckel/docs-dist` | nginx container image that serves the built docs *(private)*. |
+| `@liebstoeckel/ci-poller` | Pull-based Tekton CI trigger; reconciles repo refs into PipelineRuns *(private)*. |
+| `@liebstoeckel/e2e` | Headless-browser smoke-test tier over a real built fixture deck *(private)*. |
 
 ## License
 

@@ -131,7 +131,7 @@ export async function runExport(argv: string[]) {
   const out = flagStr(argv, "-o", "--out");
   const format = inferFormat(argv, out);
   // PNG writes one file per slide into a directory; a `.png`-looking `-o` is almost
-  // always a mistake (you'd get a directory literally named "foo.png") — warn (ticket 0030).
+  // always a mistake (you'd get a directory literally named "foo.png") — warn ((internal ticket)).
   if (format === "png" && out && /\.png$/i.test(out)) {
     process.stderr.write(
       `⚠  --format png writes one file per slide into a DIRECTORY; "-o ${out}" will be a directory (created if needed), not a single PNG.\n`,

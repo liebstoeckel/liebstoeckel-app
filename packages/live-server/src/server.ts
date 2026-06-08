@@ -54,7 +54,7 @@ export async function startServer(opts: ServeOptions): Promise<LiveServer> {
       const mod = await rehydrateServerBundle(p.server, p.name);
       if (typeof mod.default === "function") {
         // Runs the default instance; a multi-instance server plugin enumerates the rest
-        // from the doc index (readPluginInstances / observePluginIndex). ADR 0033/0034.
+        // from the doc index (readPluginInstances / observePluginIndex). (internal ADR)/0034.
         const teardown = (mod.default as (ctx: { doc: typeof hub.doc; session: { id: string }; instance: string }) => unknown)({
           doc: hub.doc,
           session: { id: session.id },

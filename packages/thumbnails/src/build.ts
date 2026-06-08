@@ -7,11 +7,11 @@ export interface BuildDeckOptions {
   entry?: string;
   outdir?: string;
   /** Final artifact name within `outdir`. Defaults to `<deck-slug>.html` derived
-   *  from the deck folder (ADR 0068) — the same key `liebstoeckel push` upserts by. */
+   *  from the deck folder ((internal ADR)) — the same key `liebstoeckel push` upserts by. */
   outfile?: string;
   minify?: boolean;
   pkgJson?: string;
-  /** Embed the deck's own source as a recoverable package so the .html is ejectable (ADR 0039). */
+  /** Embed the deck's own source as a recoverable package so the .html is ejectable ((internal ADR)). */
   inlinePackage?: boolean;
   /** Force the source-embed past its secret gate (loud, explicit). */
   allowSecret?: boolean;
@@ -19,7 +19,7 @@ export interface BuildDeckOptions {
 
 /** `<deck-slug>.html` from the deck folder name (the dir holding `package.json`),
  *  e.g. `…/poll-demo/package.json` → `poll-demo.html`. Mirrors the CLI's deck-key
- *  slugify so the built file and the pushed deck key agree (ADR 0058/0068). */
+ *  slugify so the built file and the pushed deck key agree ((internal ADR)/0068). */
 function deckHtmlName(pkgJson?: string): string {
   const dir = dirname(resolve(pkgJson ?? "./package.json"));
   const slug =

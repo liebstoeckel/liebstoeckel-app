@@ -23,7 +23,7 @@
 
 ### Features
 
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
 * **plugins:** deck-wide global plugin surfaces (overlay/control/panel) ([6068dcb](https://github.com/limond/liebstoeckel-app/commit/6068dcb757bafe56905a078f50eac5544ef81ef4))
 
 
@@ -74,7 +74,7 @@
 
 ### Features
 
-* **cli:** scaffold real ^version deck deps; version framework 0.1.0 (ADR 0051) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
+* **cli:** scaffold real ^version deck deps; version framework 0.1.0 ((internal ADR)) ([ebf6b82](https://github.com/limond/liebstoeckel-app/commit/ebf6b82acda1f8f274cd3dd42b822a1b88968e68))
 * **plugins:** deck-wide global plugin surfaces (overlay/control/panel) ([6068dcb](https://github.com/limond/liebstoeckel-app/commit/6068dcb757bafe56905a078f50eac5544ef81ef4))
 
 

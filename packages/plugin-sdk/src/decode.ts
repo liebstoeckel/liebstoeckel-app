@@ -1,7 +1,7 @@
 import * as Y from "yjs";
 import { instanceStateKey, readPluginInstances, type PluginInstanceEntry } from "./instances";
 
-// Deck-free, browser-free decode of a persisted live session (ADR 0061). The relay
+// Deck-free, browser-free decode of a persisted live session ((internal ADR)). The relay
 // snapshots the Yjs doc as opaque update bytes; the dashboard reads results back by
 // decoding plugin state from those bytes server-side — no deck code runs, just the
 // same schema→Y.Map mapping as state.ts, in reverse. The pure plugin derivations
@@ -43,7 +43,7 @@ export function decodePluginState(
   }
 }
 
-/** Every plugin instance recorded in a snapshot's instance index (ADR 0033), so a
+/** Every plugin instance recorded in a snapshot's instance index ((internal ADR)), so a
  *  results view can enumerate what to decode without knowing the deck. */
 export function decodePluginInstances(snapshot: Uint8Array): PluginInstanceEntry[] {
   const doc = new Y.Doc();

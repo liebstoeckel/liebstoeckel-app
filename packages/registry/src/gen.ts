@@ -16,7 +16,7 @@ interface ItemMeta {
   /** primary source file under files/charts/ */
   file: string;
   description: string;
-  /** agent-facing usage metadata (ADR 0045) — hand-authored, kept in sync with the source */
+  /** agent-facing usage metadata ((internal ADR)) — hand-authored, kept in sync with the source */
   meta: RegistryItemMeta;
 }
 

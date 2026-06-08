@@ -9,7 +9,7 @@ import {
 
 /**
  * `liebstoeckel add` — scaffold registry items into a deck as owned source
- * (ADR 0040), resolved over a pluggable transport (ADR 0041). The resolver core
+ * ((internal ADR)), resolved over a pluggable transport ((internal ADR)). The resolver core
  * (`resolveScaffold`) is pure given a transport, so it is unit-tested with an
  * in-memory transport; only `runAdd` touches disk / spawns `bun add`.
  */
@@ -33,7 +33,7 @@ function assertSafeRelPath(p: string): void {
 
 /**
  * Reads a registry laid out as a local directory — the default/workspace registry,
- * and also how an npm/git carrier is read once installed to a temp dir (ADR 0041).
+ * and also how an npm/git carrier is read once installed to a temp dir ((internal ADR)).
  */
 export function localTransport(root: string, id = "@liebstoeckel"): RegistryTransport {
   return {
@@ -52,7 +52,7 @@ export function localTransport(root: string, id = "@liebstoeckel"): RegistryTran
 
 /**
  * Reads a registry over authenticated HTTP — an org's cloud registry, or any
- * `https://…` registry configured in `liebstoeckel.json` (ADR 0041/0059). Speaks
+ * `https://…` registry configured in `liebstoeckel.json` ((internal ADR)/0059). Speaks
  * the same protocol: `<base>/items/<name>.json` and `<base>/files/<path>`.
  */
 export function httpTransport(baseUrl: string, headers: Record<string, string>, id: string): RegistryTransport {
@@ -182,7 +182,7 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
     const { REGISTRY_ROOT } = await import("@liebstoeckel/registry");
     return localTransport(REGISTRY_ROOT, ns);
   }
-  // @org: the logged-in org's authenticated cloud registry (ADR 0059), no config needed
+  // @org: the logged-in org's authenticated cloud registry ((internal ADR)), no config needed
   if (ns === "@org" && (spec == null || spec === "org")) {
     const { baseUrl, headers } = await orgRegistryAuth();
     return httpTransport(baseUrl, headers, ns);
@@ -194,7 +194,7 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
     return localTransport(resolve(deckDir, spec), ns);
   }
   if (spec.startsWith("http://") || spec.startsWith("https://")) {
-    // Authenticated HTTP registry (ADR 0041/0059). Auto-attach the stored bearer
+    // Authenticated HTTP registry ((internal ADR)/0059). Auto-attach the stored bearer
     // token when the URL is the host we're logged into.
     const headers: Record<string, string> = {};
     const { loadCreds } = await import("./creds");
@@ -204,10 +204,10 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
     }
     return httpTransport(spec, headers, ns);
   }
-  // ADR 0041 also lists npm/git transports as planned; not wired yet.
+  // (internal ADR) also lists npm/git transports as planned; not wired yet.
   throw new Error(
     `registry transport "${spec}" (namespace ${ns}) is not implemented yet — ` +
-      `bundled default, local-path, @org, and http(s) registries are wired (ADR 0041 plans npm/git).`,
+      `bundled default, local-path, @org, and http(s) registries are wired ((internal ADR) plans npm/git).`,
   );
 }
 
@@ -229,7 +229,7 @@ function positionalArgs(argv: string[]): string[] {
 
 /** Optional `add <category> <name>...` sugar: strip a leading **singular** category
  *  keyword (`chart`, `hook`, …) when at least one item name follows it. Pure — the
- *  category words are exactly `CATEGORIES`, never their plurals (ticket 0030). */
+ *  category words are exactly `CATEGORIES`, never their plurals ((internal ticket)). */
 export function stripCategory(positionals: string[]): string[] {
   if (positionals.length >= 2 && (CATEGORIES as readonly string[]).includes(positionals[0]!)) {
     return positionals.slice(1);
@@ -251,7 +251,7 @@ export async function runAdd(argv: string[]): Promise<void> {
   const dry = argv.includes("--dry");
   const force = argv.includes("--force");
   const noInstall = argv.includes("--no-install");
-  // JSON when asked, or when piped (an agent) — pretty only on an interactive TTY (ADR 0045).
+  // JSON when asked, or when piped (an agent) — pretty only on an interactive TTY ((internal ADR)).
   const json = argv.includes("--json") || !process.stdout.isTTY;
 
   try {
@@ -275,7 +275,7 @@ export async function runAdd(argv: string[]): Promise<void> {
       for (const d of plan.npmDependencies) deps.add(d);
     }
 
-    // plan — computed before writing (ADR 0041 review-before-write)
+    // plan — computed before writing ((internal ADR) review-before-write)
     const plan = files.map((f) => {
       const exists = existsSync(join(deckDir, f.target));
       const action = exists && !force ? "skip" : exists ? "overwrite" : "create";
@@ -304,7 +304,7 @@ export async function runAdd(argv: string[]): Promise<void> {
     let installed = false;
     if (deps.size && !noInstall) {
       const { $ } = await import("bun");
-      // pin the interpreter; --ignore-scripts per the registry trust model (ADR 0041)
+      // pin the interpreter; --ignore-scripts per the registry trust model ((internal ADR))
       const proc = $`${process.execPath} add --ignore-scripts ${dependencies}`.cwd(deckDir);
       if (json) await proc.quiet();
       else {

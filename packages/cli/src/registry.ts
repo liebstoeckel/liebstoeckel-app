@@ -4,11 +4,11 @@ import { validateItem, type RegistryIndex, type RegistryItem } from "@liebstoeck
 
 /**
  * `liebstoeckel registry list|view` — agent-readable discovery over the bundled
- * default registry (ADR 0045). Output is JSON when `--json` is passed OR when stdout
+ * default registry ((internal ADR)). Output is JSON when `--json` is passed OR when stdout
  * is not a TTY (so an agent piping the command always gets structured data), and a
  * compact human view on an interactive terminal.
  *
- * Third-party / namespaced registries (ADR 0041) are not resolved here yet — this
+ * Third-party / namespaced registries ((internal ADR)) are not resolved here yet — this
  * reads the bundled `@liebstoeckel` registry directly.
  */
 

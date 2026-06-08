@@ -116,7 +116,7 @@ twice and both share that one slice — handy to *mirror* a poll across slides, 
 means a second `<Plugin id="poll">` with a different question is ignored. For
 **independent** instances, give each an `instance` (a stable, author-chosen id — never
 random, since it's part of the shared address). State then lives at
-`plugin:<id>:<instance>` ([ADR&nbsp;0033](https://github.com/…/docs/adr/0033-plugin-instances)):
+`plugin:<id>:<instance>` ((internal ADR)):
 
 ```tsx
 <Plugin id="poll" instance="lunch"  props={{ question: "Lunch?",  options: […] }} />
@@ -129,7 +129,7 @@ bare instance id. Omitting `instance` keeps the original single-slice behaviour.
 
 ## Layout: the slide canvas is fixed — bound your own height
 
-A slide is rendered on a fixed **1280×720 canvas** that's scaled to fit and **clipped** (`overflow: hidden`), so the audience view, presenter view, and thumbnails stay pixel-identical ([ADR&nbsp;0006](https://github.com/…/docs/adr/0006-fixed-canvas-scaled-stage)). The canvas **never scrolls**. That's fine for authored slides — you control how much is on them — but a plugin whose content grows with the audience (a Q&A queue, a chat, a long results list) *will* eventually overflow and get cut off, with no way to scroll to the rest.
+A slide is rendered on a fixed **1280×720 canvas** that's scaled to fit and **clipped** (`overflow: hidden`), so the audience view, presenter view, and thumbnails stay pixel-identical ((internal ADR)). The canvas **never scrolls**. That's fine for authored slides — you control how much is on them — but a plugin whose content grows with the audience (a Q&A queue, a chat, a long results list) *will* eventually overflow and get cut off, with no way to scroll to the rest.
 
 So: **pin your header/input and scroll the growing part yourself.** `@liebstoeckel/plugin-ui` ships a `ScrollArea` for exactly this — a bounded region that scrolls internally and won't chain its scroll to the deck:
 
@@ -152,7 +152,7 @@ function QueueSlide(p: ClientProps<State>) {
 ```
 
 <Aside type="caution" title="Mobile scrolls for free — desktop does not">
-On touch, an interactive plugin opens in a breakout sheet that already scrolls ([ADR&nbsp;0018](https://github.com/…/docs/adr/0018-mobile-touch-breakout)). It's the **inline / desktop** path that has no scroll boundary, so test your plugin with a *lot* of content on a desktop window. A `ScrollArea` fixes both at once — and because it has its own boundary, it stays a single clean scroll inside the breakout too.
+On touch, an interactive plugin opens in a breakout sheet that already scrolls ((internal ADR)). It's the **inline / desktop** path that has no scroll boundary, so test your plugin with a *lot* of content on a desktop window. A `ScrollArea` fixes both at once — and because it has its own boundary, it stays a single clean scroll inside the breakout too.
 </Aside>
 
 ## The client contract
@@ -176,7 +176,7 @@ A plugin can claim a **tab in the presenter view** — a presenter-private surfa
 a live readout (vote tallies, queue depth) *and* privileged moderation the audience
 shouldn't see being done (close a poll, mark a question answered, dismiss spam).
 Notes are the default tab; your console sits beside them on both desktop and mobile
-([ADR&nbsp;0031](https://github.com/…/docs/adr/0031-plugin-presenter-console)).
+((internal ADR)).
 
 ```tsx
 client: {

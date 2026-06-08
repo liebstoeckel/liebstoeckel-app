@@ -87,11 +87,11 @@ export async function bundleDeck({
   entry?: string;
   outdir?: string;
   /** Final artifact name within `outdir` (default `index.html`; the user-facing
-   *  `buildDeck` wrapper passes the deck slug, e.g. `poll-demo.html` — ADR 0068). */
+   *  `buildDeck` wrapper passes the deck slug, e.g. `poll-demo.html` — (internal ADR)). */
   outfile?: string;
   minify?: boolean;
   pkgJson?: string;
-  /** Embed the deck's own source as a recoverable package so the .html is ejectable (ADR 0039). */
+  /** Embed the deck's own source as a recoverable package so the .html is ejectable ((internal ADR)). */
   inlinePackage?: boolean;
   /** Force the source-embed past its secret gate (loud, explicit). */
   allowSecret?: boolean;
@@ -113,7 +113,7 @@ export async function bundleDeck({
   // Escape `</script>` inside the inlined bundle, then embed the plugin manifest
   // (incl. base64 server bundles) into the single file. Bun.build names its output
   // after the entry basename (`index.html`); we post-process that and ship it under
-  // `outfile` (the deck slug for the user-facing build — ADR 0068).
+  // `outfile` (the deck slug for the user-facing build — (internal ADR)).
   const built = join(outdir, basename(entry));
   const outHtml = join(outdir, outfile);
   let html = escapeInlineModuleScript(await Bun.file(built).text());
@@ -135,7 +135,7 @@ export async function bundleDeck({
   return result;
 }
 
-/** A single build diagnostic, shaped for machine consumption (ADR 0045). */
+/** A single build diagnostic, shaped for machine consumption ((internal ADR)). */
 export interface DeckDiagnostic {
   level: string;
   message: string;
@@ -161,7 +161,7 @@ function toDiagnostic(log: unknown): DeckDiagnostic {
 /**
  * Validate that a deck **bundles** — resolves, transforms (MDX/Tailwind), and the
  * visx ESM-interop holds — without writing any artifact or capturing thumbnails
- * (ADR 0045). Runs the same plugin pipeline as `bundleDeck` with `throw: false` and
+ * ((internal ADR)). Runs the same plugin pipeline as `bundleDeck` with `throw: false` and
  * returns structured diagnostics for an agent's check → fix loop. It does **not**
  * type-check (Bun.build doesn't); it answers "does this deck build?".
  */

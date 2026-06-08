@@ -21,7 +21,7 @@ usage:
   liebstoeckel push <deck.html> [--title <t>] [--name <key>] [--new] [--org <slug>]   upload/update a deck (re-push = new version)
   liebstoeckel orgs [use <slug>]               list your workspaces / set the default org for \`push\`
   liebstoeckel decks [--org <slug>]            list your cloud decks (with view counts) in an org
-  liebstoeckel brand list|push <file>|pull [name]   share org brands: push/pull theme token sets (registry, ADR 0059)
+  liebstoeckel brand list|push <file>|pull [name]   share org brands: push/pull theme token sets (registry, (internal ADR))
 
   liebstoeckel <deck|dir> [opts]               shorthand for \`liebstoeckel live <deck>\`
 
@@ -38,7 +38,7 @@ const has = (argv: string[], name: string): boolean => argv.includes(name);
 const looksLikeDeck = (s: string | undefined): boolean =>
   !!s && (/\.html?$/i.test(s) || existsSync(resolve(s)));
 
-/** The deck a command acts on (ADR 0050): a leading positional, else `--dir
+/** The deck a command acts on ((internal ADR)): a leading positional, else `--dir
  *  <deck>`, else the current directory. Returns the deck and argv with the
  *  consumed token removed (other flags + their values pass through untouched). */
 function resolveDeck(argv: string[]): { dir: string; rest: string[] } {
@@ -79,7 +79,7 @@ async function runBuild(argv: string[]) {
   process.chdir(resolve(dir)); // resolve(".") = cwd, so the default is a no-op
   try {
     // `--check`: validate the deck bundles (no artifact, no thumbnails) and report
-    // structured diagnostics for an agent's fix loop (ADR 0045).
+    // structured diagnostics for an agent's fix loop ((internal ADR)).
     if (has(argv, "--check")) {
       const { checkDeck } = await import("@liebstoeckel/engine/build");
       const { ok, diagnostics } = await checkDeck({ entry: "./index.html" });
@@ -182,7 +182,7 @@ async function main() {
       return runPack(rest);
     case "live": {
       // Resolve the deck (positional | --dir | cwd) and pass it as the positional
-      // the live runner expects (ADR 0050).
+      // the live runner expects ((internal ADR)).
       const { dir, rest: r } = resolveDeck(rest);
       return (await import("@liebstoeckel/live-server/cli")).runLive([dir, ...r]);
     }

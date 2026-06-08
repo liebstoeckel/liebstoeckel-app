@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 
 /**
  * `liebstoeckel skill install` — materialize the bundled `liebstoeckel-deck` Skill
- * into a deck for whichever agents the user runs (ADR 0044). One canonical source
+ * into a deck for whichever agents the user runs ((internal ADR)). One canonical source
  * (shipped in this package, version-pinned to the CLI) is placed at each agent's
  * expected path, and a universal `AGENTS.md` block is written as the fallback for
  * agents with weak or no skill support.

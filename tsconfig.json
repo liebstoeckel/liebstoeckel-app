@@ -18,11 +18,7 @@
       "@liebstoeckel/components": ["./packages/components/src/index.ts"],
       "@liebstoeckel/theme": ["./packages/theme/src/index.ts"],
       "@liebstoeckel/registry": ["./packages/registry/src/index.ts"],
-      "@liebstoeckel/registry/*": ["./packages/registry/src/*"],
-      "@liebstoeckel/control-core": ["./packages/control-core/src/index.ts"],
-      "@liebstoeckel/control-core/*": ["./packages/control-core/src/*"],
-      "@liebstoeckel/control-api": ["./packages/control-api/src/index.ts"],
-      "@liebstoeckel/control-api/*": ["./packages/control-api/src/*"]
+      "@liebstoeckel/registry/*": ["./packages/registry/src/*"]
     }
   }
 }

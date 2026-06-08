@@ -10,14 +10,14 @@ export interface ScaffoldOptions {
   brand?: string;
   /** parent directory for the new deck (default: the current working directory) */
   dir?: string;
-  /** opt out of auto-applying the logged-in org's default brand (ADR 0059) */
+  /** opt out of auto-applying the logged-in org's default brand ((internal ADR)) */
   noOrgBrand?: boolean;
 }
 
 /** Pure: the file map for a new minimal deck (deck-relative path → contents).
  *  Kept as plain templates so a richer template library can grow from here. */
-/** Per-dependency version ranges for the scaffolded deck (ADR 0051). Independent
- *  versioning (RELEASE_PLAN.md), so each is resolved from its OWN package. */
+/** Per-dependency version ranges for the scaffolded deck ((internal ADR)). Independently
+ *  versioned, so each is resolved from its OWN package. */
 export interface DeckDeps {
   engine?: string;
   theme?: string;
@@ -32,26 +32,26 @@ export function deckFiles(
 ): Record<string, string> {
   const range = (k: keyof DeckDeps) => deps[k] ?? "workspace:*";
   const title = titleCase(name);
-  // When `new` is run logged-in, the org's default brand (ADR 0059) is baked in:
+  // When `new` is run logged-in, the org's default brand ((internal ADR)) is baked in:
   // a local brands/<name>.ts wired via <Present brandThemes>, self-contained.
   const brandId = orgBrand?.name ?? brand;
   const brandImport = orgBrand ? `import orgBrand from "./brands/${orgBrand.name}";\n` : "";
   const brandThemesProp = orgBrand ? " brandThemes={[orgBrand]}" : "";
-  // The default brand's catalog fonts (ADR 0074) are @fontsource packages the baked
+  // The default brand's catalog fonts ((internal ADR)) are @fontsource packages the baked
   // brands/<name>.ts imports — add them so the deck's `bun install` fetches the
   // webfont (built decks inline it). `latest` (a third-party dist-tag) since the CLI
   // can't resolve their version like the framework deps; the lockfile pins on install.
   const fontDeps = Object.fromEntries((orgBrand?.dependencies ?? []).map((p) => [p, "latest"]));
   const pkg = {
     // A scaffolded deck is the user's own private project — a BARE name, not the
-    // framework's `@liebstoeckel/` npm scope (ADR 0054). Only the framework
+    // framework's `@liebstoeckel/` npm scope ((internal ADR)). Only the framework
     // *dependencies* below keep that scope.
     name,
     version: "0.0.0",
     private: true,
     type: "module",
     // Allowlist of what `bun pm pack` ships — and therefore what `liebstoeckel build`
-    // embeds as recoverable source and `eject` restores (ADR 0039). Deny-by-default:
+    // embeds as recoverable source and `eject` restores ((internal ADR)). Deny-by-default:
     // a stray .env / secret is never packed because it isn't listed here. bunfig.toml
     // MUST stay listed — pack default-ignores it, and the ejected deck needs it for dev.
     // Add new top-level source dirs here as the deck grows (the build warns if you forget).
@@ -165,7 +165,7 @@ export default function Intro() {
   );
 }
 `,
-    // Org default brand baked in as owned source (ADR 0059).
+    // Org default brand baked in as owned source ((internal ADR)).
     ...(orgBrand ? { [`brands/${orgBrand.name}.ts`]: orgBrand.source } : {}),
   };
 }
@@ -190,10 +190,10 @@ function nearestPkgVersion(entry: string): string | null {
 const caret = (v: string | null | undefined) => (v && v !== "0.0.0" ? `^${v}` : null);
 
 /** The `^<version>` range to scaffold for a framework dep, read from that dep's
- *  OWN package (independent versioning — RELEASE_PLAN.md). Falls back to the CLI's
+ *  OWN package (independently versioned). Falls back to the CLI's
  *  version (lockstep approximation when the dep can't be resolved, e.g. a
  *  standalone CLI), then to `workspace:*` so an in-repo deck still links locally
- *  (ADR 0051). */
+ *  ((internal ADR)). */
 async function depRange(name: string): Promise<string> {
   try {
     const own = caret(nearestPkgVersion(import.meta.resolveSync(name)));
@@ -221,7 +221,7 @@ export async function scaffold(
   }
   const brand = opts.brand ?? "liebstoeckel";
   // Unless a brand was named explicitly (or opted out), bake the logged-in org's
-  // default brand so new decks are on-brand instantly (ADR 0059). Best effort —
+  // default brand so new decks are on-brand instantly ((internal ADR)). Best effort —
   // never blocks scaffolding when offline / not logged in.
   const orgBrand = !opts.brand && !opts.noOrgBrand ? await (await import("./cloud")).fetchDefaultBrand() : null;
 

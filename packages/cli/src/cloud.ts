@@ -1,5 +1,5 @@
 // `liebstoeckel login` + `liebstoeckel push` + `liebstoeckel orgs` — the cloud
-// path (ADR 0047/0053). login runs the OAuth 2.0 device-authorization grant
+// path ((internal ADR)/0053). login runs the OAuth 2.0 device-authorization grant
 // (RFC 8628) against the control plane's /api/auth/device/* endpoints; push
 // uploads a single-file deck to the versioned /api/v1/decks with the resulting
 // bearer token; orgs lists/sets the active organization decks are pushed into.
@@ -14,7 +14,7 @@ function flag(argv: string[], name: string): string | undefined {
   return i >= 0 ? argv[i + 1] : undefined;
 }
 
-/** Uniform cloud org-targeting (ADR 0057): an explicit `--org <slug>` wins, else
+/** Uniform cloud org-targeting ((internal ADR)): an explicit `--org <slug>` wins, else
  *  the stored default (`creds.org`), else undefined (= the personal workspace,
  *  the server's no-`x-org-slug` default). Strips the flag so a following
  *  positional (e.g. a deck path) isn't mistaken for the org value. */
@@ -30,7 +30,7 @@ export function resolveOrg(argv: string[], defaultOrg?: string): { org?: string;
 /** Default `push` target when no path is given: the single built `.html` in
  *  `./dist` (the deck slug, e.g. `dist/poll-demo.html`), preferring `index.html`
  *  if several exist. The server derives the title from the file's own `<title>`,
- *  so the CLI no longer parses it (ADR 0068, superseding 0054's client-side parse). */
+ *  so the CLI no longer parses it ((internal ADR), superseding 0054's client-side parse). */
 function defaultDeckHtml(): string | null {
   const dir = resolve("dist");
   if (!existsSync(dir)) return null;
@@ -49,7 +49,7 @@ function deckNameFromPath(absFile: string): string | null {
   return basename(dirname(absFile)) || null;
 }
 
-/** A stable, url-safe deck key from a name (ADR 0058: re-push upserts by it). */
+/** A stable, url-safe deck key from a name ((internal ADR): re-push upserts by it). */
 function slugifyKey(name: string): string {
   return (
     name
@@ -128,7 +128,7 @@ export async function runLogin(argv: string[]): Promise<void> {
 export async function runPush(argv: string[]): Promise<void> {
   const creds = await loadCreds();
   const { org, rest } = resolveOrg(argv, creds?.org);
-  // With no path, push the built deck in ./dist (ADR 0068) — matching `liebstoeckel build`.
+  // With no path, push the built deck in ./dist ((internal ADR)) — matching `liebstoeckel build`.
   const file = rest.find((a) => !a.startsWith("-")) ?? defaultDeckHtml();
   if (!file) {
     console.error(
@@ -150,7 +150,7 @@ export async function runPush(argv: string[]): Promise<void> {
   }
   const html = await Bun.file(path).text();
   const deckName = flag(argv, "--name") ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
-  // Deck key (ADR 0058): re-push upserts by it. `--new` forces a fresh deck by
+  // Deck key ((internal ADR)): re-push upserts by it. `--new` forces a fresh deck by
   // uniquifying the key, so the same folder can also start a separate deck.
   const fresh = argv.includes("--new");
   const deckKey = fresh ? `${slugifyKey(deckName)}-${Math.random().toString(36).slice(2, 8)}` : slugifyKey(deckName);
@@ -160,7 +160,7 @@ export async function runPush(argv: string[]): Promise<void> {
     "content-type": "text/html",
     "x-deck-key": deckKey,
   };
-  // Title precedence (ADR 0068): the server parses the deck's own `<title>`, so we
+  // Title precedence ((internal ADR)): the server parses the deck's own `<title>`, so we
   // only send a header when the user explicitly overrides it with `--title`. It's
   // URL-encoded because non-Latin1 chars (em-dash, smart quotes, emoji) are illegal
   // in HTTP header values.
@@ -294,7 +294,7 @@ export async function runDecks(argv: string[]): Promise<void> {
   console.log();
 }
 
-// ── brand registry (ADR 0059): the org is an authenticated registry; brands are
+// ── brand registry ((internal ADR)): the org is an authenticated registry; brands are
 // items pulled into decks as owned source (brands/<name>.ts), baked at build. ──
 
 interface BrandRow {
@@ -319,7 +319,7 @@ export function themeToTokens(input: unknown): Record<string, unknown> {
     primary: c.primary, accent: c.accent, accent2: c.accent2 ?? "", onPrimary: c.onPrimary,
     fontHeading: f.heading ?? "", fontBody: f.body ?? "", fontMono: f.mono ?? "",
     glowA: g.a ?? "", glowB: g.b ?? "",
-    // The viz palette rides along (ticket 0029); the server normalizes/bounds it.
+    // The viz palette rides along ((internal ticket)); the server normalizes/bounds it.
     ...(Array.isArray(m.viz) ? { viz: m.viz } : {}),
   };
 }
@@ -379,7 +379,7 @@ export async function runBrand(argv: string[]): Promise<void> {
       process.exit(1);
     }
     console.log(`\n✓ pushed brand "${name}"${argv.includes("--default") ? " (default)" : ""}${org ? ` to ${org}` : ""}`);
-    // Warn about fonts the catalog can't ship a webfont for (ADR 0074); they fall
+    // Warn about fonts the catalog can't ship a webfont for ((internal ADR)); they fall
     // back to system fonts on pull unless the deck supplies its own @font-face.
     const { warnings } = (await res.json().catch(() => ({}))) as {
       warnings?: { field: string; family: string; suggestion?: string }[];
@@ -408,21 +408,21 @@ export async function runBrand(argv: string[]): Promise<void> {
       name = def.name;
     }
     // The brand IS a registry item — resolve it through the @org transport and
-    // write it as owned source, exactly like `add @org/<name>` (ADR 0059).
+    // write it as owned source, exactly like `add @org/<name>` ((internal ADR)).
     const { httpTransport, resolveScaffold } = await import("./add");
     const transport = httpTransport(`${api}/api/v1/orgs/registry`, brandHeaders(token, org), "@org");
     const plan = await resolveScaffold(transport, [name]);
     const deckDir = resolve(dir);
     for (const f of plan.files) await Bun.write(join(deckDir, f.target), f.content);
     console.log(`\n✓ pulled brand "${name}" → ${plan.files.map((f) => f.target).join(", ")}\n`);
-    // The brand's catalog fonts (ADR 0074) ride along as npm deps; install them so the
+    // The brand's catalog fonts ((internal ADR)) ride along as npm deps; install them so the
     // deck bundles the webfont at build (the brand file `import`s the package).
     const deps = plan.npmDependencies;
     const noInstall = argv.includes("--no-install");
     if (deps.length && !noInstall) {
       const { $ } = await import("bun");
       console.log(`   installing fonts: bun add --ignore-scripts ${deps.join(" ")}`);
-      // pin the interpreter; --ignore-scripts per the registry trust model (ADR 0041)
+      // pin the interpreter; --ignore-scripts per the registry trust model ((internal ADR))
       await $`${process.execPath} add --ignore-scripts ${deps}`.cwd(deckDir);
       console.log(`   ✓ fonts installed\n`);
     } else if (deps.length) {
@@ -465,7 +465,7 @@ async function fetchBrands(api: string, token: string, org?: string): Promise<Br
 const camel = (s: string) => s.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
 
 /** For `liebstoeckel new`: the org default brand's source + name (+ its `@fontsource`
- *  deps, ADR 0074, so the scaffolded package.json installs them), or null. Best
+ *  deps, (internal ADR), so the scaffolded package.json installs them), or null. Best
  *  effort — never blocks scaffolding if not logged in / no default. */
 export async function fetchDefaultBrand(): Promise<{ name: string; source: string; dependencies: string[] } | null> {
   try {
@@ -487,7 +487,7 @@ export async function fetchDefaultBrand(): Promise<{ name: string; source: strin
   }
 }
 
-/** The `@fontsource` side-effect imports a pulled brand source declares (ADR 0074) —
+/** The `@fontsource` side-effect imports a pulled brand source declares ((internal ADR)) —
  *  the deck's font deps. Inlined here (not imported from control-core) to keep the
  *  OSS CLI free of the private control plane. */
 export function fontPackagesFromSource(source: string): string[] {

@@ -19,7 +19,7 @@ describe("deckFiles (pure templates)", () => {
       ]),
     );
     const pkg = JSON.parse(files["package.json"]!);
-    expect(pkg.name).toBe("my-talk"); // bare name — not the framework npm scope (ADR 0054)
+    expect(pkg.name).toBe("my-talk"); // bare name — not the framework npm scope ((internal ADR))
     expect(pkg.dependencies["@liebstoeckel/engine"]).toBe("workspace:*");
     expect(pkg.devDependencies["@liebstoeckel/thumbnails"]).toBe("workspace:*");
     expect(files["build.ts"]).toContain('buildDeck } from "@liebstoeckel/thumbnails/build"');
@@ -28,7 +28,7 @@ describe("deckFiles (pure templates)", () => {
     expect(files["main.tsx"]).toContain("My Talk"); // title-cased from the name
   });
 
-  test("ships a packing-safe files allowlist + .gitignore (ADR 0039)", () => {
+  test("ships a packing-safe files allowlist + .gitignore ((internal ADR))", () => {
     const files = deckFiles("my-talk");
     const pkg = JSON.parse(files["package.json"]!);
     // deny-by-default allowlist governs `bun pm pack` → embedded source
@@ -48,7 +48,7 @@ describe("deckFiles (pure templates)", () => {
     expect(files["main.tsx"]).toContain('brands={["acme"]}');
   });
 
-  test("an org brand bakes its source + adds its @fontsource deps (ADR 0074)", () => {
+  test("an org brand bakes its source + adds its @fontsource deps ((internal ADR))", () => {
     const files = deckFiles("x", "liebstoeckel", {}, {
       name: "acme",
       source: `import "@fontsource-variable/inter";\nexport default {};\n`,

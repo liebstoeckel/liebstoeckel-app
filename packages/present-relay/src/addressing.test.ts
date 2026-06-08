@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import { podOrdinal, ordinalTag, relayPublicBaseFromPod } from "./addressing";
 
-describe("relay per-pod addressing (ticket 0016)", () => {
+describe("relay per-pod addressing ((internal ticket))", () => {
   test("podOrdinal parses the StatefulSet ordinal, else null", () => {
     expect(podOrdinal("liebstoeckel-relay-0")).toBe(0);
     expect(podOrdinal("liebstoeckel-relay-7")).toBe(7);

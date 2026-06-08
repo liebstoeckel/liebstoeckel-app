@@ -200,7 +200,7 @@ export default definePlugin<ReactionsState>({
       Overlay: ReactionsOverlay,
       icon: <ReactionsIcon />,
       label: "Reactions",
-      pinned: true, // quick, frequent → stays in the rail on mobile (ADR 0038)
+      pinned: true, // quick, frequent → stays in the rail on mobile ((internal ADR))
       Panel: ReactionsPanel,
     },
   },

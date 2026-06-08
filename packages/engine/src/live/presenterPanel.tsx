@@ -11,7 +11,7 @@ type Variant = "desktop" | "mobile";
 const ikey = (i: Inst) => `${i.type} ${i.instance}`;
 
 /** Live list of placed instances whose type exposes a presenter console, discovered from
- *  the doc index (ADR 0033) and kept current as `<Plugin>`s mount across the session. */
+ *  the doc index ((internal ADR)) and kept current as `<Plugin>`s mount across the session. */
 function usePresenterInstances(ctx: LiveContextValue | null): Inst[] {
   const [list, setList] = useState<Inst[]>([]);
   useEffect(() => {
@@ -32,7 +32,7 @@ function usePresenterInstances(ctx: LiveContextValue | null): Inst[] {
 }
 
 // Notes container — matches the panel the presenter view used before tabs existed, so a
-// deck with no presenter instances looks the same (ADR 0031).
+// deck with no presenter instances looks the same ((internal ADR)).
 const NOTES_CLASS: Record<Variant, string> = {
   desktop:
     "presenter-notes min-h-0 min-w-0 flex-1 overflow-auto rounded-2xl border border-border bg-surface/40 p-6 text-xl leading-relaxed text-text/90",
@@ -58,7 +58,7 @@ function Badge({ value }: { value: number | string }) {
   return <span className="rounded-full bg-accent px-1.5 py-px text-[10px] font-semibold text-on-primary tabular-nums">{value}</span>;
 }
 
-/** One **per-type** strip tab (ADR 0033/0035): one "Poll" tab regardless of how many poll
+/** One **per-type** strip tab ((internal ADR)/0035): one "Poll" tab regardless of how many poll
  *  instances exist. Its badge is the instance count when there are several, else the lone
  *  instance's own badge. Subscribes to the first instance for that live badge. */
 function TypeTab({ ctx, group, selected, variant, onSelect }: { ctx: LiveContextValue; group: Inst[]; selected: boolean; variant: Variant; onSelect: () => void }) {
@@ -124,7 +124,7 @@ function InstanceMenuItem({ ctx, inst, selected, onPick }: { ctx: LiveContextVal
   );
 }
 
-/** Instance switcher for a multi-instance type (ADR 0035): a compact dropdown in the
+/** Instance switcher for a multi-instance type ((internal ADR)): a compact dropdown in the
  *  console header. The trigger shows the current instance (truncated); the menu lists
  *  every instance with its full label (wrapping) so long poll questions never overflow. */
 function InstanceDropdown({ ctx, group, selectedKey, onPick, variant }: { ctx: LiveContextValue; group: Inst[]; selectedKey: string; onPick: (key: string) => void; variant: Variant }) {
@@ -157,7 +157,7 @@ function Console({ ctx, inst, variant }: { ctx: LiveContextValue; inst: Inst; va
   // (e.g. Q&A's ranked rows) doesn't share layout identity with the SAME slide rendered
   // live in the presenter's preview Thumb — which sits inside the ScaledStage's
   // `transform`. Without this, Motion treats the two as one shared element and morphs
-  // across the scale boundary (the ADR 0026 hazard).
+  // across the scale boundary (the (internal ADR) hazard).
   return (
     <div className={`min-h-0 min-w-0 flex-1 overflow-auto rounded-2xl border border-border bg-surface/40 ${box}`}>
       <LayoutGroup id={`presenter-console-${ikey(inst)}`}>
@@ -167,7 +167,7 @@ function Console({ ctx, inst, variant }: { ctx: LiveContextValue; inst: Inst; va
   );
 }
 
-/** The maximize ⤢ / restore ⤡ button + the "focused" affordance (ADR 0032). */
+/** The maximize ⤢ / restore ⤡ button + the "focused" affordance ((internal ADR)). */
 function FocusControl({ focused, onToggle }: { focused: boolean; onToggle: () => void }) {
   return (
     <div className="ml-auto flex shrink-0 items-center gap-2 pl-2">
@@ -192,8 +192,8 @@ function FocusControl({ focused, onToggle }: { focused: boolean; onToggle: () =>
 
 /** The presenter view's dominant content region: a tab strip switching between the
  *  speaker **Notes** (default) and **one tab per plugin type** that exposes a presenter
- *  surface (ADR 0031/0033). A type with several instances exposes them through a compact
- *  dropdown in the console header — not one tab each (ADR 0035). Plus a maximize toggle (ADR 0032).
+ *  surface ((internal ADR)/0033). A type with several instances exposes them through a compact
+ *  dropdown in the console header — not one tab each ((internal ADR)). Plus a maximize toggle ((internal ADR)).
  *  Identical structure desktop/mobile; with no instances the strip is just the notes label. */
 export function PresenterPanel({
   notes,
@@ -251,12 +251,12 @@ export function PresenterPanel({
               ))}
           </>
         )}
-        {/* focus toggle is desktop-only: the mobile panel is already full-bleed (ADR 0032/0027) */}
+        {/* focus toggle is desktop-only: the mobile panel is already full-bleed ((internal ADR)/0027) */}
         {onToggleFocus && variant === "desktop" && <FocusControl focused={focused} onToggle={onToggleFocus} />}
       </div>
 
       {/* instance switcher (dropdown) for the selected multi-instance type — keeps long
-          poll questions out of the strip (ADR 0035) */}
+          poll questions out of the strip ((internal ADR)) */}
       {ctx && pickerFor && (
         <InstanceDropdown
           ctx={ctx}

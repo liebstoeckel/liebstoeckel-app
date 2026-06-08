@@ -63,7 +63,7 @@ const fmtElapsed = (delta: number) => {
 
 type TimerCell = { at: number; epoch: number };
 
-/** The shared talk-timer start, the **conflict-free** way (ADR 0030): each presenter
+/** The shared talk-timer start, the **conflict-free** way ((internal ADR)): each presenter
  *  writes its OWN cell (keyed by `doc.clientID`) so two clients never contend for one
  *  key — no LWW tie-break, no timing race. The start is a deterministic reduce over
  *  the map: the MIN `at` within the highest `epoch`. Reset bumps the epoch (a higher
@@ -205,13 +205,13 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   useTouchNav({ enabled: true, onNext: next, onPrev: prev });
   const now = useNow();
   // Talk timer: the START is shared via the doc (conflict-free per-client cells,
-  // ADR 0030) so every presenter surface agrees; standalone falls back to the
+  // (internal ADR)) so every presenter surface agrees; standalone falls back to the
   // per-window doc. Only drivers write.
   const timerDoc = liveCtx?.doc ?? fallbackDoc;
   const canWriteTimer = !live || liveCtx?.role !== "viewer";
   const { startedAt, reset: resetTimer } = usePresenterStart(timerDoc, canWriteTimer);
 
-  // Phone presenter (ADR 0027): a notes-first confidence monitor + remote. Keep the
+  // Phone presenter ((internal ADR)): a notes-first confidence monitor + remote. Keep the
   // screen awake, and offer a way back to the audience deck (drop the #presenter
   // hash → Present re-selects the Deck at mount).
   const coarse = useCoarsePointer();
@@ -220,7 +220,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
     if (typeof location !== "undefined") location.assign(location.pathname + location.search);
   };
 
-  // Focus mode (ADR 0032): full-bleed the active pane (notes / a plugin console),
+  // Focus mode ((internal ADR)): full-bleed the active pane (notes / a plugin console),
   // hiding the slide previews. Nav + timer + the tab strip stay pinned. `z` toggles,
   // `Esc` restores; both guard against firing while typing in a console input.
   const [focused, setFocused] = useState(false);
@@ -261,7 +261,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
     <PresenterShare open={share} viewerUrl={liveCtx?.viewerUrl} presenterUrl={presenterUrl} onClose={() => setShare(false)} />
   );
 
-  // ── Mobile: notes-first stack (ADR 0027) ───────────────────────────────────
+  // ── Mobile: notes-first stack ((internal ADR)) ───────────────────────────────────
   // Notes dominate; a compact next+reveal peek; big thumb-zone Prev/Next. Vertical
   // scroll moves the notes, horizontal swipe (useTouchNav) changes slides — the two
   // axes don't collide, so notes scroll can't misfire a slide change.
@@ -297,8 +297,8 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           </div>
         </div>
 
-        {/* 2 · dominant region: notes (default) + one tab per plugin console (ADR 0031),
-            with a maximize toggle (ADR 0032) */}
+        {/* 2 · dominant region: notes (default) + one tab per plugin console ((internal ADR)),
+            with a maximize toggle ((internal ADR)) */}
         <PresenterPanel variant="mobile" notes={notes ?? noNotes} focused={focused} onToggleFocus={toggleFocus} />
 
         {/* 3 · compact next + reveal peek — reclaimed by focus mode */}
@@ -345,7 +345,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
 
   // ── Desktop: two-column confidence monitor ──────────────────────────────────
   // Prev/Next, reused in the current column (normal) and pinned under the panel
-  // (focus mode) so navigation is never hidden (ADR 0032).
+  // (focus mode) so navigation is never hidden ((internal ADR)).
   const navRow = (
     <div className="flex shrink-0 items-center gap-3">
       <button
@@ -441,8 +441,8 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
             </div>
           )}
 
-          {/* notes (default tab) + one tab per plugin console (ADR 0031), with the
-              maximize toggle (ADR 0032). */}
+          {/* notes (default tab) + one tab per plugin console ((internal ADR)), with the
+              maximize toggle ((internal ADR)). */}
           <PresenterPanel variant="desktop" notes={notes ?? noNotes} focused={focused} onToggleFocus={toggleFocus} />
           {/* pin nav under the panel when the current column (which normally holds it)
               is hidden by focus mode */}

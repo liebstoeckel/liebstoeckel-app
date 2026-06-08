@@ -3,7 +3,7 @@ import { resolveScaffold, localTransport, stripCategory, type RegistryTransport 
 import { validateItem, assertSafeTarget } from "@liebstoeckel/registry/schema";
 import { REGISTRY_ROOT } from "@liebstoeckel/registry";
 
-/** In-memory transport — keeps the resolver tests pure and network-free (ADR 0008). */
+/** In-memory transport — keeps the resolver tests pure and network-free ((internal ADR)). */
 function fakeTransport(
   items: Record<string, unknown>,
   files: Record<string, string>,
