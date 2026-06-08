@@ -155,12 +155,12 @@ async function deriveItem(meta: ItemMeta): Promise<RegistryItem> {
 const items = await Promise.all(META.map(deriveItem));
 
 for (const item of items) {
-  const out = { $schema: "https://liebstoeckel.app/schema/registry-item.json", ...item };
+  const out = { $schema: "https://docs.liebstoeckel.app/schema/registry-item.json", ...item };
   await Bun.write(join(REGISTRY_ROOT, "items", `${item.name}.json`), JSON.stringify(out, null, 2) + "\n");
 }
 
 const index = {
-  $schema: "https://liebstoeckel.app/schema/registry.json",
+  $schema: "https://docs.liebstoeckel.app/schema/registry.json",
   name: "@liebstoeckel",
   homepage: "https://liebstoeckel.app",
   items: items.map((i) => ({ name: i.name, type: i.type, version: i.version, description: i.description })),

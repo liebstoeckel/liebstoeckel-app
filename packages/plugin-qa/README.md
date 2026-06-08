@@ -45,7 +45,7 @@ A pure-CRDT plugin (no `server` part); the ranked queue is derived client-side f
 
 ## Docs
 
-- Plugins overview — https://liebstoeckel.app/plugins/overview/
-- Live presenting — https://liebstoeckel.app/guides/live/
+- Plugins overview — https://docs.liebstoeckel.app/plugins/overview/
+- Live presenting — https://docs.liebstoeckel.app/guides/live/
 
 MPL-2.0

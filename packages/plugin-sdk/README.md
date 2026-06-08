@@ -76,7 +76,7 @@ The SDK is pure infrastructure — no React rendering, no Yjs network transport.
 
 ## Docs
 
-- Building a plugin — https://liebstoeckel.app/plugins/building-a-plugin/
-- State & sync — https://liebstoeckel.app/plugins/state-and-sync/
+- Building a plugin — https://docs.liebstoeckel.app/plugins/building-a-plugin/
+- State & sync — https://docs.liebstoeckel.app/plugins/state-and-sync/
 
 MPL-2.0

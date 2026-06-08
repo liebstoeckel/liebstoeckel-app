@@ -1,5 +1,5 @@
 {
-  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "$schema": "https://docs.liebstoeckel.app/schema/registry-item.json",
   "name": "use-brand-colors",
   "type": "registry:hook",
   "version": "0.1.0",

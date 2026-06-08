@@ -59,7 +59,7 @@ A pure-CRDT plugin: there is no `server` part — all behavior is client-side ov
 
 ## Docs
 
-**[liebstoeckel.app/plugins/overview](https://liebstoeckel.app/plugins/overview/)** · [live mode](https://liebstoeckel.app/guides/live/)
+**[liebstoeckel.app/plugins/overview](https://docs.liebstoeckel.app/plugins/overview/)** · [live mode](https://docs.liebstoeckel.app/guides/live/)
 
 ## License
 

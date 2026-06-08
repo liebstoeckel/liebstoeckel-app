@@ -53,7 +53,7 @@ The `--brand-*` vars consumed here are produced for **@liebstoeckel/components**
 
 ## Docs
 
-**[liebstoeckel.app/guides/theming](https://liebstoeckel.app/guides/theming/)**
+**[liebstoeckel.app/guides/theming](https://docs.liebstoeckel.app/guides/theming/)**
 
 ## License
 

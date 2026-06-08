@@ -64,7 +64,7 @@ It re-exports `Magic`/`Atmosphere` from **@liebstoeckel/components**, reads bran
 
 ## Docs
 
-**[liebstoeckel.app/reference/engine-api](https://liebstoeckel.app/reference/engine-api/)** · [building](https://liebstoeckel.app/guides/building/) · [animated code](https://liebstoeckel.app/guides/animated-code/)
+**[liebstoeckel.app/reference/engine-api](https://docs.liebstoeckel.app/reference/engine-api/)** · [building](https://docs.liebstoeckel.app/guides/building/) · [animated code](https://docs.liebstoeckel.app/guides/animated-code/)
 
 ## License
 

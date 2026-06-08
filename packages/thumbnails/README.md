@@ -71,7 +71,7 @@ Capture sequencing notes:
 
 ## Docs
 
-**[liebstoeckel.app/guides/thumbnails](https://liebstoeckel.app/guides/thumbnails/)**
+**[liebstoeckel.app/guides/thumbnails](https://docs.liebstoeckel.app/guides/thumbnails/)**
 
 ## License
 

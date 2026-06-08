@@ -7,7 +7,7 @@ import starlightPageActions from "starlight-page-actions";
 // toolbar (Copy as Markdown · Open in ChatGPT/Claude · Share) and emits /llms.txt,
 // so the docs are LLM-native. Build with Bun: `bun --bun astro build`.
 export default defineConfig({
-  site: "https://liebstoeckel.app",
+  site: "https://docs.liebstoeckel.app",
   integrations: [
     starlight({
       title: "liebstoeckel",
@@ -17,7 +17,7 @@ export default defineConfig({
       tagline: "Code-first presentations that talk back.",
       // `baseUrl` is required for the llms.txt generation + absolute Markdown URLs
       // the "Open in ChatGPT/Claude" actions link to.
-      plugins: [starlightPageActions({ baseUrl: "https://liebstoeckel.app" })],
+      plugins: [starlightPageActions({ baseUrl: "https://docs.liebstoeckel.app" })],
       sidebar: [
         {
           label: "Start here",

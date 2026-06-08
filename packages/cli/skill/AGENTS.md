@@ -13,5 +13,5 @@ self-contained HTML). To create or edit a deck, drive the `liebstoeckel` CLI:
 Slides are MDX/TSX files in `<deck>/slides/`, listed in order in `main.tsx`; charts are
 owned source in `<deck>/charts/`. Never invent component names or data shapes — read
 them from `registry view`. Don't hand-write the final HTML; author slides and let
-`build` render. Full guide: the `liebstoeckel-deck` skill, or https://liebstoeckel.app/llms.txt
+`build` render. Full guide: the `liebstoeckel-deck` skill, or https://docs.liebstoeckel.app/llms.txt
 <!-- liebstoeckel:end -->

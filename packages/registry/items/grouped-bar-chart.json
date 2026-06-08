@@ -1,5 +1,5 @@
 {
-  "$schema": "https://liebstoeckel.app/schema/registry-item.json",
+  "$schema": "https://docs.liebstoeckel.app/schema/registry-item.json",
   "name": "grouped-bar-chart",
   "type": "registry:chart",
   "version": "0.1.0",

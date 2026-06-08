@@ -77,7 +77,7 @@ A single `Bun.serve` HTTP+WebSocket process holding many independent sessions in
 
 ## Docs
 
-**[liebstoeckel.app/guides/relay](https://liebstoeckel.app/guides/relay/)** · [live mode](https://liebstoeckel.app/guides/live/)
+**[liebstoeckel.app/guides/relay](https://docs.liebstoeckel.app/guides/relay/)** · [live mode](https://docs.liebstoeckel.app/guides/live/)
 
 ## License
 

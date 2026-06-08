@@ -41,7 +41,7 @@ liebstoeckel <deck|dir>          # shorthand for `liebstoeckel live <deck>`
 
 There's no `dev` subcommand — for the hot-reloading dev server, run `bun run dev` inside the deck (the scaffold wires the script), or use `liebstoeckel live`.
 
-Installed as both `liebstoeckel` and the short alias `lst`. Each command wraps the matching package (`engine`, `live-server`, `present-relay`, `thumbnails`, `registry`). Run a command with `--help`, or see the reference, for its flags. The full, authoritative command + flag reference is **[liebstoeckel.app/reference/cli](https://liebstoeckel.app/reference/cli/)**.
+Installed as both `liebstoeckel` and the short alias `lst`. Each command wraps the matching package (`engine`, `live-server`, `present-relay`, `thumbnails`, `registry`). Run a command with `--help`, or see the reference, for its flags. The full, authoritative command + flag reference is **[liebstoeckel.app/reference/cli](https://docs.liebstoeckel.app/reference/cli/)**.
 
 ## Architecture
 
@@ -68,7 +68,7 @@ Each wrapped package does its own flag parsing (including `--help`), so the CLI 
 
 ## Docs
 
-**[liebstoeckel.app/reference/cli](https://liebstoeckel.app/reference/cli/)** · [getting started](https://liebstoeckel.app/guides/getting-started/)
+**[liebstoeckel.app/reference/cli](https://docs.liebstoeckel.app/reference/cli/)** · [getting started](https://docs.liebstoeckel.app/guides/getting-started/)
 
 ## License
 

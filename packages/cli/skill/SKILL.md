@@ -97,4 +97,4 @@ re-theme, see `references/editing.md`. Always finish with the `build --check` lo
 - `references/editing.md` — editing decks: add/replace slides, swap charts, re-theme, eject.
 - `references/troubleshooting.md` — the `build --check` loop and common errors.
 
-Full reference docs: https://liebstoeckel.app/llms.txt
+Full reference docs: https://docs.liebstoeckel.app/llms.txt

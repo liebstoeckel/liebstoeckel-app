@@ -48,7 +48,7 @@ The class names and CSS variables it emits are defined by **@liebstoeckel/theme*
 
 ## Docs
 
-**[liebstoeckel.app/reference/components](https://liebstoeckel.app/reference/components/)**
+**[liebstoeckel.app/reference/components](https://docs.liebstoeckel.app/reference/components/)**
 
 ## License
 

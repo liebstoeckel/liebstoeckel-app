@@ -44,7 +44,7 @@ await server.stop();
 
 - **Roles are URL tokens, not logins.** Anyone with the presenter link can drive — treat it like a secret.
 - It **runs server-plugin code on the host** and binds `0.0.0.0` by default, so only serve decks you trust on a network you trust.
-- For sharing beyond the LAN, pair it with **[@liebstoeckel/present-relay](https://liebstoeckel.app/guides/relay/)**.
+- For sharing beyond the LAN, pair it with **[@liebstoeckel/present-relay](https://docs.liebstoeckel.app/guides/relay/)**.
 
 ## Architecture
 
@@ -60,7 +60,7 @@ A `Bun.serve` HTTP+WebSocket server fronting a single-session Yjs relay. One dec
 
 ## Docs
 
-**[liebstoeckel.app/guides/live](https://liebstoeckel.app/guides/live/)** · [relay](https://liebstoeckel.app/guides/relay/)
+**[liebstoeckel.app/guides/live](https://docs.liebstoeckel.app/guides/live/)** · [relay](https://docs.liebstoeckel.app/guides/relay/)
 
 ## License
 

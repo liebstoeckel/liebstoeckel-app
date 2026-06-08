@@ -55,6 +55,6 @@ Two small modules, no build step or Tailwind dependency of its own. Components t
 
 ## Docs
 
-- Building a plugin — https://liebstoeckel.app/plugins/building-a-plugin/
+- Building a plugin — https://docs.liebstoeckel.app/plugins/building-a-plugin/
 
 MPL-2.0

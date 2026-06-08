@@ -1,6 +1,6 @@
 # @liebstoeckel/docs
 
-> The source for **[liebstoeckel.app](https://liebstoeckel.app)** — the documentation site.
+> The source for **[docs.liebstoeckel.app](https://docs.liebstoeckel.app)** — the documentation site.
 
 Part of **[liebstoeckel](https://liebstoeckel.app)** — a code-first presentation framework: author decks in **MDX + TSX**, get one self-contained HTML file that's animated, interactive, and live-shareable. Built on **Bun + React 19 + Motion + Tailwind v4**.
 
@@ -35,7 +35,7 @@ A standard Astro Starlight site — most of the package is **content**, not code
 
 | Path | Role |
 |---|---|
-| `astro.config.mjs` | The entire site config: `site: https://liebstoeckel.app`, the Starlight integration (title, description, `customCss`, and the full `sidebar` tree), and the `starlight-page-actions` plugin (per-page Copy-as-Markdown / Open-in-LLM toolbar + `/llms.txt`, keyed off `baseUrl`). |
+| `astro.config.mjs` | The entire site config: `site: https://docs.liebstoeckel.app`, the Starlight integration (title, description, `customCss`, and the full `sidebar` tree), and the `starlight-page-actions` plugin (per-page Copy-as-Markdown / Open-in-LLM toolbar + `/llms.txt`, keyed off `baseUrl`). |
 | `src/content.config.ts` | Defines the single `docs` collection via Starlight's `docsLoader()` + `docsSchema()`. |
 | `src/content/docs/**` | All page content as `.mdx`, grouped by section: `guides/` (getting started, authoring, animated code, theming, mobile, live, relay, building, thumbnails), `concepts/` (architecture, rendering, state-model, testing), `plugins/` (overview, building, state-and-sync, server-plugins, testing), `reference/` (cli, engine-api, components), plus `index.mdx`. |
 | `src/styles/theme.css` | Brand overrides for Starlight (loaded via `customCss`); pairs with the JetBrains Mono + Schibsted Grotesk fontsource packages. |
@@ -45,7 +45,7 @@ Build output is plain static files in `dist/` (hashed `/_astro/` assets, a Pagef
 
 ## Docs
 
-The built site: **[liebstoeckel.app](https://liebstoeckel.app)**
+The built site: **[docs.liebstoeckel.app](https://docs.liebstoeckel.app)**
 
 ## License
 
