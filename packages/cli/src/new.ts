@@ -190,25 +190,35 @@ function nearestPkgVersion(entry: string): string | null {
 const caret = (v: string | null | undefined) => (v && v !== "0.0.0" ? `^${v}` : null);
 
 /** The `^<version>` range to scaffold for a framework dep, read from that dep's
- *  OWN package (independently versioned). Falls back to the CLI's
- *  version (lockstep approximation when the dep can't be resolved, e.g. a
- *  standalone CLI), then to `workspace:*` so an in-repo deck still links locally
- *  ((internal ADR)). */
-async function depRange(name: string): Promise<string> {
+ *  OWN resolved package (independently versioned — (internal ADR)).
+ *
+ *  Invariant: every scaffolded dependency MUST be a direct dependency of
+ *  `@liebstoeckel/cli`, so it is installed alongside the CLI and resolvable both
+ *  in-repo and standalone. We rely on that and **fail loud** if it doesn't hold.
+ *  The old fallback to the CLI's *own* version was only correct under lockstep;
+ *  with graph-driven versioning it would silently stamp a wrong, lockstep-shaped
+ *  pin onto a package that no longer shares the CLI's version — a far worse failure
+ *  than a clear error. */
+function depRange(name: string): string {
+  let resolved: string;
   try {
-    const own = caret(nearestPkgVersion(import.meta.resolveSync(name)));
-    if (own) return own;
-  } catch {
-    /* not resolvable from here (e.g. a published standalone CLI) — fall through */
+    resolved = import.meta.resolveSync(name);
+  } catch (err) {
+    throw new Error(
+      `scaffold: cannot resolve ${name} to read its version. Every scaffolded ` +
+        `dependency must be a direct dependency of @liebstoeckel/cli so it is ` +
+        `installed alongside the CLI ((internal ADR)). Original error: ${(err as Error).message}`,
+    );
   }
-  try {
-    const cli = (await Bun.file(new URL("../package.json", import.meta.url)).json()) as {
-      version?: string;
-    };
-    return caret(cli.version) ?? "workspace:*";
-  } catch {
-    return "workspace:*";
+  const version = nearestPkgVersion(resolved);
+  const range = caret(version);
+  if (!range) {
+    throw new Error(
+      `scaffold: resolved ${name} but its package.json has no usable version ` +
+        `(found ${version ?? "none"}); cannot emit a real range for it ((internal ADR)).`,
+    );
   }
+  return range;
 }
 
 /** Write a new minimal deck to disk. Throws on an invalid name or existing dir. */
@@ -235,9 +245,9 @@ export async function scaffold(
     name,
     brand,
     {
-      engine: await depRange("@liebstoeckel/engine"),
-      theme: await depRange("@liebstoeckel/theme"),
-      thumbnails: await depRange("@liebstoeckel/thumbnails"),
+      engine: depRange("@liebstoeckel/engine"),
+      theme: depRange("@liebstoeckel/theme"),
+      thumbnails: depRange("@liebstoeckel/thumbnails"),
     },
     orgBrand ?? undefined,
   );

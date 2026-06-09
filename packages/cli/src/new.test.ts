@@ -88,6 +88,18 @@ describe("scaffold (writes to disk)", () => {
     expect(JSON.parse(readFileSync(join(res.dir, "package.json"), "utf8")).name).toBe("demo-x");
   });
 
+  test("pins each framework dep to its OWN resolved caret version, not workspace:* ((internal ADR))", async () => {
+    root = mkdtempSync(join(tmpdir(), "pi-new-"));
+    const res = await scaffold("ranges", { dir: root, noOrgBrand: true });
+    const pkg = JSON.parse(readFileSync(join(res.dir, "package.json"), "utf8"));
+    // depRange resolves each dep from its own package and fails loud rather than
+    // falling back to the CLI version, so a real scaffold emits concrete carets —
+    // independently versioned, never the lockstep `workspace:*` placeholder.
+    expect(pkg.dependencies["@liebstoeckel/engine"]).toMatch(/^\^\d+\.\d+\.\d+/);
+    expect(pkg.dependencies["@liebstoeckel/theme"]).toMatch(/^\^\d+\.\d+\.\d+/);
+    expect(pkg.devDependencies["@liebstoeckel/thumbnails"]).toMatch(/^\^\d+\.\d+\.\d+/);
+  });
+
   test("--no-org-brand scaffolds the default brand with no baked brand file", async () => {
     root = mkdtempSync(join(tmpdir(), "pi-new-"));
     const res = await scaffold("plain", { dir: root, noOrgBrand: true });
