@@ -5,13 +5,21 @@ import { test, expect, describe, afterEach } from "bun:test";
 // test-only reach into the sibling to exercise the relay↔live-server integration.
 import { createRelay, type RelayServer } from "../../present-relay/src/index.ts";
 import { connectLive, type LiveConnection } from "@liebstoeckel/engine/live";
-import { pluginState } from "@liebstoeckel/plugin-sdk";
-import { pollSchema, tally, totalVotes } from "@liebstoeckel/plugin-poll/logic";
+import { pluginState, schema, t } from "@liebstoeckel/plugin-sdk";
 import { embedManifest, encodeServerBundle, type PluginManifest } from "./manifest";
 import { uploadDeck, runServerPluginsViaRelay, endSession, type RunnerHandle } from "./relay-client";
 
 const TOKEN = "acct-token";
 const BASE_HTML = "<html><head><title>deck</title></head><body><div id=root></div></body></html>";
+
+// A synthetic plugin schema owned by this test. live-server / present-relay are
+// plugin-agnostic: they sync opaque, plugin-owned typed state addressed by id and
+// never reference any concrete plugin's schema (that's what lets a non-liebstoeckel
+// dev's plugin sync with zero server changes — (internal ADR)). So the test brings its
+// own schema rather than borrowing a real plugin's, same spirit as `@acme/seed`.
+const voteSchema = schema({ options: t.array(t.string), votes: t.record(t.string) });
+const countByOption = (s: { options: string[]; votes: Record<string, string> }) =>
+  s.options.map((option) => ({ option, count: Object.values(s.votes).filter((v) => v === option).length }));
 
 let relay: RelayServer | null = null;
 const closers: Array<() => void> = [];
@@ -96,7 +104,7 @@ describe("relay end-to-end (deck code stays local)", () => {
     runner.stop();
   });
 
-  test("poll votes converge across two clients through the relay", async () => {
+  test("typed plugin state converges across two clients through the relay", async () => {
     const base = startRelay();
     const info = await uploadDeck(base, TOKEN, BASE_HTML);
     const mk = (role: "presenter" | "viewer", token: string, p: string) =>
@@ -109,20 +117,20 @@ describe("relay end-to-end (deck code stays local)", () => {
       new Promise<void>((r) => viewer.onStatus((c) => c && r())),
     ]);
 
-    const ps = pluginState(presenter.doc, "poll", pollSchema);
-    ps.ensureDefaults({ question: "Best?", options: ["A", "B"] });
+    const ps = pluginState(presenter.doc, "vote", voteSchema);
+    ps.ensureDefaults({ options: ["A", "B"] });
     ps.recordSet("votes", "pres", "A");
-    await waitUntil(() => pluginState(viewer.doc, "poll", pollSchema).snapshot().options.length === 2);
+    await waitUntil(() => pluginState(viewer.doc, "vote", voteSchema).snapshot().options.length === 2);
 
-    pluginState(viewer.doc, "poll", pollSchema).recordSet("votes", "view", "B");
-    await waitUntil(() => totalVotes(pluginState(presenter.doc, "poll", pollSchema).snapshot()) === 2);
+    pluginState(viewer.doc, "vote", voteSchema).recordSet("votes", "view", "B");
+    await waitUntil(() => Object.keys(pluginState(presenter.doc, "vote", voteSchema).snapshot().votes).length === 2);
 
     for (const conn of [presenter, viewer]) {
-      const snap = pluginState(conn.doc, "poll", pollSchema).snapshot();
-      expect(totalVotes(snap)).toBe(2);
-      expect(tally(snap)).toEqual([
-        { option: "A", count: 1, pct: 50 },
-        { option: "B", count: 1, pct: 50 },
+      const snap = pluginState(conn.doc, "vote", voteSchema).snapshot();
+      expect(snap.votes).toEqual({ pres: "A", view: "B" });
+      expect(countByOption(snap)).toEqual([
+        { option: "A", count: 1 },
+        { option: "B", count: 1 },
       ]);
     }
   });

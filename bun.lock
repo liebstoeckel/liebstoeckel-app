@@ -51,7 +51,7 @@
     },
     "packages/cli": {
       "name": "@liebstoeckel/cli",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "bin": {
         "liebstoeckel": "./src/cli.ts",
         "lst": "./src/cli.ts",
@@ -71,7 +71,7 @@
     },
     "packages/components": {
       "name": "@liebstoeckel/components",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "dependencies": {
         "motion": "^12.40.0",
       },
@@ -186,6 +186,7 @@
         "@liebstoeckel/plugin-poll": "workspace:*",
         "@liebstoeckel/plugin-qa": "workspace:*",
         "@liebstoeckel/plugin-reactions": "workspace:*",
+        "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/present-relay": "workspace:*",
         "@liebstoeckel/theme": "workspace:*",
         "playwright-core": "1.60.0",
@@ -193,7 +194,7 @@
     },
     "packages/engine": {
       "name": "@liebstoeckel/engine",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "dependencies": {
         "@liebstoeckel/components": "workspace:*",
         "@liebstoeckel/plugin-sdk": "workspace:*",
@@ -215,14 +216,11 @@
     },
     "packages/live-server": {
       "name": "@liebstoeckel/live-server",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "dependencies": {
         "@liebstoeckel/engine": "workspace:*",
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/thumbnails": "workspace:*",
-      },
-      "devDependencies": {
-        "@liebstoeckel/plugin-poll": "workspace:*",
       },
       "peerDependencies": {
         "yjs": "^13.6.30",
@@ -230,7 +228,7 @@
     },
     "packages/plugin-poll": {
       "name": "@liebstoeckel/plugin-poll",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "dependencies": {
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/plugin-ui": "workspace:*",
@@ -241,7 +239,7 @@
     },
     "packages/plugin-qa": {
       "name": "@liebstoeckel/plugin-qa",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "dependencies": {
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/plugin-ui": "workspace:*",
@@ -253,7 +251,7 @@
     },
     "packages/plugin-reactions": {
       "name": "@liebstoeckel/plugin-reactions",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "dependencies": {
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/plugin-ui": "workspace:*",
@@ -265,7 +263,7 @@
     },
     "packages/plugin-sdk": {
       "name": "@liebstoeckel/plugin-sdk",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "peerDependencies": {
         "react": ">=19",
         "yjs": "^13.6.30",
@@ -273,7 +271,7 @@
     },
     "packages/plugin-ui": {
       "name": "@liebstoeckel/plugin-ui",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "dependencies": {
         "@liebstoeckel/plugin-sdk": "workspace:*",
       },
@@ -283,7 +281,7 @@
     },
     "packages/present-relay": {
       "name": "@liebstoeckel/present-relay",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "bin": {
         "liebstoeckel-relay": "./src/cli.ts",
       },
@@ -300,7 +298,7 @@
     },
     "packages/registry": {
       "name": "@liebstoeckel/registry",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "peerDependencies": {
         "react": ">=19",
         "react-dom": ">=19",
@@ -308,7 +306,7 @@
     },
     "packages/theme": {
       "name": "@liebstoeckel/theme",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "dependencies": {
         "@fontsource-variable/fraunces": "^5.2.9",
         "@fontsource-variable/hanken-grotesk": "^5.2.8",
@@ -321,7 +319,7 @@
     },
     "packages/thumbnails": {
       "name": "@liebstoeckel/thumbnails",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "bin": {
         "liebstoeckel-thumbnails": "./src/cli.ts",
       },
