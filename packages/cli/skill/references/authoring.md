@@ -5,7 +5,9 @@ A deck is a project (under `presentations/<name>/`) with:
 - `index.html` — the page shell (a `<div id="root">` + the entry script). Rarely edited.
 - `main.tsx` — the **entry**: renders `<Present>` with the ordered slide list.
 - `slides/NN-name.tsx` (or `.mdx`) — one file per slide.
-- `charts/` — scaffolded chart components (owned source from `liebstoeckel add`).
+- `charts/` — scaffolded components (owned source from `liebstoeckel add`). Most
+  registry items are charts and land here, but `add` writes each item to its manifest's
+  `target` (see `references/components.md`), so other component types may land elsewhere.
 - `package.json`, `build.ts`, `server.ts`, `bunfig.toml`.
 
 ## A slide
@@ -69,8 +71,8 @@ import { Step } from "@liebstoeckel/engine";
 ## Brands
 
 `<Present brands={["nocturne"]} />` selects the active brand; `liebstoeckel new
---brand <brand>` sets the default. Re-theming a deck = change the brand; every chart
-and token follows. Don't hard-code hex colors — use tokens / `useBrandColors`.
+--brand <brand>` sets the default. Re-theming a deck = change the brand; every
+component and token follows. Don't hard-code hex colors — use tokens / `useBrandColors`.
 
 ## MDX slides
 

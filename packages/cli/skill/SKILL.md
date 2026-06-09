@@ -11,6 +11,20 @@ metadata:
 license: MPL-2.0
 ---
 
+# General
+
+- **Environment** — liebstoeckel is a framework written in Bun; it requires the **Bun
+  runtime** (not Node). Drive everything through the `liebstoeckel` CLI via bash.
+- **Structure**
+  - A deck is authored as an **npm package** (its own `package.json`) of MDX/TSX slide
+    files.
+  - A deck compiles to **one self-contained `.html`** — JS, CSS, fonts, and assets all
+    inlined; no server, CDN, or runtime deps.
+  - That same `.html` **renders standalone** (open it directly, offline — plugins show a
+    fallback), or can be **hosted live** with
+    `liebstoeckel live [deck|dir|--dir <deck>] [opts]`, which enables the Yjs plugins
+    (poll, Q&A, reactions) for a full presenter/audience session.
+
 # Authoring liebstoeckel decks
 
 liebstoeckel is a code-first presentation framework: a deck is a project of
@@ -45,8 +59,8 @@ is your correctness signal.
    liebstoeckel registry view bar-chart --json    # exports, props, dataShape, example
    liebstoeckel add bar-chart --dir ./presentations/<name>
    ```
-   Then write a slide that imports the component (from the deck's `charts/`) and passes
-   data **matching its `dataShape`** — see `references/charts.md`.
+   Then write a slide that imports the component (from where `add` wrote it) and passes
+   data **matching its `dataShape`** — see `references/components.md`.
 
    The scaffolded `.tsx` is now **owned source in the deck** — it belongs to the deck,
    not to a package. Passing data via props is the common path, but when the slide needs
@@ -92,7 +106,7 @@ re-theme, see `references/editing.md`. Always finish with the `build --check` lo
 
 ## References
 
-- `references/charts.md` — using scaffolded charts, data shapes, the `add` workflow.
+- `references/components.md` — component types in the registry, using scaffolded components/charts, data shapes, the `add` workflow.
 - `references/authoring.md` — slide file conventions (MDX/TSX, notes, steps, layout, brands).
 - `references/editing.md` — editing decks: add/replace slides, swap charts, re-theme, eject.
 - `references/troubleshooting.md` — the `build --check` loop and common errors.

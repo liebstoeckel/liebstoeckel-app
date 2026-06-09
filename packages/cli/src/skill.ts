@@ -80,7 +80,7 @@ description: Use the liebstoeckel-deck skill to create or edit presentation deck
 alwaysApply: false
 ---
 When working on liebstoeckel presentation decks, follow ${join(".cursor", "skills", SKILL_NAME, "SKILL.md")}.
-Discover charts with \`liebstoeckel registry list --json\`; validate with \`liebstoeckel build --check\`.
+Discover components with \`liebstoeckel registry list --json\`; validate with \`liebstoeckel build --check\`.
 `;
   const dest = join(deckDir, ".cursor", "rules", "liebstoeckel.mdc");
   await mkdir(dirname(dest), { recursive: true });
