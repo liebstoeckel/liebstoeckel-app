@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/limond/liebstoeckel-app/compare/cli-v0.3.3...cli-v0.3.4) (2026-06-09)
+
+
+### Bug Fixes
+
+* **cli:** scaffold depRange fails loud instead of guessing the CLI version ([c58f42b](https://github.com/limond/liebstoeckel-app/commit/c58f42b27816eabb76352333e60d038d587631d8))
+
 ## [0.3.3](https://github.com/limond/liebstoeckel-app/compare/cli-v0.3.2...cli-v0.3.3) (2026-06-09)
 
 
