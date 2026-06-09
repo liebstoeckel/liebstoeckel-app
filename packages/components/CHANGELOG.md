@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/limond/liebstoeckel-app/compare/components-v0.3.2...components-v0.3.3) (2026-06-09)
+
+
+### Miscellaneous Chores
+
+* **components:** Synchronize liebstoeckel versions
+
 ## [0.3.2](https://github.com/limond/liebstoeckel-app/compare/components-v0.3.1...components-v0.3.2) (2026-06-07)
 
 

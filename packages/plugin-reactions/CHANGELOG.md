@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.3](https://github.com/limond/liebstoeckel-app/compare/plugin-reactions-v0.3.2...plugin-reactions-v0.3.3) (2026-06-09)
+
+
+### Miscellaneous Chores
+
+* **plugin-reactions:** Synchronize liebstoeckel versions
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/plugin-sdk bumped to 0.3.3
+    * @liebstoeckel/plugin-ui bumped to 0.3.3
+
 ## [0.3.2](https://github.com/limond/liebstoeckel-app/compare/plugin-reactions-v0.3.1...plugin-reactions-v0.3.2) (2026-06-07)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.3](https://github.com/limond/liebstoeckel-app/compare/engine-v0.3.2...engine-v0.3.3) (2026-06-09)
+
+
+### Miscellaneous Chores
+
+* **engine:** Synchronize liebstoeckel versions
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/components bumped to 0.3.3
+    * @liebstoeckel/plugin-sdk bumped to 0.3.3
+    * @liebstoeckel/plugin-ui bumped to 0.3.3
+    * @liebstoeckel/theme bumped to 0.3.3
+
 ## [0.3.2](https://github.com/limond/liebstoeckel-app/compare/engine-v0.3.1...engine-v0.3.2) (2026-06-07)
 
 

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.3](https://github.com/limond/liebstoeckel-app/compare/cli-v0.3.2...cli-v0.3.3) (2026-06-09)
+
+
+### Bug Fixes
+
+* **mirror:** neutralize private refs + public-safe config in OSS mirror ([7c9f0cb](https://github.com/limond/liebstoeckel-app/commit/7c9f0cbf786bc95b5e80f10e00da946b3589e51c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.3
+    * @liebstoeckel/live-server bumped to 0.3.3
+    * @liebstoeckel/present-relay bumped to 0.3.3
+    * @liebstoeckel/registry bumped to 0.3.3
+    * @liebstoeckel/theme bumped to 0.3.3
+    * @liebstoeckel/thumbnails bumped to 0.3.3
+
 ## [0.3.2](https://github.com/limond/liebstoeckel-app/compare/cli-v0.3.1...cli-v0.3.2) (2026-06-07)
 
 
