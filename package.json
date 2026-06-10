@@ -24,6 +24,8 @@
     "test": "bun test packages",
     "docs:dev": "cd packages/docs && bun --bun astro dev --host",
     "docs:build": "cd packages/docs && bun --bun astro build",
+    "landing:dev": "cd packages/landing && bun --bun astro dev --host",
+    "landing:build": "cd packages/landing && bun --bun astro build",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "devDependencies": {

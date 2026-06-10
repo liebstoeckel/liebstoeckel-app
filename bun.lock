@@ -214,6 +214,16 @@
         "yjs": "^13.6.30",
       },
     },
+    "packages/landing": {
+      "name": "@liebstoeckel/landing",
+      "version": "0.0.0",
+      "dependencies": {
+        "@fontsource-variable/jetbrains-mono": "^5.2.8",
+        "@fontsource-variable/schibsted-grotesk": "^5.2.8",
+        "astro": "^6.3.7",
+        "sharp": "^0.34.5",
+      },
+    },
     "packages/live-server": {
       "name": "@liebstoeckel/live-server",
       "version": "0.3.2",
@@ -644,6 +654,8 @@
     "@liebstoeckel/e2e": ["@liebstoeckel/e2e@workspace:packages/e2e"],
 
     "@liebstoeckel/engine": ["@liebstoeckel/engine@workspace:packages/engine"],
+
+    "@liebstoeckel/landing": ["@liebstoeckel/landing@workspace:packages/landing"],
 
     "@liebstoeckel/live-server": ["@liebstoeckel/live-server@workspace:packages/live-server"],
 
