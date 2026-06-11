@@ -1,6 +1,6 @@
 ---
 title: Testing
-description: The testing pyramid — pure unit tests, Yjs convergence, render smoke, and a headless-browser e2e tier.
+description: "The testing pyramid: pure unit tests, Yjs convergence, render smoke, a headless-browser e2e tier, and a registry-install tier for releases."
 ---
 
 import { Aside, LinkCard } from "@astrojs/starlight/components";
@@ -12,20 +12,23 @@ liebstoeckel keeps a deliberate testing pyramid: a broad, fast base of pure + in
 | Layer | What it covers | Cost |
 | --- | --- | --- |
 | **Pure unit** | schemas, tallies, line-diff keying, touch-gesture resolution, breakout eligibility, CLI scaffold templates | milliseconds |
-| **Yjs convergence** | shared state agrees across two synced docs (polls, Q&A, reactions, relay) — the property that matters, with **no browser** | milliseconds |
+| **Yjs convergence** | shared state agrees across two synced docs (polls, Q&A, reactions, relay), the property that matters, with **no browser** | milliseconds |
 | **Render smoke** | components render without throwing (`renderToStaticMarkup`) | fast |
 | **E2E (browser)** | the real single-file deck boots in headless Chromium: no console errors, reveals + nav, `CodeMagic` morph, plugin fallback, the mobile breakout | seconds |
+| **Registry install (release)** | the *published* CLI installs from a real registry into a clean sandbox and the whole offline surface works: `new` → install → `build --check` → `build`, plus `registry`/`add`/`pack`/`eject`/`skill`/`live`/`export` | minutes |
 
 Run them:
 
 ```bash
-bun run test         # the full suite (bun test packages)
-bun run typecheck    # tsc --noEmit
+bun run test               # the full suite (bun test packages)
+bun run typecheck          # tsc --noEmit
 ```
 
 ## Why this shape
 
-Most of the risk — does shared state converge, do derivations rank correctly, does navigation advance — is covered by fast, reliable headless tests. The e2e tier exists only for what a browser uniquely catches: bundling, the Bun macro, hydration, CSS, and the touch breakout. It **skips cleanly when no Chromium** is installed.
+Most of the risk (does shared state converge, do derivations rank correctly, does navigation advance) is covered by fast, reliable headless tests. The e2e tier exists only for what a browser uniquely catches: bundling, the Bun macro, hydration, CSS, and the touch breakout. It **skips cleanly when no Chromium** is installed.
+
+The registry-install tier catches the one class of bug the others can't: a release that is broken *as published*. Undeclared dependencies, cross-package version closures that don't resolve, a bin that doesn't run outside the monorepo. It installs `@liebstoeckel/cli` from a registry (set `LIEBSTOECKEL_E2E_REGISTRY`; optionally `LIEBSTOECKEL_E2E_NPM_TOKEN` and `LIEBSTOECKEL_CHROMIUM`) and exercises every offline command a fresh user would run. Without the env var it self-skips, so it never slows the unit tier. In CI it runs automatically after each publish.
 
 <Aside type="note" title="E2E gotchas (in this environment)">
 The fixture deck builds in a **subprocess** (calling `Bun.build` inside `bun test` can't follow workspace symlinks for a plugin's transitive deps), and single-process Chromium can't share contexts, so each case launches its own browser.
