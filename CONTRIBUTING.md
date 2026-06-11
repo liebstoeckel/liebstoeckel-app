@@ -13,19 +13,26 @@ deployment manifests, internal design records) is not mirrored. Where a commit
 message or comment says "(internal ADR)" or "(internal ticket)", it refers to a
 design document that lives only in the private repository.
 
-The practical consequence: **pull requests here are never merged with the merge
-button.** The mirror pushes a full snapshot of the upstream tree, so anything
-merged only here would be reverted by the next mirrored commit. Instead:
+The practical consequence: **a pull request is merged only after its change has
+been applied upstream.** The flow:
 
 1. You open a pull request against `main` as usual. CI runs, review happens here.
-2. Once approved, a maintainer cherry-picks your commits onto the private `main`,
-   **preserving your authorship**. Your name and email appear in the public
-   history when the change mirrors back out, usually within minutes.
-3. The pull request is closed with a reference to the mirrored commit.
+2. Once approved, a maintainer applies your commits to the upstream repository
+   (a cherry-pick that **preserves your authorship**) and then merges the pull
+   request here. Expect a short delay between approval and merge; that gap is
+   the upstream step.
+3. Shortly after, the mirror replays the upstream commit back into `main`. If
+   the upstream landing adjusted anything (the private tree contains packages
+   that are not mirrored), the mirrored version is the one that sticks, and the
+   maintainer notes the difference on the pull request.
 
-If the cherry-pick needs small adjustments (the private tree contains packages
-that are not mirrored), the maintainer makes them and notes the difference on the
-pull request.
+> **Maintainer note (the one hard rule):** cherry-pick to the private `main`
+> and push it **before** pressing merge. Each mirrored commit writes a full
+> snapshot of the upstream tree, so a merge that was never upstreamed is
+> silently undone by the next mirror push, with no error anywhere. Use
+> "create a merge commit" (not rebase or squash) when the mirrored twin of the
+> change has already landed on `main`, and don't enable a linear-history rule
+> on this repository.
 
 ## Before you write code
 
