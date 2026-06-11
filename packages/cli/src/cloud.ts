@@ -9,6 +9,15 @@ import { loadCreds, saveCreds } from "./creds";
 
 const CLIENT_ID = "liebstoeckel-cli";
 
+/** Exit for a cloud command that has no API to talk to. The hosted control plane
+ *  is not generally available yet, so OSS users see "coming soon" instead of a
+ *  bare auth error that looks like a bug. */
+function notLoggedIn(): never {
+  console.error("✕ not logged in — run: liebstoeckel login --api <https://app-host>");
+  console.error("  (liebstoeckel cloud is coming soon; this command needs a hosted control plane)");
+  process.exit(1);
+}
+
 function flag(argv: string[], name: string): string | undefined {
   const i = argv.indexOf(name);
   return i >= 0 ? argv[i + 1] : undefined;
@@ -64,6 +73,7 @@ export async function runLogin(argv: string[]): Promise<void> {
   const api = (flag(argv, "--api") ?? process.env.LIEBSTOECKEL_API ?? "").replace(/\/+$/, "");
   if (!api) {
     console.error("usage: liebstoeckel login --api <https://app-host>");
+    console.error("  (liebstoeckel cloud is coming soon; this command needs a hosted control plane)");
     process.exit(1);
   }
 
@@ -138,10 +148,7 @@ export async function runPush(argv: string[]): Promise<void> {
     process.exit(1);
   }
   const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
-  if (!creds || !api) {
-    console.error("✕ not logged in — run: liebstoeckel login --api <https://app-host>");
-    process.exit(1);
-  }
+  if (!creds || !api) notLoggedIn();
 
   const path = resolve(file);
   if (!(await Bun.file(path).exists())) {
@@ -211,10 +218,7 @@ async function fetchOrgs(api: string, token: string): Promise<OrgList> {
 export async function runOrgs(argv: string[]): Promise<void> {
   const creds = await loadCreds();
   const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
-  if (!creds || !api) {
-    console.error("✕ not logged in — run: liebstoeckel login --api <https://app-host>");
-    process.exit(1);
-  }
+  if (!creds || !api) notLoggedIn();
 
   const [sub, slug] = argv.filter((a) => !a.startsWith("-"));
 
@@ -261,10 +265,7 @@ export async function runDecks(argv: string[]): Promise<void> {
   const creds = await loadCreds();
   const { org } = resolveOrg(argv, creds?.org);
   const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
-  if (!creds || !api) {
-    console.error("✕ not logged in — run: liebstoeckel login --api <https://app-host>");
-    process.exit(1);
-  }
+  if (!creds || !api) notLoggedIn();
   const headers: Record<string, string> = { authorization: `Bearer ${creds.token}` };
   if (org) headers["x-org-slug"] = org;
   const res = await fetch(`${api}/api/v1/decks`, { headers });
@@ -328,10 +329,7 @@ async function brandApi(argv: string[]): Promise<{ api: string; token: string; o
   const creds = await loadCreds();
   const { org } = resolveOrg(argv, creds?.org);
   const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
-  if (!creds || !api) {
-    console.error("✕ not logged in — run: liebstoeckel login --api <https://app-host>");
-    process.exit(1);
-  }
+  if (!creds || !api) notLoggedIn();
   return { api, token: creds.token, org };
 }
 
