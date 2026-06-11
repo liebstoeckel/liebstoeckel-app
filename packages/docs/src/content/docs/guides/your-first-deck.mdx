@@ -65,7 +65,7 @@ import Agenda from "./slides/02-agenda.mdx";
 ```
 
 <Aside type="tip" title="Styling">
-Use the brand's **semantic** Tailwind classes — `text-text`, `text-muted`, `text-primary`, `text-accent`, `font-heading`, `font-body`, `bg-surface`. They resolve against the active brand's tokens, so the same slide re-skins when the brand changes. See [Theming](/guides/theming/).
+Use the brand's **semantic** Tailwind classes: `text-text`, `text-muted`, `text-primary`, `text-accent`, `font-heading`, `font-body`, `bg-surface`. They resolve against the active brand's tokens, so the same slide re-skins when the brand changes. See [Theming](/guides/theming/).
 </Aside>
 
 ## Progressive reveals with `<Step>`
@@ -94,28 +94,28 @@ export const notes = (
 
 ## Magic Move
 
-`<Magic>` morphs one slide's element into the **next slide's element with the same `id`** — Motion FLIP-animates position and size and crossfades the content. Declare each one *inline* on its slide; the two can differ (text → text, small → large), so it's true Keynote-style Magic Move.
+`<Magic>` morphs one slide's element into the **next slide's element with the same `id`**. Motion FLIP-animates position and size and crossfades the content. Declare each one *inline* on its slide; the two can differ (text → text, small → large), so it's true Keynote-style Magic Move.
 
 ```tsx
 import { Magic } from "@liebstoeckel/engine";
 
 // On slide 1:
 <Magic id="logo" className="text-4xl">●</Magic>
-// On slide 2 — same id, new place/size (and even new content) → it morphs there:
+// On slide 2, same id, new place/size (and even new content) → it morphs there:
 <Magic id="logo" className="text-8xl absolute top-10 right-10">◆</Magic>
 ```
 
-<Aside type="tip" title="Magic vs. Slot — two ways to connect slides">
+<Aside type="tip" title="Magic vs. Slot: two ways to connect slides">
 Both carry something across a slide change, but they're opposites:
 
-- **`Magic`** — *different*, **stateless** elements that morph into one another. Declared inline per slide; content re-renders, so no internal state survives.
-- **`Slot`** (+ the `persistent` prop) — the **same** element, rendered once and projected onto each slide. State survives (an `<iframe>`, video, a live widget). See [authoring › persistent elements](/guides/authoring/#persistent-stateful-elements).
+- **`Magic`**: *different*, **stateless** elements that morph into one another. Declared inline per slide; content re-renders, so no internal state survives.
+- **`Slot`** (+ the `persistent` prop): the **same** element, rendered once and projected onto each slide. State survives (an `<iframe>`, video, a live widget). See [authoring › persistent elements](/guides/authoring/#persistent-stateful-elements).
 
 Rule of thumb: *morphing one thing into a different thing* → `Magic`; *the one thing keeps running* → `Slot`.
 </Aside>
 
 <Aside type="caution" title="Pair Magic with a calm transition">
-A `Magic` element lives inside the slide, so a directional [slide transition](/guides/authoring/#slide-transitions) (`slide`/`zoom`) moves it *and* morphs it — which can look doubled. It reads cleanest with the default `fade` or with `none`. Choosing the transition for a slide that hosts a Magic move is the deck author's call.
+A `Magic` element lives inside the slide, so a directional [slide transition](/guides/authoring/#slide-transitions) (`slide`/`zoom`) moves it *and* morphs it, which can look doubled. It reads cleanest with the default `fade` or with `none`. Choosing the transition for a slide that hosts a Magic move is the deck author's call.
 </Aside>
 
 <LinkCard title="Animated code" href="/guides/animated-code/" description="Shiki highlighting + CodeMagic diffs." />

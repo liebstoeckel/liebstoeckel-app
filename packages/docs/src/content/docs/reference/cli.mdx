@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: The umbrella liebstoeckel command — new, add, registry, build, eject, pack, live, relay, thumbs, export, skill, login, push, orgs, decks, brand.
+description: "The umbrella liebstoeckel command: new, add, registry, build, eject, pack, live, relay, thumbs, export, skill, login, push, orgs, decks, brand."
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -14,7 +14,7 @@ liebstoeckel <deck>            # shorthand for: liebstoeckel live <deck>
 
 ## `new`
 
-Scaffold a new deck. It materializes in the **current directory** as `./<name>` —
+Scaffold a new deck. It materializes in the **current directory** as `./<name>`;
 pass `--dir <parent>` to put it elsewhere (e.g. `--dir presentations` to drop it
 into a monorepo's workspace glob).
 
@@ -31,8 +31,8 @@ liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand]
 Generates `index.html`, `main.tsx`, `build.ts` (using `buildDeck` from `@liebstoeckel/thumbnails/build`), `server.ts`, `bunfig.toml`, and a starter `slides/01-intro.tsx`. The name must be lower-case letters/digits/hyphens; it won't overwrite an existing directory.
 
 When you're **logged in** (and didn't pass `--brand`), `new` automatically bakes your
-org's **default brand** into the deck as owned source — `brands/<name>.ts`, wired into
-`<Present brandThemes={…}>`, with `data-brand` set — so new decks are on-brand
+org's **default brand** into the deck as owned source: `brands/<name>.ts`, wired into
+`<Present brandThemes={…}>`, with `data-brand` set, so new decks are on-brand
 instantly (see [`brand`](#brand)). Pass `--no-org-brand` to opt out, or `--brand` to
 choose a specific one. It's best-effort: offline or signed-out, you just get the
 default `liebstoeckel` brand.
@@ -40,7 +40,7 @@ default `liebstoeckel` brand.
 ## `add`
 
 Scaffold registry items (charts, hooks, layouts, …) into a deck as **owned
-source** — the code is copied into your project, not imported from a package, so
+source**: the code is copied into your project, not imported from a package, so
 you can edit it freely. Leaf dependencies the items need (e.g. the relevant
 `@visx/*` packages) are installed into the deck.
 
@@ -59,7 +59,7 @@ liebstoeckel add bar-chart --dry                 # show the plan, write nothing
 | `--no-install` | don't run `bun add` for the items' dependencies |
 | `--json` | structured plan/result output (default when stdout isn't a TTY) |
 
-`add` always **prints its plan before writing** — which files it will create,
+`add` always **prints its plan before writing**: which files it will create,
 overwrite, or skip, plus the dependencies it will install. Files land under the
 deck's `charts/` (or the item's own path); existing files are skipped unless
 `--force` (so re-running is idempotent). Dependencies are installed with
@@ -70,13 +70,13 @@ deck's `charts/` (or the item's own path); existing files are skipped unless
 Items resolve through a registry **namespace**. A bare name (`bar-chart`) comes
 from the bundled default registry (`@liebstoeckel`); a scoped ref (`@acme/heatmap`)
 comes from a registry you map in the deck's `liebstoeckel.json` under
-`"registries"` — a `"default"` keyword or a local path today, with npm/git/HTTP
-transports planned. Categories are `chart`, `hook`, `element`, `component`,
-`layout`, `motion`; the leading category word is optional sugar.
+`"registries"`, which today accepts a `"default"` keyword or a local path, with
+npm/git/HTTP transports planned. Categories are `chart`, `hook`, `element`,
+`component`, `layout`, `motion`; the leading category word is optional sugar.
 
 ## `registry`
 
-Browse the chart/component registry — the discovery surface for [`add`](#add), and the
+Browse the chart/component registry: the discovery surface for [`add`](#add), and the
 machine-readable contract agents read before scaffolding.
 
 ```bash
@@ -85,7 +85,7 @@ liebstoeckel registry view bar-chart       # one item: exports, props, dataShape
 liebstoeckel registry list --json          # JSON (default when piped / not a TTY)
 ```
 
-`view` returns each component's **`dataShape`** — the exact type of its `data` prop —
+`view` returns each component's **`dataShape`**, the exact type of its `data` prop,
 so you (or an agent) can wire data without reading the source. Output is JSON when
 `--json` is passed or stdout isn't a TTY, and a compact human view otherwise. This
 reads the bundled `@liebstoeckel` registry.
@@ -93,21 +93,21 @@ reads the bundled `@liebstoeckel` registry.
 ## `build`
 
 Build a deck to a single self-contained `.html` (+ thumbnails), written to
-`./dist/<deck-slug>.html` — the slug is the deck folder name, e.g. `poll-demo/` →
+`./dist/<deck-slug>.html`. The slug is the deck folder name, e.g. `poll-demo/` →
 `dist/poll-demo.html` ((internal ADR)). By default the build also
-embeds a compressed copy of the deck's **own source** (slides, `package.json`, etc. — not
+embeds a compressed copy of the deck's **own source** (slides, `package.json`, etc., not
 `node_modules`), so the compiled `.html` can later be [`eject`](#eject)ed back to an editable
 project. Source collection uses `bun pm pack`, so your deck's `package.json` `"files"` list
 controls exactly what's embedded.
 
 The deck defaults to the **current directory**; pass it as a positional `[dir]` or
-with `--dir <deck>` (the convention shared by `pack`/`live`/`export` — (internal ADR)).
+with `--dir <deck>` (the convention shared by `pack`/`live`/`export`, (internal ADR)).
 
 ```bash
 liebstoeckel build                             # the deck in the current directory
 liebstoeckel build --dir <deck>                # or a positional [dir]
 liebstoeckel build [dir] --no-inline-package   # build WITHOUT the recoverable source
-liebstoeckel build [dir] --check               # validate only — no artifact, structured errors
+liebstoeckel build [dir] --check               # validate only: no artifact, structured errors
 LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build [dir]   # skip thumbnails
 ```
 
@@ -118,7 +118,7 @@ LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build [dir]   # skip thumbnails
 | `--check` | validate the deck **bundles** (no output written); reports diagnostics + exits non-zero on error |
 
 `--check` is the fast validation gate (no Chromium, no thumbnails, nothing written):
-it returns `{ ok, diagnostics }` — each diagnostic carrying `message`/`file`/`line` —
+it returns `{ ok, diagnostics }`, each diagnostic carrying `message`/`file`/`line`,
 and exits non-zero when the deck doesn't bundle. It checks that imports resolve and
 MDX/TSX transforms; it does not type-check. Output is JSON when piped or with `--json`.
 
@@ -146,7 +146,7 @@ cd <outdir> && bun install --ignore-scripts && bun run build
 
 ## `pack`
 
-Inspect — or emit — exactly the source a build would embed, without running a full build.
+Inspect, or emit, exactly the source a build would embed, without running a full build.
 The deck defaults to the **current directory**; pass it as `[dir]` or `--dir <deck>` ((internal ADR)).
 
 ```bash
@@ -161,11 +161,11 @@ Useful for verifying your `"files"` allowlist before shipping. The `-o` tarball 
 ## `live`
 
 Present a deck to a room. Builds the deck if given a project dir, and captures
-slide thumbnails by default (so the overview grid is instant) — skipped, not
-failed, when no Chromium is available.
+slide thumbnails by default (so the overview grid is instant); the capture is
+skipped, not failed, when no Chromium is available.
 
 The deck defaults to the **current directory**; pass it as a positional or with
-`--dir <deck>` (the same convention as `build`/`pack`/`export` — (internal ADR)).
+`--dir <deck>` (the same convention as `build`/`pack`/`export`, (internal ADR)).
 
 ```bash
 liebstoeckel live                               # the deck in the current directory
@@ -206,8 +206,8 @@ liebstoeckel thumbs <built-deck.html> [--format webp|jpeg|png] [--width 640] [--
 
 ## `export`
 
-Export slides to **PNG** files or a single **PDF** — one slide, a range, or the
-whole deck — rendered headless on the native 1280×720 canvas, the same pipeline as
+Export slides to **PNG** files or a single **PDF** (one slide, a range, or the
+whole deck), rendered headless on the native 1280×720 canvas, the same pipeline as
 thumbnails. The input is a built `.html` **or** a deck source directory (built on
 demand); it defaults to the **current directory**, or pass it as a positional or
 with `--dir <deck>` ((internal ADR)).
@@ -234,7 +234,7 @@ liebstoeckel export ./dist/my-deck.html --slides 3 -o ./out
 liebstoeckel export ./presentations/demo --format pdf -o demo.pdf
 ```
 
-**PDF is vector by default** — selectable, searchable text with embedded fonts and
+**PDF is vector by default**: selectable, searchable text with embedded fonts and
 vector charts/gradients, produced in a single `page.pdf()` over a print view that
 stacks one slide per page (no merge, no extra dependency). Pass `--raster` for an
 image-per-page PDF instead: no text layer, but pixel-exact fidelity for a slide
@@ -248,8 +248,8 @@ and fails loudly if none is found.
 
 Install the **`liebstoeckel-deck` agent skill** into a project so AI coding agents can
 create and edit decks for you (scaffold → add charts → wire data → build). The skill
-ships inside the CLI package — version-pinned, so it always matches your installed
-`liebstoeckel` — and is placed where each agent looks for it.
+ships inside the CLI package, version-pinned so it always matches your installed
+`liebstoeckel`, and is placed where each agent looks for it.
 
 ```bash
 liebstoeckel skill install                        # all agents + AGENTS.md, into the current dir
@@ -262,14 +262,25 @@ liebstoeckel skill install --target codex --dir ./my-deck
 | `--dir <deck>` | where to install (default: current directory) |
 
 It writes the same skill to each agent's path (`.claude/skills/`, `.agents/skills/` for
-Codex/Gemini, `.cursor/skills/` + a rule) and merges a managed block into `AGENTS.md` —
+Codex/Gemini, `.cursor/skills/` + a rule) and merges a managed block into `AGENTS.md`,
 the universal fallback for agents without skill support. Re-running is idempotent. See
 the [Scaffolding guide](/guides/scaffolding/) for how an agent uses it.
 
-## `login`
+## Cloud commands (coming soon)
+
+The remaining commands talk to **liebstoeckel cloud**, the hosted control plane.
+
+<Aside type="caution" title="Coming soon">
+liebstoeckel cloud is not generally available yet. `login`, `push`, `orgs`, `decks`, and
+`brand` ship in the CLI today, but without a hosted service to sign in to they exit with
+a "coming soon" notice. They work against a private control-plane deployment via
+`--api` / `LIEBSTOECKEL_API`. See the [Cloud & teams guide](/guides/cloud/).
+</Aside>
+
+### `login`
 
 Sign in to **liebstoeckel cloud** (the hosted control plane) from the terminal using the
-OAuth 2.0 device-authorization grant (RFC 8628) — no password. The CLI prints a URL;
+OAuth 2.0 device-authorization grant (RFC 8628), with no password. The CLI prints a URL;
 open it in a browser, sign in with an email one-time code, and approve. The resulting
 token is stored in `~/.config/liebstoeckel/credentials.json` (mode `600`).
 
@@ -281,10 +292,10 @@ liebstoeckel login --api https://<your-control-plane-host>
 | --- | --- |
 | `--api <url>` | the control-plane base URL (or set `LIEBSTOECKEL_API`) |
 
-## `push`
+### `push`
 
 Upload a built single-file deck to your cloud dashboard. Authenticates with the token
-from `login`; the deck appears in your dashboard's deck list — for a **team org**, it's
+from `login`; the deck appears in your dashboard's deck list, and for a **team org** it's
 visible to every member (the shared library).
 
 ```bash
@@ -312,7 +323,7 @@ the deck's built-in thumbnails.
 | `--org <slug>` | push into this organization (default: the one set by `orgs use`, else personal) |
 | `--api <url>` | override the stored control-plane host |
 
-## `orgs`
+### `orgs`
 
 List the organizations (personal workspace + teams) you belong to, and choose which one
 `push` targets by default.
@@ -325,11 +336,11 @@ liebstoeckel orgs use acme               # make "acme" the default for push
 Teams, members, roles (`owner` / `admin` / `member`), and invitations are managed in the
 dashboard's **Team** page; the CLI only needs to pick which org a deck lands in.
 
-## `brand`
+### `brand`
 
 Share governed **brand token sets** across a team. Your org is an authenticated registry
 (the same protocol as `add`/`registry`); a brand is pulled into a deck as **owned source**
-(`brands/<name>.ts`) and baked at build — so the deck stays self-contained and WYSIWYG.
+(`brands/<name>.ts`) and baked at build, so the deck stays self-contained and WYSIWYG.
 
 ```bash
 liebstoeckel brand list                  # brands in your org (→ marks the default)
@@ -356,7 +367,7 @@ its own `@font-face`.
 | `--no-install` | (pull) write the files but don't `bun add` the brand's font packages |
 | `--org <slug>` | the organization to act on |
 
-## `decks`
+### `decks`
 
 List your cloud decks in an organization, with view counts.
 

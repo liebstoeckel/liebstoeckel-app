@@ -1,6 +1,6 @@
 ---
 title: Mobile & touch
-description: How the viewer and presenter adapt to phones — tap-to-interact plugin breakout, touch navigation, and a responsive presenter.
+description: "How the viewer and presenter adapt to phones: tap-to-interact plugin breakout, touch navigation, and a responsive presenter."
 ---
 
 import { Aside, CardGrid, Card } from "@astrojs/starlight/components";
@@ -13,10 +13,10 @@ On a touch device with a shrunk stage, a `<Plugin>` doesn't try to make tiny con
 
 <CardGrid>
   <Card title="Glows" icon="star">
-    The whole plugin region gets a pulsing brand-accent outline and a "tap to interact" pill — a large, easy target.
+    The whole plugin region gets a pulsing brand-accent outline and a "tap to interact" pill (a large, easy target).
   </Card>
   <Card title="Breaks out" icon="external">
-    Tapping opens the same plugin **full-size in a bottom sheet** rendered *outside* the scaled canvas — real tap targets, bound to the same live state.
+    Tapping opens the same plugin **full-size in a bottom sheet** rendered *outside* the scaled canvas: real tap targets, bound to the same live state.
   </Card>
 </CardGrid>
 
@@ -28,7 +28,7 @@ Display-only plugins (no input) should set `client.interactive = false` so they 
 
 ## Touch navigation
 
-For whoever drives the deck (a standalone viewer or the presenter — a live audience viewer just follows), the engine binds **horizontal swipe** and **edge tap-zones** to advance/retreat, reusing the same step-then-slide logic as the keyboard. Gestures that start on interactive content (buttons, links, the plugin region) are ignored so they never fight the UI.
+For whoever drives the deck (a standalone viewer or the presenter; a live audience viewer just follows), the engine binds **horizontal swipe** and **edge tap-zones** to advance/retreat, reusing the same step-then-slide logic as the keyboard. Gestures that start on interactive content (buttons, links, the plugin region) are ignored so they never fight the UI.
 
 ## Portrait hint
 
@@ -36,10 +36,10 @@ On a portrait phone the 16:9 slide is letterboxed. A dismissable "rotate for a b
 
 ## Presenter view on a phone
 
-On a phone the presenter view is a **notes-first confidence monitor** you can run a whole talk from. Open it from the deck's **⋮ menu → "Presenter view"** (the touch counterpart to the desktop <kbd>p</kbd> pop-out; shown only to drivers, never to a live viewer) — handy after scanning the "drive from your phone" presenter QR.
+On a phone the presenter view is a **notes-first confidence monitor** you can run a whole talk from. Open it from the deck's **⋮ menu → "Presenter view"** (the touch counterpart to the desktop <kbd>p</kbd> pop-out; shown only to drivers, never to a live viewer). It's handy after scanning the "drive from your phone" presenter QR.
 
-The layout puts your **notes front and centre** (large, scrollable — the teleprompter), with a slim status bar (position + timer), a compact next-slide + reveal-state peek, and big **Prev / Next** buttons in the thumb zone. Swipe horizontally to change slides; scrolling the notes never advances them (the gestures are resolved by axis). The screen is kept awake via the Wake Lock API while it's open, and **"‹ slides"** returns to the deck.
+The layout puts your **notes front and centre** (large and scrollable: the teleprompter), with a slim status bar (position + timer), a compact next-slide + reveal-state peek, and big **Prev / Next** buttons in the thumb zone. Swipe horizontally to change slides; scrolling the notes never advances them (the gestures are resolved by axis). The screen is kept awake via the Wake Lock API while it's open, and **"‹ slides"** returns to the deck.
 
 <Aside type="note" title="Threat model unchanged">
-Mobile support is UX/layout only — no change to sync or security. A live viewer still only reads the deck index and writes its own plugin state.
+Mobile support is UX/layout only: no change to sync or security. A live viewer still only reads the deck index and writes its own plugin state.
 </Aside>

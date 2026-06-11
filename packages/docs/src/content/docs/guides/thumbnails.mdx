@@ -1,15 +1,15 @@
 ---
 title: Thumbnails
-description: Build-time slide thumbnails for the overview grid — captured headlessly, encoded as WebP, embedded in the deck.
+description: Build-time slide thumbnails for the overview grid, captured headlessly, encoded as WebP, and embedded in the deck.
 ---
 
 import { Aside, LinkCard } from "@astrojs/starlight/components";
 
-The overview grid (press <kbd>o</kbd>) would be expensive if it mounted every slide live. Instead, liebstoeckel captures each slide once — at **build time**, or when you start presenting — and embeds the images, so the grid is just cheap `<img>`s.
+The overview grid (press <kbd>o</kbd>) would be expensive if it mounted every slide live. Instead, liebstoeckel captures each slide once (at **build time**, or when you start presenting) and embeds the images, so the grid is just cheap `<img>`s.
 
 ## On by default
 
-Both entry points capture thumbnails automatically and **skip gracefully — never failing** — when no Chromium is available or `LIEBSTOECKEL_NO_THUMBS` is set:
+Both entry points capture thumbnails automatically and **skip gracefully (never failing)** when no Chromium is available or `LIEBSTOECKEL_NO_THUMBS` is set:
 
 - `buildDeck()` from `@liebstoeckel/thumbnails/build` (what scaffolded decks' `build.ts` use).
 - `liebstoeckel live` / `bun run live` captures into the deck before serving/uploading (pass `--no-thumbnails` to skip).
@@ -19,7 +19,7 @@ Both route through the same `withThumbnails(html, opts)` primitive, so the gate/
 ## How capture works
 
 1. The built single-file deck is loaded in a **headless Chromium** (via Playwright) in a special *capture mode*: one motionless slide at a time on the fixed 1280×720 canvas, plugins rendered as their offline **fallback**.
-2. Each slide is screenshotted, then transcoded to **WebP** with `Bun.Image` (Bun's built-in codec — no native `sharp` dependency for capture).
+2. Each slide is screenshotted, then transcoded to **WebP** with `Bun.Image` (Bun's built-in codec; no native `sharp` dependency for capture).
 3. The images go into a thumbnails manifest (`index → data-URI`) embedded in the HTML. The engine prefers these `<img>`s in the overview grid; absent, it falls back to a static live render.
 
 <Aside type="note" title="Container-friendly">
@@ -34,7 +34,7 @@ Generate or refresh thumbnails for an already-built deck:
 liebstoeckel thumbs dist/index.html --format webp --width 640 --quality 80 --scale 2
 ```
 
-Or in code — `addThumbnailsToFile` is **loud** (throws if no Chromium), for an explicit capture; `withThumbnails` is the **gated, never-fatal** in-memory variant the build/live paths use:
+Or in code: `addThumbnailsToFile` is **loud** (throws if no Chromium), for an explicit capture; `withThumbnails` is the **gated, never-fatal** in-memory variant the build/live paths use:
 
 ```ts
 import { addThumbnailsToFile, withThumbnails } from "@liebstoeckel/thumbnails";
@@ -51,7 +51,7 @@ const { html, manifest, skipped } = await withThumbnails(deckHtml, { width: 640 
 | `quality` | 80 | encoder quality |
 
 <Aside type="tip" title="Presenter previews are live">
-The **presenter** view does *not* use these thumbnails — its current/next previews render live (only two slides, so it's cheap, crisp, and reflects the real reveal step + live plugin state).
+The **presenter** view does *not* use these thumbnails: its current/next previews render live (only two slides, so it's cheap, crisp, and reflects the real reveal step + live plugin state).
 </Aside>
 
 <LinkCard title="Plugins overview" href="/plugins/overview/" description="What renders in a captured thumbnail." />

@@ -1,6 +1,6 @@
 ---
 title: State model
-description: Every piece of deck state — its owner, transport, and authority — and the one decision (standalone vs. live) that splits the runtime in two.
+description: "Every piece of deck state: its owner, transport, and authority, plus the one decision (standalone vs. live) that splits the runtime in two."
 ---
 
 liebstoeckel keeps several distinct pieces of state, each with its own **owner**, **transport**, and **authority**. This page is the map.
@@ -14,14 +14,14 @@ On load the engine reads `window.__LIEBSTOECKEL_LIVE__` (a `<script>` the **live
 - **absent → standalone.** The deck is a plain `.html`. Nav syncs between the presenter window and the audience window over **`BroadcastChannel`** (same machine only). Plugins render their **fallback** (no shared state).
 - **present → live.** The deck connected to a live server. Nav + plugin state live in a **shared Yjs document** synced over **WebSocket**, so they cross devices. Each client has a `role` (presenter / viewer) from its URL token.
 
-The *same built `.html`* works both ways — see [Live presenting](/guides/live/).
+The *same built `.html`* works both ways. See [Live presenting](/guides/live/).
 
 ## Every piece of state
 
 | State | Owner | Transport | Authority | Persistence |
 |-------|-------|-----------|-----------|-------------|
 | Slide **index / step / total** | `Deck` / `PresenterView` controller | **live:** Yjs `deck` map · **standalone:** `BroadcastChannel` | presenter writes, everyone reads | ephemeral (per session) |
-| **Plugin shared state** (e.g. poll `votes`) | the plugin, via `pluginState()` | Yjs `plugin:<id>` map (CRDT) — or `plugin:<id>:<instance>` for a named instance ((internal ADR)) | **any** participant writes — incl. read-only viewers; presenter-only actions gated in plugin code | ephemeral (lost on server restart) |
+| **Plugin shared state** (e.g. poll `votes`) | the plugin, via `pluginState()` | Yjs `plugin:<id>` map (CRDT), or `plugin:<id>:<instance>` for a named instance ((internal ADR)) | **any** participant writes (incl. read-only viewers); presenter-only actions gated in plugin code | ephemeral (lost on server restart) |
 | **Brand** (`data-brand`) | `Deck` / `PresenterView` | per-window React state | local | n/a |
 | **Elapsed timer** | `PresenterView` | per-window React state | local | resets per window |
 | **Participant id** | client | `sessionStorage` | local | survives reload (1 browser session = 1 participant) |
@@ -31,8 +31,8 @@ The *same built `.html`* works both ways — see [Live presenting](/guides/live/
 
 `Deck` and `PresenterView` both pick a controller and call `next()` / `prev()` / `setIndex()` on it:
 
-- **standalone →** `useDeckSync(count)` — `BroadcastChannel` carries `{ index, step, total, startedAt }`. A newly opened window broadcasts `request`; the others reply, so it snaps to the live state.
-- **live →** `useLiveDeck(doc, count, canDrive)` — a Yjs `deck` map holds `{ index, step, total }`. **Viewers (`canDrive = false`) can't write**, so they follow; the presenter drives. `next()`/`prev()` read the freshest doc state (no stale-closure on rapid presses) and apply step/slide logic.
+- **standalone →** `useDeckSync(count)`: `BroadcastChannel` carries `{ index, step, total, startedAt }`. A newly opened window broadcasts `request`; the others reply, so it snaps to the live state.
+- **live →** `useLiveDeck(doc, count, canDrive)`: a Yjs `deck` map holds `{ index, step, total }`. **Viewers (`canDrive = false`) can't write**, so they follow; the presenter drives. `next()`/`prev()` read the freshest doc state (no stale-closure on rapid presses) and apply step/slide logic.
 
 In both, **steps** reveal before the slide advances; the **presenter view shows the step counter**, the audience just sees the reveals.
 
@@ -42,14 +42,14 @@ Plugin state is a CRDT, so writes merge and there's no central lock. We assume *
 
 ## Resilience
 
-- **Reconnect:** `connectLive` auto-reconnects with capped exponential backoff and re-pushes local state on reopen — a clean network blip recovers without a reload.
-- **Half-open detection:** the server sends a keepalive (~25 s) and Bun pings idle sockets; the client runs a watchdog and force-reconnects if no frame arrives within `staleMs` — a silently-dead (mobile-sleep / NAT-timeout) socket recovers instead of hanging.
-- **Bad frames:** every `Y.applyUpdate` boundary (client message, server `Hub.recv`) is wrapped, and the server caps inbound frame size — one malformed update can't disrupt the session.
+- **Reconnect:** `connectLive` auto-reconnects with capped exponential backoff and re-pushes local state on reopen. A clean network blip recovers without a reload.
+- **Half-open detection:** the server sends a keepalive (~25 s) and Bun pings idle sockets; the client runs a watchdog and force-reconnects if no frame arrives within `staleMs`. A silently-dead (mobile-sleep / NAT-timeout) socket recovers instead of hanging.
+- **Bad frames:** every `Y.applyUpdate` boundary (client message, server `Hub.recv`) is wrapped, and the server caps inbound frame size. One malformed update can't disrupt the session.
 - **Broadcast isolation:** the relay guards each per-peer `send`; a failing peer is dropped rather than starving the broadcast to the others.
 - **Late join:** the server sends the full Yjs state to any newcomer, so opening a link mid-session lands you on the current slide with current plugin state.
 
 ## See also
 
-- [Live presenting](/guides/live/) — sessions, tokens, roles, the windows, and controller selection.
-- [Relay](/guides/relay/) — taking a session to the public internet without shipping deck code to the relay.
-- [Plugins overview](/plugins/overview/) and [State & sync](/plugins/state-and-sync/) — authoring shared state, fallback, and theming.
+- [Live presenting](/guides/live/): sessions, tokens, roles, the windows, and controller selection.
+- [Relay](/guides/relay/): taking a session to the public internet without shipping deck code to the relay.
+- [Plugins overview](/plugins/overview/) and [State & sync](/plugins/state-and-sync/): authoring shared state, fallback, and theming.

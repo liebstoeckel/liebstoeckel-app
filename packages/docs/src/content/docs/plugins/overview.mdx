@@ -5,7 +5,7 @@ description: What a liebstoeckel plugin is, the built-in ones, and how they're d
 
 import { Aside, CardGrid, Card, LinkCard, FileTree } from "@astrojs/starlight/components";
 
-A **plugin** adds live, shared behavior to a deck — a poll, audience Q&A, emoji reactions, or anything you can model as shared state. Plugins are ordinary Bun packages; a deck depends on them like any dependency.
+A **plugin** adds live, shared behavior to a deck: a poll, audience Q&A, emoji reactions, or anything you can model as shared state. Plugins are ordinary Bun packages; a deck depends on them like any dependency.
 
 ## Anatomy
 
@@ -22,15 +22,15 @@ A plugin is a `definePlugin({ … })` value with:
     React surfaces: `Slide` (in-deck), an optional `presenter` console (a tab in the presenter view), and a `fallback` (offline/thumbnail). Runs in every browser.
   </Card>
   <Card title="server" icon="rocket">
-    Optional host-side logic. Runs **once**, on the machine presenting — never in the audience's browsers.
+    Optional host-side logic. Runs **once**, on the machine presenting, never in the audience's browsers.
   </Card>
 </CardGrid>
 
 ## Built-in plugins
 
-- **`@liebstoeckel/plugin-poll`** — live poll; everyone votes, results update in real time.
-- **`@liebstoeckel/plugin-qa`** — audience asks + upvotes questions **from any slide** (a 💬 chrome button, no Q&A slide required); presenter moderates from the presenter console; the queue re-ranks live.
-- **`@liebstoeckel/plugin-reactions`** — ephemeral floating emoji over the deck (rate-limited, self-pruning).
+- **`@liebstoeckel/plugin-poll`**: live poll; everyone votes, results update in real time.
+- **`@liebstoeckel/plugin-qa`**: audience asks + upvotes questions **from any slide** (a 💬 chrome button, no Q&A slide required); presenter moderates from the presenter console; the queue re-ranks live.
+- **`@liebstoeckel/plugin-reactions`**: ephemeral floating emoji over the deck (rate-limited, self-pruning).
 
 All three are pure-CRDT (no server part) and make good templates.
 
@@ -63,7 +63,7 @@ A package is recognized as a plugin by a marker in its `package.json`:
 }
 ```
 
-At build time the deck's dependencies are scanned for this marker; matching plugins go into a **manifest** embedded in the deck. Any `server` entry is bundled (target `bun`) and base64-encoded into that manifest — decoded and run only by a live server, never in the browser.
+At build time the deck's dependencies are scanned for this marker; matching plugins go into a **manifest** embedded in the deck. Any `server` entry is bundled (target `bun`) and base64-encoded into that manifest. It is decoded and run only by a live server, never in the browser.
 
 <Aside type="note" title="Threat model">
 The current model assumes **non-malicious clients** (XSS must still be impossible). Roles/moderation are client-enforced (honor system). Server-side write-role enforcement is a documented future step.

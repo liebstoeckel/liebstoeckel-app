@@ -1,6 +1,6 @@
 ---
 title: Testing plugins
-description: Pure-logic tests, Yjs convergence tests across two synced docs, and render smoke tests — all with bun test.
+description: Pure-logic tests, Yjs convergence tests across two synced docs, and render smoke tests, all with bun test.
 ---
 
 import { Aside, LinkCard } from "@astrojs/starlight/components";
@@ -9,7 +9,7 @@ Plugins are easy to test because their logic is pure and their sync is a CRDT. T
 
 ## 1. Pure logic
 
-Test derivations directly — no doc, no browser:
+Test derivations directly, with no doc and no browser:
 
 ```ts title="src/logic.test.ts"
 import { test, expect } from "bun:test";
@@ -28,7 +28,7 @@ test("ranks by votes desc, then oldest first", () => {
 
 ## 2. Convergence (two synced docs)
 
-Prove that concurrent edits merge — without a browser — by syncing two `Y.Doc`s and asserting the derived view agrees:
+Prove that concurrent edits merge, without a browser, by syncing two `Y.Doc`s and asserting the derived view agrees:
 
 ```ts title="src/logic.test.ts"
 import * as Y from "yjs";
@@ -54,7 +54,7 @@ test("a question on one client, an upvote on another, converge", () => {
 ```
 
 <Aside type="tip">
-This is the highest-value test for a plugin and it runs in milliseconds with no browser — it covers the property that actually matters (shared state agrees across devices).
+This is the highest-value test for a plugin and it runs in milliseconds with no browser. It covers the property that actually matters (shared state agrees across devices).
 </Aside>
 
 ## 3. Render smoke test
@@ -84,7 +84,7 @@ test("Slide renders", () => {
 
 ## Server effects
 
-For a plugin with a server part, drive it against a `Hub` (the live relay class) and assert its effect reaches a connected peer — the same pattern the live-server integration tests use.
+For a plugin with a server part, drive it against a `Hub` (the live relay class) and assert its effect reaches a connected peer, the same pattern the live-server integration tests use.
 
 <Aside type="note" title="End-to-end">
 Plugins also get exercised by the framework's [browser smoke tier](/concepts/testing/): a real deck is built and booted in headless Chromium to confirm fallbacks render and (live) the mobile breakout opens.

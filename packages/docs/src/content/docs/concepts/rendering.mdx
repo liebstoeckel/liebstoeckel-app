@@ -1,6 +1,6 @@
 ---
 title: The rendering pipeline
-description: From a slide module to pixels — Present, the fixed canvas, steps, transitions, and the overview.
+description: "From a slide module to pixels: Present, the fixed canvas, steps, transitions, and the overview."
 ---
 
 import { Aside, LinkCard } from "@astrojs/starlight/components";
@@ -9,26 +9,26 @@ import { Aside, LinkCard } from "@astrojs/starlight/components";
 
 `<Present>` is the single entry. It detects context and renders one of:
 
-- **`Deck`** — the audience/standalone view (the main canvas).
-- **`PresenterView`** — opened at `#presenter`; current/next previews, notes, timer, step indicator.
-- **`CaptureView`** — used at build time by [thumbnails](/guides/thumbnails/) to render one motionless slide.
+- **`Deck`**: the audience/standalone view (the main canvas).
+- **`PresenterView`**: opened at `#presenter`; current/next previews, notes, timer, step indicator.
+- **`CaptureView`**: used at build time by [thumbnails](/guides/thumbnails/) to render one motionless slide.
 
 ## The fixed canvas
 
-Slides are authored at **1280×720**. `ScaledStage` measures its parent and applies a single CSS `transform: scale(...)` so the canvas fits, centered + letterboxed. Because everything is one scaled layer, a slide is pixel-identical everywhere — only the scale differs.
+Slides are authored at **1280×720**. `ScaledStage` measures its parent and applies a single CSS `transform: scale(...)` so the canvas fits, centered + letterboxed. Because everything is one scaled layer, a slide is pixel-identical everywhere. Only the scale differs.
 
 `SlideFrame` wraps each slide with the brand background, the animated `Atmosphere` (gradient blooms; a still variant for captures), and a padded content area.
 
 ## Steps & reveals
 
-`StepsProvider` (mounted per active slide) tracks how many reveal "slots" the slide contains; `<Step>` claims one. The deck's current `step` drives which steps are shown. A component can claim several slots via `useRevealState(count)` — that's how `<CodeMagic>` advances through its states with the same key presses.
+`StepsProvider` (mounted per active slide) tracks how many reveal "slots" the slide contains; `<Step>` claims one. The deck's current `step` drives which steps are shown. A component can claim several slots via `useRevealState(count)`. That's how `<CodeMagic>` advances through its states with the same key presses.
 
 Navigation is pure at its core (`stepForward` / `stepBack`): advance within a slide's steps; once past the last, change slide. The same logic backs keyboard, touch, and the on-screen controls.
 
 ## Transitions
 
-- **Between slides** — `AnimatePresence` swaps the slide via a configurable **transition** (Motion variants resolved with the nav direction). Built-ins: `fade` (default), `blur`, `slide` (directional push), `zoom`, `none` — or pass a custom spec. Set a deck default on `Present` (`transition="slide"`) and override per slide with `export const transition`. Honors `prefers-reduced-motion` (collapses to a tiny opacity fade), and is **off by default on mobile** (coarse pointer) — set `mobileTransitions` to opt back in. Persistent-layer elements travel *above* this swap, so they're unaffected.
-- **Within a slide** — `<Step>` fades/rises each reveal; `<Magic>` / `<CodeMagic>` FLIP shared elements via `layoutId`.
+- **Between slides**: `AnimatePresence` swaps the slide via a configurable **transition** (Motion variants resolved with the nav direction). Built-ins: `fade` (default), `blur`, `slide` (directional push), `zoom`, `none`, or pass a custom spec. Set a deck default on `Present` (`transition="slide"`) and override per slide with `export const transition`. Honors `prefers-reduced-motion` (collapses to a tiny opacity fade), and is **off by default on mobile** (coarse pointer). Set `mobileTransitions` to opt back in. Persistent-layer elements travel *above* this swap, so they're unaffected.
+- **Within a slide**: `<Step>` fades/rises each reveal; `<Magic>` / `<CodeMagic>` FLIP shared elements via `layoutId`.
 
 ## Overview & thumbnails
 

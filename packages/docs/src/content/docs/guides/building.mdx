@@ -24,11 +24,11 @@ await buildDeck({ entry: "./index.html", outdir: "./dist" });
 ```
 
 <Aside type="note" title="buildDeck vs bundleDeck">
-`buildDeck` (from `@liebstoeckel/thumbnails/build`) is the batteries-included default — it bundles **and** captures thumbnails. It wraps the lower-level `bundleDeck` from `@liebstoeckel/engine/build`, which only produces the single-file HTML (no Chromium). Reach for `bundleDeck` only if you want the bundle without the thumbnail step and aren't using `LIEBSTOECKEL_NO_THUMBS`.
+`buildDeck` (from `@liebstoeckel/thumbnails/build`) is the batteries-included default: it bundles **and** captures thumbnails. It wraps the lower-level `bundleDeck` from `@liebstoeckel/engine/build`, which only produces the single-file HTML (no Chromium). Reach for `bundleDeck` only if you want the bundle without the thumbnail step and aren't using `LIEBSTOECKEL_NO_THUMBS`.
 </Aside>
 
 <Aside type="note" title="Why the JS API, not the CLI">
-The single-file output requires the **`Bun.build()` JS API** with `compile: true` + `target: "browser"` — that's what inlines everything. The `bun build` *CLI* does not produce the same standalone file. The engine plugins (Tailwind, MDX, the code macro, Shiki) run in this build.
+The single-file output requires the **`Bun.build()` JS API** with `compile: true` + `target: "browser"`. That's what inlines everything. The `bun build` *CLI* does not produce the same standalone file. The engine plugins (Tailwind, MDX, the code macro, Shiki) run in this build.
 </Aside>
 
 ## What ends up in the file
@@ -36,18 +36,18 @@ The single-file output requires the **`Bun.build()` JS API** with `compile: true
 - Your bundled, minified JS (engine + slides + plugins' client code).
 - The compiled CSS (Tailwind + brand variables + code/atmosphere styles).
 - Pre-tokenized highlighted code (no Shiki at runtime).
-- The **plugin manifest** — a JSON `<script>` listing the deck's plugins, with any server bundles base64-encoded (decoded + run only by a live server, never in the browser).
-- **Slide thumbnails** — a manifest of WebP data-URIs for the overview grid (see below).
+- The **plugin manifest**: a JSON `<script>` listing the deck's plugins, with any server bundles base64-encoded (decoded + run only by a live server, never in the browser).
+- **Slide thumbnails**: a manifest of WebP data-URIs for the overview grid (see below).
 
 ## Deploying
 
 Because it's one static file, deploy anywhere:
 
-- Open `dist/index.html` directly (file URL) — it just works offline.
+- Open `dist/index.html` directly (file URL); it just works offline.
 - Drop it on any static host (S3, GitHub Pages, Netlify, a plain web server).
 - Email it / put it in a shared drive.
 
-To present it **live** to a room or the internet, you don't deploy the file — you run [`liebstoeckel live`](/guides/live/) (optionally [via a relay](/guides/relay/)).
+To present it **live** to a room or the internet, you don't deploy the file. You run [`liebstoeckel live`](/guides/live/) (optionally [via a relay](/guides/relay/)).
 
 ## Opting out of thumbnails
 

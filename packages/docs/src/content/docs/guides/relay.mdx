@@ -1,6 +1,6 @@
 ---
 title: The relay
-description: present-relay — host public sessions where the relay never runs deck code, and untrusted deck HTML is isolated in an opaque sandbox.
+description: "present-relay: host public sessions where the relay never runs deck code, and untrusted deck HTML is isolated in an opaque sandbox."
 ---
 
 import { Aside, Steps, LinkCard } from "@astrojs/starlight/components";
@@ -50,9 +50,9 @@ In an opaque origin, `localStorage`/`IndexedDB` throw and cookies are denied. Pl
 
 Three token layers keep roles separated:
 
-- **account token** — your deck-runner authenticating to the relay.
-- **session tokens** — presenter / viewer roles embedded in public URLs.
-- **runner token** — the privileged server-plugin peer (WebSocket-only; can't load the page).
+- **account token**: your deck-runner authenticating to the relay.
+- **session tokens**: presenter / viewer roles embedded in public URLs.
+- **runner token**: the privileged server-plugin peer (WebSocket-only; can't load the page).
 
 The relay enforces per-account quotas (max concurrent sessions, max deck bytes, session TTL, inbound frame caps) and keeps docs in memory only (ephemeral, for privacy).
 

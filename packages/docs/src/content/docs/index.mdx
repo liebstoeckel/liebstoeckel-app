@@ -1,9 +1,9 @@
 ---
 title: liebstoeckel
-description: A code-first presentation engine that produces stunning, animated, single-file HTML decks on Bun + React 19 + Motion + Tailwind v4.
+description: A code-first presentation engine that builds animated, single-file HTML decks (no server needed) on Bun + React 19 + Motion + Tailwind v4.
 template: splash
 hero:
-  tagline: Code-first presentations that talk back. Animated single-file decks, multi-brand theming, and a live plugin system — built on Bun + React 19 + Motion.
+  tagline: Code-first presentations that talk back. Animated single-file decks, multi-brand theming, and a live plugin system, built on Bun + React 19 + Motion.
   actions:
     - text: Get started
       link: /guides/getting-started/
@@ -18,14 +18,14 @@ import { Card, CardGrid } from "@astrojs/starlight/components";
 
 ## Why liebstoeckel
 
-We are not building "another reveal.js." liebstoeckel is a small, opinionated **engine + theming layer** where content is authored in MDX/TSX, design lives in one place per brand, and motion is first-class.
+liebstoeckel is a small, opinionated **engine + theming layer**, not another reveal.js: content is authored in MDX/TSX, design lives in one place per brand, and motion is first-class.
 
 <CardGrid stagger>
   <Card title="Single-file output" icon="document">
-    Every deck builds to one portable `.html` — JS/CSS inlined, assets base64'd. No server, no CDN, emailable.
+    Every deck builds to one portable `.html`: JS/CSS inlined, assets base64'd. No server, no CDN, emailable.
   </Card>
   <Card title="Motion that matters" icon="rocket">
-    Magic Move (`layoutId`), spring choreography, animated code diffs — the reason to build our own instead of using a generic tool.
+    Magic Move (`layoutId`), spring choreography, animated code diffs: the reason to build our own instead of using a generic tool.
   </Card>
   <Card title="Brands, not styles" icon="setting">
     A deck declares `brand: "acme"` and inherits the whole look from typed design tokens. Override a token for a one-off without forking.
@@ -34,10 +34,10 @@ We are not building "another reveal.js." liebstoeckel is a small, opinionated **
     A live Yjs-backed plugin system: polls, audience Q&A, and reactions sync across every device in the room.
   </Card>
   <Card title="Mobile-ready" icon="laptop">
-    The audience joins from a phone — tap a glowing plugin to interact full-size, swipe to navigate.
+    The audience joins from a phone. Tap a glowing plugin to interact full-size, swipe to navigate.
   </Card>
   <Card title="LLM-native docs" icon="open-book">
-    Every page has **Copy Markdown** + **Open in ChatGPT / Claude**, a raw `.md` at each URL, and an `/llms.txt` index — built for assistants.
+    Every page has **Copy Markdown** + **Open in ChatGPT / Claude**, a raw `.md` at each URL, and an `/llms.txt` index, built for assistants.
   </Card>
 </CardGrid>
 

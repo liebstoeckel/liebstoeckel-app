@@ -5,21 +5,21 @@ description: Themed MDX elements, slide components, and the plugin-ui primitives
 
 ## MDX element map
 
-`mdxComponents` (from `@liebstoeckel/components`, wired by the engine's `MDXProvider`) maps Markdown to themed elements: `h1` (display serif), `h2` (`text-primary`), `p` (`font-body text-muted`), `ul`/`li` (accent bullets), `strong` (`text-accent`), inline `code` (themed pill), and fenced code (Shiki, brand-bound). Just write Markdown — no imports needed for these.
+`mdxComponents` (from `@liebstoeckel/components`, wired by the engine's `MDXProvider`) maps Markdown to themed elements: `h1` (display serif), `h2` (`text-primary`), `p` (`font-body text-muted`), `ul`/`li` (accent bullets), `strong` (`text-accent`), inline `code` (themed pill), and fenced code (Shiki, brand-bound). Just write Markdown. No imports needed for these.
 
 ## Slide components
 
 From `@liebstoeckel/engine` (see [Engine API](/reference/engine-api/)):
 
-- `<Step>` — a reveal.
-- `<CodeMagic steps title? lang?>` — animated code.
-- `<Magic id className?>` — Magic Move: morph *different stateless* elements (same `id`) between slides.
-- `<Slot id className?>` — place the *same stateful* element (defined via `persistent`) on a slide; it travels/snaps/fades across slides.
-- `<Plugin id props? components?>` — place a live plugin.
+- `<Step>`: a reveal.
+- `<CodeMagic steps title? lang?>`: animated code.
+- `<Magic id className?>`: Magic Move, morph *different stateless* elements (same `id`) between slides.
+- `<Slot id className?>`: place the *same stateful* element (defined via `persistent`) on a slide; it travels/snaps/fades across slides.
+- `<Plugin id props? components?>`: place a live plugin.
 
 ## Plugin UI primitives
 
-From `@liebstoeckel/plugin-ui` — used inside plugin client surfaces; they style against `var(--brand-*)` so they're automatically on-brand.
+From `@liebstoeckel/plugin-ui`, used inside plugin client surfaces. They style against `var(--brand-*)` so they're automatically on-brand.
 
 | Component | Props | Use |
 | --- | --- | --- |
@@ -27,8 +27,8 @@ From `@liebstoeckel/plugin-ui` — used inside plugin client surfaces; they styl
 | `Button` | `onClick?`, `active?`, `disabled?`, `style?` | full-width option/action button |
 | `Bar` | `pct`, `color?`, `label`, `value?`, `highlight?` | animatable result bar (0–100) |
 | `Stack` | `gap?`, `style?` | vertical flex stack |
-| `ScrollArea` | `maxHeight?`, `style?`, `className?` | bounded, internally-scrolling region — cap unbounded plugin content so it doesn't overflow the fixed slide canvas |
-| `Eyebrow` | — | uppercase mono label |
+| `ScrollArea` | `maxHeight?`, `style?`, `className?` | bounded, internally-scrolling region. Cap unbounded plugin content so it doesn't overflow the fixed slide canvas |
+| `Eyebrow` | (none) | uppercase mono label |
 
 Also exported: `useTheme()` / `readTheme()` → `ThemeTokens` (resolved brand colors/fonts/`viz` for canvas or SVG use).
 

@@ -8,10 +8,10 @@ import { Aside, CardGrid, Card, LinkCard } from "@astrojs/starlight/components";
 ## Two formats, mixed freely
 
 <CardGrid>
-  <Card title="MDX — prose slides" icon="document">
+  <Card title="MDX: prose slides" icon="document">
     Write Markdown; element tags (`h1`, `p`, `ul`, `code`, …) map to themed components automatically. Best for text-heavy slides. Fenced code is syntax-highlighted at build time.
   </Card>
-  <Card title="TSX — interactive slides" icon="puzzle">
+  <Card title="TSX: interactive slides" icon="puzzle">
     A default-exported React component. Best for anything animated, data-driven, or that places a `<Plugin>`. Full access to Motion, the engine, and your own components.
   </Card>
 </CardGrid>
@@ -20,7 +20,7 @@ Both compile to the same thing; pick per slide and mix them in one deck.
 
 ## The fixed canvas
 
-Every slide is authored on a logical **1280×720** canvas (`STAGE_W × STAGE_H`). The engine's `ScaledStage` scales that canvas to fit any screen, centered and letterboxed, so a slide looks identical on a laptop, a projector, and a phone (just at a different scale). You never write responsive breakpoints for slide content — you design once at 1280×720.
+Every slide is authored on a logical **1280×720** canvas (`STAGE_W × STAGE_H`). The engine's `ScaledStage` scales that canvas to fit any screen, centered and letterboxed, so a slide looks identical on a laptop, a projector, and a phone (just at a different scale). You never write responsive breakpoints for slide content. You design once at 1280×720.
 
 `SlideFrame` gives each slide a brand background, an animated atmosphere, and a padded content area. Break out with absolute positioning for full-bleed visuals.
 
@@ -68,11 +68,11 @@ Move the `<Slot id="live">` to a different position on the next slide and the li
 
 The element is positioned onto the slot on the **current** slide, and how it gets there depends on where you came from:
 
-- **Travel** — both the slide you left *and* the one you entered have a `<Slot>` with the same `id`: the element **springs** from the old position/size to the new one, state intact. This is the headline trick — put the slot in two consecutive slides at different spots to make a live widget glide across.
-- **Appear** — you arrive from a slide that has **no** matching slot (or it's the first time it shows): the element **snaps** into the slot and only fades in. It won't fly in from wherever it last was.
-- **Leave** — the next slide has no matching slot: the element **fades out in step with the slide transition** (it doesn't linger after).
+- **Travel**: both the slide you left *and* the one you entered have a `<Slot>` with the same `id`. The element **springs** from the old position/size to the new one, state intact. This is the headline trick: put the slot in two consecutive slides at different spots to make a live widget glide across.
+- **Appear**: you arrive from a slide that has **no** matching slot (or it's the first time it shows). The element **snaps** into the slot and only fades in. It won't fly in from wherever it last was.
+- **Leave**: the next slide has no matching slot. The element **fades out in step with the slide transition** (it doesn't linger after).
 
-It's positioned in the deck's logical canvas space, so it lines up with the slot at any stage scale (fullscreen, windowed, or mobile). Reloading is never triggered by any of these — the element is rendered once and never unmounts.
+It's positioned in the deck's logical canvas space, so it lines up with the slot at any stage scale (fullscreen, windowed, or mobile). Reloading is never triggered by any of these: the element is rendered once and never unmounts.
 
 ## Slide transitions
 
@@ -86,7 +86,7 @@ How one slide gives way to the next is configurable. Set a deck-wide default on 
 export const transition = "zoom";               // this slide only
 ```
 
-Built-in presets: **`fade`** (default), `blur`, `slide` (directional push — mirrors on back-nav), `zoom`, `none`. Need something bespoke? Pass a custom spec instead of a name:
+Built-in presets: **`fade`** (default), `blur`, `slide` (directional push, mirrors on back-nav), `zoom`, `none`. Need something bespoke? Pass a custom spec instead of a name:
 
 ```tsx
 export const transition = {
@@ -95,9 +95,9 @@ export const transition = {
 };
 ```
 
-Transitions respect `prefers-reduced-motion` (they collapse to a tiny fade), and don't affect persistent-layer elements — those travel above the swap untouched.
+Transitions respect `prefers-reduced-motion` (they collapse to a tiny fade), and don't affect persistent-layer elements: those travel above the swap untouched.
 
-On **mobile** (touch / coarse pointer) transitions are **off by default** — the stage is heavily down-scaled there, so cuts feel snappier and avoid jank. Opt back in with the `mobileTransitions` escape hatch:
+On **mobile** (touch / coarse pointer) transitions are **off by default**. The stage is heavily down-scaled there, so cuts feel snappier and avoid jank. Opt back in with the `mobileTransitions` escape hatch:
 
 ```tsx title="main.tsx"
 <Present slides={[...]} transition="slide" mobileTransitions />

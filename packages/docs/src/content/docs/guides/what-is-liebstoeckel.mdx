@@ -1,6 +1,6 @@
 ---
 title: What is liebstoeckel?
-description: A code-first presentation engine for stunning, animated, single-file HTML decks — and the philosophy behind it.
+description: A code-first presentation engine for animated, single-file HTML decks, and the philosophy behind it.
 ---
 
 import { Aside, CardGrid, Card, LinkCard } from "@astrojs/starlight/components";
@@ -17,13 +17,13 @@ It is built on **Bun + React 19 + Motion + Tailwind v4**, authored in **MDX + TS
 
 <CardGrid>
   <Card title="Design lives in one place" icon="setting">
-    A brand is one typed token object — colors, fonts, spacing, motion, backgrounds. Slides reference *semantic* tokens (`primary`, not `blue-500`), so a deck re-skins by switching `data-brand`.
+    A brand is one typed token object: colors, fonts, spacing, motion, backgrounds. Slides reference *semantic* tokens (`primary`, not `blue-500`), so a deck re-skins by switching `data-brand`.
   </Card>
   <Card title="Motion is first-class" icon="rocket">
     Motion's `layoutId` shared-element transitions ("Magic Move"), spring choreography, and **animated code diffs** are the core reason to build our own instead of using a generic tool.
   </Card>
   <Card title="One portable file" icon="document">
-    `Bun.build({ compile: true })` inlines JS/CSS and base64s assets into a single `.html` — no server, no CDN, emailable, hostable anywhere.
+    `Bun.build({ compile: true })` inlines JS/CSS and base64s assets into a single `.html`. No server, no CDN; emailable, hostable anywhere.
   </Card>
   <Card title="Live, not just static" icon="comment">
     An optional live server turns a deck into a shared session: a CRDT (Yjs) syncs state across every device, and a plugin system adds polls, Q&A, and reactions.
@@ -32,20 +32,20 @@ It is built on **Bun + React 19 + Motion + Tailwind v4**, authored in **MDX + TS
 
 ## Who it's for
 
-liebstoeckel is **technical-first**: it assumes you're comfortable in a code editor. There is no WYSIWYG drag-and-drop editor — that's an explicit non-goal. In exchange you get version control, real components, typed themes, and a plugin SDK.
+liebstoeckel is **technical-first**: it assumes you're comfortable in a code editor. There is no WYSIWYG drag-and-drop editor. That's an explicit non-goal. In exchange you get version control, real components, typed themes, and a plugin SDK.
 
 <Aside type="note" title="Scope">
-v1 non-goals: a WYSIWYG editor, a cloud/account system, and PPTX export (PDF is a possible later addition). The framework assumes a trusted author — building and running a deck executes its code (including any server plugins) on your machine.
+v1 non-goals: a WYSIWYG editor, a cloud/account system, and PPTX export (PDF is a possible later addition). The framework assumes a trusted author. Building and running a deck executes its code (including any server plugins) on your machine.
 </Aside>
 
 ## How the pieces fit
 
-- **engine** — the brand-agnostic deck runtime (slides, steps, Magic Move, presenter view, navigation, the live/plugin layer).
-- **theme** — the token model and the brand → CSS-variable pipeline.
-- **components** — themed MDX primitives + `Magic` + the atmospheric background.
-- **plugin-sdk / plugin-ui** — build live, collaborative plugins.
-- **live-server / present-relay** — present to a room (LAN) or the public internet.
-- **thumbnails** — build-time slide thumbnails for the overview grid.
-- **cli** — one `liebstoeckel` command: `new`, `build`, `live`, `relay`, `thumbs`.
+- **engine**: the brand-agnostic deck runtime (slides, steps, Magic Move, presenter view, navigation, the live/plugin layer).
+- **theme**: the token model and the brand → CSS-variable pipeline.
+- **components**: themed MDX primitives + `Magic` + the atmospheric background.
+- **plugin-sdk / plugin-ui**: build live, collaborative plugins.
+- **live-server / present-relay**: present to a room (LAN) or the public internet.
+- **thumbnails**: build-time slide thumbnails for the overview grid.
+- **cli**: one `liebstoeckel` command (`new`, `build`, `live`, `relay`, `thumbs`).
 
 <LinkCard title="Get started" href="/guides/getting-started/" description="Install liebstoeckel and scaffold your first deck." />

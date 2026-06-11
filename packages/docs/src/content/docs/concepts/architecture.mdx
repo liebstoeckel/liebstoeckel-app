@@ -39,7 +39,7 @@ liebstoeckel is a small Bun monorepo: reusable **engine / theme / components** p
 State lives in one Yjs document per session. The presenter writes the slide index and any plugin state; the `Hub` broadcasts updates; viewers apply them and re-render. A plugin's **server** part (if any) runs only on the presenting machine and writes its effects into the same doc. With a relay, the deck HTML is served from an **opaque origin** and the local machine joins as a privileged runner peer.
 
 <Aside type="note" title="Two transports, one model">
-Standalone decks sync across your own windows via `BroadcastChannel`; live decks sync across devices via Yjs-over-WebSocket. The slide/step/plugin model is identical — only the transport differs.
+Standalone decks sync across your own windows via `BroadcastChannel`; live decks sync across devices via Yjs-over-WebSocket. The slide/step/plugin model is identical. Only the transport differs.
 </Aside>
 
 <LinkCard title="The rendering pipeline" href="/concepts/rendering/" description="From a slide module to pixels on the fixed canvas." />

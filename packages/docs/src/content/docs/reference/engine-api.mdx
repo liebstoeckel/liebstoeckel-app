@@ -11,7 +11,7 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 
 | Export | Kind | Purpose |
 | --- | --- | --- |
-| `Present` | component | the entry — routes to Deck / PresenterView / CaptureView |
+| `Present` | component | the entry; routes to Deck / PresenterView / CaptureView |
 | `Deck` · `DeckProps` | component | the audience/standalone view |
 | `PresenterView` | component | the `#presenter` window |
 | `CaptureView` | component | build-time thumbnail render |
@@ -30,7 +30,7 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 | `Atmosphere` | component | animated gradient background (`still?`) |
 | `Present`/`Deck` `transition` prop | prop | deck-wide slide transition; a slide can `export const transition` to override |
 | `Present`/`Deck` `mobileTransitions` prop | prop | re-enable slide transitions on mobile (coarse pointer); off by default |
-| `Present`/`Deck` `brandThemes` prop | prop | `Theme[]` — deck-defined brands, injected as `[data-brand]` CSS; reference by `name` in `brands` (see [theming](/guides/theming/)) |
+| `Present`/`Deck` `brandThemes` prop | prop | `Theme[]` of deck-defined brands, injected as `[data-brand]` CSS; reference by `name` in `brands` (see [theming](/guides/theming/)) |
 | `resolveTransition` · `TRANSITIONS` · `DEFAULT_TRANSITION` | fn/const | resolve a name/custom spec → Motion variants; the built-in presets; the default (`"fade"`) |
 | `SlideTransition` · `SlideTransitionName` · `SlideTransitionSpec` · `SlideDirection` | types | transition config (preset name `fade`/`blur`/`slide`/`zoom`/`none`, or a custom `{ variants, transition }`) |
 | `Slot` · `PersistentProvider` · `PersistentLayer` · `PersistentItem` | components/type | persistent stateful elements |
@@ -61,18 +61,18 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 
 ## Thumbnails (runtime)
 
-`readThumbnails()` → `ThumbnailSet | null` — the embedded thumbnail manifest, used by the overview grid.
+`readThumbnails()` → `ThumbnailSet | null`: the embedded thumbnail manifest, used by the overview grid.
 
 ## Build subpaths
 
 | Import | Exports |
 | --- | --- |
 | `@liebstoeckel/engine/build` | `bundleDeck` (browser-free build primitive), `buildPluginManifest`, `buildServerBundle` |
-| `@liebstoeckel/engine/code` (macro) | `codeStory`, `code` — import `with { type: "macro" }` |
+| `@liebstoeckel/engine/code` (macro) | `codeStory`, `code` (import `with { type: "macro" }`) |
 | `@liebstoeckel/engine/build/thumbnails` | `embedThumbnails`, `extractThumbnails`, `stripThumbnails` (the manifest format) |
 | `@liebstoeckel/thumbnails` | `withThumbnails` (gated, never-fatal capture+embed), `captureThumbnails`, `addThumbnailsToFile`, `thumbnailsEnabled` |
-| `@liebstoeckel/thumbnails/build` | `buildDeck` — **the default build**: `bundleDeck` + slide thumbnails |
+| `@liebstoeckel/thumbnails/build` | `buildDeck`, **the default build**: `bundleDeck` + slide thumbnails |
 
 <Aside type="tip">
-Every page is available as raw Markdown — use the **Copy Markdown** / **Open in ChatGPT / Claude** buttons at the top of any page, or append `.md` to its URL (e.g. `/reference/engine-api.md`). A [`/llms.txt`](/llms.txt) index lists every page for an assistant to crawl. _(These are generated at build time — they resolve on the built/deployed site, not the `astro dev` server.)_
+Every page is available as raw Markdown. Use the **Copy Markdown** / **Open in ChatGPT / Claude** buttons at the top of any page, or append `.md` to its URL (e.g. `/reference/engine-api.md`). A [`/llms.txt`](/llms.txt) index lists every page for an assistant to crawl. _(These are generated at build time and resolve on the built/deployed site, not the `astro dev` server.)_
 </Aside>

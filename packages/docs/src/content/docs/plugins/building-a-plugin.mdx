@@ -1,6 +1,6 @@
 ---
 title: Building a plugin
-description: A complete, working plugin from scratch — package layout, schema, logic, client surfaces, and the interactive flag.
+description: "A complete, working plugin from scratch: package layout, schema, logic, client surfaces, and the interactive flag."
 ---
 
 import { Steps, Aside, FileTree, LinkCard } from "@astrojs/starlight/components";
@@ -112,9 +112,9 @@ import applause from "@liebstoeckel/plugin-applause";
 ### Multiple independent instances
 
 `id` selects the plugin **type**; state lives at `plugin:<id>`. Place the same `id`
-twice and both share that one slice — handy to *mirror* a poll across slides, but it
+twice and both share that one slice. That is handy to *mirror* a poll across slides, but it
 means a second `<Plugin id="poll">` with a different question is ignored. For
-**independent** instances, give each an `instance` (a stable, author-chosen id — never
+**independent** instances, give each an `instance` (a stable, author-chosen id, never
 random, since it's part of the shared address). State then lives at
 `plugin:<id>:<instance>` ((internal ADR)):
 
@@ -124,14 +124,14 @@ random, since it's part of the shared address). State then lives at
 ```
 
 Each gets its own state **and** its own presenter-console tab. Give a `presenter.title`
-(below) — or a `<Plugin title="…">` — so the tabs read "Poll · Lunch?" rather than the
+(below) or a `<Plugin title="…">` so the tabs read "Poll · Lunch?" rather than the
 bare instance id. Omitting `instance` keeps the original single-slice behaviour.
 
-## Layout: the slide canvas is fixed — bound your own height
+## Layout: the slide canvas is fixed, bound your own height
 
-A slide is rendered on a fixed **1280×720 canvas** that's scaled to fit and **clipped** (`overflow: hidden`), so the audience view, presenter view, and thumbnails stay pixel-identical ((internal ADR)). The canvas **never scrolls**. That's fine for authored slides — you control how much is on them — but a plugin whose content grows with the audience (a Q&A queue, a chat, a long results list) *will* eventually overflow and get cut off, with no way to scroll to the rest.
+A slide is rendered on a fixed **1280×720 canvas** that's scaled to fit and **clipped** (`overflow: hidden`), so the audience view, presenter view, and thumbnails stay pixel-identical ((internal ADR)). The canvas **never scrolls**. That's fine for authored slides (you control how much is on them), but a plugin whose content grows with the audience (a Q&A queue, a chat, a long results list) *will* eventually overflow and get cut off, with no way to scroll to the rest.
 
-So: **pin your header/input and scroll the growing part yourself.** `@liebstoeckel/plugin-ui` ships a `ScrollArea` for exactly this — a bounded region that scrolls internally and won't chain its scroll to the deck:
+So: **pin your header/input and scroll the growing part yourself.** `@liebstoeckel/plugin-ui` ships a `ScrollArea` for exactly this: a bounded region that scrolls internally and won't chain its scroll to the deck:
 
 ```tsx title="src/client.tsx" {1,8,12}
 import { Card, Eyebrow, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
@@ -151,28 +151,28 @@ function QueueSlide(p: ClientProps<State>) {
 }
 ```
 
-<Aside type="caution" title="Mobile scrolls for free — desktop does not">
-On touch, an interactive plugin opens in a breakout sheet that already scrolls ((internal ADR)). It's the **inline / desktop** path that has no scroll boundary, so test your plugin with a *lot* of content on a desktop window. A `ScrollArea` fixes both at once — and because it has its own boundary, it stays a single clean scroll inside the breakout too.
+<Aside type="caution" title="Mobile scrolls for free, desktop does not">
+On touch, an interactive plugin opens in a breakout sheet that already scrolls ((internal ADR)). It's the **inline / desktop** path that has no scroll boundary, so test your plugin with a *lot* of content on a desktop window. A `ScrollArea` fixes both at once, and because it has its own boundary, it stays a single clean scroll inside the breakout too.
 </Aside>
 
 ## The client contract
 
 | Surface | When it renders |
 | --- | --- |
-| `Slide` | a live server is connected — the interactive in-deck UI |
-| `presenter?` | optional **presenter console** — a tab in the presenter view (see below) |
-| `fallback?` | standalone `.html` **and** in build-time thumbnails — show real content from `snapshot`/`props` |
+| `Slide` | a live server is connected: the interactive in-deck UI |
+| `presenter?` | optional **presenter console**, a tab in the presenter view (see below) |
+| `fallback?` | standalone `.html` **and** in build-time thumbnails; show real content from `snapshot`/`props` |
 | `surfaces?` | named override points an author can replace per placement |
 | `interactive?` | `false` to suppress the mobile breakout for display-only plugins (default `true`) |
-| `global?` | deck-wide surfaces — an `Overlay`, and a chrome control declared as `icon` + `label` that toggles a `Panel` (see the [overview](/plugins/overview/)). `pinned: true` keeps the control in the mobile rail; otherwise it folds into the `⋮` menu on touch so the rail can't overflow. `panelMode: "sheet"` opens the panel full-viewport on touch (for a text input the keyboard would otherwise bury) |
+| `global?` | deck-wide surfaces: an `Overlay`, and a chrome control declared as `icon` + `label` that toggles a `Panel` (see the [overview](/plugins/overview/)). `pinned: true` keeps the control in the mobile rail; otherwise it folds into the `⋮` menu on touch so the rail can't overflow. `panelMode: "sheet"` opens the panel full-viewport on touch (for a text input the keyboard would otherwise bury) |
 
 <Aside type="tip" title="Fallbacks matter">
-The `fallback` is what shows offline and in the overview thumbnail — make it reflect the real configuration (use `props` and any seeded `snapshot`), not a generic placeholder.
+The `fallback` is what shows offline and in the overview thumbnail. Make it reflect the real configuration (use `props` and any seeded `snapshot`), not a generic placeholder.
 </Aside>
 
 ## The presenter console
 
-A plugin can claim a **tab in the presenter view** — a presenter-private surface for
+A plugin can claim a **tab in the presenter view**: a presenter-private surface for
 a live readout (vote tallies, queue depth) *and* privileged moderation the audience
 shouldn't see being done (close a poll, mark a question answered, dismiss spam).
 Notes are the default tab; your console sits beside them on both desktop and mobile
@@ -195,7 +195,7 @@ client: {
 ```
 
 **Driving the audience needs no special API.** State is deck-global and writes are
-role-gated, so an audience-affecting action is just a write to your *own* state — the
+role-gated, so an audience-affecting action is just a write to your *own* state. The
 `Slide` reads it and re-renders on the audience screen:
 
 ```tsx

@@ -1,17 +1,28 @@
 ---
 title: Cloud & teams
 description: Host decks on the liebstoeckel control plane, work as a team with organizations, roles, and a shared deck library.
+sidebar:
+  badge:
+    text: Coming soon
+    variant: caution
 ---
 
 import { Aside, LinkCard } from "@astrojs/starlight/components";
 
 A built deck is one self-contained `.html` you can host anywhere. **liebstoeckel cloud**
-(the hosted control plane) adds a private, always-on home for your decks behind a login —
-and, for teams, a shared library with members, roles, and invitations.
+(the hosted control plane) adds a private, always-on home for your decks behind a login.
+For teams, it adds a shared library with members, roles, and invitations.
+
+<Aside type="caution" title="Coming soon">
+liebstoeckel cloud is not generally available yet. The CLI already ships the cloud
+commands (`login`, `push`, `orgs`, `decks`, `brand`), but there is no public hosted
+service to sign in to. Everything on this page describes the hosted layer as it will
+launch; the rest of the framework works fully offline today.
+</Aside>
 
 <Aside type="note">
-The framework is MPL-2.0 and fully self-hostable. The cloud is the operated layer; the
-CLI talks to it over a versioned REST API, so you can point it at your own deployment.
+The framework is MPL-2.0. The cloud is the operated layer; the CLI talks to it over a
+versioned REST API, so it can also point at a private deployment of the control plane.
 </Aside>
 
 ## Sign in from the terminal
@@ -34,14 +45,14 @@ liebstoeckel push           # uploads the built deck in ./dist
 
 The deck's **title** comes from its embedded `<title>` (or an explicit `--title`
 override), and its **cover thumbnail** is read from the slide thumbnails already baked
-into the file — nothing extra to send. The server reads both straight out of the uploaded
-file, so titles with em-dashes, smart quotes, or emoji just work. It appears in your
-dashboard immediately.
+into the file, so there is nothing extra to send. The server reads both straight out of
+the uploaded file, which means titles with em-dashes, smart quotes, or emoji just work.
+The deck appears in your dashboard immediately.
 
 ## Organizations: personal and teams
 
 Every account has a **personal workspace** (just you) and can create or join **team
-organizations**. A deck always belongs to exactly one organization — the *active* one.
+organizations**. A deck always belongs to exactly one organization, the *active* one.
 
 - In the **dashboard**, switch the active workspace with the switcher in the top-left.
 - From the **CLI**, list your workspaces and choose where `push` lands:
@@ -54,7 +65,7 @@ liebstoeckel push --org acme # …or target a team for one push
 
 ## Teams: shared library, members & roles
 
-Every deck pushed to a team is visible to **all its members** — a shared library, with
+Every deck pushed to a team is visible to **all its members** as a shared library, with
 "uploaded by" attribution. Who can do what is governed by three roles:
 
 | Role | Can |
@@ -76,27 +87,28 @@ Any deck can be published to a time-limited public link served on a separate dom
 provenance chrome and an abuse-report path. Open a deck's **share** action in the dashboard
 to set:
 
-- **Expiry** — how long the link lives (7 days on the free plan; longer, or *no expiry*, on
+- **Expiry**: how long the link lives (7 days on the free plan; longer, or *no expiry*, on
   paid).
-- **White-label** *(paid)* — drop the "Published with liebstoeckel" banner. The abuse-report
+- **White-label** *(paid)*: drop the "Published with liebstoeckel" banner. The abuse-report
   path always remains.
 
 ## Present live from the dashboard
 
-Turn any hosted deck into a **live, interactive session** straight from the browser — no
-CLI, no local runtime. Open a deck's **● present live** action and **Start live session**:
+Turn any hosted deck into a **live, interactive session** straight from the browser, with
+no CLI and no local runtime. Open a deck's **● present live** action and **Start live
+session**:
 
-- A **presenter view** opens (you drive the slides); a **shareable audience link** appears
-  that you can copy or hand out — your audience opens it on any device and follows along,
-  voting in polls, asking questions, and reacting in real time.
+- A **presenter view** opens (you drive the slides), and a **shareable audience link**
+  appears that you can copy or hand out. Your audience opens it on any device and follows
+  along, voting in polls, asking questions, and reacting in real time.
 - Press **End session** when you're done. The audience link stops working immediately.
 
 The deck runs in an isolated sandbox for the audience, and the relay that carries the
-session **never executes deck code** — the same isolation as a [public relay](/guides/relay/).
+session **never executes deck code**, the same isolation as a [public relay](/guides/relay/).
 Audience members can only interact through plugins (votes, questions, reactions); they can't
 drive navigation or tamper with results.
 
-**Free** gives you a real, usable live session — capped audience and duration, and
+**Free** gives you a real, usable live session with a capped audience and duration, and
 **results aren't kept** once the session ends. **Pro / Team** raise the limits, drop the
 audience watermark, and **persist results**: open a past session under **present live** to
 see decoded poll tallies, the Q&A backlog, and reaction totals.
@@ -109,31 +121,31 @@ run in the presenter's own browser tab.
 
 ## Shared brand
 
-Your org is an **authenticated registry** — the same protocol as `liebstoeckel add`,
+Your org is an **authenticated registry**, speaking the same protocol as `liebstoeckel add`
 but private to your team. A **brand** (a theme token set: colours, fonts, glow, and an
 ordered **chart palette**) is its first item type; custom company components can ride the
 same rails later.
 
-- **Define it** once — push a `defineTheme(...)` file (`liebstoeckel brand push ./brand.ts
+- **Define it** once: push a `defineTheme(...)` file (`liebstoeckel brand push ./brand.ts
   --default`) or edit it visually in the dashboard's **Brand** page.
-- **Use it** — `liebstoeckel brand pull <name>` writes `brands/<name>.ts` into a deck;
+- **Use it**: `liebstoeckel brand pull <name>` writes `brands/<name>.ts` into a deck, and
   `liebstoeckel new` auto-applies the org **default** brand. The brand is **owned source,
-  baked into the deck at build** — self-contained and WYSIWYG, never a serve-time surprise.
-- **Update it** — change the brand centrally, then authors (or CI) **re-pull + rebuild**.
+  baked into the deck at build**: self-contained and WYSIWYG, never a serve-time surprise.
+- **Update it**: change the brand centrally, then authors (or CI) **re-pull + rebuild**.
   Deliberate, not silent.
 
 Shared brand is a Pro/Team feature.
 
 ### Generate a starting point
 
-Not sure where to start? The Brand page's **Generate** button rolls a complete brand —
-colours, fonts, glow, and chart palette — in one click. It is *constrained*, not random:
+Not sure where to start? The Brand page's **Generate** button rolls a complete brand
+(colours, fonts, glow, and chart palette) in one click. It is *constrained*, not random:
 a single seed picks a base hue, a colour-harmony scheme (analogous / complementary /
 triadic / …), and a font-pairing recipe (minimal / editorial / modern / …), then every
 token is derived by rule in the perceptual **OKLCH** space, with each colour floored to a
 legible contrast on the dark background. Fonts are drawn from the catalog, so a generated
 brand always ships its webfonts on `pull`. Re-roll until you like it, then tweak any field
-by hand — the generated values are an editable starting point, never locked in.
+by hand. The generated values are an editable starting point, never locked in.
 
 ### Fonts
 
@@ -144,43 +156,43 @@ preview shows the real typeface as you choose.
 
 When you `liebstoeckel brand pull <name>`, a catalog font comes with its webfont: the
 generated `brands/<name>.ts` `import`s the matching `@fontsource-variable/*` package, and
-`pull` runs `bun add` to install it (so the font is **inlined into your single-file deck at
-build** — no CDN, fully self-contained). `liebstoeckel new` does the same for the org
-default brand. Pass `--no-install` to write the files and install the font packages
-yourself. A **Custom…** font carries no package — supply its `@font-face` yourself, or it
-falls back to the system font.
+`pull` runs `bun add` to install it, so the font is **inlined into your single-file deck at
+build** with no CDN involved. `liebstoeckel new` does the same for the org default brand.
+Pass `--no-install` to write the files and install the font packages yourself. A
+**Custom…** font carries no package; supply its `@font-face` yourself, or it falls back to
+the system font.
 
 If you author a brand as a file instead (`brand push ./brand.ts`), any font family that
 isn't in the catalog is accepted but **flagged with a warning** (with a *did you mean* when
-it's close, e.g. `"Inter"` → `"Inter Variable"`) — so the file path is as honest as the
+it's close, e.g. `"Inter"` → `"Inter Variable"`), so the file path is as honest as the
 picker about which fonts actually ship a webfont.
 
 ### Chart palette
 
-A brand also carries an ordered **chart-series palette** (`viz`) — the colours charts cycle
+A brand also carries an ordered **chart-series palette** (`viz`): the colours charts cycle
 through, exposed as `--brand-viz-0..n`. Edit it on the Brand page (add / reorder / remove
-swatches) or set `viz: [...]` in a pushed `defineTheme(...)`; it's baked into pulled decks
+swatches) or set `viz: [...]` in a pushed `defineTheme(...)`. It's baked into pulled decks
 so charts match the brand, not just the page chrome.
 
 ## Versions
 
 A deck has a **stable identity** across re-pushes. `push` keys a deck by its folder name
-(or `--name`), so editing and pushing again **updates the same deck at the same URL** —
+(or `--name`), so editing and pushing again **updates the same deck at the same URL**;
 the share link and view counts carry over. `--new` starts a separate deck.
 
 - **Free** keeps the **latest** version (a re-push replaces it; the URL and stats are
   preserved).
-- **Pro / Team** keep **full version history** with one-click **rollback** — open a deck's
+- **Pro / Team** keep **full version history** with one-click **rollback**: open a deck's
   **Versions** panel to see every version, preview one (`/d/:id?v=N`), or make an older
   version current.
 
 ## View analytics
 
-Every deck shows **view counts** (total and unique) — for both private opens and public
+Every deck shows **view counts** (total and unique), for both private opens and public
 share links. Counts are privacy-preserving (no raw IP/UA is stored). Expand a deck to see a
 **14-day history** strip on paid plans; the free plan shows counts only.
 
-Public share links also carry a **view cap** on the free plan — a built-in guardrail against
+Public share links also carry a **view cap** on the free plan, a built-in guardrail against
 abuse that doubles as the upgrade nudge; paid plans are uncapped.
 
 ## Plans

@@ -1,6 +1,6 @@
 ---
 title: Animated code
-description: Build-time Shiki highlighting and CodeMagic — morphing one code state into the next.
+description: Build-time Shiki highlighting and CodeMagic, which morphs one code state into the next.
 ---
 
 import { Aside, Steps, LinkCard } from "@astrojs/starlight/components";
@@ -19,13 +19,13 @@ export function add(a: number, b: number) {
 ```
 ````
 
-Colors are **bound to the active brand**. Shiki runs with its css-variables theme, emitting `color: var(--shiki-token-keyword)` etc.; the theme maps those onto brand tokens (keyword → `primary`, string/function → `accent`, comment → `muted`, …). So code re-skins with `data-brand`, and **no highlighter or WASM ships to the browser** — only pre-tokenized spans.
+Colors are **bound to the active brand**. Shiki runs with its css-variables theme, emitting `color: var(--shiki-token-keyword)` etc.; the theme maps those onto brand tokens (keyword → `primary`, string/function → `accent`, comment → `muted`, …). So code re-skins with `data-brand`, and **no highlighter or WASM ships to the browser**, only pre-tokenized spans.
 
-## CodeMagic — animated diffs
+## CodeMagic: animated diffs
 
 `<CodeMagic>` takes a list of code **states** and morphs between them as you advance: unchanged lines glide to their new position, edits fade in/out. It reuses the same `layoutId` machinery as [Magic Move](/guides/your-first-deck/#magic-move).
 
-Each state is tokenized at **build time** by a [Bun macro](https://bun.com/docs/bundler/macros), so — like static blocks — no Shiki ships to the runtime:
+Each state is tokenized at **build time** by a [Bun macro](https://bun.com/docs/bundler/macros), so, like static blocks, no Shiki ships to the runtime:
 
 ```tsx title="slides/03-code.tsx"
 import { CodeMagic, type TokenizedStep } from "@liebstoeckel/engine";
@@ -44,7 +44,7 @@ export default function CodeSlide() {
 
 <Steps>
 
-1. **Author states** as `{ code, lang }` objects. Use a template literal (no `${}` interpolation — the macro needs static strings).
+1. **Author states** as `{ code, lang }` objects. Use a template literal (no `${}` interpolation: the macro needs static strings).
 
 2. **The macro tokenizes** each state with Shiki during `bun build` and inlines the result. The `as unknown as TokenizedStep[]` cast reconciles the macro's async type with the value it inlines synchronously.
 
