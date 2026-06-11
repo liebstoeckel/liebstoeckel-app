@@ -16,7 +16,7 @@ usage:
   liebstoeckel relay [opts]                    run a public relay (--port, --tokens, --public-url)
   liebstoeckel thumbs <deck.html> [opts]       (re)generate thumbnails for a built deck
   liebstoeckel export [deck.html|dir|--dir <deck>] [opts]   export slides (default: cwd) to PNG or PDF (--format, --slides 1,3,5-7, -o)
-  liebstoeckel skill install [--target all] [--dir <deck>]   install the agent skill (SKILL.md + AGENTS.md) for deck authoring
+  liebstoeckel skill install|update [--target all] [--dir <deck>]   install/refresh the agent skill (SKILL.md + AGENTS.md) for deck authoring
 
 cloud (coming soon — the hosted service is not generally available yet):
   liebstoeckel login --api <https://app-host>   sign in to liebstoeckel cloud (device flow)
@@ -157,6 +157,15 @@ async function runPack(argv: string[]) {
 
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
+  // Best-effort reminders (stderr-only; off for --json/pipes/CI, see update.ts):
+  // a cached "new CLI version" note and a "deck skill older than the CLI" note.
+  try {
+    const { updateReminder, skillReminder } = await import("./update");
+    await updateReminder(rest);
+    await skillReminder(flag(rest, "--dir") ?? ".", rest);
+  } catch {
+    // reminders must never break a command
+  }
   switch (cmd) {
     case "new":
       return runNew(rest);

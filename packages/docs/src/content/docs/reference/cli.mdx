@@ -254,17 +254,40 @@ ships inside the CLI package, version-pinned so it always matches your installed
 ```bash
 liebstoeckel skill install                        # all agents + AGENTS.md, into the current dir
 liebstoeckel skill install --target codex --dir ./my-deck
+liebstoeckel skill update                         # refresh the installed skill to the CLI's version
 ```
 
 | Flag | Meaning |
 | --- | --- |
-| `--target <list>` | `claude`, `codex`, `cursor`, `gemini`, or `all` (default); comma-separated |
+| `--target <list>` | (install) `claude`, `codex`, `cursor`, `gemini`, or `all` (default); comma-separated |
 | `--dir <deck>` | where to install (default: current directory) |
 
 It writes the same skill to each agent's path (`.claude/skills/`, `.agents/skills/` for
 Codex/Gemini, `.cursor/skills/` + a rule) and merges a managed block into `AGENTS.md`,
 the universal fallback for agents without skill support. Re-running is idempotent. See
 the [Scaffolding guide](/guides/scaffolding/) for how an agent uses it.
+
+The installed skill is **version-pinned to the CLI** that wrote it. `skill update`
+rewrites the skill for the agent paths already present in the deck (plus the
+`AGENTS.md` block) without adding new ones; when a deck's skill is older than the CLI
+you run, commands print a one-line reminder to do exactly that.
+
+## Staying up to date
+
+The CLI checks its registry for a newer `@liebstoeckel/cli` at most **once a day**, in
+a detached background process, and prints a one-line note on a later run when an update
+exists. The check shells out to `bun pm view`, so it follows the same registry
+configuration as your installs (a scoped registry in `.npmrc`/`bunfig.toml`, or the
+public npm registry); no command ever waits on the network for it.
+
+```bash
+bun update --latest @liebstoeckel/cli   # update the CLI itself
+liebstoeckel skill update               # then refresh a deck's agent skill
+```
+
+Reminders appear only on an interactive terminal. They are suppressed with `--json`,
+when output is piped (agents), when `CI` is set, and entirely with
+`LIEBSTOECKEL_NO_UPDATE_CHECK=1`.
 
 ## Cloud commands (coming soon)
 

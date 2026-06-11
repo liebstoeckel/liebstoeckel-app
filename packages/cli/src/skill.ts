@@ -21,14 +21,14 @@ type Target = "claude" | "codex" | "cursor" | "gemini";
 const ALL_TARGETS: Target[] = ["claude", "codex", "cursor", "gemini"];
 
 // Where each agent looks for a skill folder, relative to the deck root.
-const SKILL_DIR: Record<Target, string> = {
+export const SKILL_DIR: Record<Target, string> = {
   claude: join(".claude", "skills", SKILL_NAME),
   codex: join(".agents", "skills", SKILL_NAME), // also read by Gemini's shared path
   cursor: join(".cursor", "skills", SKILL_NAME),
   gemini: join(".gemini", "skills", SKILL_NAME),
 };
 
-async function cliVersion(): Promise<string> {
+export async function cliVersion(): Promise<string> {
   try {
     return ((await Bun.file(PKG_JSON).json()) as { version?: string }).version ?? "0.0.0";
   } catch {
@@ -90,20 +90,31 @@ Discover components with \`liebstoeckel registry list --json\`; validate with \`
 export async function runSkill(argv: string[]): Promise<void> {
   const positionals = argv.filter((a) => !a.startsWith("-"));
   const sub = positionals[0];
-  if (sub !== "install") {
-    console.error("usage: liebstoeckel skill install [--target claude|codex|cursor|gemini|all] [--dir <deck>]");
+  if (sub !== "install" && sub !== "update") {
+    console.error("usage: liebstoeckel skill install|update [--target claude|codex|cursor|gemini|all] [--dir <deck>]");
     process.exit(1);
   }
 
   const dirIdx = argv.indexOf("--dir");
   const deckDir = dirIdx >= 0 ? argv[dirIdx + 1]! : ".";
-  const tIdx = argv.indexOf("--target");
-  const tArg = tIdx >= 0 ? argv[tIdx + 1] : "all";
-  const targets: Target[] =
-    !tArg || tArg === "all" ? ALL_TARGETS : (tArg.split(",").filter((t): t is Target => (ALL_TARGETS as string[]).includes(t)));
-  if (targets.length === 0) {
-    console.error(`unknown --target "${tArg}" — use one or more of: ${ALL_TARGETS.join(", ")}, or all`);
-    process.exit(1);
+  let targets: Target[];
+  if (sub === "update") {
+    // Refresh whatever is already installed (the AGENTS.md block is always
+    // rewritten); installing NEW agent paths stays `install`'s job.
+    targets = ALL_TARGETS.filter((t) => existsSync(join(deckDir, SKILL_DIR[t])));
+    if (targets.length === 0 && !existsSync(join(deckDir, "AGENTS.md"))) {
+      console.error(`✕ no liebstoeckel skill installed in ${deckDir} — run: liebstoeckel skill install`);
+      process.exit(1);
+    }
+  } else {
+    const tIdx = argv.indexOf("--target");
+    const tArg = tIdx >= 0 ? argv[tIdx + 1] : "all";
+    targets =
+      !tArg || tArg === "all" ? ALL_TARGETS : (tArg.split(",").filter((t): t is Target => (ALL_TARGETS as string[]).includes(t)));
+    if (targets.length === 0) {
+      console.error(`unknown --target "${tArg}" — use one or more of: ${ALL_TARGETS.join(", ")}, or all`);
+      process.exit(1);
+    }
   }
 
   const version = await cliVersion();
@@ -127,7 +138,7 @@ export async function runSkill(argv: string[]): Promise<void> {
     await writeAgentsBlock(deckDir);
     written.push("AGENTS.md");
 
-    console.log(`\n✓ installed the liebstoeckel-deck skill (v${version}) → ${deckDir}\n`);
+    console.log(`\n✓ ${sub === "update" ? "updated" : "installed"} the liebstoeckel-deck skill (v${version}) → ${deckDir}\n`);
     for (const w of written) console.log(`   ${w}`);
     console.log(`\n   targets: ${targets.join(", ")}\n`);
   } catch (e) {
