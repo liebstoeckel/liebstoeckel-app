@@ -54,7 +54,7 @@ test("a question on one client, an upvote on another, converge", () => {
 ```
 
 <Aside type="tip">
-This is the highest-value test for a plugin and it runs in milliseconds with no browser. It covers the property that actually matters (shared state agrees across devices).
+This is the highest-value test for a plugin, and it runs in milliseconds with no browser: it checks that shared state agrees across devices.
 </Aside>
 
 ## 3. Render smoke test
@@ -86,8 +86,4 @@ test("Slide renders", () => {
 
 For a plugin with a server part, drive it against a `Hub` (the live relay class) and assert its effect reaches a connected peer, the same pattern the live-server integration tests use.
 
-<Aside type="note" title="End-to-end">
-Plugins also get exercised by the framework's [browser smoke tier](/concepts/testing/): a real deck is built and booted in headless Chromium to confirm fallbacks render and (live) the mobile breakout opens.
-</Aside>
-
-<LinkCard title="Testing the framework" href="/concepts/testing/" description="The whole testing pyramid." />
+<LinkCard title="Building a plugin" href="/plugins/building-a-plugin/" description="The full plugin walkthrough these tests belong to." />

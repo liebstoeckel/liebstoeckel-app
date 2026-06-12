@@ -3,8 +3,6 @@ title: Engine API
 description: The public exports of @liebstoeckel/engine and its build subpaths.
 ---
 
-import { Aside } from "@astrojs/starlight/components";
-
 Everything below is from `@liebstoeckel/engine` unless noted.
 
 ## Top-level
@@ -72,7 +70,3 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 | `@liebstoeckel/engine/build/thumbnails` | `embedThumbnails`, `extractThumbnails`, `stripThumbnails` (the manifest format) |
 | `@liebstoeckel/thumbnails` | `withThumbnails` (gated, never-fatal capture+embed), `captureThumbnails`, `addThumbnailsToFile`, `thumbnailsEnabled` |
 | `@liebstoeckel/thumbnails/build` | `buildDeck`, **the default build**: `bundleDeck` + slide thumbnails |
-
-<Aside type="tip">
-Every page is available as raw Markdown. Use the **Copy Markdown** / **Open in ChatGPT / Claude** buttons at the top of any page, or append `.md` to its URL (e.g. `/reference/engine-api.md`). A [`/llms.txt`](/llms.txt) index lists every page for an assistant to crawl. _(These are generated at build time and resolve on the built/deployed site, not the `astro dev` server.)_
-</Aside>

@@ -74,7 +74,7 @@ export default defineConfig({
         },
         {
           label: "Concepts",
-          items: ["concepts/architecture", "concepts/rendering", "concepts/state-model", "concepts/testing"],
+          items: ["concepts/architecture", "concepts/rendering", "concepts/state-model"],
         },
         {
           label: "Reference",

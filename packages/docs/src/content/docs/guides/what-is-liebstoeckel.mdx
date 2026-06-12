@@ -3,40 +3,32 @@ title: What is liebstoeckel?
 description: A code-first presentation engine for animated, single-file HTML decks, and the philosophy behind it.
 ---
 
-import { Aside, CardGrid, Card, LinkCard } from "@astrojs/starlight/components";
+import { CardGrid, Card, LinkCard } from "@astrojs/starlight/components";
 
 **liebstoeckel** is a code-first presentation engine. You author slides in **MDX** (prose) and **TSX** (anything interactive), theme them from one central place, and ship a single portable `.html` file per deck.
 
 It is built on **Bun + React 19 + Motion + Tailwind v4**, authored in **MDX + TSX**, and themed from **one place** so the same engine can ship many presentations under the same or different corporate brands.
 
-## The litmus test
-
-> A designer hands us a brand guideline; we encode it once as a theme; every future deck for that client looks on-brand with zero per-slide styling.
-
 ## What makes it different
 
 <CardGrid>
+  <Card title="One portable file" icon="document">
+    `liebstoeckel build` produces a single `.html` with JS, CSS, and assets inlined. No server, no CDN. The file also embeds the deck's own source by default, so `liebstoeckel eject` can turn it back into an editable project.
+  </Card>
+  <Card title="Live sessions" icon="comment">
+    An optional live server turns the same file into a shared session: a CRDT (Yjs) syncs state across every device, and a plugin system adds polls, Q&A, and reactions. Offline, plugins render a fallback.
+  </Card>
+  <Card title="Built for agents" icon="rocket">
+    The CLI works for a coding agent as well as a person: `--json` output, a readable component registry, `build --check` for validation without an artifact, and `liebstoeckel skill install` to teach the agent the workflow.
+  </Card>
   <Card title="Design lives in one place" icon="setting">
     A brand is one typed token object: colors, fonts, spacing, motion, backgrounds. Slides reference *semantic* tokens (`primary`, not `blue-500`), so a deck re-skins by switching `data-brand`.
-  </Card>
-  <Card title="Motion is first-class" icon="rocket">
-    Motion's `layoutId` shared-element transitions ("Magic Move"), spring choreography, and **animated code diffs** are the core reason to build our own instead of using a generic tool.
-  </Card>
-  <Card title="One portable file" icon="document">
-    `Bun.build({ compile: true })` inlines JS/CSS and base64s assets into a single `.html`. No server, no CDN; emailable, hostable anywhere.
-  </Card>
-  <Card title="Live, not just static" icon="comment">
-    An optional live server turns a deck into a shared session: a CRDT (Yjs) syncs state across every device, and a plugin system adds polls, Q&A, and reactions.
   </Card>
 </CardGrid>
 
 ## Who it's for
 
 liebstoeckel is **technical-first**: it assumes you're comfortable in a code editor. There is no WYSIWYG drag-and-drop editor. That's an explicit non-goal. In exchange you get version control, real components, typed themes, and a plugin SDK.
-
-<Aside type="note" title="Scope">
-v1 non-goals: a WYSIWYG editor, a cloud/account system, and PPTX export (PDF is a possible later addition). The framework assumes a trusted author. Building and running a deck executes its code (including any server plugins) on your machine.
-</Aside>
 
 ## How the pieces fit
 
@@ -46,6 +38,6 @@ v1 non-goals: a WYSIWYG editor, a cloud/account system, and PPTX export (PDF is 
 - **plugin-sdk / plugin-ui**: build live, collaborative plugins.
 - **live-server / present-relay**: present to a room (LAN) or the public internet.
 - **thumbnails**: build-time slide thumbnails for the overview grid.
-- **cli**: one `liebstoeckel` command (`new`, `build`, `live`, `relay`, `thumbs`).
+- **cli**: one `liebstoeckel` command for the whole workflow, from `new` to `build`, `live`, `export`, and `push` (see the [CLI reference](/reference/cli/)).
 
 <LinkCard title="Get started" href="/guides/getting-started/" description="Install liebstoeckel and scaffold your first deck." />

@@ -3,28 +3,20 @@ title: Plugins overview
 description: What a liebstoeckel plugin is, the built-in ones, and how they're discovered and bundled.
 ---
 
-import { Aside, CardGrid, Card, LinkCard, FileTree } from "@astrojs/starlight/components";
+import { Aside, LinkCard } from "@astrojs/starlight/components";
 
 A **plugin** adds live, shared behavior to a deck: a poll, audience Q&A, emoji reactions, or anything you can model as shared state. Plugins are ordinary Bun packages; a deck depends on them like any dependency.
 
 ## Anatomy
 
-A plugin is a `definePlugin({ … })` value with:
+A plugin is a `definePlugin({ … })` value with four fields:
 
-<CardGrid>
-  <Card title="id" icon="seti:json">
-    A short string. Used to place the plugin (`<Plugin id="poll" />`) and to namespace its shared state (`plugin:poll`).
-  </Card>
-  <Card title="state" icon="setting">
-    A typed schema describing the shared CRDT state (the SDK's `schema`/`t`).
-  </Card>
-  <Card title="client" icon="laptop">
-    React surfaces: `Slide` (in-deck), an optional `presenter` console (a tab in the presenter view), and a `fallback` (offline/thumbnail). Runs in every browser.
-  </Card>
-  <Card title="server" icon="rocket">
-    Optional host-side logic. Runs **once**, on the machine presenting, never in the audience's browsers.
-  </Card>
-</CardGrid>
+| Field | What it is |
+| --- | --- |
+| `id` | A short string. Used to place the plugin (`<Plugin id="poll" />`) and to namespace its shared state (`plugin:poll`). |
+| `state` | A typed schema describing the shared CRDT state (the SDK's `schema`/`t`). |
+| `client` | React surfaces: `Slide` (in-deck), an optional `presenter` console (a tab in the presenter view), and a `fallback` (offline/thumbnail). Runs in every browser. |
+| `server` | Optional host-side logic. Runs **once**, on the machine presenting, never in the audience's browsers. |
 
 ## Built-in plugins
 

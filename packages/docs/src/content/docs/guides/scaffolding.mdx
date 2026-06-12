@@ -29,8 +29,10 @@ a normal npm dep you can see in `package.json`.
 <Aside type="tip" title="Why copy instead of import?">
 Composed UI (a chart, a layout) is most useful when you can bend it to the slide:
 re-style it, swap the data shape, retune the spring. A package would freeze those
-decisions; owned source keeps them yours. (Engine-coupled primitives still ship as
-`@liebstoeckel/*` packages. Only the composable pieces are scaffolded.)
+decisions; owned source keeps them yours. It also means an AI agent can do the
+bending: the chart is a plain `.tsx` file in your deck, so you can point an agent at
+it like any other code. (Engine-coupled primitives still ship as `@liebstoeckel/*`
+packages. Only the composable pieces are scaffolded.)
 </Aside>
 
 ## What `add` writes

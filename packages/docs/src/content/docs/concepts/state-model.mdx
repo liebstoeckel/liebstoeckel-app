@@ -1,13 +1,13 @@
 ---
 title: State model
-description: "Every piece of deck state: its owner, transport, and authority, plus the one decision (standalone vs. live) that splits the runtime in two."
+description: "Deck state, its owners, transports, and authority, and how standalone and live mode differ."
 ---
 
 liebstoeckel keeps several distinct pieces of state, each with its own **owner**, **transport**, and **authority**. This page is the map.
 
 ![liebstoeckel state handling](/diagrams/state-handling.svg)
 
-## The one decision that splits everything
+## Standalone vs. live
 
 On load the engine reads `window.__LIEBSTOECKEL_LIVE__` (a `<script>` the **live server injects**):
 
@@ -16,12 +16,12 @@ On load the engine reads `window.__LIEBSTOECKEL_LIVE__` (a `<script>` the **live
 
 The *same built `.html`* works both ways. See [Live presenting](/guides/live/).
 
-## Every piece of state
+## State inventory
 
 | State | Owner | Transport | Authority | Persistence |
 |-------|-------|-----------|-----------|-------------|
 | Slide **index / step / total** | `Deck` / `PresenterView` controller | **live:** Yjs `deck` map · **standalone:** `BroadcastChannel` | presenter writes, everyone reads | ephemeral (per session) |
-| **Plugin shared state** (e.g. poll `votes`) | the plugin, via `pluginState()` | Yjs `plugin:<id>` map (CRDT), or `plugin:<id>:<instance>` for a named instance ((internal ADR)) | **any** participant writes (incl. read-only viewers); presenter-only actions gated in plugin code | ephemeral (lost on server restart) |
+| **Plugin shared state** (e.g. poll `votes`) | the plugin, via `pluginState()` | Yjs `plugin:<id>` map (CRDT), or `plugin:<id>:<instance>` for a named instance | **any** participant writes (incl. read-only viewers); presenter-only actions gated in plugin code | ephemeral (lost on server restart) |
 | **Brand** (`data-brand`) | `Deck` / `PresenterView` | per-window React state | local | n/a |
 | **Elapsed timer** | `PresenterView` | per-window React state | local | resets per window |
 | **Participant id** | client | `sessionStorage` | local | survives reload (1 browser session = 1 participant) |
