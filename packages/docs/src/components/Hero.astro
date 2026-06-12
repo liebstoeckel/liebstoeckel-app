@@ -1,0 +1,294 @@
+---
+// Hero override for `template: splash` pages (registered in astro.config.mjs;
+// the start page is the only splash page). Restyles the hero to the landing's
+// design contract (packages/landing/DESIGN.md): a typographic stage with the
+// gradient brand line, the sage underline drawing under "talk back", lead +
+// actions on the left, and the install terminal as the page's first artifact
+// on the right. Copy still comes from the page frontmatter (`hero.title` and
+// `hero.tagline` may contain inline HTML, as upstream allows).
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, actions = [] } = data.hero || {};
+
+// the honest install set, identical to the landing page: npm gets you Bun,
+// Bun adds the CLI (raw TS under Bun), then the skill goes to your agent
+const INSTALL_LINES = `npm install -g bun
+bun add -g @liebstoeckel/cli
+liebstoeckel skill install`;
+---
+
+<div class="hero">
+  <p class="brand-line" aria-hidden="true">{data.title}</p>
+  {/* "_top" is Starlight's PAGE_TITLE_ID: the skip link's target */}
+  <h1 id="_top" data-page-title set:html={title} />
+
+  <div class="hero-below">
+    <div class="hero-copy">
+      {tagline && <p class="lead" set:html={tagline} />}
+      {
+        actions.length > 0 && (
+          <div class="actions">
+            {actions.map(({ attrs: { class: className, ...attrs } = {}, link: href, text, variant }) => (
+              <a
+                class:list={["btn", variant === "primary" ? "btn--primary" : "btn--ghost", className]}
+                {href}
+                {...attrs}
+              >
+                {text}
+              </a>
+            ))}
+          </div>
+        )
+      }
+    </div>
+
+    <div class="install-term" role="group" aria-label="Install liebstoeckel">
+      <div class="term-bar">
+        <span class="term-label">terminal</span>
+        <button class="copy-btn" data-copy={INSTALL_LINES} aria-label="Copy install commands">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          <span class="copy-label">Copy</span>
+        </button>
+      </div>
+      <pre><code><span class="c-pr">$</span> npm install <span class="c-fl">-g</span> bun
+<span class="c-pr">$</span> bun add <span class="c-fl">-g</span> <span class="c-hl">@liebstoeckel/cli</span>
+<span class="c-pr">$</span> liebstoeckel <span class="c-cmd">skill install</span></code></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+  // copy-to-clipboard on [data-copy], with the same "Copied" feedback as the landing
+  document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(btn.getAttribute("data-copy") || "");
+      } catch {
+        return;
+      }
+      const label = btn.querySelector(".copy-label");
+      btn.setAttribute("data-copied", "");
+      if (label) label.textContent = "Copied";
+      setTimeout(() => {
+        btn.removeAttribute("data-copied");
+        if (label) label.textContent = "Copy";
+      }, 1600);
+    });
+  });
+</script>
+
+<style>
+  .hero {
+    padding-block: clamp(2.5rem, 6vw, 5rem) clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  /* the gradient wordmark is the brand line above the slogan (dark grounds only,
+     per the brand book; light mode keeps plain ink) */
+  .brand-line {
+    font-size: clamp(1.3rem, 1rem + 1.2vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.1;
+    color: var(--sl-color-white);
+    margin: 0 0 0.9rem;
+  }
+  :global([data-theme="dark"]) .brand-line {
+    background: linear-gradient(118deg, #f4f1e6 26%, #e0c580);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  h1 {
+    font-size: clamp(2.3rem, 1rem + 5vw, 4.3rem);
+    line-height: 1.04;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    color: var(--sl-color-white);
+    text-wrap: balance;
+    max-width: 18ch;
+    /* one calm fade-rise for the whole headline; the underline draw is the flourish */
+    animation: heroIn 640ms var(--ease-out) both;
+  }
+  @keyframes heroIn {
+    from { opacity: 0; transform: translateY(0.3em); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* the sage underline (the "talks back" / live signal) draws under the slogan's
+     key words; the span comes in via frontmatter HTML, hence :global */
+  h1 :global(.ul) {
+    position: relative;
+    white-space: nowrap;
+  }
+  h1 :global(.ul)::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0.04em;
+    height: 0.09em;
+    width: 100%;
+    background: #9cae86;
+    transform-origin: left;
+    transform: scaleX(0);
+    animation: draw 700ms var(--ease) 620ms forwards;
+  }
+  @keyframes draw {
+    to { transform: scaleX(1); }
+  }
+  /* sage is tuned for near-black; deepen it on the cream ground */
+  :global([data-theme="light"]) h1 :global(.ul)::after {
+    background: #6d7f57;
+  }
+
+  .hero-below {
+    display: grid;
+    grid-template-columns: 100%;
+    gap: 2rem;
+    align-items: start;
+    margin-block-start: clamp(1.6rem, 3.5vw, 2.6rem);
+  }
+  @media (min-width: 50rem) {
+    .hero-below {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      gap: clamp(2rem, 5vw, 4rem);
+    }
+  }
+
+  .lead {
+    font-size: clamp(1.05rem, 1rem + 0.4vw, 1.25rem);
+    line-height: 1.55;
+    color: var(--sl-color-gray-2);
+    max-width: 46ch;
+    margin: 0;
+    text-wrap: pretty;
+  }
+  .lead :global(code) {
+    font-size: 0.88em;
+    color: var(--sl-color-accent-high);
+  }
+
+  /* the landing's button model: gold fill + forest ink (~7:1), hover brightens
+     the fill so contrast rises; ghost is hairline + text */
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem 1rem;
+    margin-block-start: 1.6rem;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-weight: 500;
+    font-size: 1rem;
+    padding: 0.65rem 1.2rem;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    min-height: 44px;
+    text-decoration: none;
+    transition:
+      background 170ms var(--ease),
+      border-color 170ms var(--ease),
+      color 170ms var(--ease),
+      transform 170ms var(--ease);
+  }
+  .btn--primary {
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+  }
+  .btn--primary:hover {
+    background: #d9b461;
+    color: #10140e;
+    transform: translateY(-1px);
+  }
+  :global([data-theme="light"]) .btn--primary:hover {
+    background: #876510;
+    color: var(--sl-color-black);
+  }
+  .btn--ghost {
+    background: transparent;
+    color: var(--sl-color-gray-1);
+    border-color: var(--sl-color-gray-5);
+  }
+  .btn--ghost:hover {
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-accent-high);
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--sl-color-accent-high);
+    outline-offset: 3px;
+  }
+  .btn--primary:focus-visible {
+    outline-color: var(--sl-color-white);
+  }
+
+  /* the install terminal keeps the noir code surface on both themes, like the
+     landing's light section: a terminal always reads dark */
+  .install-term {
+    --t-surface: #222a19;
+    --t-bar: #1a2014;
+    --t-line: rgba(233, 230, 215, 0.1);
+    --t-line-2: rgba(233, 230, 215, 0.17);
+    max-width: min(38rem, 100%);
+    background: var(--t-surface);
+    border: 1px solid var(--t-line-2);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  :global([data-theme="light"]) .install-term {
+    box-shadow: 0 18px 50px -28px rgba(16, 20, 14, 0.5);
+  }
+  .term-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.6rem 0.5rem 1.1rem;
+    border-block-end: 1px solid var(--t-line);
+    background: var(--t-bar);
+  }
+  .term-label {
+    font-family: var(--sl-font-mono);
+    color: #8c917d;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+  }
+  .install-term pre {
+    margin: 0;
+    padding: 1.05rem 1.25rem;
+    font-family: var(--sl-font-mono);
+    font-size: 0.86rem;
+    line-height: 1.85;
+    overflow-x: auto;
+  }
+  .install-term code {
+    color: #e9e6d7;
+    background: none;
+  }
+  .c-pr { color: #c9a24b; user-select: none; margin-inline-end: 0.35rem; }
+  .c-fl { color: #9cae86; }
+  .c-hl, .c-cmd { color: #e0c580; }
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--t-bar);
+    border: 1px solid var(--t-line-2);
+    color: #b4b7a4;
+    border-radius: 6px;
+    padding: 0.4rem 0.65rem;
+    min-height: 34px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+    transition: color 170ms var(--ease), border-color 170ms var(--ease);
+  }
+  .copy-btn:hover { color: #e0c580; border-color: #c9a24b; }
+  .copy-btn[data-copied] { color: #9cae86; border-color: #9cae86; }
+
+  @media (prefers-reduced-motion: reduce) {
+    h1, h1 :global(.ul)::after { animation: none !important; }
+    h1 :global(.ul)::after { transform: scaleX(1); }
+    .btn { transition: none; }
+  }
+</style>

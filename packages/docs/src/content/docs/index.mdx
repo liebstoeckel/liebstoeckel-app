@@ -3,51 +3,77 @@ title: liebstoeckel
 description: A code-first presentation engine that builds animated, single-file HTML decks (no server needed) on Bun + React 19 + Motion + Tailwind v4.
 template: splash
 hero:
-  tagline: Code-first presentations that talk back. Animated single-file decks, multi-brand theming, and a live plugin system, built on Bun + React 19 + Motion.
+  title: Code-first presentations that <span class="ul">talk&nbsp;back</span>
+  tagline: Author decks in MDX and TSX. The engine compiles them into one self-contained HTML file that presents offline, runs live sessions with polls and Q&A, and your agent can write it too, as real source you own.
   actions:
     - text: Get started
       link: /guides/getting-started/
-      icon: right-arrow
       variant: primary
     - text: Build a plugin
       link: /plugins/overview/
-      icon: open-book
 ---
-
-import { Card, CardGrid } from "@astrojs/starlight/components";
 
 ## Why liebstoeckel
 
 liebstoeckel is a small, opinionated **engine + theming layer**, not another reveal.js: content is authored in MDX/TSX, design lives in one place per brand, and motion is first-class.
 
-<CardGrid stagger>
-  <Card title="Single-file output" icon="document">
-    Every deck builds to one portable `.html`: JS/CSS inlined, assets base64'd. No server, no CDN, emailable.
-  </Card>
-  <Card title="Motion that matters" icon="rocket">
-    Magic Move (`layoutId`), spring choreography, animated code diffs: the reason to build our own instead of using a generic tool.
-  </Card>
-  <Card title="Brands, not styles" icon="setting">
-    A deck declares `brand: "acme"` and inherits the whole look from typed design tokens. Override a token for a one-off without forking.
-  </Card>
-  <Card title="Decks that talk back" icon="comment">
-    A live Yjs-backed plugin system: polls, audience Q&A, and reactions sync across every device in the room.
-  </Card>
-  <Card title="Mobile-ready" icon="laptop">
-    The audience joins from a phone. Tap a glowing plugin to interact full-size, swipe to navigate.
-  </Card>
-  <Card title="LLM-native docs" icon="open-book">
-    Every page has **Copy Markdown** + **Open in ChatGPT / Claude**, a raw `.md` at each URL, and an `/llms.txt` index, built for assistants.
-  </Card>
-</CardGrid>
+<dl class="home-ledger">
+  <div class="lrow">
+    <dt>Single-file output</dt>
+    <dd>Every deck builds to one portable <code>.html</code>: JS and CSS inlined, assets base64'd. No server, no CDN. It drops into an email, a USB stick, an air-gapped room.</dd>
+    <a class="lrow-link" href="/guides/building/">guides/building <span aria-hidden="true">&rarr;</span></a>
+  </div>
+  <div class="lrow">
+    <dt>Motion that matters</dt>
+    <dd>Magic Move (<code>layoutId</code>), spring choreography, animated code diffs: the reason to build our own engine instead of bending a generic tool.</dd>
+    <a class="lrow-link" href="/guides/animated-code/">guides/animated-code <span aria-hidden="true">&rarr;</span></a>
+  </div>
+  <div class="lrow">
+    <dt>Brands, not styles</dt>
+    <dd>A deck declares <code>brand: "acme"</code> and inherits the whole look from typed design tokens. Override one token for a one-off without forking the theme.</dd>
+    <a class="lrow-link" href="/guides/theming/">guides/theming <span aria-hidden="true">&rarr;</span></a>
+  </div>
+  <div class="lrow">
+    <dt>Decks that talk back</dt>
+    <dd>Host the same file and it opens a live Yjs session: polls, audience Q&A, and reactions sync to every device in the room. Unhosted, plugins render a quiet fallback.</dd>
+    <a class="lrow-link" href="/guides/live/">guides/live <span aria-hidden="true">&rarr;</span></a>
+  </div>
+  <div class="lrow">
+    <dt>Built for agents</dt>
+    <dd><code>liebstoeckel skill install</code> teaches your agent the same CLI you use: it reads the component registry, writes MDX and TSX you own, and loops on <code>build --check</code> until the deck is green.</dd>
+    <a class="lrow-link" href="/reference/cli/">reference/cli <span aria-hidden="true">&rarr;</span></a>
+  </div>
+  <div class="lrow">
+    <dt>Mobile-ready</dt>
+    <dd>The audience joins from a phone. Tap a glowing plugin to interact full-size, swipe to navigate, and the presenter view adapts down to a handset.</dd>
+    <a class="lrow-link" href="/guides/mobile/">guides/mobile <span aria-hidden="true">&rarr;</span></a>
+  </div>
+</dl>
+
+<p class="home-note">These docs are agent-readable too: every page has <strong>Copy Markdown</strong> and <strong>Open in ChatGPT / Claude</strong>, a raw <code>.md</code> at each URL, and an <a href="/llms.txt">/llms.txt</a> index.</p>
 
 ## The 30-second tour
 
-```bash
+```bash frame="none"
 bun add -g @liebstoeckel/cli       # or: bunx liebstoeckel …
 liebstoeckel new my-talk           # scaffold a deck
 liebstoeckel live my-talk          # present live (audience joins by QR)
 liebstoeckel build my-talk         # → one self-contained dist/index.html
 ```
 
-Head to [Getting started](/guides/getting-started/) to install, or jump straight to [building a plugin](/plugins/overview/).
+## Pick your path
+
+<ol class="home-steps">
+  <li>
+    <span class="step-n" aria-hidden="true">1</span>
+    <span><a href="/guides/getting-started/"><b>Get started</b></a>: install, scaffold a deck, and run the dev server.</span>
+  </li>
+  <li>
+    <span class="step-n" aria-hidden="true">2</span>
+    <span><a href="/guides/your-first-deck/"><b>Your first deck</b></a>: slides, speaker notes, reveal steps, and motion.</span>
+  </li>
+  <li>
+    <span class="step-n" aria-hidden="true">3</span>
+    <span><a href="/plugins/overview/"><b>Build a plugin</b></a>: polls, Q&A, reactions, or one of your own.</span>
+  </li>
+</ol>

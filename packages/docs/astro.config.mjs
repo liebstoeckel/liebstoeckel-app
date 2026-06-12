@@ -25,6 +25,14 @@ export default defineConfig({
         { tag: "link", attrs: { rel: "apple-touch-icon", href: "/apple-touch-icon.png" } },
       ],
       customCss: ["./src/styles/theme.css"],
+      // the start page is the only `template: splash` page; its hero is the
+      // landing-derived typographic hero + install terminal. The Footer keeps
+      // Starlight's pagination and appends the brand footer with the legal
+      // links (Impressum/Datenschutz live on the apex and cover the docs).
+      components: {
+        Hero: "./src/components/Hero.astro",
+        Footer: "./src/components/Footer.astro",
+      },
       description:
         "A code-first presentation engine that produces stunning, animated, single-file HTML decks — Bun + React 19 + Motion + Tailwind v4, authored in MDX + TSX.",
       tagline: "Code-first presentations that talk back.",

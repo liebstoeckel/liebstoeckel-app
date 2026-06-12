@@ -10,6 +10,9 @@
   --sl-font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
   /* Expressive Code (Starlight code blocks) reads this for its font */
   --ec-codeFontFamily: "JetBrains Mono Variable", ui-monospace, monospace;
+  /* motion (the landing's easings; the Hero override and start page use them) */
+  --ease: cubic-bezier(0.22, 0.61, 0.27, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ---- Dark (default) — Noir ---- */
@@ -73,19 +76,8 @@
   color: transparent;
 }
 
-/* Splash hero: the same canonical gradient on the display headline (dark only) */
-.hero h1 {
-  letter-spacing: -0.035em;
-}
-:root[data-theme="dark"] .hero h1 {
-  background: linear-gradient(118deg, #f4f1e6 26%, #e0c580);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.hero .tagline {
-  color: var(--sl-color-gray-2);
-}
+/* The splash hero itself is the Hero.astro override (src/components/Hero.astro):
+   the canonical gradient lives on its brand line, dark grounds only. */
 
 /* Headings: tighten tracking to match the grotesk display feel */
 .sl-markdown-content :is(h1, h2, h3) {
@@ -103,4 +95,99 @@
 }
 .card .icon {
   color: var(--sl-color-accent);
+}
+
+/* ---- Start page (the one `template: splash` page) ----
+   Landing-derived sections (packages/landing/DESIGN.md): ledger rows with
+   hairlines instead of a card grid, and numbered path steps. Scoped by the
+   home-* classes only index.mdx uses; colors ride the Starlight tokens so
+   both themes work. */
+.home-ledger {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2.25rem;
+}
+.home-ledger .lrow {
+  display: grid;
+  grid-template-columns: minmax(0, 0.65fr) minmax(0, 1.5fr) auto;
+  gap: 0.4rem clamp(1rem, 3vw, 2.5rem);
+  align-items: baseline;
+  margin-top: 0;
+  padding-block: clamp(1.3rem, 3vw, 1.9rem);
+  border-top: 1px solid var(--sl-color-gray-5);
+}
+.home-ledger .lrow:last-child {
+  border-bottom: 1px solid var(--sl-color-gray-5);
+}
+.home-ledger dt {
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--sl-color-white);
+  text-wrap: balance;
+}
+.home-ledger dd {
+  margin: 0;
+  color: var(--sl-color-gray-2);
+  max-width: 54ch;
+}
+.home-ledger .lrow-link {
+  font-family: var(--sl-font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--sl-color-accent-high);
+  margin-top: 0;
+}
+.home-ledger .lrow-link:hover {
+  color: var(--sl-color-white);
+}
+@media (max-width: 50rem) {
+  .home-ledger .lrow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.home-note {
+  font-size: 0.92rem;
+  color: var(--sl-color-gray-3);
+  max-width: 70ch;
+}
+
+.home-steps {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 1.6rem;
+}
+.home-steps li {
+  display: flex;
+  gap: 0.9rem;
+  align-items: baseline;
+  margin-top: 0;
+  color: var(--sl-color-gray-2);
+}
+.home-steps li > span:last-child {
+  margin-top: 0;
+}
+.home-steps .step-n {
+  flex: none;
+  inline-size: 26px;
+  block-size: 26px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  border: 1px solid var(--sl-color-accent);
+  color: var(--sl-color-accent);
+  border-radius: 50%;
+  font-family: var(--sl-font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-top: 0;
+}
+.home-steps b {
+  font-weight: 600;
 }

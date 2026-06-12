@@ -1,0 +1,116 @@
+---
+// Footer override: Starlight's own footer (prev/next pagination etc.) followed
+// by a condensed version of the landing page's brand footer. The legal pages
+// live on the apex (liebstoeckel.app), whose Impressum/Datenschutzerklärung
+// cover the docs site too; linking them from every page keeps the docs
+// compliant (Impressum reachable from anywhere).
+import Default from "@astrojs/starlight/components/Footer.astro";
+
+const APEX = "https://liebstoeckel.app";
+const GITHUB = "https://github.com/limond/liebstoeckel-app-public";
+const year = 2026;
+---
+
+<Default><slot /></Default>
+
+<div class="brand-foot">
+  <div class="foot-top">
+    <div class="foot-brand">
+      <a class="wordmark" href="/">liebstoeckel</a>
+      <p class="foot-tag">Code-first presentations your agent can author. One file out, no server.</p>
+    </div>
+
+    <nav class="foot-cols" aria-label="Footer">
+      <div class="foot-col">
+        <h2>Project</h2>
+        <a href={APEX} rel="noopener">liebstoeckel.app</a>
+        <a href={GITHUB} rel="noopener">GitHub</a>
+      </div>
+      <div class="foot-col">
+        <h2>Legal</h2>
+        <a href={`${APEX}/impressum/`} rel="noopener">Impressum</a>
+        <a href={`${APEX}/datenschutz/`} rel="noopener">Datenschutzerkl&auml;rung</a>
+      </div>
+    </nav>
+  </div>
+
+  <div class="foot-bottom">
+    <span>&copy; {year} Leon Kaucher</span>
+  </div>
+</div>
+
+<style>
+  .brand-foot {
+    margin-block-start: 3rem;
+    border-block-start: 1px solid var(--sl-color-gray-5);
+    padding-block-start: 2.5rem;
+  }
+  .foot-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 2rem clamp(2rem, 5vw, 4rem);
+  }
+  .wordmark {
+    display: inline-block;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    text-decoration: none;
+    color: var(--sl-color-white);
+  }
+  /* the canonical wordmark gradient, dark grounds only (brand book) */
+  :global([data-theme="dark"]) .wordmark {
+    background: linear-gradient(118deg, #f4f1e6 26%, #e0c580);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .foot-tag {
+    color: var(--sl-color-gray-3);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0.8rem 0 0;
+    max-width: 30ch;
+  }
+  .foot-cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+  .foot-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .foot-col h2 {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sl-color-gray-3);
+    font-weight: 600;
+    margin: 0 0 0.2rem;
+    line-height: 1.2;
+  }
+  .foot-col a {
+    color: var(--sl-color-gray-2);
+    font-size: 0.88rem;
+    text-decoration: none;
+    min-height: 24px;
+  }
+  .foot-col a:hover {
+    color: var(--sl-color-accent-high);
+  }
+  .foot-bottom {
+    margin-block-start: 2rem;
+    padding-block-start: 1.2rem;
+    border-block-start: 1px solid var(--sl-color-gray-5);
+    color: var(--sl-color-gray-3);
+    font-size: 0.82rem;
+  }
+  @media (max-width: 30rem) {
+    .foot-top {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>
