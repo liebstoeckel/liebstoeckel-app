@@ -29,7 +29,8 @@ const year = 2026;
       <div class="foot-col">
         <h2>Legal</h2>
         <a href={`${APEX}/impressum/`} rel="noopener">Impressum</a>
-        <a href={`${APEX}/datenschutz/`} rel="noopener">Datenschutzerkl&auml;rung</a>
+        {/* soft hyphen: the word is wider than a squeezed column — break as Datenschutz-erklärung */}
+        <a href={`${APEX}/datenschutz/`} rel="noopener" lang="de">Datenschutz&shy;erkl&auml;rung</a>
       </div>
     </nav>
   </div>
@@ -47,7 +48,9 @@ const year = 2026;
   }
   .foot-top {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    /* nav gets its content width so the link columns aren't squeezed inside
+       Starlight's narrow content column; the brand block flexes */
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 2rem clamp(2rem, 5vw, 4rem);
   }
   .wordmark {
@@ -75,7 +78,7 @@ const year = 2026;
   }
   .foot-cols {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, auto);
     gap: 1.5rem;
   }
   .foot-col {
@@ -97,6 +100,7 @@ const year = 2026;
     font-size: 0.88rem;
     text-decoration: none;
     min-height: 24px;
+    overflow-wrap: break-word; /* last resort — never overflow the content column */
   }
   .foot-col a:hover {
     color: var(--sl-color-accent-high);
