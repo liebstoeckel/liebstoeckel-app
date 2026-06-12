@@ -18,7 +18,9 @@
       "@liebstoeckel/components": ["./packages/components/src/index.ts"],
       "@liebstoeckel/theme": ["./packages/theme/src/index.ts"],
       "@liebstoeckel/registry": ["./packages/registry/src/index.ts"],
-      "@liebstoeckel/registry/*": ["./packages/registry/src/*"]
+      "@liebstoeckel/registry/*": ["./packages/registry/src/*"],
+      "@liebstoeckel/corporate-design": ["./packages/corporate-design/src/index.ts"],
+      "@liebstoeckel/corporate-design/*": ["./packages/corporate-design/src/*"]
     }
   }
 }
