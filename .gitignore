@@ -22,6 +22,9 @@ _ft/
 .verify-*/
 srvplugin-*/
 
+# kustomize --enable-helm chart cache (pulled next to the kustomization on local builds)
+deploy/**/charts/
+
 # editor / OS
 .DS_Store
 .idea/
