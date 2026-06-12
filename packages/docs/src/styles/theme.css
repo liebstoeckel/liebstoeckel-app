@@ -17,7 +17,7 @@
 :root[data-theme="dark"] {
   --sl-color-accent-low: #352a10;   /* deep gold tint — subtle backgrounds */
   --sl-color-accent: #c9a24b;       /* gold — buttons, focus, rules */
-  --sl-color-accent-high: #e6cf94;  /* gold-soft — links, accent text */
+  --sl-color-accent-high: #e0c580;  /* gold-soft (--accent-on-dark) — links, accent text */
   --sl-color-white: #f4f1e6;        /* headings (warm near-white) */
   --sl-color-gray-1: #e9e6d7;       /* body text */
   --sl-color-gray-2: #cbc9b7;
@@ -57,16 +57,28 @@
 }
 
 /* ---- Brand details ---- */
-/* sage live-ish accent for the site title hover + a tighter wordmark */
+/* the header lockup: mark (Starlight `logo`) + the wordmark with its canonical
+   tracking; the gradient is dark-grounds-only per the brand book, so light
+   mode keeps plain ink */
 .site-title {
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.035em;
+  gap: 0.55rem;
+}
+:root[data-theme="dark"] .site-title span {
+  /* the one canonical wordmark gradient (corporate-design tokens.gradient) */
+  background: linear-gradient(118deg, #f4f1e6 26%, #e0c580);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
-/* Splash hero: gold-washed headline + monospace eyebrow feel for actions */
+/* Splash hero: the same canonical gradient on the display headline (dark only) */
 .hero h1 {
   letter-spacing: -0.035em;
-  background: linear-gradient(118deg, var(--sl-color-white) 30%, #e0c580);
+}
+:root[data-theme="dark"] .hero h1 {
+  background: linear-gradient(118deg, #f4f1e6 26%, #e0c580);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

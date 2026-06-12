@@ -11,6 +11,19 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "liebstoeckel",
+      // the brand-book header lockup: mark beside the wordmark, mark color
+      // picked by ground (gold on dark, darkened gold on cream) — assets are
+      // checked-in copies of @liebstoeckel/corporate-design's out/ SVGs
+      logo: {
+        dark: "./src/assets/logo-gold.svg",
+        light: "./src/assets/logo-goldcream.svg",
+        alt: "",
+      },
+      favicon: "/favicon.svg",
+      head: [
+        { tag: "link", attrs: { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" } },
+        { tag: "link", attrs: { rel: "apple-touch-icon", href: "/apple-touch-icon.png" } },
+      ],
       customCss: ["./src/styles/theme.css"],
       description:
         "A code-first presentation engine that produces stunning, animated, single-file HTML decks — Bun + React 19 + Motion + Tailwind v4, authored in MDX + TSX.",
