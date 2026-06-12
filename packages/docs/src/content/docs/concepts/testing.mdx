@@ -16,11 +16,13 @@ liebstoeckel keeps a deliberate testing pyramid: a broad, fast base of pure + in
 | **Render smoke** | components render without throwing (`renderToStaticMarkup`) | fast |
 | **E2E (browser)** | the real single-file deck boots in headless Chromium: no console errors, reveals + nav, `CodeMagic` morph, plugin fallback, the mobile breakout | seconds |
 | **Registry install (release)** | the *published* CLI installs from a real registry into a clean sandbox and the whole offline surface works: `new` → install → `build --check` → `build`, plus `registry`/`add`/`pack`/`eject`/`skill`/`live`/`export` | minutes |
+| **OS smoke (release)** | the CLI *runs* on **Windows + macOS**: `new` scaffolds, `build --check` bundles, `pack` emits a tarball — driven from the workspace, no registry, no Chromium | minutes |
 
 Run them:
 
 ```bash
 bun run test               # the full suite (bun test packages)
+bun run test:e2e:os        # the OS-behavior smoke (sets LIEBSTOECKEL_E2E_OS_SMOKE)
 bun run typecheck          # tsc --noEmit
 ```
 
@@ -29,6 +31,8 @@ bun run typecheck          # tsc --noEmit
 Most of the risk (does shared state converge, do derivations rank correctly, does navigation advance) is covered by fast, reliable headless tests. The e2e tier exists only for what a browser uniquely catches: bundling, the Bun macro, hydration, CSS, and the touch breakout. It **skips cleanly when no Chromium** is installed.
 
 The registry-install tier catches the one class of bug the others can't: a release that is broken *as published*. Undeclared dependencies, cross-package version closures that don't resolve, a bin that doesn't run outside the monorepo. It installs `@liebstoeckel/cli` from a registry (set `LIEBSTOECKEL_E2E_REGISTRY`; optionally `LIEBSTOECKEL_E2E_NPM_TOKEN` and `LIEBSTOECKEL_CHROMIUM`) and exercises every offline command a fresh user would run. Without the env var it self-skips, so it never slows the unit tier. In CI it runs automatically after each publish.
+
+The OS-smoke tier closes a different gap: the in-cluster CI is **Linux-only**, so nothing exercises the CLI on Windows or macOS, where a large share of users run it. It drives the CLI from the monorepo workspace — deps resolve via `workspace:*`, so it needs **no registry reachability** (the point: a hosted runner can't reach the in-cluster Verdaccio) and **no Chromium** — and asserts the OS-sensitive surface: scaffolding paths/casing, the bundling pipeline (`build --check`: Bun.build, the Shiki macro, MDX, Tailwind, font inlining), and tarball packing. Packaging-closure correctness is OS-independent, so it stays the registry tier's job on int; this tier proves only that the CLI *runs* per-OS. Gated on `LIEBSTOECKEL_E2E_OS_SMOKE`, it self-skips in the unit tier. In CI it runs on a `windows-latest` + `macos-latest` matrix (GitHub-hosted runners, `.github/workflows/os-smoke.yml`), triggered on the **release-please PR** (`release-please--branches--main`) so it gates the merge **before** the release commit reaches `main`.
 
 <Aside type="note" title="E2E gotchas (in this environment)">
 The fixture deck builds in a **subprocess** (calling `Bun.build` inside `bun test` can't follow workspace symlinks for a plugin's transitive deps), and single-process Chromium can't share contexts, so each case launches its own browser.

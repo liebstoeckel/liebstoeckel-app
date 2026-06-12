@@ -1,0 +1,47 @@
+# Cross-OS CLI smoke ((internal ticket)). The in-cluster Tekton tiers are Linux-only,
+# so the CLI is never exercised on Windows/macOS, where a large share of users
+# run it. This workflow fills exactly that gap — and ONLY that gap: it runs the
+# OS-behavior smoke (packages/e2e/src/cli-os-smoke.test.ts), which drives the CLI
+# from the monorepo workspace (deps resolve via `workspace:*`, so no Verdaccio
+# reachability is needed) to catch OS-specific breakage in Bun's shell, path
+# handling, casing, and the bundling pipeline. Authoritative packaging-closure
+# testing stays on int (the Verdaccio `release-smoke` task).
+#
+# Runs in the PRIVATE repo (full source) on GitHub-hosted runners, billed by the
+# minute (Windows 2x / macOS 10x). Triggered on the **release-please PR** — its
+# grouped branch is `release-please--branches--main` (separate-pull-requests is
+# off) — so the OS check runs BEFORE the release commit reaches `main` and can
+# gate the merge (make it a required status check), rather than discovering a
+# Windows/macOS break only after it has shipped. That also keeps the spend at a
+# few runs per release, not per push. `workflow_dispatch` allows an on-demand run.
+name: os-smoke
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cli-os-smoke:
+    # Private repo only (the public mirror lacks the private workspace packages),
+    # and only on the release-please PR (or a manual dispatch). `github.head_ref`
+    # is the PR's source branch (set only on pull_request events).
+    if: >
+      github.repository == 'limond/liebstoeckel-app' &&
+      (github.event_name == 'workflow_dispatch' ||
+       startsWith(github.head_ref, 'release-please--branches--main'))
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install
+      - run: bun run test:e2e:os
