@@ -1,6 +1,7 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import starlightPageActions from "starlight-page-actions";
+import astroAgentAnnotate from "astro-agent-annotate";
 
 // Static docs site for liebstoeckel. Astro Starlight → static HTML (Islands: zero JS
 // by default, Pagefind search, dark mode). starlight-page-actions adds the per-page
@@ -9,6 +10,7 @@ import starlightPageActions from "starlight-page-actions";
 export default defineConfig({
   site: "https://docs.liebstoeckel.app",
   integrations: [
+    astroAgentAnnotate(),
     starlight({
       title: "liebstoeckel",
       // the brand-book header lockup: mark beside the wordmark, mark color

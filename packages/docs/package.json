@@ -16,5 +16,8 @@
     "astro": "^6.3.7",
     "sharp": "^0.34.5",
     "starlight-page-actions": "^0.6.0"
+  },
+  "devDependencies": {
+    "astro-agent-annotate": "^0.0.2"
   }
 }
