@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.5](https://github.com/liebstoeckel/liebstoeckel-app-private/compare/cli-v0.3.4...cli-v0.3.5) (2026-06-13)
+
+
+### Features
+
+* **cli:** label cloud commands as coming soon ([ed26d0d](https://github.com/liebstoeckel/liebstoeckel-app-private/commit/ed26d0d6a7ec1c5f80aa74c6402ac8b8899febb4))
+* **cli:** update reminder, skill staleness warning, and `skill update` ([372b3c0](https://github.com/liebstoeckel/liebstoeckel-app-private/commit/372b3c05aece2a2ab6255ecdb706c1b09673cd46))
+
 ## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app-private/compare/cli-v0.3.3...cli-v0.3.4) (2026-06-09)
 
 
