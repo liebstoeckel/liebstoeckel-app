@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.6](https://github.com/liebstoeckel/liebstoeckel-app-private/compare/cli-v0.3.5...cli-v0.3.6) (2026-06-13)
+
+
+### Features
+
+* **engine,cli:** embed bundle-time third-party license notices in every deck ([c165bf2](https://github.com/liebstoeckel/liebstoeckel-app-private/commit/c165bf284168b19a34779a79a4dd59656de55429))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.4
+    * @liebstoeckel/live-server bumped to 0.3.4
+    * @liebstoeckel/present-relay bumped to 0.3.4
+    * @liebstoeckel/thumbnails bumped to 0.3.4
+
 ## [0.3.5](https://github.com/liebstoeckel/liebstoeckel-app-private/compare/cli-v0.3.4...cli-v0.3.5) (2026-06-13)
 
 

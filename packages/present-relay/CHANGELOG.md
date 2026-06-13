@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app-private/compare/present-relay-v0.3.3...present-relay-v0.3.4) (2026-06-13)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/live-server bumped to 0.3.4
+
 ## [0.3.3](https://github.com/liebstoeckel/liebstoeckel-app-private/compare/present-relay-v0.3.2...present-relay-v0.3.3) (2026-06-09)
 
 

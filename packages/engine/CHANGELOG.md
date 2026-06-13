@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app-private/compare/engine-v0.3.3...engine-v0.3.4) (2026-06-13)
+
+
+### Features
+
+* **engine,cli:** embed bundle-time third-party license notices in every deck ([c165bf2](https://github.com/liebstoeckel/liebstoeckel-app-private/commit/c165bf284168b19a34779a79a4dd59656de55429))
+
+
+### Bug Fixes
+
+* **engine:** collect licenses via onLoad only, never onResolve ([a2e0a6f](https://github.com/liebstoeckel/liebstoeckel-app-private/commit/a2e0a6f7a846ed6f0663e8b56cde149bbcdfd688))
+
 ## [0.3.3](https://github.com/liebstoeckel/liebstoeckel-app-private/compare/engine-v0.3.2...engine-v0.3.3) (2026-06-09)
 
 
