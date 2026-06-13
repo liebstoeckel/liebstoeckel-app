@@ -1,155 +1,93 @@
 # liebstoeckel
 
-Code-first presentations that are **real software** — authored in MDX + React, animated with Motion, themed from a single token file, and shipped as **one self-contained `.html`**. Built on Bun + React 19 + Tailwind v4.
+![liebstoeckel: code-first presentations that build to one self-contained HTML file](./.github/header.png)
 
-> See the docs [architecture](https://docs.liebstoeckel.app/concepts/architecture/) and [state model](https://docs.liebstoeckel.app/concepts/state-model/) pages for the architecture and validated engineering findings.
->
-> **Docs:** [docs.liebstoeckel.app](https://docs.liebstoeckel.app) — guides, concepts (incl. the [state model](https://docs.liebstoeckel.app/concepts/state-model/)), plugin authoring & API reference. Source lives in [`packages/docs`](./packages/docs).
+liebstoeckel is a code-first presentation engine. You write slides in MDX for prose and TSX for anything interactive, theme them from one place, and build a single portable `.html` per deck.
+It runs on Bun, React 19, Motion, and Tailwind v4.
 
-## Quickstart
+Being technical-first is the point: a deck is plain source you edit and own.
+
+That targets a specific problem with AI-built decks. When an agent generates a presentation, the output is usually a finished artifact you cannot open up and edit by hand. liebstoeckel keeps a deck as plain TSX and MDX, and every build inlines its own source into the `.html`, so the file can be ejected back into an editable project. An agent writes the deck; you still own it and can change it.
+
+Every deck ships with a presenter view and runs offline as a single file. When you want the room involved, the CLI hosts that same file as a live session and syncs state between presenter and audience, so people answer polls, ask questions, and send reactions from their own devices.
+
+The [what is liebstoeckel?](https://docs.liebstoeckel.app/guides/what-is-liebstoeckel/) page covers the reasoning.
+
+## Getting started
+
+All you need is [Bun](https://bun.com) 1.3 or newer; the first line installs it through npm if you do not have it. A browser is enough to view a deck, and a Chromium is optional for build-time thumbnails.
+
+Install the CLI and hand the authoring skill to your agent:
 
 ```bash
+npm install -g bun              # skip if you already have Bun 1.3+
+bun add -g @liebstoeckel/cli    # the liebstoeckel CLI
+liebstoeckel skill install      # teach your coding agent the workflow
+```
+
+Then scaffold a deck and run it:
+
+```bash
+liebstoeckel new my-talk
+cd my-talk
 bun install
-bun run gen            # generate brand CSS from token files
-
-bun run showcase:dev   # http://localhost:3001  — the visx data-viz deck
-bun run demo:dev       # http://localhost:3000  — the minimal/persistent-iframe demo
+bun run dev                     # dev server with HMR
 ```
 
-In a running deck:
-
-| Key | Action |
-|-----|--------|
-| `→` / `Space` | next · `←` previous · `Home`/`End` jump |
-| **`P`** | open the **presenter view** (live slide + next preview + speaker notes + timer) |
-| `T` | cycle brand (when a deck declares more than one) |
-| **`?`** / right-click | toggle the keyboard-shortcuts overlay |
-
-The presenter window and the audience window stay in sync over `BroadcastChannel` — drive from either.
-
-## Author a presentation
-
-A deck is an `index.html` + `main.tsx` that renders `<Present>` with an ordered list of slides:
-
-```tsx
-import { Present } from "@liebstoeckel/engine";
-import "@liebstoeckel/theme/styles.css";
-import * as title from "./slides/01-title";   // `import *` carries the `notes` export
-import * as chart from "./slides/02-chart";
-
-<Present title="My talk" brands={["nocturne"]} slides={[title, chart]} />;
-```
-
-A slide is a component (TSX) or Markdown (MDX), with optional speaker notes:
-
-```tsx
-// slides/02-chart.tsx
-export const notes = <p>What to say while this is on screen.</p>;
-export default function Chart() {
-  return <GradientArea />;   // any React component — e.g. a visx chart
-}
-```
-
-```mdx
-{/* slides/01-title.mdx */}
-export const notes = "Opening beat.";
-
-# Markdown + React
-Mix prose and **components** freely.
-```
-
-## Build → one file
+Build to a single file when you are ready to share:
 
 ```bash
-bun run showcase:build     # → presentations/visx-showcase/dist/index.html
+liebstoeckel build              # -> dist/my-talk.html
 ```
 
-One portable HTML with JS, CSS, **fonts**, and assets inlined — no server, no CDN, no runtime deps.
+That output is one `.html` with the JS, CSS, fonts, and assets inlined. No server, no CDN, no runtime deps. Open it directly, email it, or host it on anything static. It also embeds its own source by default, so `liebstoeckel eject` can turn the file back into an editable project.
 
-## Theming (one place, many brands)
+Working in this repository rather than a scaffolded deck? Run `bun install`, then `bun run demo:dev` for the minimal demo (port 3000) or `bun run showcase:dev` for the visx data-viz deck (port 3001).
 
-A brand is one typed token file. Edit it, run `bun run gen`, and every deck on that brand re-skins:
+> liebstoeckel is pre-1.0. Breaking changes can land in minor releases, so pin exact versions if a deck has to keep building unchanged.
 
-```ts
-// packages/theme/src/brands/nocturne.ts
-export const nocturne = defineTheme({
-  name: "nocturne",
-  colors: { bg: "#08090c", text: "#f3f1ea", primary: "#caff4d", accent: "#62e8ff", /* … */ },
-  fonts:  { heading: '"Fraunces Variable", serif', body: '"Hanken Grotesk Variable", sans-serif', mono: '"JetBrains Mono Variable", monospace' },
-  viz:    ["#caff4d", "#62e8ff", "#ff7a59", "#b692ff", "#ffd166"],
-});
-```
+## From a prompt to a deck
 
-Tokens become Tailwind utilities (`bg-bg`, `text-primary`, `font-heading`) via a `@theme inline` bridge, so switching `data-brand` swaps the entire look.
-
-## Live server & plugins
-
-Turn a deck into a live, interactive session — `bunx`-style, no install:
+With the skill installed, ask your agent for a deck:
 
 ```bash
-bun run poll:live          # build the poll demo + serve it live
-# → prints presenter + read-only links to share
+claude "Create a presentation comparing the glycemic index of different foods"
 ```
 
-- **Audience** opens the read-only link (or scans the QR via `Q` in-deck) and **follows along**; the presenter drives.
-- **Plugins** are Bun packages (`keywords: ["liebstoeckel-plugin"]` + a `liebstoeckel` field) with a required **client** and optional **server** part. They share **typed state over Yjs**, so everyone — including read-only viewers — can interact (e.g. vote in a poll). The same `.html` runs standalone (plugins show a `fallback`) or live.
-- Place one in a slide: `<Plugin id="poll" props={{ question, options }} />`. Author a plugin with `definePlugin({ id, state, server?, client })` from `@liebstoeckel/plugin-sdk`; build UI from `@liebstoeckel/plugin-ui` (themeable + per-slide overridable).
+It reads the component registry, scaffolds the deck, writes the slides, and reruns `build --check` until the deck compiles. The result is one `.html` file. Here is the deck that session produced, playing through its slides:
 
-Live-delivery keys: `F` fullscreen · `B` blur-screen · `O` overview · `0-9`↵ jump · `Q` QR · steps reveal with `→`.
+https://github.com/user-attachments/assets/59cb7ff6-0075-4fb7-b03b-fa00a469bb6f
+
+The springs and reveals come from the engine, not the model. The whole deck is one file: [open it in your browser](https://liebstoeckel.app/glycemic-index.html), or see the full demo on [liebstoeckel.app](https://liebstoeckel.app).
+
+## Features
+
+Every command targets a deck by a leading path, `--dir <deck>`, or the current directory. Run `liebstoeckel --help` for the whole surface; the [CLI reference](https://docs.liebstoeckel.app/reference/cli/) documents each flag.
+
+| Capability | Command | Reference |
+| --- | --- | --- |
+| Scaffold a workspace-wired deck | `liebstoeckel new <name>` | [new](https://docs.liebstoeckel.app/reference/cli/#new) |
+| Build one self-contained `.html`, thumbnails embedded | `liebstoeckel build` | [build](https://docs.liebstoeckel.app/reference/cli/#build) |
+| Validate a deck without writing an artifact | `liebstoeckel build --check` | [build](https://docs.liebstoeckel.app/reference/cli/#build) |
+| Recover a built deck's editable source | `liebstoeckel eject <deck.html>` | [eject](https://docs.liebstoeckel.app/reference/cli/#eject) |
+| Present live over a LAN, or `--relay <url>` | `liebstoeckel live` | [live](https://docs.liebstoeckel.app/reference/cli/#live) |
+| Run a public relay for WAN sessions | `liebstoeckel relay` | [relay](https://docs.liebstoeckel.app/reference/cli/#relay) |
+| Export slides to PNG or PDF | `liebstoeckel export` | [export](https://docs.liebstoeckel.app/reference/cli/#export) |
+| Regenerate thumbnails for a built deck | `liebstoeckel thumbs <deck.html>` | [thumbs](https://docs.liebstoeckel.app/reference/cli/#thumbs) |
+| Add registry items into a deck as owned source | `liebstoeckel add <name>` | [add](https://docs.liebstoeckel.app/reference/cli/#add) |
+| Browse the chart and component registry as JSON | `liebstoeckel registry list` | [registry](https://docs.liebstoeckel.app/reference/cli/#registry) |
+| Install the agent authoring skill | `liebstoeckel skill install` | [skill](https://docs.liebstoeckel.app/reference/cli/#skill) |
+
+Cloud commands (`login`, `push`, `orgs`, `decks`, `brand`) upload a deck to the hosted service and are coming soon. See [cloud commands](https://docs.liebstoeckel.app/reference/cli/#cloud-commands-coming-soon).
 
 ## Architecture
 
-liebstoeckel is a Bun monorepo. The flow is **author → compile → render → (deliver)**:
+liebstoeckel is a Bun monorepo built around `engine`, which compiles a deck with `Bun.build` (inlining the JS, CSS, and fonts) and runs it: a fixed-canvas `ScaledStage`, Motion transitions, keyboard and touch navigation, the presenter view, and the live client. `theme` holds the typed token model and the pipeline from brand tokens to CSS variables, so a deck re-skins by switching `data-brand`. `components` provides the themed MDX primitives and Magic Move. `plugin-sdk` and `plugin-ui` build the Yjs-synced plugins from typed CRDT state, and `live-server` and `present-relay` host that shared document for a LAN room or the public internet. `thumbnails` captures slide previews at build time, and `cli` is the single command over all of it. Each package has its own README; the [architecture](https://docs.liebstoeckel.app/concepts/architecture/) and [state model](https://docs.liebstoeckel.app/concepts/state-model/) pages go deeper.
 
-1. **Author** a deck as MDX/TSX slides on a brand from **`theme`**, composing primitives from **`components`** and interactive **plugins**.
-2. **`engine`** compiles it: `Bun.build` inlines JS/CSS/fonts, an MDX plugin Shiki-highlights code at build time, and a Bun macro pre-tokenizes animated code — producing **one self-contained HTML** with no runtime deps.
-3. The same HTML **renders** standalone: a fixed-canvas `ScaledStage`, Motion transitions, keyboard/touch nav, and a `BroadcastChannel`-synced presenter view.
-4. To **deliver live**, `live-server` (LAN) or `present-relay` (WAN) hosts the deck and runs a shared **Yjs** document; the engine's live client syncs presenter↔audience and drives plugins. Plugins (`plugin-sdk` + `plugin-ui`) define typed CRDT state so every viewer can interact; they fall back to static UI offline.
+## Documentation
 
-`cli` is the umbrella command over all of it; `thumbnails` captures slide previews; `docs`/`docs-dist` build & serve the docs site; `ci-poller` and `e2e` are internal CI/test infra.
-
-> Deep dive: the docs [architecture](https://docs.liebstoeckel.app/concepts/architecture/) / [state model](https://docs.liebstoeckel.app/concepts/state-model/) pages. Each package README has an **Architecture** section covering its internals.
-
-## Packages
-
-Every package has its own README (linked below) detailing usage and internal architecture.
-
-**Core — author, compile, render**
-
-| Package | Role |
-|---|---|
-| [`@liebstoeckel/engine`](./packages/engine/README.md) | Build pipeline, React 19 + Motion runtime, and live/plugin layer that compiles MDX/TSX decks into one self-contained HTML. |
-| [`@liebstoeckel/components`](./packages/components/README.md) | Runtime primitives the engine composes: themed `mdxComponents`, magic-move `Magic`, brand `Atmosphere`. |
-| [`@liebstoeckel/theme`](./packages/theme/README.md) | Typed brand tokens compiled to `[data-brand]` CSS + a Tailwind v4 `@theme inline` bridge; swap one attribute to re-skin. |
-
-**Plugins — interactive, Yjs-synced**
-
-| Package | Role |
-|---|---|
-| [`@liebstoeckel/plugin-sdk`](./packages/plugin-sdk/README.md) | `definePlugin`, the runtime-typed state model over a `Y.Map`, and the client/server contract. |
-| [`@liebstoeckel/plugin-ui`](./packages/plugin-ui/README.md) | Themeable component primitives + `useTheme`, with per-slide override surfaces. |
-| [`@liebstoeckel/plugin-poll`](./packages/plugin-poll/README.md) | Live audience polling (pure CRDT, no server). |
-| [`@liebstoeckel/plugin-qa`](./packages/plugin-qa/README.md) | Audience Q&A with upvotes and presenter answer/dismiss controls. |
-| [`@liebstoeckel/plugin-reactions`](./packages/plugin-reactions/README.md) | Ephemeral, rate-limited floating-emoji reactions. |
-
-**Live delivery**
-
-| Package | Role |
-|---|---|
-| [`@liebstoeckel/live-server`](./packages/live-server/README.md) | Local `Bun.serve` host for one deck — Yjs hub, presenter/viewer tokens, QR (LAN). |
-| [`@liebstoeckel/present-relay`](./packages/present-relay/README.md) | Multi-tenant public relay reusing the hub/session primitives for WAN presenting. |
-
-**Tooling, docs & infra**
-
-| Package | Role |
-|---|---|
-| [`@liebstoeckel/cli`](./packages/cli/README.md) | The `liebstoeckel` / `lst` umbrella command (`new`, `dev`, `build`, `live`, `relay`, `thumbs`, `present`). |
-| [`@liebstoeckel/thumbnails`](./packages/thumbnails/README.md) | Headless-Chromium slide-thumbnail capture embedded back into a built deck. |
-| [`@liebstoeckel/docs`](./packages/docs/README.md) | Astro Starlight source for [docs.liebstoeckel.app](https://docs.liebstoeckel.app) *(private)*. |
-| `@liebstoeckel/docs-dist` | nginx container image that serves the built docs *(private)*. |
-| `@liebstoeckel/ci-poller` | Pull-based Tekton CI trigger; reconciles repo refs into PipelineRuns *(private)*. |
-| `@liebstoeckel/e2e` | Headless-browser smoke-test tier over a real built fixture deck *(private)*. |
+Full guides, concepts, plugin authoring, and the API reference live at [docs.liebstoeckel.app](https://docs.liebstoeckel.app). The source is in [`packages/docs`](./packages/docs).
 
 ## License
 
-[MPL-2.0](./LICENSE) — see each package for details.
+[MPL-2.0](./LICENSE). See each package for details.
