@@ -1,0 +1,18 @@
+# Repo-wide Bun config.
+#
+# [install] minimumReleaseAge — a supply-chain cooldown: refuse to RESOLVE any
+# package version published less than this many seconds ago (3 days). A yanked or
+# compromised release is usually caught inside that window. This is the low-level
+# floor under Renovate's own 7-day `minimumReleaseAge` (renovate.json, (internal ADR)):
+# Renovate gates the update PRs it proposes; this gates EVERY resolution path —
+# local `bun add`/`bun update`, a fresh `bun install`, and Renovate's own
+# lockfile-maintenance install — so nothing pulls a same-day version, however it's
+# triggered. Kept ≤ Renovate's window so any version Renovate picks (≥7d old)
+# always clears this floor.
+#
+# Does NOT affect `--frozen-lockfile` installs or an unchanged lock (no
+# re-resolution happens), so CI (`bun install --frozen-lockfile`) is unaffected.
+# A deliberate, vetted install can opt out per-invocation with
+# `--minimum-release-age=0` (the release-publish task does this).
+[install]
+minimumReleaseAge = 259200  # 3 days, in seconds
