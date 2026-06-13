@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   ALLOWED_SPDX,
   buildReport,
+  createLicenseCollector,
   embedLicenses,
   extractLicenses,
   fallbackLicenseText,
@@ -135,5 +136,33 @@ describe("renderNotices + embed/extract roundtrip", () => {
 
   test("extract returns null when no block present", () => {
     expect(extractLicenses("<html><body>nope</body></html>")).toBeNull();
+  });
+});
+
+describe("createLicenseCollector hook surface (regression)", () => {
+  // A catch-all `onResolve` — even one that returns undefined — is NOT inert in Bun's
+  // bundler: registering it perturbs resolution enough to miscompile modules under
+  // minification. A deck importing `@visx/shape` built with `minify: true` threw
+  // `ReferenceError: <mangled> is not defined` from d3-shape and rendered nothing (so
+  // thumbnail capture was skipped). The collector must observe via `onLoad` ONLY. This
+  // guards against reintroducing `onResolve`.
+  function registeredHooks(): string[] {
+    const { plugin } = createLicenseCollector();
+    const hooks: string[] = [];
+    plugin.setup({
+      onResolve: () => hooks.push("resolve"),
+      onLoad: () => hooks.push("load"),
+    } as unknown as Parameters<NonNullable<typeof plugin.setup>>[0]);
+    return hooks;
+  }
+
+  test("registers onLoad and NEVER onResolve", () => {
+    const hooks = registeredHooks();
+    expect(hooks).toContain("load");
+    expect(hooks).not.toContain("resolve");
+  });
+
+  test("registers exactly one hook (a single inert observer)", () => {
+    expect(registeredHooks()).toEqual(["load"]);
   });
 });
