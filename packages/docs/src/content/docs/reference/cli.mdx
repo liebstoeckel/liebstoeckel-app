@@ -103,11 +103,11 @@ controls exactly what's embedded.
 The deck defaults to the **current directory**; pass it as a positional `[dir]` or
 with `--dir <deck>` (the convention shared by `pack`/`live`/`export`).
 
-The build also embeds a **third-party license notice** computed from the modules
-that actually ended up in the bundle (React, Motion, Yjs, the fonts, and the
-MPL-2.0 engine). Because minification strips license comments, this restores the
-attribution those licenses require — and because it's recomputed every build, it
-tracks font and library swaps automatically. Read it with [`licenses`](#licenses).
+The build also embeds a **third-party license notice** built from the modules that
+actually end up in the bundle (React, Motion, Yjs, the fonts, and the MPL-2.0 engine).
+Minification strips license comments, so this puts the required attribution back. It is
+recomputed on every build, so it stays correct when you swap a font or a library. Read
+it with [`licenses`](#licenses).
 
 ```bash
 liebstoeckel build                             # the deck in the current directory
@@ -176,16 +176,15 @@ liebstoeckel licenses [dir] --json        # structured: { ok, packages, firstPar
 liebstoeckel licenses [dir] --check       # exit non-zero if any non-standard license is bundled
 ```
 
-The report lists only what is actually inlined into the `.html` (the client bundle and
-the embedded fonts) — build-time tooling such as the MDX compiler, Tailwind, and the
-syntax highlighter run during the build and are **not** redistributed, so they're
-excluded.
+The report lists only what is actually inlined into the `.html`: the client bundle and
+the embedded fonts. Build-time tools like the MDX compiler, Tailwind, and the syntax
+highlighter run during the build and aren't redistributed, so they're left out.
 
-The two inputs differ in what they can do. A built **`.html`** carries its notices as
-rendered text, so the command just prints them (with `--json`, as `{ source, notices }`).
-A deck **directory** is recomputed from a fresh bundle, so it yields the structured
-report (`{ ok, packages, firstParty, flagged }`) and is the only input that supports
-`--check`. As with `build --check`, output is JSON when piped or with `--json`.
+A built **`.html`** carries its notices as rendered text, so the command prints them
+(with `--json`, as `{ source, notices }`). A deck **directory** is recomputed from a
+fresh bundle, so it gives the full structured report (`{ ok, packages, firstParty,
+flagged }`) and is the only input that works with `--check`. As with `build --check`,
+the output is JSON when piped or with `--json`.
 
 `--check` is a CI gate: it fails when a bundled package carries a license outside the
 permissive/embeddable set (for example a copyleft chart library pulled in via

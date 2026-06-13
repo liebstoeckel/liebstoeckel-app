@@ -32,9 +32,9 @@ await buildDeck({ entry: "./index.html", outdir: "./dist" });
 - **Slide thumbnails**: a manifest of WebP data-URIs for the overview grid (see below).
 - **Third-party license notices**: an inert `<script>` listing the licenses of everything
   bundled into the file (the libraries, the fonts, and the MPL-2.0 engine). Minification
-  strips license comments, so the build restores the attribution those licenses require —
-  computed from what *this* build actually bundled, so it stays correct when you swap a font
-  or add a library. Inspect or CI-gate it with [`liebstoeckel licenses`](/reference/cli/#licenses).
+  strips license comments, so the build puts the required attribution back. It's computed
+  from what *this* build bundled, so it stays correct when you swap a font or add a library.
+  Inspect or CI-gate it with [`liebstoeckel licenses`](/reference/cli/#licenses).
 
 ## Deploying
 
