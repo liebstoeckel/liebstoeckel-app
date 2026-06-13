@@ -12,6 +12,7 @@ usage:
   liebstoeckel build [dir|--dir <deck>] [--no-inline-package] [--check]   build a deck (default: cwd) → one self-contained .html (+ thumbnails)
   liebstoeckel eject <deck.html> [outdir] [--force]   recover a built deck's editable source
   liebstoeckel pack [dir|--dir <deck>] [-o <file.tgz>] [--allow-secret]   inspect/emit the source a build embeds (default: cwd)
+  liebstoeckel licenses [deck.html|dir|--dir <deck>] [--json] [--check]   report third-party licenses bundled into a deck (--check fails on non-standard licenses)
   liebstoeckel live [deck|dir|--dir <deck>] [opts]   present live (default: cwd; LAN, or --relay <url> --relay-token <tok>)
   liebstoeckel relay [opts]                    run a public relay (--port, --tokens, --public-url)
   liebstoeckel thumbs <deck.html> [opts]       (re)generate thumbnails for a built deck
@@ -105,6 +106,7 @@ async function runBuild(argv: string[]) {
       entry: "./index.html",
       outdir: "./dist",
       inlinePackage: !has(argv, "--no-inline-package"),
+      inlineLicenses: !has(argv, "--no-inline-licenses"),
       allowSecret: has(argv, "--allow-secret"),
     });
   } finally {
@@ -155,6 +157,59 @@ async function runPack(argv: string[]) {
   }
 }
 
+async function runLicenses(argv: string[]) {
+  const json = has(argv, "--json") || !process.stdout.isTTY;
+  const check = has(argv, "--check");
+  const { dir, rest } = resolveDeck(argv);
+
+  // A built deck.html already carries its notices — print the embedded block
+  // (no rebuild). `--check` is not meaningful here: the block is rendered text, not the
+  // structured report, so license gating needs the deck source instead.
+  if (looksLikeDeck(dir) && /\.html?$/i.test(dir)) {
+    if (check) {
+      console.error(`✕ --check needs the deck source directory (it recomputes the bundle); a built .html carries only the rendered notices.\n  try: liebstoeckel licenses <deck-dir> --check`);
+      process.exit(1);
+    }
+    const { extractLicenses } = await import("@liebstoeckel/engine/build/licenses");
+    const notices = extractLicenses(await Bun.file(resolve(dir)).text());
+    if (!notices) {
+      console.error(`✕ no embedded license notices in ${dir} (built with --no-inline-licenses or an older build)`);
+      process.exit(1);
+    }
+    if (json) console.log(JSON.stringify({ source: "embedded", notices }, null, 2));
+    else console.log(notices);
+    return;
+  }
+
+  // Otherwise resolve the deck dir and compute the report from its real module graph.
+  const prev = process.cwd();
+  process.chdir(resolve(dir));
+  try {
+    const { collectDeckLicenses } = await import("@liebstoeckel/engine/build");
+    const report = await collectDeckLicenses({ entry: "./index.html" });
+    const ok = report.flagged.length === 0;
+    if (json) {
+      console.log(JSON.stringify({ ok, ...report }, null, 2));
+    } else {
+      console.log(`\nthird-party licenses bundled into this deck (${report.packages.length} packages):\n`);
+      for (const p of report.packages) {
+        const mark = report.flagged.some((f) => f.name === p.name && f.version === p.version) ? " ⚠" : "";
+        console.log(`  ${`${p.name}@${p.version}`.padEnd(40)} ${p.license}${mark}`);
+      }
+      if (report.firstParty.length) console.log(`\n  + ${report.firstParty.length} liebstoeckel package(s) — MPL-2.0`);
+      if (!ok) {
+        console.error(`\n⚠ ${report.flagged.length} non-standard license(s) — review before distributing:`);
+        for (const f of report.flagged) console.error(`    ${f.name}@${f.version}  ${f.license}`);
+      } else {
+        console.log(`\n✓ all bundled licenses are standard permissive / embeddable.`);
+      }
+    }
+    if (check && !ok) process.exit(1);
+  } finally {
+    process.chdir(prev);
+  }
+}
+
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   // Best-effort reminders (stderr-only; off for --json/pipes/CI, see update.ts):
@@ -191,6 +246,8 @@ async function main() {
       return runEject(rest);
     case "pack":
       return runPack(rest);
+    case "licenses":
+      return runLicenses(rest);
     case "live": {
       // Resolve the deck (positional | --dir | cwd) and pass it as the positional
       // the live runner expects ((internal ADR)).

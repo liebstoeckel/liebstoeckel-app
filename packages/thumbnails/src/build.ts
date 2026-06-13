@@ -13,6 +13,8 @@ export interface BuildDeckOptions {
   pkgJson?: string;
   /** Embed the deck's own source as a recoverable package so the .html is ejectable ((internal ADR)). */
   inlinePackage?: boolean;
+  /** Embed third-party license notices computed from the real bundle graph. */
+  inlineLicenses?: boolean;
   /** Force the source-embed past its secret gate (loud, explicit). */
   allowSecret?: boolean;
 }

@@ -10,6 +10,20 @@ import {
 } from "@liebstoeckel/plugin-sdk/manifest";
 import mdx from "./mdx-plugin";
 import visxEsmInterop from "./visx-esm-plugin";
+import { createLicenseCollector, renderNotices, embedLicenses, type LicenseReport } from "./licenses";
+
+/** The plugins every deck build runs (Tailwind CSS gen, MDX compile, visx ESM
+ *  interop). Shared so the license collector and any collect-only build resolve
+ *  the exact same module graph as a real build. */
+const DECK_PLUGINS = [tailwind, mdx, visxEsmInterop];
+
+/** Default first-party notice embedded alongside the third-party block — the
+ *  MPL-2.0 line + public source pointer that MPL §3.2(b)/§3.4 require to travel
+ *  with the inlined engine code. */
+const DEFAULT_SELF_NOTICE =
+  "This presentation embeds the liebstoeckel presentation engine, licensed under\n" +
+  "the Mozilla Public License 2.0. Source code for the covered files is available\n" +
+  "at https://github.com/liebstoeckel/liebstoeckel — you may obtain it at no charge.";
 
 /** Bundle a plugin's server entry into a self-contained, base64-encoded ESM module
  *  (target:"bun"). It externalizes nothing host-specific because the host injects
@@ -49,6 +63,16 @@ export async function buildPluginManifest(pkgJsonPath: string): Promise<PluginMa
   return { v: 1, plugins: entries };
 }
 
+/** The deck's own package name (so the license report can exclude it — a deck never
+ *  lists itself). Best-effort: a missing/unreadable package.json just yields undefined. */
+async function readPkgName(pkgJsonPath: string): Promise<string | undefined> {
+  try {
+    return (await Bun.file(pkgJsonPath).json()).name;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Bun inlines the JS bundle as `<script type="module">…</script>`, but does NOT escape
  *  `</script>` sequences that occur inside JS string literals (e.g. a deck embedding HTML
  *  through an iframe `srcdoc`). The HTML parser would close the inline script at the first
@@ -82,6 +106,8 @@ export async function bundleDeck({
   minify = true,
   pkgJson = "./package.json",
   inlinePackage = true,
+  inlineLicenses = true,
+  selfNotice = DEFAULT_SELF_NOTICE,
   allowSecret = false,
 }: {
   entry?: string;
@@ -93,16 +119,22 @@ export async function bundleDeck({
   pkgJson?: string;
   /** Embed the deck's own source as a recoverable package so the .html is ejectable ((internal ADR)). */
   inlinePackage?: boolean;
+  /** Embed a THIRD-PARTY-NOTICES block computed from the bundle's real module graph.
+   *  Minify strips license comments, so we re-add the required notices. */
+  inlineLicenses?: boolean;
+  /** First-party notice prepended to the notices block (default: the MPL line). */
+  selfNotice?: string;
   /** Force the source-embed past its secret gate (loud, explicit). */
   allowSecret?: boolean;
 } = {}) {
+  const licenses = createLicenseCollector({ selfName: await readPkgName(pkgJson) });
   const result = await Bun.build({
     entrypoints: [entry],
     outdir,
     minify,
     target: "browser",
     compile: true,
-    plugins: [tailwind, mdx, visxEsmInterop],
+    plugins: inlineLicenses ? [...DECK_PLUGINS, licenses.plugin] : DECK_PLUGINS,
   });
 
   if (!result.success) {
@@ -120,6 +152,15 @@ export async function bundleDeck({
   const manifest = await buildPluginManifest(pkgJson);
   if (manifest) html = embedManifest(html, manifest);
 
+  // Re-add the third-party license notices that minify stripped, computed
+  // from the modules this build actually bundled — so it tracks font/lib swaps.
+  if (inlineLicenses) {
+    const report = licenses.report();
+    html = embedLicenses(html, renderNotices(report, { selfNotice }));
+    const flagged = report.flagged.length ? ` — ⚠ ${report.flagged.length} non-standard license(s)` : "";
+    console.log(`✓ embedded license notices (${report.packages.length} third-party packages)${flagged}`);
+  }
+
   // Embed the deck's own source so the compiled .html ejects back to an editable project.
   if (inlinePackage) {
     const { collectDeckTarball, embedSource } = await import("./source-package");
@@ -133,6 +174,27 @@ export async function bundleDeck({
   if (built !== outHtml) await rm(built, { force: true });
 
   return result;
+}
+
+/** Resolve a deck's third-party license report WITHOUT emitting an artifact — runs
+ *  the same plugin set as a real build so the module graph matches, then discards
+ *  the output. Backs `liebstoeckel licenses` over a deck directory. */
+export async function collectDeckLicenses({
+  entry = "./index.html",
+  pkgJson = "./package.json",
+}: { entry?: string; pkgJson?: string } = {}): Promise<LicenseReport> {
+  const licenses = createLicenseCollector({ selfName: await readPkgName(pkgJson) });
+  const result = await Bun.build({
+    entrypoints: [entry],
+    minify: false,
+    target: "browser",
+    plugins: [...DECK_PLUGINS, licenses.plugin],
+  });
+  if (!result.success) {
+    for (const log of result.logs) console.error(log);
+    throw new Error("Deck build failed");
+  }
+  return licenses.report();
 }
 
 /** A single build diagnostic, shaped for machine consumption ((internal ADR)). */

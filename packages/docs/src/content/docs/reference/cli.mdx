@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: "The umbrella liebstoeckel command: new, add, registry, build, eject, pack, live, relay, thumbs, export, skill, login, push, orgs, decks, brand."
+description: "The umbrella liebstoeckel command: new, add, registry, build, eject, pack, licenses, live, relay, thumbs, export, skill, login, push, orgs, decks, brand."
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -103,6 +103,12 @@ controls exactly what's embedded.
 The deck defaults to the **current directory**; pass it as a positional `[dir]` or
 with `--dir <deck>` (the convention shared by `pack`/`live`/`export`).
 
+The build also embeds a **third-party license notice** computed from the modules
+that actually ended up in the bundle (React, Motion, Yjs, the fonts, and the
+MPL-2.0 engine). Because minification strips license comments, this restores the
+attribution those licenses require — and because it's recomputed every build, it
+tracks font and library swaps automatically. Read it with [`licenses`](#licenses).
+
 ```bash
 liebstoeckel build                             # the deck in the current directory
 liebstoeckel build --dir <deck>                # or a positional [dir]
@@ -114,6 +120,7 @@ LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build [dir]   # skip thumbnails
 | Flag | Meaning |
 | --- | --- |
 | `--no-inline-package` | don't embed the deck's source (smaller file, not ejectable) |
+| `--no-inline-licenses` | don't embed the third-party license notices (not recommended) |
 | `--allow-secret` | override the secret gate that aborts if a packed file looks like a credential |
 | `--check` | validate the deck **bundles** (no output written); reports diagnostics + exits non-zero on error |
 
@@ -154,6 +161,41 @@ liebstoeckel pack [dir]                  # print the file list (defaults to cwd)
 liebstoeckel pack [dir] -o deck.tgz      # write a gzip tarball (bun add-compatible)
 liebstoeckel pack [dir] --allow-secret   # override the secret gate
 ```
+
+## `licenses`
+
+Report the third-party licenses bundled into a deck. Pass a built `.html` to print
+the notices it already carries, or a deck `[dir]` / `--dir <deck>` (default: cwd) to
+compute the report fresh from the deck's real module graph.
+
+```bash
+liebstoeckel licenses dist/my-deck.html   # print the notices embedded in a built deck
+liebstoeckel licenses                     # compute the report for the deck in cwd
+liebstoeckel licenses --dir <deck>        # or a positional [dir]
+liebstoeckel licenses [dir] --json        # structured: { ok, packages, firstParty, flagged }
+liebstoeckel licenses [dir] --check       # exit non-zero if any non-standard license is bundled
+```
+
+The report lists only what is actually inlined into the `.html` (the client bundle and
+the embedded fonts) — build-time tooling such as the MDX compiler, Tailwind, and the
+syntax highlighter run during the build and are **not** redistributed, so they're
+excluded.
+
+The two inputs differ in what they can do. A built **`.html`** carries its notices as
+rendered text, so the command just prints them (with `--json`, as `{ source, notices }`).
+A deck **directory** is recomputed from a fresh bundle, so it yields the structured
+report (`{ ok, packages, firstParty, flagged }`) and is the only input that supports
+`--check`. As with `build --check`, output is JSON when piped or with `--json`.
+
+`--check` is a CI gate: it fails when a bundled package carries a license outside the
+permissive/embeddable set (for example a copyleft chart library pulled in via
+[`add`](#add)), so you catch it before shipping.
+
+<Aside type="note" title="Notices are embedded automatically">
+Every `build` embeds these notices into the `.html` (see [`build`](#build)); `licenses`
+is for inspecting and gating them. Disable the embed with `build --no-inline-licenses`
+only if you have another way to satisfy the attribution requirements.
+</Aside>
 
 Useful for verifying your `"files"` allowlist before shipping. The `-o` tarball is standard gzip
 (`bun add ./deck.tgz`-installable); the in-HTML embed uses zstd internally.
