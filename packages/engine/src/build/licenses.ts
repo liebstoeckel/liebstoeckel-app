@@ -74,13 +74,17 @@ export function createLicenseCollector(opts: { selfName?: string } = {}): {
     // virtual modules (`\0`-prefixed), and data: URIs.
     if (p && p.startsWith(sep) && !p.includes("\0")) paths.add(p);
   };
+  // ONLY hook onLoad — never onResolve. A catch-all `onResolve` that returns undefined
+  // is NOT a no-op in Bun's bundler: registering it perturbs resolution enough to
+  // miscompile some modules under minification (observed: a deck importing `@visx/shape`
+  // built minified threw `ReferenceError: <mangled> is not defined` from d3-shape's stack
+  // code, because a declaration got dropped while its reference survived). `onLoad` with a
+  // catch-all filter that returns undefined IS inert, and its `args.path` is the resolved
+  // absolute path of every loaded module (including CSS `url()` font assets), so it
+  // captures the full graph (fonts included) without touching the output.
   const plugin: import("bun").BunPlugin = {
     name: "liebstoeckel-license-collector",
     setup(build) {
-      build.onResolve({ filter: /.*/ }, (args) => {
-        record(args.path);
-        return undefined;
-      });
       build.onLoad({ filter: /.*/ }, (args) => {
         record(args.path);
         return undefined;
