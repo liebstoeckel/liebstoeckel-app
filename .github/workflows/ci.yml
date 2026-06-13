@@ -1,4 +1,4 @@
-# CI for the PUBLIC mirror (limond/liebstoeckel-app-public): external pull
+# CI for the PUBLIC mirror (liebstoeckel/liebstoeckel-app): external pull
 # requests get typecheck + the unit/integration tier. The private repo has its
 # own in-cluster CI; the repository guard below makes this workflow a no-op
 # there, so the file can live in the (mirrored) source of truth.
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   test:
-    if: github.repository == 'limond/liebstoeckel-app-public'
+    if: github.repository == 'liebstoeckel/liebstoeckel-app'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

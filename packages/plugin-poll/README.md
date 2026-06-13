@@ -63,4 +63,4 @@ A pure-CRDT plugin: there is no `server` part — all behavior is client-side ov
 
 ## License
 
-[MPL-2.0](https://github.com/limond/liebstoeckel-app-public/blob/main/LICENSE)
+[MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE)

@@ -64,4 +64,4 @@ A `Bun.serve` HTTP+WebSocket server fronting a single-session Yjs relay. One dec
 
 ## License
 
-[MPL-2.0](https://github.com/limond/liebstoeckel-app-public/blob/main/LICENSE)
+[MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE)

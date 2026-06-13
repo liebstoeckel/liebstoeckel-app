@@ -4,7 +4,7 @@
   "license": "MPL-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/limond/liebstoeckel-app-public.git",
+    "url": "git+https://github.com/liebstoeckel/liebstoeckel-app.git",
     "directory": "packages/cli"
   },
   "publishConfig": {

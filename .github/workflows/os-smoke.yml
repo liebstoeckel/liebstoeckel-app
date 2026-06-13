@@ -30,7 +30,7 @@ jobs:
     # and only on the release-please PR (or a manual dispatch). `github.head_ref`
     # is the PR's source branch (set only on pull_request events).
     if: >
-      github.repository == 'limond/liebstoeckel-app' &&
+      github.repository == 'liebstoeckel/liebstoeckel-app-private' &&
       (github.event_name == 'workflow_dispatch' ||
        startsWith(github.head_ref, 'release-please--branches--main'))
     strategy:
