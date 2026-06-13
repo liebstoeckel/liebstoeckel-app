@@ -25,7 +25,8 @@
   "dependencies": {
     "@liebstoeckel/engine": "workspace:*",
     "@liebstoeckel/plugin-sdk": "workspace:*",
-    "@liebstoeckel/thumbnails": "workspace:*"
+    "@liebstoeckel/thumbnails": "workspace:*",
+    "citty": "^0.2.2"
   },
   "peerDependencies": {
     "yjs": "^13.6.31"

@@ -37,12 +37,13 @@ describe("skill update", () => {
   test("refreshes only the agent paths already installed", async () => {
     const { mkdtempSync, mkdirSync, rmSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
-    const { runSkill } = await import("./skill");
+    const { runCommand } = await import("citty");
+    const { skillCommand } = await import("./skill");
     const dir = mkdtempSync(join(tmpdir(), "lst-skillup-"));
     try {
       // simulate a previous claude-only install (stale, empty skill dir)
       mkdirSync(join(dir, ".claude", "skills", "liebstoeckel-deck"), { recursive: true });
-      await runSkill(["update", "--dir", dir]);
+      await runCommand(skillCommand, { rawArgs: ["update", "--dir", dir] });
       expect(existsSync(join(dir, ".claude", "skills", "liebstoeckel-deck", "SKILL.md"))).toBe(true);
       expect(existsSync(join(dir, "AGENTS.md"))).toBe(true);
       // update must not introduce agent paths that weren't installed

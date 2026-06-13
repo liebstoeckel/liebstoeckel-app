@@ -63,6 +63,7 @@
         "@liebstoeckel/registry": "workspace:*",
         "@liebstoeckel/theme": "workspace:*",
         "@liebstoeckel/thumbnails": "workspace:*",
+        "citty": "^0.2.2",
       },
       "peerDependencies": {
         "react": ">=19.2.7",
@@ -254,6 +255,7 @@
         "@liebstoeckel/engine": "workspace:*",
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/thumbnails": "workspace:*",
+        "citty": "^0.2.2",
       },
       "peerDependencies": {
         "yjs": "^13.6.31",
@@ -327,6 +329,7 @@
         "@opentelemetry/resources": "^2.7.1",
         "@opentelemetry/sdk-trace-base": "^2.7.1",
         "@opentelemetry/semantic-conventions": "^1.41.1",
+        "citty": "^0.2.2",
       },
     },
     "packages/registry": {
@@ -358,6 +361,7 @@
       },
       "dependencies": {
         "@liebstoeckel/engine": "workspace:*",
+        "citty": "^0.2.2",
         "playwright-core": "1.60.0",
       },
     },
@@ -1457,6 +1461,8 @@
     "chokidar": ["chokidar@5.0.0", "", { "dependencies": { "readdirp": "^5.0.0" } }, "sha512-TQMmc3w+5AxjpL8iIiwebF73dRDF4fBIieAqGn9RGCWaEVwQ6Fb2cGe31Yns0RRIzii5goJ1Y7xbMwo1TxMplw=="],
 
     "ci-info": ["ci-info@4.4.0", "", {}, "sha512-77PSwercCZU2Fc4sX94eF8k8Pxte6JAwL4/ICZLFjJLqegs7kCuAsqqj/70NQF6TvDpgFjkubQB2FW2ZZddvQg=="],
+
+    "citty": ["citty@0.2.2", "", {}, "sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w=="],
 
     "cjs-module-lexer": ["cjs-module-lexer@2.2.0", "", {}, "sha512-4bHTS2YuzUvtoLjdy+98ykbNB5jS0+07EvFNXerqZQJ89F7DI6ET7OQo/HJuW6K0aVsKA9hj9/RVb2kQVOrPDQ=="],
 

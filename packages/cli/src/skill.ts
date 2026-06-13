@@ -1,3 +1,4 @@
+import { defineCommand } from "citty";
 import { fileURLToPath } from "node:url";
 import { existsSync, readdirSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
@@ -87,16 +88,7 @@ Discover components with \`liebstoeckel registry list --json\`; validate with \`
   await Bun.write(dest, mdc);
 }
 
-export async function runSkill(argv: string[]): Promise<void> {
-  const positionals = argv.filter((a) => !a.startsWith("-"));
-  const sub = positionals[0];
-  if (sub !== "install" && sub !== "update") {
-    console.error("usage: liebstoeckel skill install|update [--target claude|codex|cursor|gemini|all] [--dir <deck>]");
-    process.exit(1);
-  }
-
-  const dirIdx = argv.indexOf("--dir");
-  const deckDir = dirIdx >= 0 ? argv[dirIdx + 1]! : ".";
+async function applySkill(sub: "install" | "update", deckDir: string, targetArg: string | undefined): Promise<void> {
   let targets: Target[];
   if (sub === "update") {
     // Refresh whatever is already installed (the AGENTS.md block is always
@@ -107,8 +99,7 @@ export async function runSkill(argv: string[]): Promise<void> {
       process.exit(1);
     }
   } else {
-    const tIdx = argv.indexOf("--target");
-    const tArg = tIdx >= 0 ? argv[tIdx + 1] : "all";
+    const tArg = targetArg ?? "all";
     targets =
       !tArg || tArg === "all" ? ALL_TARGETS : (tArg.split(",").filter((t): t is Target => (ALL_TARGETS as string[]).includes(t)));
     if (targets.length === 0) {
@@ -146,3 +137,31 @@ export async function runSkill(argv: string[]): Promise<void> {
     process.exit(1);
   }
 }
+
+const skillInstallCommand = defineCommand({
+  meta: { name: "install", description: "install the agent skill (SKILL.md + AGENTS.md) into a deck" },
+  args: {
+    target: {
+      type: "string",
+      default: "all",
+      description: "agents to target: claude, codex, cursor, gemini, all (comma-separated)",
+      valueHint: "claude|codex|cursor|gemini|all",
+    },
+    dir: { type: "string", description: "target deck directory (default: cwd)", valueHint: "deck" },
+  },
+  run: ({ args }) => applySkill("install", args.dir ?? ".", args.target),
+});
+
+const skillUpdateCommand = defineCommand({
+  meta: { name: "update", description: "refresh the installed agent skill to the running CLI version" },
+  args: {
+    dir: { type: "string", description: "target deck directory (default: cwd)", valueHint: "deck" },
+  },
+  run: ({ args }) => applySkill("update", args.dir ?? ".", undefined),
+});
+
+/** `liebstoeckel skill install|update` — manage the bundled deck-authoring Skill. */
+export const skillCommand = defineCommand({
+  meta: { name: "skill", description: "install/refresh the agent skill for deck authoring" },
+  subCommands: { install: skillInstallCommand, update: skillUpdateCommand },
+});

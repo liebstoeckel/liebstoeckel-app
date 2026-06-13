@@ -1,3 +1,4 @@
+import { defineCommand } from "citty";
 import { existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import {
@@ -145,11 +146,6 @@ export async function resolveScaffold(
 
 // ── command ──────────────────────────────────────────────────────────────────
 
-const flag = (argv: string[], name: string): string | undefined => {
-  const i = argv.indexOf(name);
-  return i >= 0 ? argv[i + 1] : undefined;
-};
-
 interface DeckConfig {
   registries: Record<string, string>;
 }
@@ -211,22 +207,6 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
   );
 }
 
-/** Flags that take a value — their following token is not a positional. */
-const VALUE_FLAGS = new Set(["--dir"]);
-
-function positionalArgs(argv: string[]): string[] {
-  const out: string[] = [];
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i]!;
-    if (a.startsWith("-")) {
-      if (VALUE_FLAGS.has(a)) i++; // skip its value
-      continue;
-    }
-    out.push(a);
-  }
-  return out;
-}
-
 /** Optional `add <category> <name>...` sugar: strip a leading **singular** category
  *  keyword (`chart`, `hook`, …) when at least one item name follows it. Pure — the
  *  category words are exactly `CATEGORIES`, never their plurals ((internal ticket)). */
@@ -237,9 +217,41 @@ export function stripCategory(positionals: string[]): string[] {
   return positionals;
 }
 
-export async function runAdd(argv: string[]): Promise<void> {
-  const positionals = positionalArgs(argv);
-  const refs = stripCategory(positionals);
+export const addCommand = defineCommand({
+  meta: {
+    name: "add",
+    description: "scaffold registry items (chart, hook, …) into a deck as owned source",
+  },
+  args: {
+    items: {
+      type: "positional",
+      required: false,
+      description: "registry item name(s), optionally after a category keyword",
+      valueHint: "[category] name...",
+    },
+    dir: { type: "string", description: "target deck directory (default: cwd)", valueHint: "deck" },
+    dry: { type: "boolean", description: "print the plan without writing anything" },
+    force: { type: "boolean", description: "overwrite existing files" },
+    install: {
+      type: "boolean",
+      default: true,
+      description: "install npm dependencies the items need",
+      negativeDescription: "do not run bun add for dependencies",
+    },
+    json: { type: "boolean", description: "machine-readable JSON output (default when piped)" },
+  },
+  run: (ctx) => runAdd(ctx.args),
+});
+
+async function runAdd(args: {
+  _: string[];
+  dir?: string;
+  dry?: boolean;
+  force?: boolean;
+  install?: boolean;
+  json?: boolean;
+}): Promise<void> {
+  const refs = stripCategory(args._);
   if (refs.length === 0) {
     console.error(
       "usage: liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--no-install]",
@@ -247,12 +259,12 @@ export async function runAdd(argv: string[]): Promise<void> {
     process.exit(1);
   }
 
-  const deckDir = resolve(flag(argv, "--dir") ?? ".");
-  const dry = argv.includes("--dry");
-  const force = argv.includes("--force");
-  const noInstall = argv.includes("--no-install");
+  const deckDir = resolve(args.dir ?? ".");
+  const dry = !!args.dry;
+  const force = !!args.force;
+  const noInstall = args.install === false;
   // JSON when asked, or when piped (an agent) — pretty only on an interactive TTY ((internal ADR)).
-  const json = argv.includes("--json") || !process.stdout.isTTY;
+  const json = !!args.json || !process.stdout.isTTY;
 
   try {
     const config = await loadConfig(deckDir);

@@ -10,7 +10,13 @@ One binary, `liebstoeckel`, with subcommands. A bare path is shorthand for `live
 ```bash
 liebstoeckel <command> [args]
 liebstoeckel <deck>            # shorthand for: liebstoeckel live <deck>
+liebstoeckel --help            # the command surface
+liebstoeckel <command> --help  # arguments and options for one command
+liebstoeckel --version
 ```
+
+Every command has its own `--help` listing its arguments, options, and defaults.
+The short alias `lst` is interchangeable with `liebstoeckel` (e.g. `lst build`).
 
 ## `new`
 

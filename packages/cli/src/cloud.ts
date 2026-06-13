@@ -3,11 +3,18 @@
 // (RFC 8628) against the control plane's /api/auth/device/* endpoints; push
 // uploads a single-file deck to the versioned /api/v1/decks with the resulting
 // bearer token; orgs lists/sets the active organization decks are pushed into.
+import { defineCommand } from "citty";
 import { existsSync, readdirSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { loadCreds, saveCreds } from "./creds";
 
 const CLIENT_ID = "liebstoeckel-cli";
+
+/** Shared `--api` / `--org` args for the cloud commands. */
+const CLOUD_ARGS = {
+  api: { type: "string" as const, description: "control-plane host (or LIEBSTOECKEL_API)", valueHint: "https://app-host" },
+  org: { type: "string" as const, description: "organization slug", valueHint: "slug" },
+};
 
 /** Exit for a cloud command that has no API to talk to. The hosted control plane
  *  is not generally available yet, so OSS users see "coming soon" instead of a
@@ -18,21 +25,11 @@ function notLoggedIn(): never {
   process.exit(1);
 }
 
-function flag(argv: string[], name: string): string | undefined {
-  const i = argv.indexOf(name);
-  return i >= 0 ? argv[i + 1] : undefined;
-}
-
 /** Uniform cloud org-targeting ((internal ADR)): an explicit `--org <slug>` wins, else
  *  the stored default (`creds.org`), else undefined (= the personal workspace,
- *  the server's no-`x-org-slug` default). Strips the flag so a following
- *  positional (e.g. a deck path) isn't mistaken for the org value. */
-export function resolveOrg(argv: string[], defaultOrg?: string): { org?: string; rest: string[] } {
-  const i = argv.indexOf("--org");
-  if (i >= 0 && argv[i + 1]) {
-    return { org: argv[i + 1], rest: [...argv.slice(0, i), ...argv.slice(i + 2)] };
-  }
-  return { org: defaultOrg, rest: argv };
+ *  the server's no-`x-org-slug` default). */
+export function resolveOrg(args: { org?: string }, defaultOrg?: string): string | undefined {
+  return args.org ?? defaultOrg;
 }
 
 
@@ -69,8 +66,7 @@ function slugifyKey(name: string): string {
   );
 }
 
-export async function runLogin(argv: string[]): Promise<void> {
-  const api = (flag(argv, "--api") ?? process.env.LIEBSTOECKEL_API ?? "").replace(/\/+$/, "");
+async function runLogin(api: string): Promise<void> {
   if (!api) {
     console.error("usage: liebstoeckel login --api <https://app-host>");
     console.error("  (liebstoeckel cloud is coming soon; this command needs a hosted control plane)");
@@ -135,11 +131,37 @@ export async function runLogin(argv: string[]): Promise<void> {
   process.exit(1);
 }
 
-export async function runPush(argv: string[]): Promise<void> {
+export const loginCommand = defineCommand({
+  meta: { name: "login", description: "sign in to liebstoeckel cloud (device flow) — coming soon" },
+  args: { api: CLOUD_ARGS.api },
+  run: ({ args }) => runLogin((args.api ?? process.env.LIEBSTOECKEL_API ?? "").replace(/\/+$/, "")),
+});
+
+export const pushCommand = defineCommand({
+  meta: { name: "push", description: "upload/update a deck to liebstoeckel cloud — coming soon" },
+  args: {
+    deck: { type: "positional", required: false, description: "deck .html (default: ./dist)", valueHint: "deck.html" },
+    title: { type: "string", description: "override the deck title", valueHint: "t" },
+    name: { type: "string", description: "deck key for re-push upsert", valueHint: "key" },
+    new: { type: "boolean", description: "force a fresh deck (new key)" },
+    org: CLOUD_ARGS.org,
+    api: CLOUD_ARGS.api,
+  },
+  run: ({ args }) => runPush(args),
+});
+
+async function runPush(args: {
+  deck?: string;
+  title?: string;
+  name?: string;
+  new?: boolean;
+  org?: string;
+  api?: string;
+}): Promise<void> {
   const creds = await loadCreds();
-  const { org, rest } = resolveOrg(argv, creds?.org);
+  const org = resolveOrg(args, creds?.org);
   // With no path, push the built deck in ./dist ((internal ADR)) — matching `liebstoeckel build`.
-  const file = rest.find((a) => !a.startsWith("-")) ?? defaultDeckHtml();
+  const file = args.deck ?? defaultDeckHtml();
   if (!file) {
     console.error(
       "usage: liebstoeckel push [deck.html] [--title <t>] [--name <key>] [--new] [--org <slug>] [--api <host>]\n" +
@@ -147,7 +169,7 @@ export async function runPush(argv: string[]): Promise<void> {
     );
     process.exit(1);
   }
-  const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
+  const api = (args.api ?? creds?.api ?? "").replace(/\/+$/, "");
   if (!creds || !api) notLoggedIn();
 
   const path = resolve(file);
@@ -156,10 +178,10 @@ export async function runPush(argv: string[]): Promise<void> {
     process.exit(1);
   }
   const html = await Bun.file(path).text();
-  const deckName = flag(argv, "--name") ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
+  const deckName = args.name ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
   // Deck key ((internal ADR)): re-push upserts by it. `--new` forces a fresh deck by
   // uniquifying the key, so the same folder can also start a separate deck.
-  const fresh = argv.includes("--new");
+  const fresh = !!args.new;
   const deckKey = fresh ? `${slugifyKey(deckName)}-${Math.random().toString(36).slice(2, 8)}` : slugifyKey(deckName);
 
   const headers: Record<string, string> = {
@@ -171,7 +193,7 @@ export async function runPush(argv: string[]): Promise<void> {
   // only send a header when the user explicitly overrides it with `--title`. It's
   // URL-encoded because non-Latin1 chars (em-dash, smart quotes, emoji) are illegal
   // in HTTP header values.
-  const titleOverride = flag(argv, "--title");
+  const titleOverride = args.title;
   if (titleOverride) headers["x-deck-title"] = encodeURIComponent(titleOverride);
   if (org) headers["x-org-slug"] = org;
 
@@ -215,40 +237,57 @@ async function fetchOrgs(api: string, token: string): Promise<OrgList> {
   return (await res.json()) as OrgList;
 }
 
-export async function runOrgs(argv: string[]): Promise<void> {
+/** Auth preamble shared by the org/deck/brand commands: load creds, resolve the
+ *  API host (`--api` > stored), and bail with the "coming soon" notice if absent. */
+async function requireCreds(apiArg?: string) {
   const creds = await loadCreds();
-  const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
+  const api = (apiArg ?? creds?.api ?? "").replace(/\/+$/, "");
   if (!creds || !api) notLoggedIn();
+  return { creds, api };
+}
 
-  const [sub, slug] = argv.filter((a) => !a.startsWith("-"));
-
-  if (sub === "use") {
-    if (!slug) {
+const orgsUseCommand = defineCommand({
+  meta: { name: "use", description: "set the default org for `push`" },
+  args: { slug: { type: "positional", required: false, description: "org slug", valueHint: "slug" }, api: CLOUD_ARGS.api },
+  async run({ args }) {
+    const { creds, api } = await requireCreds(args.api);
+    if (!args.slug) {
       console.error("usage: liebstoeckel orgs use <slug>");
       process.exit(1);
     }
     const { orgs } = await fetchOrgs(api, creds.token);
-    const match = orgs.find((o) => o.slug === slug);
+    const match = orgs.find((o) => o.slug === args.slug);
     if (!match) {
-      console.error(`✕ no org "${slug}" — you're a member of: ${orgs.map((o) => o.slug).join(", ")}`);
+      console.error(`✕ no org "${args.slug}" — you're a member of: ${orgs.map((o) => o.slug).join(", ")}`);
       process.exit(1);
     }
     await saveCreds({ ...creds, org: match.personal ? undefined : match.slug });
     console.log(`\n✓ pushes now go to ${match.name} (${match.slug})\n`);
-    return;
-  }
+  },
+});
 
-  // Default: list.
-  const { active, orgs } = await fetchOrgs(api, creds.token);
-  const def = creds.org;
-  console.log("\n  your workspaces:\n");
-  for (const o of orgs) {
-    const marker = (def ? o.slug === def : o.personal) ? "→" : " ";
-    const tags = o.personal ? "  (personal)" : "";
-    console.log(`   ${marker} ${o.slug.padEnd(24)} ${o.name}${tags}`);
-  }
-  console.log(`\n  plan: ${active.plan}   → = default for \`push\` (change: liebstoeckel orgs use <slug>)\n`);
-}
+const orgsListCommand = defineCommand({
+  meta: { name: "list", description: "list your workspaces" },
+  args: { api: CLOUD_ARGS.api },
+  async run({ args }) {
+    const { creds, api } = await requireCreds(args.api);
+    const { active, orgs } = await fetchOrgs(api, creds.token);
+    const def = creds.org;
+    console.log("\n  your workspaces:\n");
+    for (const o of orgs) {
+      const marker = (def ? o.slug === def : o.personal) ? "→" : " ";
+      const tags = o.personal ? "  (personal)" : "";
+      console.log(`   ${marker} ${o.slug.padEnd(24)} ${o.name}${tags}`);
+    }
+    console.log(`\n  plan: ${active.plan}   → = default for \`push\` (change: liebstoeckel orgs use <slug>)\n`);
+  },
+});
+
+export const orgsCommand = defineCommand({
+  meta: { name: "orgs", description: "list your workspaces / set the default org — coming soon" },
+  subCommands: { list: orgsListCommand, use: orgsUseCommand },
+  default: "list",
+});
 
 interface CloudDeck {
   id: string;
@@ -261,11 +300,15 @@ interface CloudDeck {
 }
 
 /** `liebstoeckel decks [--org <slug>]` — list the active org's decks + views. */
-export async function runDecks(argv: string[]): Promise<void> {
-  const creds = await loadCreds();
-  const { org } = resolveOrg(argv, creds?.org);
-  const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
-  if (!creds || !api) notLoggedIn();
+export const decksCommand = defineCommand({
+  meta: { name: "decks", description: "list your cloud decks (with view counts) — coming soon" },
+  args: { org: CLOUD_ARGS.org, api: CLOUD_ARGS.api },
+  run: ({ args }) => runDecks(args),
+});
+
+async function runDecks(args: { org?: string; api?: string }): Promise<void> {
+  const { creds, api } = await requireCreds(args.api);
+  const org = resolveOrg(args, creds?.org);
   const headers: Record<string, string> = { authorization: `Bearer ${creds.token}` };
   if (org) headers["x-org-slug"] = org;
   const res = await fetch(`${api}/api/v1/decks`, { headers });
@@ -325,12 +368,9 @@ export function themeToTokens(input: unknown): Record<string, unknown> {
   };
 }
 
-async function brandApi(argv: string[]): Promise<{ api: string; token: string; org?: string }> {
-  const creds = await loadCreds();
-  const { org } = resolveOrg(argv, creds?.org);
-  const api = (flag(argv, "--api") ?? creds?.api ?? "").replace(/\/+$/, "");
-  if (!creds || !api) notLoggedIn();
-  return { api, token: creds.token, org };
+async function brandApi(args: { api?: string; org?: string }): Promise<{ api: string; token: string; org?: string }> {
+  const { creds, api } = await requireCreds(args.api);
+  return { api, token: creds.token, org: resolveOrg(args, creds.org) };
 }
 
 function brandHeaders(token: string, org?: string): Record<string, string> {
@@ -339,13 +379,18 @@ function brandHeaders(token: string, org?: string): Record<string, string> {
   return h;
 }
 
-/** `liebstoeckel brand list|push|pull` */
-export async function runBrand(argv: string[]): Promise<void> {
-  const [sub] = argv.filter((a) => !a.startsWith("-"));
-
-  if (sub === "push") {
-    const { api, token, org } = await brandApi(argv);
-    const file = argv.filter((a) => !a.startsWith("-"))[1];
+const brandPushCommand = defineCommand({
+  meta: { name: "push", description: "push a brand (theme token set) to the org registry" },
+  args: {
+    file: { type: "positional", required: false, description: "brand .ts or tokens .json", valueHint: "brand.ts|tokens.json" },
+    name: { type: "string", description: "brand key (default: the theme name / filename)", valueHint: "key" },
+    default: { type: "boolean", description: "mark this the org default brand" },
+    org: CLOUD_ARGS.org,
+    api: CLOUD_ARGS.api,
+  },
+  async run({ args }) {
+    const { api, token, org } = await brandApi(args);
+    const file = args.file;
     if (!file) {
       console.error("usage: liebstoeckel brand push <brand.ts|tokens.json> [--name <key>] [--default] [--org <slug>]");
       process.exit(1);
@@ -360,13 +405,13 @@ export async function runBrand(argv: string[]): Promise<void> {
     else parsed = (await import(path)).default; // a defineTheme(...) module
     const tokens = themeToTokens(parsed);
     const name =
-      flag(argv, "--name") ??
+      args.name ??
       (parsed as { name?: string })?.name ??
       basename(file).replace(/\.(ts|tsx|js|json)$/i, "");
     const res = await fetch(`${api}/api/v1/orgs/brands/${encodeURIComponent(name)}`, {
       method: "PUT",
       headers: { ...brandHeaders(token, org), "content-type": "application/json" },
-      body: JSON.stringify({ tokens, default: argv.includes("--default") }),
+      body: JSON.stringify({ tokens, default: !!args.default }),
     });
     if (res.status === 403) {
       console.error("✕ forbidden — managing brands needs an admin/owner role on a paid org.");
@@ -376,7 +421,7 @@ export async function runBrand(argv: string[]): Promise<void> {
       console.error(`✕ push failed: ${res.status} ${await res.text()}`);
       process.exit(1);
     }
-    console.log(`\n✓ pushed brand "${name}"${argv.includes("--default") ? " (default)" : ""}${org ? ` to ${org}` : ""}`);
+    console.log(`\n✓ pushed brand "${name}"${args.default ? " (default)" : ""}${org ? ` to ${org}` : ""}`);
     // Warn about fonts the catalog can't ship a webfont for ((internal ADR)); they fall
     // back to system fonts on pull unless the deck supplies its own @font-face.
     const { warnings } = (await res.json().catch(() => ({}))) as {
@@ -390,13 +435,22 @@ export async function runBrand(argv: string[]): Promise<void> {
       }
     }
     console.log();
-    return;
-  }
+  },
+});
 
-  if (sub === "pull") {
-    const { api, token, org } = await brandApi(argv);
-    let name = argv.filter((a) => !a.startsWith("-"))[1];
-    const dir = flag(argv, "--dir") ?? ".";
+const brandPullCommand = defineCommand({
+  meta: { name: "pull", description: "pull a brand into a deck as owned source" },
+  args: {
+    name: { type: "positional", required: false, description: "brand name (default: the org default)", valueHint: "name" },
+    dir: { type: "string", description: "target deck directory (default: cwd)", valueHint: "deck" },
+    install: { type: "boolean", default: true, description: "install the brand's catalog fonts", negativeDescription: "do not install fonts" },
+    org: CLOUD_ARGS.org,
+    api: CLOUD_ARGS.api,
+  },
+  async run({ args }) {
+    const { api, token, org } = await brandApi(args);
+    let name = args.name;
+    const dir = args.dir ?? ".";
     if (!name) {
       const def = (await fetchBrands(api, token, org)).find((b) => b.isDefault);
       if (!def) {
@@ -416,7 +470,7 @@ export async function runBrand(argv: string[]): Promise<void> {
     // The brand's catalog fonts ((internal ADR)) ride along as npm deps; install them so the
     // deck bundles the webfont at build (the brand file `import`s the package).
     const deps = plan.npmDependencies;
-    const noInstall = argv.includes("--no-install");
+    const noInstall = args.install === false;
     if (deps.length && !noInstall) {
       const { $ } = await import("bun");
       console.log(`   installing fonts: bun add --ignore-scripts ${deps.join(" ")}`);
@@ -428,20 +482,31 @@ export async function runBrand(argv: string[]): Promise<void> {
     }
     console.log(`   wire it in main.tsx:\n     import ${camel(name)} from "./brands/${name}";`);
     console.log(`     <Present brands={["${name}"]} brandThemes={[${camel(name)}]} … />\n`);
-    return;
-  }
+  },
+});
 
-  // default: list
-  const { api, token, org } = await brandApi(argv);
-  const brands = await fetchBrands(api, token, org);
-  if (!brands.length) {
-    console.log(`\n  no brands${org ? ` in ${org}` : ""} yet — push one: liebstoeckel brand push ./brand.ts --default\n`);
-    return;
-  }
-  console.log(`\n  brands${org ? ` in ${org}` : ""}:\n`);
-  for (const b of brands) console.log(`   ${b.isDefault ? "→" : " "} ${b.name}`);
-  console.log(`\n  → = default (applied by \`liebstoeckel new\`). Pull one: liebstoeckel brand pull <name>\n`);
-}
+const brandListCommand = defineCommand({
+  meta: { name: "list", description: "list the org's shared brands" },
+  args: { org: CLOUD_ARGS.org, api: CLOUD_ARGS.api },
+  async run({ args }) {
+    const { api, token, org } = await brandApi(args);
+    const brands = await fetchBrands(api, token, org);
+    if (!brands.length) {
+      console.log(`\n  no brands${org ? ` in ${org}` : ""} yet — push one: liebstoeckel brand push ./brand.ts --default\n`);
+      return;
+    }
+    console.log(`\n  brands${org ? ` in ${org}` : ""}:\n`);
+    for (const b of brands) console.log(`   ${b.isDefault ? "→" : " "} ${b.name}`);
+    console.log(`\n  → = default (applied by \`liebstoeckel new\`). Pull one: liebstoeckel brand pull <name>\n`);
+  },
+});
+
+/** `liebstoeckel brand list|push|pull` — share org brands (registry, (internal ADR)). */
+export const brandCommand = defineCommand({
+  meta: { name: "brand", description: "share org brands: push/pull theme token sets — coming soon" },
+  subCommands: { list: brandListCommand, push: brandPushCommand, pull: brandPullCommand },
+  default: "list",
+});
 
 async function fetchBrands(api: string, token: string, org?: string): Promise<BrandRow[]> {
   const res = await fetch(`${api}/api/v1/orgs/brands`, { headers: brandHeaders(token, org) });

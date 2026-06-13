@@ -1,3 +1,4 @@
+import { defineCommand } from "citty";
 import { join } from "node:path";
 import { REGISTRY_ROOT } from "@liebstoeckel/registry";
 import { validateItem, type RegistryIndex, type RegistryItem } from "@liebstoeckel/registry/schema";
@@ -12,7 +13,8 @@ import { validateItem, type RegistryIndex, type RegistryItem } from "@liebstoeck
  * reads the bundled `@liebstoeckel` registry directly.
  */
 
-const wantsJson = (argv: string[]): boolean => argv.includes("--json") || !process.stdout.isTTY;
+// JSON when asked, or when piped (an agent) — pretty only on an interactive TTY ((internal ADR)).
+const wantsJson = (json: boolean | undefined): boolean => !!json || !process.stdout.isTTY;
 
 const readIndex = (): Promise<RegistryIndex> =>
   Bun.file(join(REGISTRY_ROOT, "registry.json")).json() as Promise<RegistryIndex>;
@@ -73,34 +75,50 @@ function printItem(item: RegistryItem): void {
   console.log(`\n  scaffold:   liebstoeckel add ${item.name}\n`);
 }
 
-export async function runRegistry(argv: string[]): Promise<void> {
-  const positionals = argv.filter((a) => !a.startsWith("-"));
-  const sub = positionals[0];
-  const json = wantsJson(argv);
-
-  try {
-    if (sub === "list" || sub === undefined) {
+const registryListCommand = defineCommand({
+  meta: { name: "list", description: "list the chart/component registry" },
+  args: { json: { type: "boolean", description: "machine-readable JSON (default when piped)" } },
+  async run({ args }) {
+    const json = wantsJson(args.json);
+    try {
       const rows = await catalog();
       if (json) console.log(JSON.stringify(rows, null, 2));
       else printList(rows);
-      return;
+    } catch (e) {
+      if (json) console.log(JSON.stringify({ error: (e as Error).message }));
+      else console.error(`✕ ${(e as Error).message}`);
+      process.exit(1);
     }
-    if (sub === "view") {
-      const name = positionals[1];
-      if (!name) {
-        console.error("usage: liebstoeckel registry view <name> [--json]");
-        process.exit(1);
-      }
-      const item = await readItem(name);
+  },
+});
+
+const registryViewCommand = defineCommand({
+  meta: { name: "view", description: "show one registry item's details" },
+  args: {
+    name: { type: "positional", required: false, description: "registry item name", valueHint: "name" },
+    json: { type: "boolean", description: "machine-readable JSON (default when piped)" },
+  },
+  async run({ args }) {
+    const json = wantsJson(args.json);
+    if (!args.name) {
+      console.error("usage: liebstoeckel registry view <name> [--json]");
+      process.exit(1);
+    }
+    try {
+      const item = await readItem(args.name);
       if (json) console.log(JSON.stringify(item, null, 2));
       else printItem(item);
-      return;
+    } catch (e) {
+      if (json) console.log(JSON.stringify({ error: (e as Error).message }));
+      else console.error(`✕ ${(e as Error).message}`);
+      process.exit(1);
     }
-    console.error(`unknown registry subcommand "${sub}" — use \`list\` or \`view <name>\``);
-    process.exit(1);
-  } catch (e) {
-    if (json) console.log(JSON.stringify({ error: (e as Error).message }));
-    else console.error(`✕ ${(e as Error).message}`);
-    process.exit(1);
-  }
-}
+  },
+});
+
+/** `liebstoeckel registry list|view` — agent-readable discovery ((internal ADR)). */
+export const registryCommand = defineCommand({
+  meta: { name: "registry", description: "browse the chart/component registry (JSON for agents)" },
+  subCommands: { list: registryListCommand, view: registryViewCommand },
+  default: "list",
+});

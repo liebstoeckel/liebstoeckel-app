@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { defineCommand, runMain } from "citty";
 import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -46,11 +47,6 @@ export async function loadDeckHtml(arg: string): Promise<string> {
   throw new Error(`Cannot present target: ${arg} (expected a .html file or a deck project)`);
 }
 
-function flag(argv: string[], name: string): string | undefined {
-  const i = argv.indexOf(name);
-  return i >= 0 ? argv[i + 1] : undefined;
-}
-
 interface ThumbSettings {
   enabled: boolean;
   width?: number;
@@ -59,21 +55,30 @@ interface ThumbSettings {
   format?: "webp" | "jpeg" | "png";
 }
 
-/** Parse the thumbnail flags. Capture is ON by default — `--no-thumbnails` opts
- *  out; `--format/--width/--quality/--scale` mirror `liebstoeckel thumbs`. */
-export function thumbSettings(argv: string[]): ThumbSettings {
-  const num = (name: string): number | undefined => {
-    const v = flag(argv, name);
+/** The thumbnail-related flags shared by `live`, `thumbs`, and `build`. Capture is
+ *  ON by default; `--no-thumbnails` flips `thumbnails` to false. */
+export interface ThumbFlags {
+  thumbnails?: boolean;
+  format?: string;
+  width?: string;
+  quality?: string;
+  scale?: string;
+}
+
+/** Derive thumbnail settings from the parsed flags. Capture is ON unless
+ *  `--no-thumbnails` was passed; an unknown `--format` and non-numeric sizes are
+ *  ignored (mirrors `liebstoeckel thumbs`). Pure — the unit-test anchor. */
+export function thumbSettings(f: ThumbFlags): ThumbSettings {
+  const num = (v: string | undefined): number | undefined => {
     const n = v == null ? NaN : Number(v);
     return Number.isFinite(n) ? n : undefined;
   };
-  const fmt = flag(argv, "--format");
   return {
-    enabled: !argv.includes("--no-thumbnails"),
-    width: num("--width"),
-    quality: num("--quality"),
-    scale: num("--scale"),
-    format: fmt === "webp" || fmt === "jpeg" || fmt === "png" ? fmt : undefined,
+    enabled: f.thumbnails !== false,
+    width: num(f.width),
+    quality: num(f.quality),
+    scale: num(f.scale),
+    format: f.format === "webp" || f.format === "jpeg" || f.format === "png" ? f.format : undefined,
   };
 }
 
@@ -159,36 +164,49 @@ async function relayMain(arg: string, relayUrl: string, relayToken: string, thum
   process.on("SIGTERM", () => void shutdown());
 }
 
-/** Pure: did the user ask for help? (`-h`/`--help` anywhere in argv.) */
-export const isHelp = (argv: string[]): boolean => argv.includes("-h") || argv.includes("--help");
-
-const LIVE_USAGE =
-  "usage: liebstoeckel live <deck.html | deck-project-dir> [--relay <url> --relay-token <tok>] [--port N]\n" +
-  "       thumbnails are captured by default (needs Chromium); --no-thumbnails to skip,\n" +
-  "       --format webp|jpeg|png --width N --quality N --scale N to tune them";
-
-export async function runLive(argv: string[]) {
-  if (isHelp(argv)) {
-    console.log(LIVE_USAGE);
-    return;
-  }
-  const arg = argv.find((a) => !a.startsWith("-"));
-  if (!arg) {
-    console.error(LIVE_USAGE);
-    process.exit(1);
-  }
-  const thumbs = thumbSettings(argv);
-  const relayUrl = flag(argv, "--relay");
-  const relayToken = flag(argv, "--relay-token") ?? process.env.LIEBSTOECKEL_RELAY_TOKEN;
-  if (relayUrl) {
-    if (!relayToken) {
-      console.error("--relay requires --relay-token <token> (or LIEBSTOECKEL_RELAY_TOKEN)");
-      process.exit(1);
+export const liveCommand = defineCommand({
+  meta: {
+    name: "live",
+    description: "present live (LAN by default, or through a public --relay)",
+  },
+  args: {
+    deck: {
+      type: "positional",
+      required: false,
+      description: "deck .html or deck source dir (default: cwd)",
+      valueHint: "deck.html|deck-dir",
+    },
+    dir: { type: "string", description: "deck directory (alternative to the positional)", valueHint: "deck" },
+    relay: { type: "string", description: "public relay URL to present through", valueHint: "url" },
+    "relay-token": { type: "string", description: "relay account token (or LIEBSTOECKEL_RELAY_TOKEN)", valueHint: "tok" },
+    port: { type: "string", description: "LAN listen port", valueHint: "N" },
+    thumbnails: {
+      type: "boolean",
+      default: true,
+      description: "capture slide thumbnails (needs Chromium)",
+      negativeDescription: "skip thumbnail capture",
+    },
+    format: { type: "string", description: "thumbnail image format", valueHint: "webp|jpeg|png" },
+    width: { type: "string", description: "thumbnail width in px", valueHint: "N" },
+    quality: { type: "string", description: "thumbnail image quality", valueHint: "N" },
+    scale: { type: "string", description: "thumbnail device scale factor", valueHint: "N" },
+  },
+  async run({ args }) {
+    // Deck targeting ((internal ADR)): a leading positional, else --dir, else cwd.
+    const arg = args.deck ?? args.dir ?? ".";
+    const thumbs = thumbSettings(args);
+    const relayUrl = args.relay;
+    const relayToken = args["relay-token"] ?? process.env.LIEBSTOECKEL_RELAY_TOKEN;
+    if (relayUrl) {
+      if (!relayToken) {
+        console.error("--relay requires --relay-token <token> (or LIEBSTOECKEL_RELAY_TOKEN)");
+        process.exit(1);
+      }
+      await relayMain(arg, relayUrl, relayToken, thumbs);
+    } else {
+      await localMain(arg, thumbs, Number(args.port) || undefined);
     }
-    await relayMain(arg, relayUrl, relayToken, thumbs);
-  } else {
-    await localMain(arg, thumbs, Number(flag(argv, "--port")) || undefined);
-  }
-}
+  },
+});
 
-if (import.meta.main) void runLive(process.argv.slice(2));
+if (import.meta.main) void runMain(liveCommand);

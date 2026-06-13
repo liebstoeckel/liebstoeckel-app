@@ -1,3 +1,4 @@
+import { defineCommand } from "citty";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -256,3 +257,48 @@ export async function scaffold(
   }
   return { dir, files: Object.keys(files), brand: orgBrand?.name ?? brand };
 }
+
+export const newCommand = defineCommand({
+  meta: {
+    name: "new",
+    description: "scaffold a new deck as ./<name> (or under --dir)",
+  },
+  args: {
+    name: {
+      type: "positional",
+      required: false,
+      description: "deck name (lower-case letters, digits, hyphens)",
+      valueHint: "name",
+    },
+    brand: { type: "string", description: "brand to apply", valueHint: "brand" },
+    dir: { type: "string", description: "parent directory for the new deck", valueHint: "parent" },
+    "org-brand": {
+      type: "boolean",
+      default: true,
+      description: "apply the logged-in org's default brand",
+      negativeDescription: "do not apply the org default brand",
+    },
+  },
+  async run({ args }) {
+    const name = args.name;
+    if (!name) {
+      console.error("usage: liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand]");
+      process.exit(1);
+    }
+    try {
+      const { dir, files } = await scaffold(name, {
+        brand: args.brand,
+        dir: args.dir,
+        noOrgBrand: args.orgBrand === false,
+      });
+      console.log(`\n✓ created deck "${name}" → ${dir}\n`);
+      for (const f of files) console.log(`   ${f}`);
+      console.log(`\n   next:`);
+      console.log(`     bun install`);
+      console.log(`     liebstoeckel live ${dir}      # or: bun --cwd ${dir} run dev\n`);
+    } catch (e) {
+      console.error(`✕ ${(e as Error).message}`);
+      process.exit(1);
+    }
+  },
+});
