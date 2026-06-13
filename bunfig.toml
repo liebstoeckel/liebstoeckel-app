@@ -16,3 +16,10 @@
 # `--minimum-release-age=0` (the release-publish task does this).
 [install]
 minimumReleaseAge = 259200  # 3 days, in seconds
+# Exempt the deliberately-bleeding-edge nitro nightly toolchain (package.json pins
+# `nitro` → npm:nitro-nightly@latest). A nightly's `latest` tag — and its
+# fast-moving companion `env-runner` — is always younger than the cooldown and has
+# no older in-range fallback, so without this every non-frozen resolve (Renovate's
+# lockfile step, a clean `bun install`) would fail to resolve it. Normal semver deps
+# need no exemption: Bun falls back to the newest version old enough to pass.
+minimumReleaseAgeExcludes = ["nitro-nightly", "env-runner"]
