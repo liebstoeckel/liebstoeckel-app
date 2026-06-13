@@ -10,10 +10,10 @@
     "check": "astro check"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.39.2",
+    "@astrojs/starlight": "^0.39.3",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/schibsted-grotesk": "^5.2.8",
-    "astro": "^6.3.7",
+    "astro": "^6.4.4",
     "sharp": "^0.34.5",
     "starlight-page-actions": "^0.6.0"
   },

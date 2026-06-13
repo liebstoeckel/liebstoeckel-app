@@ -28,6 +28,6 @@
     "@liebstoeckel/thumbnails": "workspace:*"
   },
   "peerDependencies": {
-    "yjs": "^13.6.30"
+    "yjs": "^13.6.31"
   }
 }

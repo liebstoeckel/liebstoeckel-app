@@ -27,7 +27,7 @@
     "@liebstoeckel/plugin-ui": "workspace:*"
   },
   "peerDependencies": {
-    "react": ">=19"
+    "react": ">=19.2.7"
   },
   "keywords": [
     "liebstoeckel-plugin"
