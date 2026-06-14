@@ -1,20 +1,20 @@
 # @liebstoeckel/cli
 
-> The `liebstoeckel` command — scaffold, develop, build, and present decks.
+> The `liebstoeckel` command. Scaffold, develop, build, and present decks.
 
-Part of **[liebstoeckel](https://liebstoeckel.app)** — a code-first presentation framework: author decks in **MDX + TSX**, get one self-contained HTML file that's animated, interactive, and live-shareable. Built on **Bun + React 19 + Motion + Tailwind v4**.
+Part of [liebstoeckel](https://liebstoeckel.app), a code-first presentation framework. You write decks in MDX and TSX and build them into a single self-contained HTML file with no server or runtime dependencies. The same file works offline, and when you host it the deck runs a live session between the presenter and the audience. Built on Bun, React 19, Motion, and Tailwind v4.
 
-> ⚠️ Pre-release. APIs may change.
+> Pre-release software. The API can still change.
 
-The umbrella CLI for liebstoeckel: create a deck, run a hot-reloading dev server, build the single-file HTML, capture thumbnails, and drive live presenter mode — all from one command.
+This is the umbrella CLI. One binary scaffolds a deck, runs a hot-reloading dev server, builds the single-file HTML, captures thumbnails, and drives live presenter mode.
 
 ## Install
 
-> Not on the public npm registry yet — the commands below are how it will install once published. For now, run it from a checkout of the repo (`bun run live|relay|thumbs …`) or a workspace that links the packages.
+> It isn't on the public npm registry yet. The commands below are how it will install once it ships. For now, run it from a checkout of the repo (`bun run live|relay|thumbs …`) or from a workspace that links the packages.
 
 ```sh
 bun add -d @liebstoeckel/cli
-# …or run without installing:
+# …or run it without installing:
 bunx @liebstoeckel/cli <command>
 ```
 
@@ -24,52 +24,51 @@ bunx @liebstoeckel/cli <command>
 
 ```sh
 liebstoeckel new <name>          # scaffold a new deck in ./<name>
-liebstoeckel add <name>...       # scaffold registry items (charts, …) into a deck as owned source
+liebstoeckel add <name>...       # copy registry items (charts, …) into a deck as owned source
 liebstoeckel registry list|view  # browse the chart/component registry (--json for agents)
-liebstoeckel build [dir]         # build a deck → one self-contained .html (+ thumbnails)
+liebstoeckel build [dir]         # build a deck into one self-contained .html (+ thumbnails)
 liebstoeckel eject <deck.html>   # recover a built deck's editable source
-liebstoeckel pack [dir]          # inspect/emit the source a build embeds
+liebstoeckel pack [dir]          # inspect or emit the source a build embeds
+liebstoeckel licenses [dir]      # report the third-party licenses bundled into a deck
 liebstoeckel live <deck|dir>     # present live (LAN, or through a --relay)
 liebstoeckel relay               # run a public relay server for WAN presenting
 liebstoeckel thumbs <deck.html>  # (re)generate thumbnails for a built deck
 liebstoeckel export [deck|dir]   # export slides to PNG or PDF
 liebstoeckel skill install       # install the agent skill for deck authoring
-liebstoeckel login|push|orgs|decks|brand   # liebstoeckel cloud (upload, share, brands)
+liebstoeckel login|push|orgs|decks|brand   # liebstoeckel cloud (coming soon)
 
-liebstoeckel <deck|dir>          # shorthand for `liebstoeckel live <deck>`
+liebstoeckel <deck|dir>          # shorthand for: liebstoeckel live <deck>
 ```
 
-There's no `dev` subcommand — for the hot-reloading dev server, run `bun run dev` inside the deck (the scaffold wires the script), or use `liebstoeckel live`.
+There's no `dev` subcommand. For the hot-reloading dev server, run `bun run dev` inside the deck (the scaffold wires the script), or use `liebstoeckel live`.
 
-Installed as both `liebstoeckel` and the short alias `lst`. Each command wraps the matching package (`engine`, `live-server`, `present-relay`, `thumbnails`, `registry`). Run a command with `--help`, or see the reference, for its flags. The full, authoritative command + flag reference is **[liebstoeckel.app/reference/cli](https://docs.liebstoeckel.app/reference/cli/)**.
+The bin is installed as both `liebstoeckel` and the short alias `lst`. `live`, `relay`, `thumbs`, and `export` hand off to a sibling package; the rest are implemented here. Every command has its own `--help`. The authoritative command and flag reference lives at [docs.liebstoeckel.app/reference/cli](https://docs.liebstoeckel.app/reference/cli/).
 
 ## Architecture
 
-A thin, dependency-free dispatcher. The CLI owns no presentation logic of its own — it parses `argv[2]` and lazily `import()`s the matching sibling package, so unused subsystems (headless Chromium, the relay, the live server) are never loaded.
+The CLI is a [citty](https://github.com/unjs/citty) dispatcher. `src/cli.ts` defines one root command whose `subCommands` are lazy `() => import(…)` thunks, so a command only pulls in what it needs. `build` never loads the live server, and `live` never loads the bundler. The CLI itself holds almost no logic. It routes, and each command module does the work or hands off to a sibling package.
 
 | File | Role |
 |---|---|
-| `src/cli.ts` | The `liebstoeckel`/`lst` bin. A `switch` over the first arg routes to each command; `--help`/no-arg prints `HELP`. Tiny helpers: `flag()` reads `--name value` pairs, `looksLikeDeck()` decides the bare-arg shorthand, `resolveDeck()` applies the deck-targeting convention (positional · `--dir` · cwd). |
-| `src/new.ts` | `scaffold()` validates the name against `VALID_NAME`, refuses an existing dir, and writes the file map from the pure `deckFiles()` template (`package.json`, `index.html` + `data-brand`, `bunfig.toml`, `server.ts`, `build.ts`, `main.tsx`, `slides/01-intro.tsx`). |
-| `src/add.ts` · `src/registry.ts` | Scaffold registry items into a deck as owned source, and browse the registry. |
-| `src/skill.ts` | `skill install` — write the agent skill into a deck for each agent target. |
-| `src/cloud.ts` · `src/creds.ts` | The cloud path: `login` (RFC 8628 device flow), `push`, `orgs`, `decks`, `brand`, and credential storage. |
+| `src/cli.ts` | The `liebstoeckel`/`lst` bin. It builds the root citty command, prints best-effort update and skill reminders, and resolves the bare-path shorthand (`liebstoeckel <deck>` becomes `live`) before calling `runMain`. |
+| `src/targeting.ts` | `looksLikeDeck()` decides whether a leading positional is a deck path, so the shorthand kicks in instead of citty reporting an unknown command. |
+| `src/new.ts` | `new` scaffolds a deck from a template (`index.html`, `main.tsx`, `build.ts`, `server.ts`, `bunfig.toml`, `slides/01-intro.tsx`) and bakes in the org's default brand when you're logged in. |
+| `src/build.ts` | Holds `build`, `eject`, `pack`, and `licenses`. Each one calls into `@liebstoeckel/engine` or `@liebstoeckel/thumbnails`. |
+| `src/add.ts`, `src/registry.ts` | Copy registry items into a deck as owned source, and browse the registry. |
+| `src/skill.ts` | `skill install` and `skill update` write the version-pinned agent skill into a deck for each agent target. |
+| `src/cloud.ts`, `src/creds.ts` | The cloud commands (`login` over the RFC 8628 device flow, plus `push`, `orgs`, `decks`, `brand`) and credential storage. |
+| `src/update.ts` | The once-a-day update check and the "deck skill older than the CLI" reminder. Both write to stderr only, and stay quiet for `--json`, pipes, and CI. |
 
-Control flow per command:
+Where each command runs:
 
-- **`new`** → `scaffold()` (local). **`add`/`registry`/`skill`** and the cloud commands (**`login`/`push`/`orgs`/`decks`/`brand`**) are implemented in-package (`add.ts`/`registry.ts`/`skill.ts`/`cloud.ts`).
-- **`build`** → dynamic `import("@liebstoeckel/thumbnails/build")`, `chdir` into the target, then `buildDeck({ entry: "./index.html", outdir: "./dist" })`.
-- **`eject`/`pack`** → `@liebstoeckel/engine/build/source-package`.
-- **`live`** / bare-deck shorthand → `@liebstoeckel/live-server/cli` `runLive`.
-- **`relay`** → `@liebstoeckel/present-relay/cli` `runRelay`.
-- **`thumbs`/`export`** → `@liebstoeckel/thumbnails/cli` `runThumbs` / `runExport`.
+- Local commands are implemented in this package: `new`, `add`, `registry`, `skill`, the cloud commands, and `build`/`eject`/`pack`/`licenses`. `build` drives `buildDeck` from `@liebstoeckel/thumbnails/build`; `--check` uses `checkDeck`, `eject` and `pack` use `@liebstoeckel/engine/build/source-package`, and `licenses` reads `collectDeckLicenses` and `extractLicenses`.
+- Delegated commands re-export a citty command straight out of a sibling package, so that package owns its own flags and `--help`: `live` (and the bare-deck shorthand) and `thumbs`/`export` come from `@liebstoeckel/live-server` and `@liebstoeckel/thumbnails`, and `relay` comes from `@liebstoeckel/present-relay`.
 
-Each wrapped package does its own flag parsing (including `--help`), so the CLI forwards `rest` (the remaining argv) untouched.
+## Links
 
-## Docs
+- [CLI reference](https://docs.liebstoeckel.app/reference/cli/) lists every command and flag
+- [Getting started](https://docs.liebstoeckel.app/guides/getting-started/)
+- [Homepage](https://liebstoeckel.app)
+- [Source and issues](https://github.com/liebstoeckel/liebstoeckel-app)
 
-**[liebstoeckel.app/reference/cli](https://docs.liebstoeckel.app/reference/cli/)** · [getting started](https://docs.liebstoeckel.app/guides/getting-started/)
-
-## License
-
-[MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE)
+Licensed under [MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE).

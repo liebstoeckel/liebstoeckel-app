@@ -1,12 +1,28 @@
 {
   "name": "@liebstoeckel/thumbnails",
   "version": "0.3.4",
-  "license": "MPL-2.0",
+  "description": "Slide thumbnail capture for liebstoeckel decks via headless Chromium.",
+  "keywords": [
+    "liebstoeckel",
+    "slides",
+    "presentation-slides",
+    "ai-agents",
+    "ai",
+    "skills",
+    "thumbnails",
+    "screenshots",
+    "playwright",
+    "chromium"
+  ],
+  "homepage": "https://liebstoeckel.app",
+  "bugs": "https://github.com/liebstoeckel/liebstoeckel-app/issues",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/liebstoeckel/liebstoeckel-app.git",
     "directory": "packages/thumbnails"
   },
+  "license": "MPL-2.0",
+  "author": "Leon Kaucher <contact@liebstoeckel.app>",
   "publishConfig": {
     "access": "public"
   },

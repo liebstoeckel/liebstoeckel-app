@@ -1,12 +1,27 @@
 {
   "name": "@liebstoeckel/cli",
   "version": "0.3.6",
-  "license": "MPL-2.0",
+  "description": "The liebstoeckel CLI to scaffold, develop, build, and present code-first decks.",
+  "keywords": [
+    "liebstoeckel",
+    "slides",
+    "presentation-slides",
+    "ai-agents",
+    "ai",
+    "skills",
+    "cli",
+    "mdx",
+    "react"
+  ],
+  "homepage": "https://liebstoeckel.app",
+  "bugs": "https://github.com/liebstoeckel/liebstoeckel-app/issues",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/liebstoeckel/liebstoeckel-app.git",
     "directory": "packages/cli"
   },
+  "license": "MPL-2.0",
+  "author": "Leon Kaucher <contact@liebstoeckel.app>",
   "publishConfig": {
     "access": "public"
   },

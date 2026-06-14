@@ -1,12 +1,29 @@
 {
   "name": "@liebstoeckel/plugin-reactions",
   "version": "0.3.3",
-  "license": "MPL-2.0",
+  "description": "Floating emoji reactions plugin for liebstoeckel decks.",
+  "keywords": [
+    "liebstoeckel-plugin",
+    "liebstoeckel",
+    "slides",
+    "presentation-slides",
+    "ai-agents",
+    "ai",
+    "skills",
+    "plugin",
+    "reactions",
+    "emoji",
+    "live"
+  ],
+  "homepage": "https://liebstoeckel.app",
+  "bugs": "https://github.com/liebstoeckel/liebstoeckel-app/issues",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/liebstoeckel/liebstoeckel-app.git",
     "directory": "packages/plugin-reactions"
   },
+  "license": "MPL-2.0",
+  "author": "Leon Kaucher <contact@liebstoeckel.app>",
   "publishConfig": {
     "access": "public"
   },
@@ -30,9 +47,6 @@
   "peerDependencies": {
     "react": ">=19.2.7"
   },
-  "keywords": [
-    "liebstoeckel-plugin"
-  ],
   "liebstoeckel": {
     "client": "./src/client.tsx",
     "id": "reactions",

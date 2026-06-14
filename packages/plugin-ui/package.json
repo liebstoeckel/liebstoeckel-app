@@ -1,12 +1,28 @@
 {
   "name": "@liebstoeckel/plugin-ui",
   "version": "0.3.3",
-  "license": "MPL-2.0",
+  "description": "Brand-aware React UI primitives for liebstoeckel plugins.",
+  "keywords": [
+    "liebstoeckel",
+    "slides",
+    "presentation-slides",
+    "ai-agents",
+    "ai",
+    "skills",
+    "plugin",
+    "ui",
+    "react",
+    "components"
+  ],
+  "homepage": "https://liebstoeckel.app",
+  "bugs": "https://github.com/liebstoeckel/liebstoeckel-app/issues",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/liebstoeckel/liebstoeckel-app.git",
     "directory": "packages/plugin-ui"
   },
+  "license": "MPL-2.0",
+  "author": "Leon Kaucher <contact@liebstoeckel.app>",
   "publishConfig": {
     "access": "public"
   },

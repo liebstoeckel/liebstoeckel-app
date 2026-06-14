@@ -1,12 +1,12 @@
 # @liebstoeckel/components
 
-> Shared React slide primitives for liebstoeckel decks — MDX element mapping, magic-move, and the brand atmosphere.
+> Shared React slide primitives for liebstoeckel decks: MDX element mapping, magic-move, and the brand atmosphere.
 
-Part of **[liebstoeckel](https://liebstoeckel.app)** — a code-first presentation framework: author decks in **MDX + TSX**, get one self-contained HTML file that's animated, interactive, and live-shareable. Built on **Bun + React 19 + Motion + Tailwind v4**.
+Part of [liebstoeckel](https://liebstoeckel.app), a code-first presentation framework. You write decks in MDX and TSX and build them into a single self-contained HTML file with no server or runtime dependencies. The same file works offline, and when you host it the deck runs a live session between the presenter and the audience. Built on Bun, React 19, Motion, and Tailwind v4.
 
-> ⚠️ Pre-release (`0.0.0`). APIs may change.
+> Pre-release software. The API can still change.
 
-A small set of presentation primitives the engine composes: `mdxComponents` (themed Markdown/MDX element mapping), `Magic` (FLIP magic-move between slides), and `Atmosphere` (the brand-aware background). Re-exported by **@liebstoeckel/engine**, so decks usually get them transitively; install directly only to use them standalone.
+A small set of presentation primitives that the engine composes. `mdxComponents` maps Markdown and MDX elements to themed components, `Magic` does FLIP magic-move between slides, and `Atmosphere` is the brand-aware background. `@liebstoeckel/engine` re-exports all three, so decks usually get them for free. Install this package directly only when you want to use them on their own.
 
 ## Install
 
@@ -15,7 +15,7 @@ bun add @liebstoeckel/components
 bun add react   # peer
 ```
 
-> Bun-native (raw TS). Animations are powered by Motion.
+> Bun-native, shipped as raw TypeScript. Animations use Motion.
 
 ## Usage
 
@@ -28,28 +28,28 @@ import { Magic } from "@liebstoeckel/components";
 
 ## Exports
 
-- **`mdxComponents`** — maps Markdown/MDX elements (`h1`, `h2`, `p`, `ul`, `li`, `strong`, `code`) to themed components; the engine feeds it to `<MDXProvider>`.
-- **`Magic`** — magic-move for *stateless* content: a Motion `layout` element keyed by `layoutId` that FLIP-animates its box delta between slides.
-- **`Atmosphere`** — the layered brand background (drifting gradient blooms, film grain, vignette); `still` renders a motionless variant for thumbnails/capture.
+- `mdxComponents` maps Markdown and MDX elements (`h1`, `h2`, `p`, `ul`, `li`, `strong`, `code`) to themed components. The engine feeds it to `<MDXProvider>`.
+- `Magic` is magic-move for stateless content. It's a Motion `layout` element keyed by `layoutId` that FLIP-animates its box delta between slides.
+- `Atmosphere` is the layered brand background, with drifting gradient blooms, film grain, and a vignette. Pass `still` for a motionless variant used in thumbnails and capture.
 
 See the reference for each component's props.
 
 ## Architecture
 
-A deliberately tiny, runtime-only package: three independent modules re-exported from `src/index.ts`, with **Motion** as the only dependency and **React 19** as a peer. No build step or browser globals — the engine owns bundling and theming; this package just supplies styled, animatable building blocks.
+A small runtime-only package. Three independent modules are re-exported from `src/index.ts`, with Motion as the only dependency and React 19 as a peer. There's no build step and no browser globals. The engine owns bundling and theming, and this package supplies the styled, animatable building blocks.
 
 | Module | Role |
 |---|---|
-| `src/mdx.tsx` (`mdxComponents`) | Element→component map. Each element carries Tailwind classes (`text-text`, `text-primary`, `bg-surface`…) that resolve against the active brand. Inline `code` becomes a themed pill; Shiki block code (non-string children) passes through so the parent `.shiki` `<pre>` styles it. |
-| `src/Magic.tsx` (`Magic`) | A `motion.div` with `layout` + `layoutId` for spring FLIP transitions of stateless content. For *stateful* elements (iframe/video/live app) the doc points authors at the engine's `<Slot>`/Persistent layer instead. |
-| `src/Atmosphere.tsx` (`Atmosphere`) | Pure-decoration backdrop driven by `--brand-glow-*` / `--brand-accent` CSS vars; `still` disables the infinite drift so capture/overview renders are deterministic. |
+| `src/mdx.tsx` (`mdxComponents`) | The element-to-component map. Each element carries Tailwind classes (`text-text`, `text-primary`, `bg-surface`, …) that resolve against the active brand. Inline `code` becomes a themed pill. Shiki block code (non-string children) passes through, so the parent `.shiki` `<pre>` styles it. |
+| `src/Magic.tsx` (`Magic`) | A `motion.div` with `layout` and `layoutId` for spring FLIP transitions of stateless content. For stateful elements (an iframe, video, or live app) the docs point authors at the engine's `<Slot>` and Persistent layer instead. |
+| `src/Atmosphere.tsx` (`Atmosphere`) | A decoration-only backdrop driven by the `--brand-glow-*` and `--brand-accent` CSS variables. `still` disables the infinite drift, so capture and overview renders stay deterministic. |
 
-The class names and CSS variables it emits are defined by **@liebstoeckel/theme**'s `@theme inline` bridge; **@liebstoeckel/engine** imports all three (`mdxComponents` into `<MDXProvider>`, `Atmosphere` into `SlideFrame`, `Magic` re-exported from its index).
+The class names and CSS variables it emits are defined by the `@theme inline` bridge in `@liebstoeckel/theme`. `@liebstoeckel/engine` imports all three: `mdxComponents` into `<MDXProvider>`, `Atmosphere` into `SlideFrame`, and `Magic` re-exported from its index.
 
-## Docs
+## Links
 
-**[liebstoeckel.app/reference/components](https://docs.liebstoeckel.app/reference/components/)**
+- [Components reference](https://docs.liebstoeckel.app/reference/components/)
+- [Homepage](https://liebstoeckel.app)
+- [Source and issues](https://github.com/liebstoeckel/liebstoeckel-app)
 
-## License
-
-[MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE)
+Licensed under [MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE).

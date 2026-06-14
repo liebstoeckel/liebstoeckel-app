@@ -2,49 +2,48 @@
 
 > Floating emoji reactions for liebstoeckel decks.
 
-The audience taps emoji (👏 ❤️ 🎉 🔥 😮 💡) and they float up, drift, and fade over the deck — a
-lightweight ambient backchannel. Emits are rate-limited per viewer and the live set is capped and
-auto-pruned to keep shared state bounded. Syncs over the deck's [Yjs](https://yjs.dev) session.
+Part of [liebstoeckel](https://liebstoeckel.app), a code-first presentation framework. You write decks in MDX and TSX and build them into a single self-contained HTML file with no server or runtime dependencies. The same file works offline, and when you host it the deck runs a live session between the presenter and the audience. Built on Bun, React 19, Motion, and Tailwind v4.
 
-Part of **[liebstoeckel](https://liebstoeckel.app)** — a code-first framework for animated,
-single-file HTML presentations (Bun · React 19 · Motion · Tailwind v4 · MDX). Requires
-[Bun](https://bun.sh); ships as raw TypeScript.
+> Pre-release software. The API can still change.
+
+The audience taps an emoji (👏 ❤️ 🎉 🔥 😮 💡) and it floats up, drifts, and fades over the deck. It's a light ambient backchannel. Taps are rate-limited per viewer, and the live set is capped and auto-pruned, so the shared state stays bounded. It syncs over the deck's [Yjs](https://yjs.dev) document.
 
 ## Install
 
 ```sh
 bun add @liebstoeckel/plugin-reactions
+bun add react   # peer
 ```
-
-Peer dep: `react`. (Pulls in `@liebstoeckel/plugin-sdk`, `@liebstoeckel/plugin-ui`, and `motion`.)
 
 ## Usage
 
 ```tsx
-import { Plugin } from "@liebstoeckel/engine";
+// main.tsx
+import reactions from "@liebstoeckel/plugin-reactions";
 
-export default () => <Plugin id="reactions" />;
+<Present plugins={[reactions]} slides={[…]} />;
 ```
 
-Run the deck live (`liebstoeckel live …`); reactions are symmetric — there's no presenter-only panel.
+```tsx
+import { Plugin } from "@liebstoeckel/engine";
+
+<Plugin id="reactions" />;
+```
+
+Reactions are symmetric, so there's no presenter-only panel. Present the deck live (`liebstoeckel live …`) so taps reach everyone.
 
 ## Exports
 
-- `.` — the reactions plugin (default export, `id: "reactions"`)
-- `./logic` — pure helpers + schema: `reactionsSchema`, `EMOJI`, `MAX_ENTRIES`, `recent`, `expired`, `allowEmit`, `overCapIds`, types `ReactionsState` / `Reaction`
+| Entry | What |
+|---|---|
+| `@liebstoeckel/plugin-reactions` | Default export: the reactions `PluginDef` (`id: "reactions"`) |
+| `@liebstoeckel/plugin-reactions/logic` | Framework-free schema and helpers: `reactionsSchema`, `EMOJI`, `MAX_ENTRIES`, `recent`, `expired`, `allowEmit`, `overCapIds`, and the `ReactionsState` / `Reaction` types |
 
-## Architecture
+## Links
 
-A pure-CRDT plugin (no `server` part) with deliberately **ephemeral** shared state — clients prune entries so the doc never accumulates history.
+- [Plugins overview](https://docs.liebstoeckel.app/plugins/overview/)
+- [Live presenting](https://docs.liebstoeckel.app/guides/live/)
+- [Homepage](https://liebstoeckel.app)
+- [Source and issues](https://github.com/liebstoeckel/liebstoeckel-app)
 
-- **`logic.ts`** — framework-free schema + derivations. `reactionsSchema = schema({ reactions: t.record(t.object({ emoji, pid, ts })) })`; each record entry is one reaction burst keyed by a generated id. `recent(state, now, windowMs=4000)` returns entries still inside the visible window (oldest→newest), `expired` returns ids aged out, `overCapIds` returns ids beyond `MAX_ENTRIES` (60), and `allowEmit(lastEmitAt, now)` is the per-viewer rate-limit predicate (250ms). `EMOJI` is the palette.
-- **`client.tsx`** — `definePlugin<ReactionsState>({ id: "reactions", state: reactionsSchema, client: {...} })`. Symmetric — there is **only** a `Slide`, no presenter panel. Tapping an emoji calls `state.recordSet("reactions", crypto.randomUUID(), { emoji, pid, ts })` after the `allowEmit` check. A 1s interval prunes `expired` + `overCapIds` via `recordDelete` and re-ticks `recent()` so floaters unmount through `AnimatePresence`. `Floater` animates each emoji rising/drifting/fading with Motion; per-id `jitter()` gives deterministic, stable drift/tilt/scale.
-- **Standalone vs live:** with a server connected, reactions broadcast and float for everyone. Offline (standalone `.html` + thumbnail), the `fallback` renders a static, dimmed, non-interactive row of the palette with a hint.
-- Builds on **plugin-sdk** (`definePlugin`, `schema`/`t`, record state API, `ClientProps`) and **plugin-ui** (`Card`, `Eyebrow`); the float layer and buttons are styled inline against `--brand-*` variables.
-
-## Docs
-
-- Plugins overview — https://docs.liebstoeckel.app/plugins/overview/
-- Live presenting — https://docs.liebstoeckel.app/guides/live/
-
-MPL-2.0
+Licensed under [MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE).

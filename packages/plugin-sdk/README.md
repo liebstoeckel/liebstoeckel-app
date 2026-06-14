@@ -2,14 +2,11 @@
 
 > Build real-time liebstoeckel plugins on Yjs-backed shared state.
 
-The foundation for audience-interaction plugins (polls, Q&A, reactions, …). Provides a tiny runtime
-schema (`t` / `schema`), a [Yjs](https://yjs.dev)-backed state accessor (`pluginState`) that
-CRDT-syncs between presenter and audience, and `definePlugin` to declare a plugin's client (and
-optional server) pieces.
+Part of [liebstoeckel](https://liebstoeckel.app), a code-first presentation framework. You write decks in MDX and TSX and build them into a single self-contained HTML file with no server or runtime dependencies. The same file works offline, and when you host it the deck runs a live session between the presenter and the audience. Built on Bun, React 19, Motion, and Tailwind v4.
 
-Part of **[liebstoeckel](https://liebstoeckel.app)** — a code-first framework for animated,
-single-file HTML presentations (Bun · React 19 · Motion · Tailwind v4 · MDX). Requires
-[Bun](https://bun.sh); ships as raw TypeScript.
+> Pre-release software. The API can still change.
+
+This is the foundation for audience-interaction plugins, like polls, Q&A, reactions, and your own. It gives you a tiny runtime schema (`t` / `schema`), a [Yjs](https://yjs.dev)-backed state accessor (`pluginState`) that CRDT-syncs between the presenter and the audience, and `definePlugin` to declare a plugin's client pieces and an optional server piece.
 
 ## Install
 
@@ -17,14 +14,14 @@ single-file HTML presentations (Bun · React 19 · Motion · Tailwind v4 · MDX)
 bun add @liebstoeckel/plugin-sdk
 ```
 
-Peer deps: `react`, `yjs`. Plugin UIs typically also use [`@liebstoeckel/plugin-ui`](https://www.npmjs.com/package/@liebstoeckel/plugin-ui).
+Peer deps: `react`, `yjs`. Plugin UIs usually also use [`@liebstoeckel/plugin-ui`](https://www.npmjs.com/package/@liebstoeckel/plugin-ui).
 
 ## Usage
 
-Model shared state with a schema, then define the plugin:
+Model the shared state with a schema, then define the plugin:
 
 ```ts
-// logic.ts — pure, no React
+// logic.ts: pure, no React
 import { schema, t, type Infer } from "@liebstoeckel/plugin-sdk";
 
 export const counterSchema = schema({
@@ -51,32 +48,27 @@ Authors mount it in a deck with `<Plugin id="counter" />` (from `@liebstoeckel/e
 
 ## Exports
 
-- `.` — `definePlugin`, `pluginState`, `schema`, `t`, `Infer`, plugin/client/server types
-- `./schema` — the runtime schema system (`t.string|number|boolean|array|record|object`)
-- `./state` — `pluginState(doc, id, schema)`: `snapshot`, `set`, `recordSet`/`recordDelete`, `subscribe`
-- `./manifest` — serialize/embed the plugin manifest + server bundles into built HTML
-- `./discovery` — find plugins by the `liebstoeckel-plugin` keyword (build-time)
+- `.` exports `definePlugin`, `pluginState`, `schema`, `t`, `Infer`, and the plugin, client, and server types
+- `./schema` is the runtime schema system (`t.string|number|boolean|array|record|object`)
+- `./state` exports `pluginState(doc, id, schema)`, with `snapshot`, `set`, `recordSet`/`recordDelete`, and `subscribe`
+- `./manifest` serializes and embeds the plugin manifest and server bundles into built HTML
+- `./discovery` finds plugins by the `liebstoeckel-plugin` keyword at build time
 
-## Notes
+## How it fits together
 
-- All plugins in a deck share one `Y.Doc`; each plugin's state is namespaced to `plugin:<id>`.
-- `recordSet`/`recordDelete` operate on top-level `t.record(...)` fields — use composite keys
-  (`` `${qid}|${pid}` ``) for multi-dimension state.
+The SDK is pure infrastructure. It does no React rendering and carries no network transport of its own. It defines the contract a plugin implements and the typed bridge over the deck's shared doc.
 
-## Architecture
+- The schema (`t` / `schema`) is runtime-typed with static inference. `Infer<S>` recovers the TypeScript shape, and each field carries `parse`, `safeParse`, and `default()`.
+- `pluginState(doc, id, schema)` maps that state onto a `Y.Map` namespaced to `plugin:<id>`. Objects and records become nested `Y.Map`s so concurrent writes merge, which is how votes from many viewers don't clobber each other. Reads come back as plain JS. Use `recordSet`/`recordDelete` for a single entry of a `t.record` field, and a composite key (`` `${qid}|${pid}` ``) when the state has more than one dimension.
+- `definePlugin` carries the client and server split. `client.Slide` renders for everyone, `client.Presenter` is an optional presenter-only panel, and `client.fallback` renders when no server is connected (a standalone `.html` and thumbnail capture). The optional `server(ctx)` runs on the host, never in the audience's browsers.
 
-The SDK is pure infrastructure — no React rendering, no Yjs network transport. It defines the contract a plugin implements and the typed bridge over the shared doc.
+All plugins in a deck share one `Y.Doc`, and each plugin's state is namespaced to `plugin:<id>`.
 
-- **`schema.ts`** — a tiny runtime-typed schema. Primitives (`t.string|number|boolean`) are `Schema` instances; `t.array`/`t.record`/`t.object` are factories. Each `Schema<T>` carries `parse`/`safeParse`/`default()` plus a phantom `_t` for `Infer<S>` static inference. `schema(...)` is sugar for `t.object(...)`.
-- **`state.ts`** — `pluginState(doc, id, schema)` maps the typed state onto a `Y.Map` at `plugin:<id>`. Objects/records become nested `Y.Map`s (concurrent writes merge — e.g. votes), arrays become `Y.Array`s; reads come back as plain JS via `toJS`, with missing fields filled from `schema.default()`. The `PluginState<T>` accessor exposes `snapshot()`, `ensureDefaults()` (seed only if empty), `set()`, `recordSet`/`recordDelete` (one entry of a `t.record` field, concurrency-friendly), and `subscribe()` (deep observe).
-- **`plugin.ts`** — `definePlugin<T>(def)` is an identity helper carrying types. `PluginDef` = `{ id, state: Schema<T>, server?, client }`. The **client/server split**: `client.Slide` renders in the deck for everyone; `client.Presenter` is an optional presenter-only panel; `client.fallback` renders when no server is connected (standalone `.html` + thumbnail capture), receiving just `{ snapshot, props }`; `client.surfaces` names author-overridable surfaces; `client.interactive` gates the touch breakout. The optional `server(ctx)` runs relay-side with `{ doc, state, session }` and may return a teardown. Client components receive `ClientProps<T>` — `doc`, `state`, `snapshot`, `role` (`presenter`|`viewer`), `live`, `participantId`, resolved `theme` tokens, author `ui` overrides, and `props`.
-- **`theme.ts`** — `ThemeTokens`, the resolved brand colors/fonts handed to clients (for canvas/SVG); read at runtime by plugin-ui's `useTheme()`.
-- **`manifest.ts`** — build/runtime glue: encode/embed a `PluginManifest` (per-plugin name/version/`hasServer` + base64 server bundle) as an inert JSON `<script>` in built HTML, extract it, and `rehydrateServerBundle` (decode base64 → temp ESM → import) on the relay.
-- **`discovery.ts`** — pure classification of deck dependencies as plugins via the `liebstoeckel-plugin` keyword + a `liebstoeckel` package.json field, with a Bun-resolving `fsLookup`.
+## Links
 
-## Docs
+- [Building a plugin](https://docs.liebstoeckel.app/plugins/building-a-plugin/)
+- [State and sync](https://docs.liebstoeckel.app/plugins/state-and-sync/)
+- [Homepage](https://liebstoeckel.app)
+- [Source and issues](https://github.com/liebstoeckel/liebstoeckel-app)
 
-- Building a plugin — https://docs.liebstoeckel.app/plugins/building-a-plugin/
-- State & sync — https://docs.liebstoeckel.app/plugins/state-and-sync/
-
-MPL-2.0
+Licensed under [MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE).

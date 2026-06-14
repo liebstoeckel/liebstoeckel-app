@@ -1,12 +1,29 @@
 {
   "name": "@liebstoeckel/engine",
   "version": "0.3.4",
-  "license": "MPL-2.0",
+  "description": "The compiler, React runtime, and single-file build pipeline at the core of liebstoeckel.",
+  "keywords": [
+    "liebstoeckel",
+    "slides",
+    "presentation-slides",
+    "ai-agents",
+    "ai",
+    "skills",
+    "mdx",
+    "react",
+    "motion",
+    "tailwindcss",
+    "bun"
+  ],
+  "homepage": "https://liebstoeckel.app",
+  "bugs": "https://github.com/liebstoeckel/liebstoeckel-app/issues",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/liebstoeckel/liebstoeckel-app.git",
     "directory": "packages/engine"
   },
+  "license": "MPL-2.0",
+  "author": "Leon Kaucher <contact@liebstoeckel.app>",
   "publishConfig": {
     "access": "public"
   },

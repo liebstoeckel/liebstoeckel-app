@@ -1,12 +1,12 @@
 # @liebstoeckel/theme
 
-> Design tokens + the Tailwind v4 theme that styles liebstoeckel decks.
+> Design tokens and the Tailwind v4 theme that style liebstoeckel decks.
 
-Part of **[liebstoeckel](https://liebstoeckel.app)** — a code-first presentation framework: author decks in **MDX + TSX**, get one self-contained HTML file that's animated, interactive, and live-shareable. Built on **Bun + React 19 + Motion + Tailwind v4**.
+Part of [liebstoeckel](https://liebstoeckel.app), a code-first presentation framework. You write decks in MDX and TSX and build them into a single self-contained HTML file with no server or runtime dependencies. The same file works offline, and when you host it the deck runs a live session between the presenter and the audience. Built on Bun, React 19, Motion, and Tailwind v4.
 
-> ⚠️ Pre-release (`0.0.0`). APIs may change.
+> Pre-release software. The API can still change.
 
-Ships the deck's Tailwind v4 theme stylesheet and its design tokens. Drop the CSS into your build for the full look, or import the tokens for programmatic styling. No JavaScript runtime dependency — your Tailwind build processes the CSS.
+This package ships the deck's Tailwind v4 theme stylesheet and its design tokens. Drop the CSS into your build for the full look, or import the tokens for programmatic styling. There's no JavaScript runtime dependency, since your own Tailwind build processes the CSS.
 
 ## Install
 
@@ -34,27 +34,27 @@ import * as tokens from "@liebstoeckel/theme/tokens";
 | `@liebstoeckel/theme/styles.css` | The Tailwind v4 theme stylesheet (drop-in) |
 | `@liebstoeckel/theme/tokens` | The `Theme` token-shape type |
 
-> **Requires Tailwind v4** in the consuming build — `styles.css` does `@import "tailwindcss"`.
+> **Requires Tailwind v4** in the consuming build, because `styles.css` does `@import "tailwindcss"`.
 
 ## Architecture
 
-A brand is one **typed token object** (`Theme` in `src/tokens.ts`) — the single source of truth for a corporate look. TS tokens are generated into CSS, and a Tailwind `@theme inline` bridge wires utilities onto them so swapping `[data-brand]` re-skins the whole deck at runtime.
+A brand is one typed token object (`Theme` in `src/tokens.ts`), and it's the single source of truth for a corporate look. The TypeScript tokens are generated into CSS, and a Tailwind `@theme inline` bridge wires utilities onto them, so swapping `[data-brand]` re-skins the whole deck at runtime.
 
 | File | Role |
 |---|---|
-| `src/tokens.ts` | The `Theme` interface: `colors`, `fonts`, optional `border`/`accent2`/`viz`/`glow`. |
+| `src/tokens.ts` | The `Theme` interface: `colors`, `fonts`, and optional `border`/`accent2`/`viz`/`glow`. |
 | `src/brands/*.ts` | The shipped brands (`liebstoeckel` is the house default), collected in `brands/index.ts`. |
-| `src/defineTheme.ts` | `defineTheme` (typed identity helper) + `themeToCss`, which emits a brand as a `[data-brand="name"]{--brand-*:…}` block. |
-| `src/gen.ts` | Build step (`bun run gen`): runs `themeToCss` over every brand into `brands.generated.css`, keeping TS tokens authoritative while shipping static CSS Tailwind can process. |
-| `src/index.css` | Entry stylesheet: `@import "tailwindcss"` + `fonts.css` + the generated brands + `code.css`, then the **`@theme inline`** bridge mapping `--color-*`/`--font-*` utilities onto `var(--brand-*)`. `inline` is essential — plain `@theme` would resolve at `:root` where `--brand-*` is undefined. |
-| `src/code.css` | Binds Shiki's `--shiki-token-*` (css-variables theme) and the `.shiki`/`.pi-code` block chrome to brand vars, so build-time-highlighted code re-skins with `[data-brand]` — no per-brand syntax theme. |
+| `src/defineTheme.ts` | `defineTheme` (a typed identity helper) and `themeToCss`, which emits a brand as a `[data-brand="name"]{--brand-*:…}` block. |
+| `src/gen.ts` | The build step (`bun run gen`). It runs `themeToCss` over every brand into `brands.generated.css`, keeping the TS tokens authoritative while shipping static CSS that Tailwind can process. |
+| `src/index.css` | The entry stylesheet. It pulls in `@import "tailwindcss"`, `fonts.css`, the generated brands, and `code.css`, then the `@theme inline` bridge maps the `--color-*` and `--font-*` utilities onto `var(--brand-*)`. `inline` is essential, because a plain `@theme` would resolve at `:root`, where `--brand-*` is undefined. |
+| `src/code.css` | Binds Shiki's `--shiki-token-*` (the css-variables theme) and the `.shiki`/`.pi-code` block chrome to brand variables, so build-time-highlighted code re-skins with `[data-brand]` and needs no per-brand syntax theme. |
 
-The `--brand-*` vars consumed here are produced for **@liebstoeckel/components** (`Atmosphere` glow, `mdxComponents` classes) and **@liebstoeckel/engine** (the css-variables Shiki theme its MDX plugin and `code` macro emit). No JS runtime dependency: the consuming Tailwind v4 build processes `styles.css`.
+The `--brand-*` variables defined here are consumed by `@liebstoeckel/components` (the `Atmosphere` glow and the `mdxComponents` classes) and `@liebstoeckel/engine` (the css-variables Shiki theme that its MDX plugin and `code` macro emit). There's no JS runtime dependency, since the consuming Tailwind v4 build processes `styles.css`.
 
-## Docs
+## Links
 
-**[liebstoeckel.app/guides/theming](https://docs.liebstoeckel.app/guides/theming/)**
+- [Theming guide](https://docs.liebstoeckel.app/guides/theming/)
+- [Homepage](https://liebstoeckel.app)
+- [Source and issues](https://github.com/liebstoeckel/liebstoeckel-app)
 
-## License
-
-[MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE)
+Licensed under [MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE).

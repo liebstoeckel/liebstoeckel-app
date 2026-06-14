@@ -1,51 +1,53 @@
 # @liebstoeckel/plugin-qa
 
-> Live audience Q&A queue for liebstoeckel decks.
+> Live audience Q&A for liebstoeckel. Questions get asked, upvoted, and ranked in real time.
 
-Viewers submit questions from their devices, everyone upvotes to surface the best ones, and the queue
-re-ranks live (by votes, then submission time). The presenter can mark a question answered or dismiss
-it. State syncs in real time over the deck's [Yjs](https://yjs.dev) session.
+Part of [liebstoeckel](https://liebstoeckel.app), a code-first presentation framework. You write decks in MDX and TSX and build them into a single self-contained HTML file with no server or runtime dependencies. The same file works offline, and when you host it the deck runs a live session between the presenter and the audience. Built on Bun, React 19, Motion, and Tailwind v4.
 
-Part of **[liebstoeckel](https://liebstoeckel.app)** — a code-first framework for animated,
-single-file HTML presentations (Bun · React 19 · Motion · Tailwind v4 · MDX). Requires
-[Bun](https://bun.sh); ships as raw TypeScript.
+> Pre-release software. The API can still change.
+
+The audience submits questions from their own devices and upvotes the ones they want answered, and the queue re-ranks live (by votes, then submission time). The presenter moderates from the presenter console, marking a question answered or dismissing it. State syncs over the deck's shared [Yjs](https://yjs.dev) document.
 
 ## Install
 
 ```sh
 bun add @liebstoeckel/plugin-qa
+bun add react   # peer
 ```
 
-Peer dep: `react`. (Pulls in `@liebstoeckel/plugin-sdk`, `@liebstoeckel/plugin-ui`, and `motion`.)
-
 ## Usage
+
+Register the plugin, and the audience can ask from any slide through a 💬 chrome button, with no Q&A slide required:
+
+```tsx
+// main.tsx
+import qa from "@liebstoeckel/plugin-qa";
+
+<Present plugins={[qa]} slides={[…]} />;
+```
+
+To give Q&A its own spotlight slide (the prompt plus the live ranked list), place it:
 
 ```tsx
 import { Plugin } from "@liebstoeckel/engine";
 
-export default () => <Plugin id="qa" props={{ prompt: "What should we dig into?" }} />;
+<Plugin id="qa" props={{ prompt: "What should we dig into?" }} />;
 ```
 
-Run the deck live (`liebstoeckel live …`) so the audience can post and upvote. Rows animate as the
-queue re-ranks ([Motion](https://motion.dev) layout transitions).
+Present the deck live (`liebstoeckel live …`) so the room can post and upvote.
 
 ## Exports
 
-- `.` — the Q&A plugin (default export, `id: "qa"`)
-- `./logic` — pure helpers + schema: `qaSchema`, `rankedQuestions`, `voteKey`, `voteCount`, `hasVoted`, types `QaState` / `RankedQuestion`
+| Entry | What |
+|---|---|
+| `@liebstoeckel/plugin-qa` | Default export: the Q&A `PluginDef` (`id: "qa"`) |
+| `@liebstoeckel/plugin-qa/logic` | Framework-free schema and helpers: `qaSchema`, `rankedQuestions`, `voteKey`, `voteCount`, `hasVoted`, and the `QaState` / `RankedQuestion` types |
 
-## Architecture
+## Links
 
-A pure-CRDT plugin (no `server` part); the ranked queue is derived client-side from shared state.
+- [Plugins overview](https://docs.liebstoeckel.app/plugins/overview/)
+- [Live presenting](https://docs.liebstoeckel.app/guides/live/)
+- [Homepage](https://liebstoeckel.app)
+- [Source and issues](https://github.com/liebstoeckel/liebstoeckel-app)
 
-- **`logic.ts`** — framework-free schema + derivations. `qaSchema = schema({ questions: t.record(t.object({ text, author, ts })), votes: t.record(t.boolean), answered: t.record(t.boolean), dismissed: t.record(t.boolean) })`. Questions are keyed by a generated id; votes use a **composite key** `` `${qid}|${pid}` `` (via `voteKey`) so per-question, per-participant upvotes merge through the one-level record API. `voteCount` counts truthy votes by qid prefix, `hasVoted` checks one, and `rankedQuestions` produces the visible queue — dismissed excluded, sorted by votes desc then `ts` asc.
-- **`client.tsx`** — `definePlugin<QaState>({ id: "qa", state: qaSchema, client: {...} })`. `QaSlide` (the `Slide`) has a submit box that writes a new question via `state.recordSet("questions", crypto.randomUUID(), {...})`, plus a live ranked list; upvoting toggles `recordSet`/`recordDelete` on `votes`. The presenter sees per-row controls to mark `answered` or `dismissed`. Rows animate on re-rank via Motion `layout`/`layoutId` inside `AnimatePresence`. `QaPresenter` is a compact presenter-only queue panel.
-- **Standalone vs live:** with a server connected, audience submissions and upvotes sync in real time. Offline (standalone `.html` + thumbnail), the `fallback` shows the author's `props.prompt` plus a couple of example questions so the preview looks real.
-- Builds on **plugin-sdk** (`definePlugin`, `schema`/`t`, `ClientProps`, record state API) and **plugin-ui** (`Card`, `Button`, `Eyebrow`, `Stack`); other rows are styled inline against `--brand-*` variables.
-
-## Docs
-
-- Plugins overview — https://docs.liebstoeckel.app/plugins/overview/
-- Live presenting — https://docs.liebstoeckel.app/guides/live/
-
-MPL-2.0
+Licensed under [MPL-2.0](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/LICENSE).

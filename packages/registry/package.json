@@ -1,12 +1,27 @@
 {
   "name": "@liebstoeckel/registry",
   "version": "0.3.3",
-  "license": "MPL-2.0",
+  "description": "The default registry of charts and building blocks for liebstoeckel decks.",
+  "keywords": [
+    "liebstoeckel",
+    "slides",
+    "presentation-slides",
+    "ai-agents",
+    "ai",
+    "skills",
+    "registry",
+    "charts",
+    "scaffolding"
+  ],
+  "homepage": "https://liebstoeckel.app",
+  "bugs": "https://github.com/liebstoeckel/liebstoeckel-app/issues",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/liebstoeckel/liebstoeckel-app.git",
     "directory": "packages/registry"
   },
+  "license": "MPL-2.0",
+  "author": "Leon Kaucher <contact@liebstoeckel.app>",
   "publishConfig": {
     "access": "public"
   },
