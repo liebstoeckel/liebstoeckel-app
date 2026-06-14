@@ -48,10 +48,11 @@ To present it **live** to a room or the internet, you don't deploy the file. You
 
 ## Opting out of thumbnails
 
-Thumbnails need a headless Chromium. The build **skips them gracefully** (with a note, never failing) when none is available or when you set:
+Thumbnails need a headless Chromium (see [Chromium setup](/guides/chromium/) for how to provide one). The build **skips them gracefully** (with a note, never failing) when none is available or when you set:
 
 ```bash
 LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build my-talk
 ```
 
 <LinkCard title="Thumbnails" href="/guides/thumbnails/" description="How build-time slide thumbnails work." />
+<LinkCard title="Chromium setup" href="/guides/chromium/" description="Install a browser or point at an existing one." />

@@ -71,7 +71,7 @@ export default defineConfig({
         },
         {
           label: "Build & deploy",
-          items: ["guides/building", "guides/thumbnails"],
+          items: ["guides/building", "guides/thumbnails", "guides/chromium"],
         },
         {
           label: "Cloud & teams",

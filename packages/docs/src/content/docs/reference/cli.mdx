@@ -123,6 +123,10 @@ liebstoeckel build [dir] --check               # validate only: no artifact, str
 LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build [dir]   # skip thumbnails
 ```
 
+Thumbnails need a headless Chromium; the build skips them (never fails) when none is
+found. See [Chromium setup](/guides/chromium/) to install one or point at an existing
+binary with `LIEBSTOECKEL_CHROMIUM`.
+
 | Flag | Meaning |
 | --- | --- |
 | `--no-inline-package` | don't embed the deck's source (smaller file, not ejectable) |
@@ -251,6 +255,8 @@ liebstoeckel relay [--port N] [--tokens tok1,tok2] [--public-url https://…]
 liebstoeckel thumbs <built-deck.html> [--format webp|jpeg|png] [--width 640] [--quality 80] [--scale 2]
 ```
 
+Needs Chromium and fails if none is found ([Chromium setup](/guides/chromium/)).
+
 ## `export`
 
 Export slides to **PNG** files or a single **PDF** (one slide, a range, or the
@@ -289,7 +295,7 @@ whose effects don't reproduce under print.
 
 PNGs come straight off the page (lossless, native resolution), named
 `<deck>-slide-NN.png` (1-based, zero-padded). Like `thumbs`, `export` needs Chromium
-and fails loudly if none is found.
+and fails loudly if none is found ([Chromium setup](/guides/chromium/)).
 
 ## `skill`
 

@@ -14,7 +14,7 @@ Both entry points capture thumbnails automatically and **skip gracefully (never 
 - `buildDeck()` from `@liebstoeckel/thumbnails/build` (what scaffolded decks' `build.ts` use).
 - `liebstoeckel live` / `bun run live` captures into the deck before serving/uploading (pass `--no-thumbnails` to skip).
 
-Both route through the same `withThumbnails(html, opts)` primitive, so the gate/capture/embed policy lives in one place.
+Both route through the same `withThumbnails(html, opts)` primitive, so the gate/capture/embed policy lives in one place. To get thumbnails when capture is being skipped, see [Chromium setup](/guides/chromium/).
 
 ## How capture works
 

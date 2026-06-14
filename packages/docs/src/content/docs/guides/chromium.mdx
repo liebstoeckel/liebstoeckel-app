@@ -1,0 +1,77 @@
+---
+title: Chromium setup
+description: When liebstoeckel needs a Chromium binary, how to install one or point at an existing one, and what happens when none is found.
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+
+Viewing, authoring, and live-presenting a deck need only a normal browser. A few **build-time** features render slides headlessly, and those need a real Chromium binary. Chromium is optional: if you never use those features, you never need it.
+
+## What needs Chromium
+
+| Feature | Command / API | Without Chromium |
+| --- | --- | --- |
+| Slide thumbnails (overview grid) | `liebstoeckel build`, `liebstoeckel live`, `buildDeck()` | Skips the capture and keeps building. The deck works; the overview grid falls back to a live render. |
+| Regenerate thumbnails | [`liebstoeckel thumbs`](/reference/cli/#thumbs) | Fails with an error. |
+| Export to PNG or PDF | [`liebstoeckel export`](/reference/cli/#export) | Fails with an error. |
+
+The split is deliberate. `build` and `live` treat thumbnails as a best-effort enhancement, so a missing browser never blocks a build. `thumbs` and `export` exist only to produce that output, so they fail loudly instead of writing nothing.
+
+## Provide a Chromium
+
+Two ways, either works.
+
+Install the Chromium that Playwright manages (liebstoeckel ships `playwright-core`, which has no browser of its own):
+
+```bash
+bunx playwright install chromium
+```
+
+Or point `LIEBSTOECKEL_CHROMIUM` at a Chrome or Chromium you already have:
+
+```bash
+export LIEBSTOECKEL_CHROMIUM=/usr/bin/chromium       # or a full path to Chrome
+liebstoeckel build my-talk
+```
+
+<Aside type="caution" title="Use full Chromium, not chrome-headless-shell">
+Point `LIEBSTOECKEL_CHROMIUM` at a complete Chrome or Chromium build. The lighter `chrome-headless-shell` can crash (SIGSEGV) in some sandboxes, so capture uses full Chromium.
+</Aside>
+
+### Resolution order
+
+When a feature needs a browser, liebstoeckel looks in this order and uses the first binary that exists on disk:
+
+1. An explicit `executablePath` passed to the thumbnails/export API.
+2. The `LIEBSTOECKEL_CHROMIUM` environment variable.
+3. The Chromium installed by Playwright.
+
+The existence check matters: Playwright reports a computed path even when nothing is installed, so liebstoeckel verifies the file is really there before trusting it. This keeps the "no Chromium" path honest in CI.
+
+## Containers and CI
+
+Capture launches Chromium with container-friendly flags so it runs without a GPU or user namespace:
+
+```
+--no-sandbox --disable-gpu --disable-dev-shm-usage --single-process --no-zygote
+```
+
+In a container image, either run `bunx playwright install chromium` during the build, or install your distro's Chromium package and set `LIEBSTOECKEL_CHROMIUM` to it.
+
+## When no Chromium is found
+
+The "no Chromium found" message is expected if you never installed one. What follows depends on the command:
+
+- `liebstoeckel build` and `liebstoeckel live` log a note that thumbnails were skipped and finish normally. Provide a browser (above) to get the overview thumbnails back.
+- `liebstoeckel thumbs` and `liebstoeckel export` stop with an error that names both fixes (install Playwright's Chromium, or set `LIEBSTOECKEL_CHROMIUM`).
+
+## Skip thumbnails on purpose
+
+To build without thumbnails even when a browser is present, set `LIEBSTOECKEL_NO_THUMBS`:
+
+```bash
+LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build my-talk
+```
+
+<LinkCard title="Thumbnails" href="/guides/thumbnails/" description="How build-time slide thumbnails are captured and embedded." />
+<LinkCard title="Building & deploying" href="/guides/building/" description="The single-file build and what ends up in it." />
