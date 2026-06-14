@@ -58,12 +58,14 @@ export const buildCommand = defineCommand({
       }
 
       const { buildDeck } = await import("@liebstoeckel/thumbnails/build");
+      const { cliVersion } = await import("./skill");
       await buildDeck({
         entry: "./index.html",
         outdir: "./dist",
         inlinePackage: args.inlinePackage !== false,
         inlineLicenses: args.inlineLicenses !== false,
         allowSecret: !!args.allowSecret,
+        generator: { name: "cli", version: await cliVersion() },
       });
     } finally {
       process.chdir(prev);

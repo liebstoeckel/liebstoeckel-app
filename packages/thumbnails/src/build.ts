@@ -1,5 +1,5 @@
 import { basename, dirname, join, resolve } from "node:path";
-import { bundleDeck } from "@liebstoeckel/engine/build";
+import { bundleDeck, type Generator } from "@liebstoeckel/engine/build";
 import { withThumbnails } from "./index";
 import type { CaptureOptions } from "./capture";
 
@@ -17,6 +17,8 @@ export interface BuildDeckOptions {
   inlineLicenses?: boolean;
   /** Force the source-embed past its secret gate (loud, explicit). */
   allowSecret?: boolean;
+  /** The tool driving the build (e.g. the CLI), recorded in the deck's generator stamp. */
+  generator?: Generator;
 }
 
 /** `<deck-slug>.html` from the deck folder name (the dir holding `package.json`),
