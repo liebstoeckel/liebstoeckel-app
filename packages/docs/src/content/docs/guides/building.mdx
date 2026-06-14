@@ -25,6 +25,7 @@ await buildDeck({ entry: "./index.html", outdir: "./dist" });
 
 ## What ends up in the file
 
+- A **generator stamp** in the head (an HTML comment plus a `<meta name="generator">`) recording the engine and CLI versions that built it, so you can tell what produced a file. See the [file format reference](/reference/file-format/#generator-header).
 - Your bundled, minified JS (engine + slides + plugins' client code).
 - The compiled CSS (Tailwind + brand variables + code/atmosphere styles).
 - Pre-tokenized highlighted code (no Shiki at runtime).

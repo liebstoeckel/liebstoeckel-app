@@ -123,7 +123,7 @@ export default defineConfig({
         },
         {
           label: "Reference",
-          items: ["reference/cli", "reference/engine-api", "reference/components"],
+          items: ["reference/cli", "reference/engine-api", "reference/components", "reference/file-format"],
         },
       ],
     }),
