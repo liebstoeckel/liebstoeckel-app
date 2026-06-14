@@ -2,7 +2,7 @@
   <root>
     <mxCell id="0"/>
     <mxCell id="1" parent="0"/>
-    <mxCell id="decks" value="&lt;b&gt;Decks&lt;/b&gt;&lt;br&gt;presentations/* — a brand + ordered slides + plugins" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#1e3a5f;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
+    <mxCell id="decks" value="&lt;b&gt;Decks&lt;/b&gt;&lt;br&gt;presentations/*: a brand, ordered slides, plugins" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#1e3a5f;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
       <mxGeometry x="40" y="40" width="700" height="60" as="geometry"/>
     </mxCell>
     <mxCell id="engine" value="&lt;b&gt;Engine&lt;/b&gt;&lt;br&gt;Deck · PresenterView · Steps · CodeMagic · Magic · Plugin · ScaledStage · build API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#92660a;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
@@ -22,8 +22,8 @@
     </mxCell>
     <mxCell id="e1" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="decks" target="engine"><mxGeometry relative="1" as="geometry"/></mxCell>
     <mxCell id="e2" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="engine" target="theme"><mxGeometry relative="1" as="geometry"/></mxCell>
-    <mxCell id="e3" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="engine" target="plugins"><mxGeometry relative="1" as="geometry"/></mxCell>
-    <mxCell id="e4" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="delivery" target="engine"><mxGeometry relative="1" as="geometry"/></mxCell>
-    <mxCell id="e5" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="cli" target="delivery"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e3" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="theme" target="plugins"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e4" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="plugins" target="delivery"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e5" style="endArrow=classic;html=1;strokeColor=#64748b;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="delivery" target="cli"><mxGeometry relative="1" as="geometry"/></mxCell>
   </root>
 </mxGraphModel>
