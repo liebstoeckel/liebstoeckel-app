@@ -1,0 +1,177 @@
+---
+// Standalone branded 404 for the docs site. A plain Astro page in src/pages/
+// overrides Starlight's default 404 route, giving a full-bleed branded page with
+// no docs chrome — its own document with inline styles so it renders identically
+// when nginx serves it for any unmatched path (error_page 404 /404.html).
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wrong room — liebstoeckel docs</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/fonts/schibsted-grotesk.woff2" as="font" type="font/woff2" crossorigin />
+    <style is:inline>
+      @font-face {
+        font-family: "Schibsted Grotesk Variable";
+        src: url("/fonts/schibsted-grotesk.woff2") format("woff2");
+        font-weight: 400 700;
+        font-display: swap;
+      }
+      :root {
+        --bg: #10140e;
+        --heading: #f4f1e6;
+        --text: #e9e6d7;
+        --text-2: #9da28c;
+        --gold: #c9a24b;
+        --gold-soft: #e0c580;
+        --gold-hover: #d9b461;
+        --line: #2c3326;
+        --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+        --sans: "Schibsted Grotesk Variable", system-ui, sans-serif;
+        --mono: ui-monospace, "SF Mono", "JetBrains Mono Variable", monospace;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body {
+        min-height: 100dvh;
+        background: var(--bg);
+        background-image:
+          radial-gradient(1200px 760px at 100% -8%, rgba(201, 162, 75, 0.07), transparent 58%),
+          radial-gradient(900px 720px at 0% 112%, rgba(44, 64, 48, 0.30), transparent 60%);
+        background-attachment: fixed;
+        color: var(--text);
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+        display: flex;
+        flex-direction: column;
+      }
+      a { color: inherit; text-decoration: none; }
+      :focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 3px; border-radius: 3px; }
+
+      .lockup {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1.5rem, 6vw, 4rem);
+        font-weight: 700;
+        font-size: 1.0625rem;
+        letter-spacing: -0.035em;
+      }
+      .lockup svg { width: 26px; height: 26px; display: block; }
+      .lockup span {
+        background: linear-gradient(118deg, var(--heading) 26%, var(--gold-soft));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 clamp(1.5rem, 6vw, 4rem) clamp(4rem, 12vh, 9rem);
+        max-width: 1280px;
+        width: 100%;
+        margin: 0 auto;
+      }
+      .code {
+        font-family: var(--mono);
+        font-size: 0.8125rem;
+        letter-spacing: 0.18em;
+        color: var(--gold);
+        font-feature-settings: "tnum" 1, "lnum" 1;
+        margin-bottom: clamp(1rem, 3vh, 1.75rem);
+      }
+      h1 {
+        margin: 0;
+        font-weight: 700;
+        letter-spacing: -0.035em;
+        line-height: 0.98;
+        font-size: clamp(2.75rem, 9vw, 5.5rem);
+        color: var(--heading);
+        text-wrap: balance;
+      }
+      .sub {
+        margin: clamp(1.25rem, 3vh, 1.75rem) 0 0;
+        max-width: 42ch;
+        font-size: clamp(1.0625rem, 1.6vw, 1.25rem);
+        line-height: 1.55;
+        color: var(--text-2);
+        text-wrap: pretty;
+      }
+      .actions {
+        margin-top: clamp(2rem, 5vh, 3rem);
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        height: 48px;
+        padding: 0 1.4rem;
+        border-radius: 8px;
+        font-family: inherit;
+        font-weight: 600;
+        font-size: 1rem;
+        letter-spacing: -0.01em;
+        transition: background 160ms var(--ease-out), transform 160ms var(--ease-out);
+      }
+      .btn--primary { background: var(--gold); color: var(--bg); }
+      .btn--primary:hover { background: var(--gold-hover); transform: translateY(-1px); }
+      .ghost {
+        color: var(--gold-soft);
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 44px;
+      }
+      .ghost .arrow { transition: transform 160ms var(--ease-out); }
+      .ghost:hover .arrow { transform: translateX(3px); }
+      .ghost:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+      [data-reveal] { opacity: 0; transform: translateY(14px); }
+      .ready [data-reveal] {
+        opacity: 1;
+        transform: none;
+        transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+      }
+      .ready [data-reveal="1"] { transition-delay: 60ms; }
+      .ready [data-reveal="2"] { transition-delay: 140ms; }
+      .ready [data-reveal="3"] { transition-delay: 220ms; }
+      .ready [data-reveal="4"] { transition-delay: 300ms; }
+      @media (prefers-reduced-motion: reduce) {
+        [data-reveal] { opacity: 1; transform: none; }
+        .ready [data-reveal] { transition: none; }
+        body { background-attachment: scroll; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="lockup" href="/" aria-label="liebstoeckel docs — home">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><g transform="translate(32 32) scale(1.25) translate(-31.05 -35.6)"><rect x="15" y="17.5" width="20" height="11.25" rx="3" fill="#c9a24b"/><rect x="31.5" y="29.5" width="16" height="9" rx="2.5" fill="#c9a24b"/><rect x="22" y="39.5" width="12" height="6.75" rx="2" fill="#c9a24b"/><path d="M28 28.75 Q31.4 29.2 31.5 33 L38.5 29.5 Q34.9 29.1 35 26 Z" fill="#c9a24b"/><path d="M38 38.5 Q34.3 39 34 43 L28 39.5 Q31.4 39.2 31.5 36 Z" fill="#c9a24b"/><path d="M28.5 45.5 Q31.1 46.6 31.2 48.5 L31.2 52.2 Q31.2 53.7 32.6 53.7 Q34 53.7 34 52.2 L34 45 Z" fill="#c9a24b"/></g></svg>
+        <span>liebstoeckel</span>
+      </a>
+    </header>
+    <main>
+      <p class="code" data-reveal="1">404</p>
+      <h1 data-reveal="2">Wrong room.</h1>
+      <p class="sub" data-reveal="3">This page isn't in the docs. It may have been renamed or retired.</p>
+      <div class="actions" data-reveal="4">
+        <a class="btn btn--primary" href="/">Back to the docs</a>
+        <a class="ghost" href="/guides/getting-started/">Getting started <span class="arrow">&rarr;</span></a>
+      </div>
+    </main>
+    <script>
+      requestAnimationFrame(() => document.body.classList.add("ready"));
+    </script>
+  </body>
+</html>
