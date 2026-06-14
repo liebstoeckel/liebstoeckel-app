@@ -2,6 +2,11 @@
 
 ![liebstoeckel: code-first presentations that build to one self-contained HTML file](./.github/header.png)
 
+[![CI](https://github.com/liebstoeckel/liebstoeckel-app/actions/workflows/ci.yml/badge.svg)](https://github.com/liebstoeckel/liebstoeckel-app/actions/workflows/ci.yml)
+[![License: MPL 2.0](https://img.shields.io/badge/license-MPL--2.0-brightgreen.svg)](./LICENSE)
+[![Docs](https://img.shields.io/badge/docs-liebstoeckel.app-c9a24b.svg)](https://docs.liebstoeckel.app)
+[![Built with Bun](https://img.shields.io/badge/built%20with-Bun-14151a.svg?logo=bun)](https://bun.com)
+
 liebstoeckel is a code-first presentation engine. You write slides in MDX for prose and TSX for anything interactive, theme them from one place, and build a single portable `.html` per deck.
 It runs on Bun, React 19, Motion, and Tailwind v4.
 

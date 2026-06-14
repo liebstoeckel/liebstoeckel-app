@@ -30,6 +30,46 @@ export default defineConfig({
       head: [
         { tag: "link", attrs: { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" } },
         { tag: "link", attrs: { rel: "apple-touch-icon", href: "/apple-touch-icon.png" } },
+        // Default social card. Starlight emits og:title/description/url + the
+        // twitter:summary_large_image card, but no image; supply the brand's
+        // 1200x630 card (a checked-in copy of corporate-design's out/og-card.png)
+        // so shared docs links unfurl. Absolute URLs — unfurlers require them.
+        { tag: "meta", attrs: { property: "og:image", content: "https://docs.liebstoeckel.app/og-card.png" } },
+        { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
+        { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
+        {
+          tag: "meta",
+          attrs: {
+            property: "og:image:alt",
+            content: "liebstoeckel: AI-driven decks that ship as one self-contained, ejectable HTML file",
+          },
+        },
+        { tag: "meta", attrs: { name: "twitter:image", content: "https://docs.liebstoeckel.app/og-card.png" } },
+        // site-wide structured data: the org + the docs WebSite, for search and
+        // answer engines.
+        {
+          tag: "script",
+          attrs: { type: "application/ld+json" },
+          content: JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "Organization",
+                "@id": "https://liebstoeckel.app/#org",
+                name: "liebstoeckel",
+                url: "https://liebstoeckel.app",
+                logo: "https://liebstoeckel.app/apple-touch-icon.png",
+              },
+              {
+                "@type": "WebSite",
+                "@id": "https://docs.liebstoeckel.app/#website",
+                name: "liebstoeckel docs",
+                url: "https://docs.liebstoeckel.app",
+                publisher: { "@id": "https://liebstoeckel.app/#org" },
+              },
+            ],
+          }),
+        },
       ],
       customCss: ["./src/styles/theme.css"],
       // the start page is the only `template: splash` page; its hero is the

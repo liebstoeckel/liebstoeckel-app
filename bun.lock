@@ -236,6 +236,7 @@
       "name": "@liebstoeckel/landing",
       "version": "0.0.0",
       "dependencies": {
+        "@astrojs/sitemap": "^3.7.0",
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
         "@fontsource-variable/schibsted-grotesk": "^5.2.8",
         "@liebstoeckel/corporate-design": "workspace:*",
