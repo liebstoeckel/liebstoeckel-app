@@ -2,6 +2,7 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import starlightPageActions from "starlight-page-actions";
 import astroAgentAnnotate from "astro-agent-annotate";
+import remarkGfm from "remark-gfm";
 
 // Static docs site for liebstoeckel. Astro Starlight → static HTML (Islands: zero JS
 // by default, Pagefind search, dark mode). starlight-page-actions adds the per-page
@@ -9,6 +10,10 @@ import astroAgentAnnotate from "astro-agent-annotate";
 // so the docs are LLM-native. Build with Bun: `bun --bun astro build`.
 export default defineConfig({
   site: "https://docs.liebstoeckel.app",
+  // Astro 6.4 stopped applying GFM to MDX by default, which dropped every
+  // Markdown table (they leaked through as raw `| --- |` pipes). Declare
+  // remark-gfm explicitly so tables/strikethrough/autolinks render regardless.
+  markdown: { remarkPlugins: [remarkGfm] },
   integrations: [
     astroAgentAnnotate(),
     starlight({
