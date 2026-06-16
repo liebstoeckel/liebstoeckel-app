@@ -1,0 +1,107 @@
+---
+// Comments.astro — buncus (self-hosted, GDPR-by-default GitHub Discussions)
+// comment widget. Rendered by Footer.astro on every non-splash docs page.
+//
+// DRAFT. The GitHub-specific identifiers below are PLACEHOLDERS — fill them in
+// after enabling Discussions on the target repo and registering the GitHub App
+// (see deploy/apps/buncus.yaml). Until then the widget mounts and shows the
+// consent gate, but loading a thread errors (the buncus service is up; its
+// GitHub App creds are still the dummy Doppler values).
+//
+// Environment handling (build-once image, promoted int -> prod):
+//   - buncus ORIGIN is chosen at runtime from the docs hostname:
+//       *.int.limond.de            -> https://comments.int.limond.de
+//       else (docs.liebstoeckel.app) -> https://comments.liebstoeckel.app
+//   - the brand theme CSS is served by THIS origin, so its URL is same-origin
+//     and automatically env-correct.
+// Both depend on the docs CSP (packages/docs-dist/nginx.conf) allowing the
+// comments.* origins in script-src + frame-src, and on those origins being in
+// buncus' ORIGINS/THEME_ORIGINS (deploy/apps/buncus.yaml).
+---
+
+<section class="buncus-comments" aria-label="Comments">
+  <h2>Comments</h2>
+  <div id="buncus-container"></div>
+</section>
+
+<script is:inline>
+  (() => {
+    // Maps to the liebstoeckel-app repo's Discussions (dedicated Comments
+    // category, Announcement format so only the buncus App opens threads). Repo
+    // is private for now — fine while testing: reads go through the App token;
+    // only repo-access users can post.
+    const REPO = "liebstoeckel/liebstoeckel-app";
+    const REPO_ID = "R_kgDOSpc72A";
+    const CATEGORY = "Comments";
+    const CATEGORY_ID = "DIC_kwDOSpc72M4C_Sb6";
+
+    function buncusOrigin() {
+      return location.hostname.endsWith("int.limond.de")
+        ? "https://comments.int.limond.de"
+        : "https://comments.liebstoeckel.app";
+    }
+    function currentTheme() {
+      const t = document.documentElement.dataset.theme;
+      if (t === "light" || t === "dark") return t;
+      // Starlight "auto": resolve against the OS preference.
+      return matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    }
+    function themeUrl(t) {
+      return location.origin + "/buncus/liebstoeckel-" + (t === "light" ? "light" : "dark") + ".css";
+    }
+
+    function init() {
+      const container = document.getElementById("buncus-container");
+      if (!container || container.dataset.init === "1") return;
+      container.dataset.init = "1";
+
+      const origin = buncusOrigin();
+      const s = document.createElement("script");
+      s.src = origin + "/buncus.js";
+      s.async = true;
+      s.crossOrigin = "anonymous";
+      s.setAttribute("data-repo", REPO);
+      s.setAttribute("data-repo-id", REPO_ID);
+      s.setAttribute("data-category", CATEGORY);
+      s.setAttribute("data-category-id", CATEGORY_ID);
+      s.setAttribute("data-mapping", "pathname"); // one thread per docs page
+      s.setAttribute("data-theme", themeUrl(currentTheme()));
+      s.setAttribute("data-consent", "required"); // GDPR: no iframe/request until opt-in
+      s.setAttribute("data-privacy-url", "https://liebstoeckel.app/datenschutz/");
+      s.setAttribute("data-loading", "lazy");
+      container.appendChild(s);
+
+      // Follow Starlight's light/dark toggle: post the matching brand-theme URL
+      // to the widget iframe (buncus' runtime swap honors external THEME_ORIGINS).
+      new MutationObserver(() => {
+        const iframe = container.querySelector("iframe");
+        if (!iframe || !iframe.contentWindow) return;
+        iframe.contentWindow.postMessage(
+          { buncus: { setConfig: { theme: themeUrl(currentTheme()) } } },
+          origin,
+        );
+      }).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["data-theme"],
+      });
+    }
+
+    init();
+    // Re-init after client navigation if view transitions are ever enabled
+    // (inert on the default MPA, where each navigation is a full page load).
+    document.addEventListener("astro:page-load", init);
+  })();
+</script>
+
+<style>
+  .buncus-comments {
+    margin-block-start: 3rem;
+    padding-block-start: 2rem;
+    border-block-start: 1px solid var(--sl-color-gray-5);
+  }
+  .buncus-comments h2 {
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+    margin-block-end: 1rem;
+  }
+</style>

@@ -5,13 +5,19 @@
 // cover the docs site too; linking them from every page keeps the docs
 // compliant (Impressum reachable from anywhere).
 import Default from "@astrojs/starlight/components/Footer.astro";
+import Comments from "./Comments.astro";
 
 const APEX = "https://liebstoeckel.app";
 const GITHUB = "https://github.com/liebstoeckel/liebstoeckel-app";
 const year = 2026;
+
+// Comments go on content pages only, not the splash home page.
+const showComments = Astro.locals.starlightRoute.entry.data.template !== "splash";
 ---
 
 <Default><slot /></Default>
+
+{showComments && <Comments />}
 
 <div class="brand-foot">
   <div class="foot-top">

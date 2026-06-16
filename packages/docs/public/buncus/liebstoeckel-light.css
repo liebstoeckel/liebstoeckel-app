@@ -1,0 +1,49 @@
+/* ── buncus theme · liebstoeckel (light / cream pairing) ─────────────────────
+   DRAFT — wire up properly later. Companion to liebstoeckel-dark.css. The brand
+   is dark-first; this is the light pairing (one cream section, forest ink), for
+   readers on a light OS theme. Same `--bc-*` contract; see the dark file's
+   header for how a buncus custom theme is served + allowlisted (THEME_ORIGINS).
+
+   Values mirror packages/corporate-design/src/tokens.ts (cream/forest + the
+   gold-on-cream token) and the docs light pairing in
+   packages/docs/src/styles/theme.css — keep them in sync.
+
+   Webfont: same as the dark theme — already hosted, but inert until buncus' widget
+   CSP allows `font-src` for the theme origin (it has none today) + the font sends
+   CORS. Falls back to system sans until then.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: "Schibsted Grotesk";
+  src: url("https://docs.liebstoeckel.app/fonts/schibsted-grotesk.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  /* surfaces */
+  --bc-bg: #f6f2e6;            /* color.cream — page ground (warm cream) */
+  --bc-btn-bg: #efeada;        /* light raised surface / secondary button */
+  --bc-btn-hover: #e7e0cb;     /* darker on hover */
+  --bc-code-bg: #ece5d2;       /* inset code background */
+  --bc-border: #d8d3c2;        /* divider hairline on cream */
+
+  /* text */
+  --bc-fg: #1b2418;            /* color.forest — ink on cream */
+  --bc-muted: #5c6452;         /* muted ink on cream */
+  --bc-accent: #9a7414;        /* color.goldCream — darkened gold, AA on cream (links) */
+
+  /* primary call to action — canonical gold fill + dark ink, brand-consistent */
+  --bc-primary: #c9a24b;       /* color.gold */
+  --bc-primary-hover: #d9b461; /* color.goldHover */
+  --bc-primary-fg: #10140e;    /* color.ground — accent-ink, text on gold fills */
+
+  /* reactions */
+  --bc-reaction-bg: #efeada;
+  --bc-reaction-active-bg: #efe4c6;     /* light gold tint */
+  --bc-reaction-active-border: #9a7414; /* color.goldCream */
+
+  /* type + shape */
+  --bc-font: "Schibsted Grotesk", system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
+  --bc-radius: 8px;            /* radius.sm */
+}

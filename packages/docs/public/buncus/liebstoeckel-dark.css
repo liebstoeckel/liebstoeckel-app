@@ -1,0 +1,64 @@
+/* ── buncus theme · liebstoeckel "Noir" (dark) ───────────────────────────────
+   DRAFT — wire up properly later. This is a buncus custom theme: a CSS file
+   that sets the ~14 `--bc-*` variables buncus' widget.css consumes. Served by
+   the docs site and pointed at from the embed:
+
+     <script src="https://docs.liebstoeckel.app/buncus.js"
+             data-theme="https://docs.liebstoeckel.app/buncus/liebstoeckel-dark.css" …>
+
+   For buncus to accept it, the serving origin must be in buncus' THEME_ORIGINS
+   allowlist (deploy-side config).
+
+   Values mirror the canonical brand tokens in
+   packages/corporate-design/src/tokens.ts (dark swatches) — keep them in sync.
+
+   TODO (the "later, properly" part):
+   - WEBFONT IS BLOCKED BY BUNCUS' WIDGET CSP, not by hosting. We already serve
+     the font at https://docs.liebstoeckel.app/fonts/schibsted-grotesk.woff2 and
+     the @font-face below points at it — but the widget CSP has no `font-src`, so
+     it inherits `default-src 'none'` and blocks every webfont (THEME_ORIGINS
+     only widens `style-src`, i.e. loading the theme CSS, not fonts). The font
+     response also needs `Access-Control-Allow-Origin` (cross-origin font fetch).
+     Fix is buncus-side: add `font-src 'self' <themeOrigins>` to the widget CSP.
+     Until then --bc-font falls back to the system sans stack below (harmless).
+   - Pair with the light theme + drive the runtime theme swap from Starlight's
+     theme toggle (postMessage { buncus: { setConfig: { theme } } }).
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Self-hosted brand font (already served by the docs site). Inert until buncus'
+   widget CSP allows font-src for the theme origin + the font sends CORS — see
+   the header note. The widget falls back to system sans until then. */
+@font-face {
+  font-family: "Schibsted Grotesk";
+  src: url("https://docs.liebstoeckel.app/fonts/schibsted-grotesk.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  /* surfaces */
+  --bc-bg: #10140e;            /* color.ground — page ground (forest charcoal) */
+  --bc-btn-bg: #1a2014;        /* color.surface — raised panel / secondary button */
+  --bc-btn-hover: #2b3422;     /* color.surface3 — next elevation on hover */
+  --bc-code-bg: #161b12;       /* color.ground2 — inset code background */
+  --bc-border: #2b3422;        /* divider hairline on the forest grounds */
+
+  /* text */
+  --bc-fg: #e9e6d7;            /* color.text — body ink */
+  --bc-muted: #8c917d;         /* color.text3 — muted / tertiary ink */
+  --bc-accent: #e0c580;        /* color.goldSoft — gold link/accent TEXT on dark */
+
+  /* primary call to action — canonical gold fill + dark ink (~7:1) */
+  --bc-primary: #c9a24b;       /* color.gold */
+  --bc-primary-hover: #d9b461; /* color.goldHover */
+  --bc-primary-fg: #10140e;    /* color.ground — accent-ink, text on gold fills */
+
+  /* reactions */
+  --bc-reaction-bg: #1a2014;            /* color.surface */
+  --bc-reaction-active-bg: #352a10;     /* deep gold tint */
+  --bc-reaction-active-border: #c9a24b; /* color.gold */
+
+  /* type + shape */
+  --bc-font: "Schibsted Grotesk", system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
+  --bc-radius: 8px;            /* radius.sm */
+}
