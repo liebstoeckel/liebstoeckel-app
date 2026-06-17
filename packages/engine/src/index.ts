@@ -18,6 +18,7 @@ export {
 export { CaptureView } from "./CaptureView";
 export { PrintView } from "./PrintView";
 export { readThumbnails, type ThumbnailSet } from "./thumbnails";
+export { hasEmbeddedSource } from "./source";
 export { Step, StepsProvider, useRevealState } from "./steps";
 export { CodeMagic } from "./CodeMagic";
 export type { TokenizedStep, CodeToken } from "./code/types";

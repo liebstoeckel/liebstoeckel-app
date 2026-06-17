@@ -4,6 +4,9 @@ import type { Role } from "@liebstoeckel/plugin-sdk";
 
 type Shortcut = { keys: string[]; label: string; presenterOnly?: boolean };
 
+/** Guide for recovering + editing a built deck (linked from the eject footer). */
+const EDIT_DOCS_URL = "https://docs.liebstoeckel.app/guides/editing-a-built-deck/";
+
 function Kbd({ children, dim }: { children: string; dim?: boolean }) {
   return (
     <kbd
@@ -21,12 +24,15 @@ export function HelpOverlay({
   onClose,
   showBrand,
   role,
+  ejectable,
 }: {
   open: boolean;
   onClose: () => void;
   showBrand?: boolean;
   /** live role; undefined = standalone (everything enabled) */
   role?: Role;
+  /** this `.html` carries its own recoverable source → show the "edit this deck" hint */
+  ejectable?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -120,6 +126,25 @@ export function HelpOverlay({
                 );
               })}
             </ul>
+            {ejectable && (
+              <div className="mt-6 border-t border-border pt-4">
+                <p className="font-body text-sm text-text/80">
+                  This deck embeds its own source, recover it with{" "}
+                  <code className="rounded bg-bg/60 px-1.5 py-0.5 font-mono text-[13px] text-text">
+                    liebstoeckel eject
+                  </code>{" "}
+                  to edit it by hand or with an agent.{" "}
+                  <a
+                    href={EDIT_DOCS_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+                  >
+                    Learn how →
+                  </a>
+                </p>
+              </div>
+            )}
             <div className="mt-6 border-t border-border pt-4 text-center font-mono text-[11px] uppercase tracking-[0.25em] text-muted">
               right-click anywhere to toggle
             </div>

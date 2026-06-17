@@ -13,6 +13,7 @@ import { PersistentProvider, PersistentLayer, type PersistentItem } from "./Pers
 import { ScaledStage, SlideFrame } from "./Stage";
 import { DeckThumb } from "./Thumb";
 import { readThumbnails } from "./thumbnails";
+import { hasEmbeddedSource } from "./source";
 import { HelpOverlay } from "./HelpOverlay";
 import { QrOverlay } from "./QrOverlay";
 import { PluginOverlays } from "./live/globalChrome";
@@ -92,6 +93,8 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
 
   const [brandIdx, setBrandIdx] = useState(0);
   const [help, setHelp] = useState(false);
+  // Static for the loaded document; resolve once for the help overlay's eject hint.
+  const ejectable = useMemo(() => hasEmbeddedSource(), []);
   const [blurred, setBlurred] = useState(false);
   const [overview, setOverview] = useState(false);
   const [qr, setQr] = useState(false);
@@ -206,7 +209,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
               )}
             </AnimatePresence>
 
-            <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} />
+            <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} ejectable={ejectable} />
             <PortraitHint />
           </div>
 

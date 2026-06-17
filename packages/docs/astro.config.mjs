@@ -111,7 +111,7 @@ export default defineConfig({
         },
         {
           label: "Build & deploy",
-          items: ["guides/building", "guides/thumbnails", "guides/chromium"],
+          items: ["guides/building", "guides/editing-a-built-deck", "guides/thumbnails", "guides/chromium"],
         },
         {
           label: "Cloud & teams",

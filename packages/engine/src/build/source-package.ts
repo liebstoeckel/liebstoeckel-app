@@ -2,6 +2,7 @@ import { $ } from "bun";
 import { mkdtempSync, mkdirSync, rmSync, readdirSync, copyFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
+import { SOURCE_ATTR } from "./source-attr";
 
 // Inline source package ((internal ADR)): the single-file deck carries a compressed copy of
 // its own source so a compiled `.html` can be ejected back to an editable project.
@@ -9,8 +10,9 @@ import { join, dirname } from "node:path";
 // then repacks gzip→zstd for the in-HTML embed. Everything here is Bun-native (no deps),
 // so the engine never grows a dependency for this.
 
-/** Inert <script> carrier — mirrors plugin-sdk's `embedManifest` (browser never parses it). */
-export const SOURCE_ATTR = "data-liebstoeckel-source";
+/** Inert <script> carrier — mirrors plugin-sdk's `embedManifest` (browser never parses it).
+ *  Defined in `source-attr.ts` so browser runtime can read it without this packer. */
+export { SOURCE_ATTR };
 
 // Fail-closed gate: pack's default-ignore table misses bare `.env`/`.env.local` (only
 // `.env.production`), so we add our own net + a best-effort secret-content scan.

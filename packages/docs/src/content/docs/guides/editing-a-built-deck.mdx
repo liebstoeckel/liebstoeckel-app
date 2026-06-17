@@ -1,0 +1,126 @@
+---
+title: Editing a built deck
+description: A built .html isn't a dead end. Recover its source with eject and edit it by hand or with an agent, then rebuild.
+---
+
+import { Steps, Aside, LinkCard } from "@astrojs/starlight/components";
+
+A liebstoeckel deck ships as a single `.html`. Unlike most built files, that
+artifact is not a dead end: by default the build embeds a compressed copy of the
+deck's **own source** inside the file, so you can recover an editable project from
+it at any time and keep working. You can confirm a file is recoverable before you
+even install anything: open it, press `?` (or right-click), and the help overlay
+shows an **"edit this deck"** hint when the source is embedded.
+
+This guide takes you from a bare `.html` to an editing loop.
+
+## 1. Install the CLI
+
+You need [Bun](https://bun.com) 1.3+. Then install the umbrella `liebstoeckel`
+command:
+
+```bash
+bun add -g @liebstoeckel/cli
+```
+
+See [Getting started](/guides/getting-started/) for the full setup.
+
+## 2. Eject the source
+
+Point [`eject`](/reference/cli/#eject) at the `.html`:
+
+```bash
+liebstoeckel eject my-talk.html            # → ./my-talk-source/
+liebstoeckel eject my-talk.html ./edits    # or choose the output dir
+```
+
+You get back the real project the deck was built from: the slides, `index.html`,
+the entry, `package.json`, and any assets that were in the deck's `"files"` list.
+What you do **not** get is `node_modules` (you reinstall those) or anything the
+build deliberately left out.
+
+<Aside type="note" title="When eject won't work">
+A deck built with `--no-inline-package` carries no source, so it can't be ejected.
+The help overlay's hint and the embedded carrier are absent in that case, and
+`eject` errors clearly. Rebuild without that flag to make a deck recoverable.
+</Aside>
+
+<Aside type="caution" title="Anyone with the file has the source">
+The embedded source is recoverable by anyone who has the `.html`. A `"files"`
+allowlist in the deck's `package.json` (the scaffold ships one) controls exactly
+what's embedded, and the build refuses to embed a `.env` or anything that looks
+like a credential. Ship `--no-inline-package` if you need an opaque deck.
+</Aside>
+
+## 3. Install and run
+
+Inside the ejected directory, install dependencies and start the dev server with
+instant HMR:
+
+<Steps>
+
+1. Install (keep lifecycle scripts off for a deck you didn't build yourself):
+
+   ```bash
+   cd my-talk-source
+   bun install --ignore-scripts
+   ```
+
+2. Edit live:
+
+   ```bash
+   liebstoeckel live .        # or: bun run dev
+   ```
+
+</Steps>
+
+## 4. Edit it
+
+A deck is just code, so you edit it two ways.
+
+### By hand
+
+Slides are MDX or TSX files referenced from the deck's entry. Change the prose in
+an `.mdx` slide, tweak a `.tsx` component, swap the brand, or add a slide to the
+list. The dev server hot-reloads as you save. The [Authoring](/guides/authoring/)
+guide covers the slide model, steps, and presenter notes.
+
+### With an agent
+
+The deck is plain text on disk, so a coding agent can edit it the same way it edits
+any project. The thing that makes it *good* at editing a liebstoeckel deck is the
+**`liebstoeckel-deck` skill** — install it into the ejected directory and your agent
+learns the deck model and the CLI workflow (scaffold, add charts, wire data, build)
+without you having to explain any of it:
+
+```bash
+cd my-talk-source
+liebstoeckel skill install        # → Claude, Codex, Cursor, Gemini + an AGENTS.md fallback
+```
+
+The skill is version-pinned to your installed CLI and placed where each agent looks
+for it. After that, just point your agent at the directory and tell it what to
+change. See [`skill`](/reference/cli/#skill) for targets and `skill update`, and the
+[Scaffolding guide](/guides/scaffolding/) for how an agent works a deck.
+
+## 5. Rebuild
+
+When you're happy, build a fresh single-file deck (it re-embeds the updated source,
+so the new `.html` stays editable too):
+
+```bash
+liebstoeckel build .          # → ./dist/<deck-slug>.html
+```
+
+That's the whole loop: **eject → edit → build**, repeatable on any deck you hold.
+
+<LinkCard
+  title="CLI reference: eject"
+  href="/reference/cli/#eject"
+  description="Flags, default output dir, and the untrusted-deck rebuild recipe."
+/>
+<LinkCard
+  title="Building & deploying"
+  href="/guides/building/"
+  description="What the single-file build inlines and how to ship it."
+/>
