@@ -105,3 +105,57 @@
     margin-block-end: 1rem;
   }
 </style>
+
+<!-- Brand the consent gate. It renders on THIS (host) page before the iframe,
+     styled by buncus' default.css (GitHub-ish colors) — outside the iframe's
+     `--bc-*` theme. buncus prepends default.css so the host can override; these
+     rules ride Starlight tokens so the gate follows the docs light/dark theme.
+     Global (not scoped) because the gate DOM is injected at runtime. -->
+<style is:global>
+  .buncus-consent {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 8px;
+    padding: 16px;
+    font: 0.95rem / 1.5 var(--sl-font);
+    color: var(--sl-color-gray-1);
+    background: var(--sl-color-gray-6);
+  }
+  .buncus-consent__text {
+    margin: 0 0 12px;
+  }
+  .buncus-consent__text a {
+    /* the loader sets an inline color:inherit on the privacy link — override it */
+    color: var(--sl-color-accent-high) !important;
+    text-decoration: underline;
+  }
+  .buncus-consent__actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .buncus-consent__load {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 16px;
+    font: inherit;
+    font-weight: 600;
+    /* brand CTA: gold fill, ground ink — the token pair inverts per theme */
+    color: var(--sl-color-black);
+    background: var(--sl-color-accent);
+  }
+  .buncus-consent__load:hover {
+    background: var(--sl-color-accent-high);
+  }
+  .buncus-consent__remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--sl-color-gray-2);
+  }
+  .buncus-consent__remember input {
+    accent-color: var(--sl-color-accent);
+  }
+</style>
