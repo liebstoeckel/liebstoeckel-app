@@ -8,14 +8,14 @@
    gold-on-cream token) and the docs light pairing in
    packages/docs/src/styles/theme.css — keep them in sync.
 
-   Webfont: same as the dark theme — already hosted, but inert until buncus' widget
-   CSP allows `font-src` for the theme origin (it has none today) + the font sends
-   CORS. Falls back to system sans until then.
+   Webfont: same as the dark theme — RELATIVE src so it resolves to the docs
+   origin that served this stylesheet (int or prod), which is in THEME_ORIGINS so
+   the widget font-src permits it; /fonts/* is served with CORS.
    ─────────────────────────────────────────────────────────────────────────── */
 
 @font-face {
   font-family: "Schibsted Grotesk";
-  src: url("https://docs.liebstoeckel.app/fonts/schibsted-grotesk.woff2") format("woff2");
+  src: url("/fonts/schibsted-grotesk.woff2") format("woff2");
   font-weight: 100 900;
   font-display: swap;
 }

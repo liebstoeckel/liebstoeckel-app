@@ -12,25 +12,19 @@
    Values mirror the canonical brand tokens in
    packages/corporate-design/src/tokens.ts (dark swatches) — keep them in sync.
 
-   TODO (the "later, properly" part):
-   - WEBFONT IS BLOCKED BY BUNCUS' WIDGET CSP, not by hosting. We already serve
-     the font at https://docs.liebstoeckel.app/fonts/schibsted-grotesk.woff2 and
-     the @font-face below points at it — but the widget CSP has no `font-src`, so
-     it inherits `default-src 'none'` and blocks every webfont (THEME_ORIGINS
-     only widens `style-src`, i.e. loading the theme CSS, not fonts). The font
-     response also needs `Access-Control-Allow-Origin` (cross-origin font fetch).
-     Fix is buncus-side: add `font-src 'self' <themeOrigins>` to the widget CSP.
-     Until then --bc-font falls back to the system sans stack below (harmless).
-   - Pair with the light theme + drive the runtime theme swap from Starlight's
-     theme toggle (postMessage { buncus: { setConfig: { theme } } }).
+   Values mirror the canonical brand tokens in
+   packages/corporate-design/src/tokens.ts (dark swatches) — keep them in sync.
    ─────────────────────────────────────────────────────────────────────────── */
 
-/* Self-hosted brand font (already served by the docs site). Inert until buncus'
-   widget CSP allows font-src for the theme origin + the font sends CORS — see
-   the header note. The widget falls back to system sans until then. */
+/* Self-hosted brand font. The src is RELATIVE so it resolves against the origin
+   that served THIS stylesheet (the docs site) — i.e. the int docs host on int,
+   the prod docs host on prod — never hardcode one env. That origin is in buncus'
+   THEME_ORIGINS, so the widget's `font-src` (buncus 0.1.4) permits it, and the
+   docs serve /fonts/* with CORS for the cross-origin fetch. Falls back to the
+   system sans stack below if unavailable. */
 @font-face {
   font-family: "Schibsted Grotesk";
-  src: url("https://docs.liebstoeckel.app/fonts/schibsted-grotesk.woff2") format("woff2");
+  src: url("/fonts/schibsted-grotesk.woff2") format("woff2");
   font-weight: 100 900;
   font-display: swap;
 }
