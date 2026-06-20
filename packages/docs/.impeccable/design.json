@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-20",
+  "title": "Design System: liebstoeckel docs",
+  "extensions": {
+    "colorMeta": {
+      "brand-gold": { "role": "primary", "displayName": "Brass Gold", "canonical": "#c9a24b", "note": "light theme: #9a7414 (darkened for AA on cream)", "tonalRamp": ["#1a1407", "#3a2e10", "#5c4818", "#7e6322", "#a07e2e", "#c9a24b", "#dcbd73", "#efe0b6"] },
+      "ground-forest-charcoal": { "role": "neutral", "displayName": "Forest Charcoal", "canonical": "#10140e", "note": "light theme ground: #f6f2e6 (warm cream)", "tonalRamp": ["#10140e", "#161b12", "#1a2014", "#222a19", "#2c3326", "#3a4630", "#5a6a4c", "#9da28c"] },
+      "heading-paper": { "role": "neutral", "displayName": "Heading Paper", "canonical": "#f4f1e6", "note": "light theme heading/ink: #1b2418 (forest ink)", "tonalRamp": ["#9da28c", "#b4b7a4", "#cbc9b7", "#dcded0", "#e9e6d7", "#f4f1e6", "#f8f6ee", "#fbfaf3"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Site-title wordmark and the splash hero only." },
+      "heading": { "displayName": "Heading", "purpose": "Markdown h1-h3, tracked -0.02em." },
+      "body": { "displayName": "Body", "purpose": "Prose; Starlight measure ~65-75ch." },
+      "code": { "displayName": "Code", "purpose": "Expressive Code blocks and inline code; data only." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease", "value": "cubic-bezier(0.22, 0.61, 0.27, 1)", "purpose": "Shared brand easing (splash, Hero override)." },
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Exponential ease-out for the splash hero entrance." }
+    ],
+    "breakpoints": [
+      { "name": "ledger-collapse", "value": "50rem" }
+    ],
+    "atmosphere": { "value": "radial-gradient(1200px 760px at 100% -8%, rgba(201,162,75,0.07), transparent 58%), radial-gradient(900px 720px at 0% 112%, rgba(44,64,48,0.30), transparent 60%)", "note": "fixed background glow behind content, dark theme only; replaces drop shadows for depth" }
+  },
+  "components": [
+    {
+      "name": "Brand Card Chip",
+      "kind": "card",
+      "refersTo": "card-brand",
+      "description": "Starlight Card chip pinned to one gold brand color (no rainbow rotation).",
+      "html": "<article class=\"ds-card\"><span class=\"ds-card-icon\">★</span><h3>Authoring</h3><p>Write slides in MDX and TSX.</p></article>",
+      "css": ".ds-card { border: 1px solid var(--sl-color-accent, #c9a24b); background: var(--sl-color-accent-low, #352a10); border-radius: 0.5rem; padding: 1.25rem; } .ds-card .ds-card-icon { color: var(--sl-color-accent, #c9a24b); font-size: 1.25rem; } .ds-card h3 { color: var(--sl-color-white, #f4f1e6); margin: 0.5rem 0 0.25rem; letter-spacing: -0.02em; } .ds-card p { color: var(--sl-color-gray-2, #cbc9b7); margin: 0; }"
+    },
+    {
+      "name": "Ledger Row",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Splash-page definition row separated by olive hairlines (no card grid).",
+      "html": "<dl class=\"ds-ledger\"><div class=\"ds-lrow\"><dt>Single file</dt><dd>One self-contained .html, no runtime deps.</dd><a class=\"ds-lrow-link\" href=\"#\">guides/building</a></div></dl>",
+      "css": ".ds-ledger { margin: 0; } .ds-lrow { display: grid; grid-template-columns: minmax(0,0.65fr) minmax(0,1.5fr) auto; gap: 0.4rem clamp(1rem,3vw,2.5rem); align-items: baseline; padding-block: clamp(1.3rem,3vw,1.9rem); border-top: 1px solid var(--sl-color-gray-5, #2c3326); } .ds-lrow dt { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; color: var(--sl-color-white, #f4f1e6); } .ds-lrow dd { margin: 0; color: var(--sl-color-gray-2, #cbc9b7); max-width: 54ch; } .ds-lrow-link { font-family: 'JetBrains Mono Variable', ui-monospace, monospace; font-size: 0.78rem; color: var(--sl-color-accent-high, #e0c580); text-decoration: none; white-space: nowrap; } .ds-lrow-link:hover { color: var(--sl-color-white, #f4f1e6); }"
+    },
+    {
+      "name": "Step Marker",
+      "kind": "custom",
+      "refersTo": "step-marker",
+      "description": "Numbered circular marker for a real ordered sequence on the splash page.",
+      "html": "<span class=\"ds-step-n\">1</span>",
+      "css": ".ds-step-n { display: inline-grid; place-items: center; inline-size: 26px; block-size: 26px; border: 1px solid var(--sl-color-accent, #c9a24b); color: var(--sl-color-accent, #c9a24b); border-radius: 50%; font-family: 'JetBrains Mono Variable', ui-monospace, monospace; font-size: 0.78rem; font-weight: 600; }"
+    },
+    {
+      "name": "Site-title Wordmark",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Header wordmark; white-to-gold gradient on dark grounds only, plain ink on light.",
+      "html": "<span class=\"ds-wordmark\">liebstoeckel</span>",
+      "css": ".ds-wordmark { font-family: 'Schibsted Grotesk Variable', system-ui, sans-serif; font-weight: 700; letter-spacing: -0.035em; background: linear-gradient(118deg, #f4f1e6 26%, #e0c580); -webkit-background-clip: text; background-clip: text; color: transparent; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lit Reading Room",
+    "overview": "Reference docs, not a billboard. Astro Starlight wearing the house brand: a dark-first forest-charcoal reading surface lit by a single brass gold, set in the house grotesk, that gets out of the way so a developer or their agent can find an answer and trust it. Brand lives in Starlight's token system, never in fighting the framework's layout, nav, or search. Two themes ship and both are AA. The docs are agent-readable by design (clean Markdown, llms.txt, copy/open-in-LLM actions), so the visual system never costs parseable structure.",
+    "keyCharacteristics": [
+      "Brand through tokens, not layout overrides.",
+      "Dark-first noir + a real AA-correct cream light pairing.",
+      "One brass-gold accent; one gold card chip (no rainbow).",
+      "Schibsted Grotesk everywhere; JetBrains Mono for code and data.",
+      "Findability and agent-readability are design constraints."
+    ],
+    "rules": [
+      { "name": "The Tokens-Not-Layout Rule", "body": "Brand by remapping Starlight's --sl-color-* / --sl-font* tokens. Never override Starlight's layout, nav, or component structure to force a look.", "section": "colors" },
+      { "name": "The Dark-Only-Gradient Rule", "body": "The wordmark white-to-gold gradient is dark grounds only; light mode renders plain ink. Never put the gradient on a light ground.", "section": "colors" },
+      { "name": "The One-Gold-Chip Rule", "body": "Card icon chips are pinned to the gold accent; Starlight's default per-card rainbow rotation is forbidden.", "section": "colors" },
+      { "name": "The Mono-Is-Code Rule", "body": "JetBrains Mono is for code and data, not decorative technical flavor in prose or headings.", "section": "typography" },
+      { "name": "The Flat-Reading Rule", "body": "Reading surfaces are flat. No card shadows, no glassmorphism. The atmosphere glow (dark only) and hairlines carry all depth. The one sanctioned exception is the splash (brand-register) install terminal, which lifts off the cream light ground with a soft drop shadow, matching the landing's light-section terminal lift.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do brand by remapping Starlight's --sl-color-* and --sl-font* tokens.",
+      "Do keep both themes AA on body, headings, links, and code blocks.",
+      "Do pin every card chip to the gold accent.",
+      "Do reserve JetBrains Mono for code and data.",
+      "Do keep pages clean Markdown and structurally parseable (agent-readable).",
+      "Do keep the wordmark gradient to dark grounds only."
+    ],
+    "donts": [
+      "Don't override Starlight's layout, nav, or search for flavor.",
+      "Don't reintroduce Starlight's rainbow card-chip rotation.",
+      "Don't add drop shadows or glassmorphism to reading surfaces.",
+      "Don't put the wordmark gradient on a light ground.",
+      "Don't substitute Inter / DM Sans for Schibsted Grotesk.",
+      "Don't add generic AI-tool-docs decoration (purple-gradient hero, decorative motion, hero-metric strips).",
+      "Don't let marketing fluff into reference pages."
+    ]
+  }
+}

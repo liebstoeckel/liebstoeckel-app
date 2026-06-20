@@ -57,7 +57,13 @@ liebstoeckel skill install`;
 </div>
 
 <script>
-  // copy-to-clipboard on [data-copy], with the same "Copied" feedback as the landing
+  // copy-to-clipboard on [data-copy], with the same "Copied" feedback as the landing.
+  // a single polite live region announces success: the button's static aria-label
+  // masks the visible "Copied" text swap from screen readers. (.sr-only ships with Starlight.)
+  const copyStatus = document.createElement("div");
+  copyStatus.className = "sr-only";
+  copyStatus.setAttribute("aria-live", "polite");
+  document.body.appendChild(copyStatus);
   document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       try {
@@ -67,10 +73,12 @@ liebstoeckel skill install`;
       }
       const label = btn.querySelector(".copy-label");
       btn.setAttribute("data-copied", "");
+      copyStatus.textContent = "Copied to clipboard";
       if (label) label.textContent = "Copied";
       setTimeout(() => {
         btn.removeAttribute("data-copied");
         if (label) label.textContent = "Copy";
+        copyStatus.textContent = "";
       }, 1600);
     });
   });
@@ -202,9 +210,15 @@ liebstoeckel skill install`;
     color: #10140e;
     transform: translateY(-1px);
   }
+  /* light theme: the brand's dark-on-gold model (forest ink on a brighter gold,
+     ~6.3:1) instead of cream-on-darkened-gold, which fell short of AA */
+  :global([data-theme="light"]) .btn--primary {
+    background: #c9a24b;
+    color: #1b2418;
+  }
   :global([data-theme="light"]) .btn--primary:hover {
-    background: #876510;
-    color: var(--sl-color-black);
+    background: #d9b461;
+    color: #1b2418;
   }
   .btn--ghost {
     background: transparent;
@@ -277,7 +291,7 @@ liebstoeckel skill install`;
     color: #b4b7a4;
     border-radius: 6px;
     padding: 0.4rem 0.65rem;
-    min-height: 34px;
+    min-height: 44px;
     cursor: pointer;
     font: inherit;
     font-size: 0.8rem;

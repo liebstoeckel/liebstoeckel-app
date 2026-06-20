@@ -21,6 +21,7 @@
   --sl-color-accent-low: #352a10;   /* deep gold tint — subtle backgrounds */
   --sl-color-accent: #c9a24b;       /* gold — buttons, focus, rules */
   --sl-color-accent-high: #e0c580;  /* gold-soft (--accent-on-dark) — links, accent text */
+  --sl-color-text-accent: #e0c580;  /* keep accent-derived UI (e.g. the skip link) on brand, not Starlight's default periwinkle */
   --sl-color-white: #f4f1e6;        /* headings (warm near-white) */
   --sl-color-gray-1: #e9e6d7;       /* body text */
   --sl-color-gray-2: #cbc9b7;
@@ -36,6 +37,7 @@
   --sl-color-accent-low: #efe4c6;
   --sl-color-accent: #9a7414;       /* darkened gold for contrast on cream */
   --sl-color-accent-high: #6b5210;  /* link / accent text on light */
+  --sl-color-text-accent: #6b5210;  /* keep accent-derived UI (e.g. the skip link) on brand */
   --sl-color-white: #1b2418;        /* darkest text / headings (forest ink) */
   --sl-color-gray-1: #26301f;
   --sl-color-gray-2: #3a4332;
