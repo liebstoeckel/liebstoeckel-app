@@ -92,6 +92,10 @@ export const notes = (
 );
 ```
 
+<Aside type="caution" title="Notes are not confidential">
+Speaker notes are compiled into the deck's single `.html`, which is the **same file** the audience loads in a live session. The presenter-only view is gated in the browser, not on the server, so anyone with a viewer link can recover every slide's notes from the bytes they already downloaded. Keep crib-sheet phrasing and reminders in notes — never secrets or anything you wouldn't show the audience. (`liebstoeckel build` prints a reminder when a deck contains notes.)
+</Aside>
+
 ## Magic Move
 
 `<Magic>` morphs one slide's element into the **next slide's element with the same `id`**. Motion FLIP-animates position and size and crossfades the content. Declare each one *inline* on its slide; the two can differ (text → text, small → large), so it's true Keynote-style Magic Move.

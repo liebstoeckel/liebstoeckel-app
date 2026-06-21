@@ -254,6 +254,9 @@ export async function scaffold(
   for (const [rel, content] of Object.entries(files)) {
     await Bun.write(join(dir, rel), content);
   }
+  // A deck scaffolded here is authored by this user — trust it so building it never
+  // trips the untrusted-deck confirmation gate (see trust.ts).
+  await (await import("./trust")).trustDeck(dir);
   return { dir, files: Object.keys(files), brand: orgBrand?.name ?? brand };
 }
 

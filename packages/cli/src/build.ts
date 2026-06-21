@@ -2,11 +2,93 @@
 // Heavy engine/thumbnails modules are imported lazily inside each `run` so the
 // umbrella pays for them only when the command is actually invoked.
 import { defineCommand } from "citty";
-import { resolve, basename } from "node:path";
+import { resolve, basename, join } from "node:path";
+import { readdir } from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import { looksLikeDeck } from "./targeting";
+import { ensureBuildTrust } from "./trust";
 
 /** Deck targeting ((internal ADR)): a leading positional, else `--dir`, else cwd. */
 const deckDir = (args: { deck?: string; dir?: string }): string => args.deck ?? args.dir ?? ".";
+
+/** Gate a build behind first-time trust: building a deck runs its build-time code on this
+ *  machine (Bun macros, build plugins) with full FS/network access. Decks scaffolded here
+ *  pass silently; an unfamiliar one is confirmed once (or pre-approved via `--trust` /
+ *  `LIEBSTOECKEL_TRUST_BUILD=1`). Non-interactive without approval refuses, fail-closed.
+ *  Exits the process on a no. */
+async function gateBuildTrust(dir: string, trustFlag: boolean | undefined): Promise<void> {
+  const abs = resolve(dir);
+  const preapproved = trustFlag === true || process.env.LIEBSTOECKEL_TRUST_BUILD === "1";
+  const interactive = !!process.stdin.isTTY && !!process.stdout.isTTY;
+  const ok = await ensureBuildTrust(abs, {
+    preapproved,
+    confirm: interactive
+      ? (d) => {
+          console.error(
+            `\n⚠ Building a deck runs its code on your machine.\n` +
+              `  A liebstoeckel deck is real code: building it executes the deck's build-time\n` +
+              `  modules (Bun macros, build plugins) with full access to your files and network.\n` +
+              `  Only build decks you trust.\n\n  Deck: ${d}`,
+          );
+          // Bun's confirm() reads a yes/no from the TTY; defaults to no on empty/EOF.
+          return confirm("  Trust this deck and build it?");
+        }
+      : undefined,
+  });
+  if (ok) return;
+  if (interactive) {
+    console.error("✕ build aborted: deck not trusted.");
+  } else {
+    console.error(
+      `✕ refusing to build an untrusted deck non-interactively.\n` +
+        `  Building runs the deck's code on this machine — only build decks you trust.\n` +
+        `  If you trust ${abs}, re-run with --trust (or set LIEBSTOECKEL_TRUST_BUILD=1).`,
+    );
+  }
+  process.exit(1);
+}
+
+/** Best-effort scan of a deck's source for speaker notes. Notes are compiled into the
+ *  built .html and are NOT hidden from a live audience, so the author deserves a heads-up.
+ *  Prunes node_modules/dist/dot-dirs and stops at the first hit. */
+async function deckHasSpeakerNotes(dir: string): Promise<boolean> {
+  const NOTES = /export\s+(?:const|let|var|function)\s+notes\b|^\s*notes\s*:/m;
+  const SKIP = new Set(["node_modules", "dist", ".git"]);
+  const stack = [dir];
+  while (stack.length) {
+    const d = stack.pop()!;
+    let entries: Dirent[];
+    try {
+      entries = await readdir(d, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      if (e.isDirectory()) {
+        if (!SKIP.has(e.name) && !e.name.startsWith(".")) stack.push(join(d, e.name));
+        continue;
+      }
+      if (/\.(mdx?|tsx?|jsx?)$/.test(e.name)) {
+        try {
+          if (NOTES.test(await Bun.file(join(d, e.name)).text())) return true;
+        } catch {
+          /* ignore unreadable file */
+        }
+      }
+    }
+  }
+  return false;
+}
+
+async function warnIfSpeakerNotes(dir: string): Promise<void> {
+  if (await deckHasSpeakerNotes(dir)) {
+    console.error(
+      `⚠ This deck includes speaker notes. Speaker notes are bundled into the built\n` +
+        `  .html and are NOT hidden from a live audience — anyone with the viewer link\n` +
+        `  can read them. Don't put confidential content in speaker notes.`,
+    );
+  }
+}
 
 export const buildCommand = defineCommand({
   meta: {
@@ -30,10 +112,16 @@ export const buildCommand = defineCommand({
     },
     "allow-secret": { type: "boolean", description: "allow packing files outside the deck's `files` allowlist" },
     check: { type: "boolean", description: "validate the deck bundles without writing an artifact" },
+    trust: {
+      type: "boolean",
+      description: "trust this deck's build-time code (a deck is code; remembered after the first build)",
+    },
     json: { type: "boolean", description: "machine-readable JSON output (default when piped)" },
   },
   async run({ args }) {
     const dir = deckDir(args);
+    // Building runs the deck's build-time code on this machine — confirm trust first.
+    await gateBuildTrust(dir, args.trust);
     const prev = process.cwd();
     process.chdir(resolve(dir)); // resolve(".") = cwd, so the default is a no-op
     try {
@@ -57,6 +145,7 @@ export const buildCommand = defineCommand({
         return;
       }
 
+      await warnIfSpeakerNotes(".");
       const { buildDeck } = await import("@liebstoeckel/thumbnails/build");
       const { cliVersion } = await import("./skill");
       await buildDeck({
@@ -96,8 +185,11 @@ export const ejectCommand = defineCommand({
       const written = await ejectSource(html, resolve(outDir), { force: !!args.force });
       console.log(`\n✓ ejected ${written.length} files → ${outDir}\n`);
       for (const f of written) console.log(`   ${f}`);
-      console.log(`\n   rebuild (untrusted deck? keep --ignore-scripts):`);
-      console.log(`     cd ${outDir} && bun install --ignore-scripts && bun run build\n`);
+      // Rebuilding runs the deck's own build-time code (macros/build plugins);
+      // `--ignore-scripts` only blocks npm lifecycle scripts, not that — so the real
+      // control is to rebuild only decks you trust. `liebstoeckel build` confirms it once.
+      console.log(`\n   rebuild (runs the deck's code — only rebuild decks you trust):`);
+      console.log(`     cd ${outDir} && bun install --ignore-scripts && liebstoeckel build\n`);
     } catch (e) {
       console.error(`✕ ${(e as Error).message}`);
       process.exit(1);
@@ -148,6 +240,10 @@ export const licensesCommand = defineCommand({
     dir: { type: "string", description: "deck directory (alternative to the positional)", valueHint: "deck" },
     json: { type: "boolean", description: "machine-readable JSON output (default when piped)" },
     check: { type: "boolean", description: "fail on non-standard licenses (needs the deck source dir)" },
+    trust: {
+      type: "boolean",
+      description: "trust this deck's build-time code (recomputing from source runs it; remembered)",
+    },
   },
   async run({ args }) {
     const json = !!args.json || !process.stdout.isTTY;
@@ -173,7 +269,9 @@ export const licensesCommand = defineCommand({
       return;
     }
 
-    // Otherwise resolve the deck dir and compute the report from its real module graph.
+    // Otherwise resolve the deck dir and compute the report from its real module graph —
+    // this runs the deck's build-time code, so it's behind the same trust gate as `build`.
+    await gateBuildTrust(dir, args.trust);
     const prev = process.cwd();
     process.chdir(resolve(dir));
     try {
