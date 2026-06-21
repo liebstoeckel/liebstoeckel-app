@@ -6,12 +6,15 @@ import { rehydrateServerBundle } from "@liebstoeckel/plugin-sdk/manifest";
 import { buildServerBundle, buildPluginManifest, escapeInlineModuleScript, stampGenerator } from "./buildDeck";
 
 describe("buildServerBundle", () => {
-  // Real `Bun.build` (target:bun). Isolated (unique tmp dir). Runs in ~0.3s alone
-  // and ~1.7s under 2x-core saturation, so the work itself is cheap. The rare flake
-  // is environmental: in the full 76-file suite on a host that also runs other heavy
-  // builds, a memory/CPU spike can starve one Bun.build for tens of seconds. The
-  // generous timeout catches a genuine hang; `retry` absorbs a one-off host spike so
-  // a single starved attempt doesn't redden the suite (a re-run lands after the spike).
+  // Real `Bun.build` (target:bun), isolated to a unique tmp dir. The build itself
+  // is ~6ms; even under 2x-core saturation the whole file runs in <2s. The rare
+  // flake is purely environmental: `bun test` runs the 76-file suite in one
+  // process, so by mid-suite that process holds a lot of memory, and on a
+  // memory-constrained host (free RAM low, swap active) Bun.build can stall on
+  // swap for tens of seconds. Retrying doesn't help (the process stays bloated for
+  // every attempt), so the only knob here is a generous timeout: it lets a stalled
+  // build finish rather than reddening the suite, while still catching a true hang.
+  // On a normally-resourced runner this passes in well under a second.
   test(
     "bundles a server entry (target:bun) → base64 that rehydrates & runs with ctx",
     async () => {
@@ -26,7 +29,7 @@ describe("buildServerBundle", () => {
       const mod = await rehydrateServerBundle(b64, "fixture");
       expect((mod.default as (c: { n: number }) => number)({ n: 5 })).toBe(105);
     },
-    { timeout: 60_000, retry: 2 },
+    180_000,
   );
 });
 
