@@ -7,10 +7,10 @@ import { LinkCard } from "@astrojs/starlight/components";
 
 ## One self-contained file
 
-A deck builds to a single `dist/index.html` with JS and CSS inlined and assets base64'd. There's nothing else to host.
+A deck builds to a single self-contained file with JS and CSS inlined and assets base64'd. There's nothing else to host. The file is named after the deck folder, so `my-talk/` builds to `dist/my-talk.html`.
 
 ```bash
-liebstoeckel build my-talk        # → presentations/my-talk/dist/index.html
+liebstoeckel build my-talk        # → presentations/my-talk/dist/my-talk.html
 ```
 
 The scaffolded `build.ts` does the same thing, so `bun run build` inside the deck works too:
@@ -41,7 +41,7 @@ await buildDeck({ entry: "./index.html", outdir: "./dist" });
 
 Because it's one static file, deploy anywhere:
 
-- Open `dist/index.html` directly (file URL); it just works offline.
+- Open `dist/<deck-slug>.html` directly (file URL); it just works offline.
 - Drop it on any static host (S3, GitHub Pages, Netlify, a plain web server).
 - Email it / put it in a shared drive.
 

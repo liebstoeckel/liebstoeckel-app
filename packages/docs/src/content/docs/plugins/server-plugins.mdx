@@ -46,7 +46,7 @@ export default function server(ctx: PluginServerCtx<MyState>) {
 }
 ```
 
-`PluginServerCtx<T>` gives you the shared `doc`, a typed `state` accessor, and the `session` id.
+The runtime `ctx` gives you the shared `doc`, the `session` id, and the `instance` string. Build a typed state accessor yourself by calling `pluginState(ctx.doc)`, as the example above does.
 
 ## How it's bundled
 

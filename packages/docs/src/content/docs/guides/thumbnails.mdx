@@ -31,7 +31,7 @@ Capture launches the full Chromium with `--no-sandbox --disable-gpu --single-pro
 Generate or refresh thumbnails for an already-built deck:
 
 ```bash
-liebstoeckel thumbs dist/index.html --format webp --width 640 --quality 80 --scale 2
+liebstoeckel thumbs dist/my-talk.html --format webp --width 640 --quality 80 --scale 2
 ```
 
 Or in code: `addThumbnailsToFile` is **loud** (throws if no Chromium), for an explicit capture; `withThumbnails` is the **gated, never-fatal** in-memory variant the build/live paths use:
@@ -39,7 +39,7 @@ Or in code: `addThumbnailsToFile` is **loud** (throws if no Chromium), for an ex
 ```ts
 import { addThumbnailsToFile, withThumbnails } from "@liebstoeckel/thumbnails";
 
-await addThumbnailsToFile("./dist/index.html", { width: 640, format: "webp" });
+await addThumbnailsToFile("./dist/my-talk.html", { width: 640, format: "webp" });
 
 const { html, manifest, skipped } = await withThumbnails(deckHtml, { width: 640 });
 ```

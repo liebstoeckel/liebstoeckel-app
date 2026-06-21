@@ -36,8 +36,11 @@ The umbrella CLI scaffolds a workspace-wired deck:
 3. Start the dev server (instant HMR + React Fast Refresh):
 
    ```bash
-   liebstoeckel live my-talk           # or, from the deck dir: bun run dev
+   cd my-talk && bun run dev           # http://localhost:3000
    ```
+
+   To present a live session for a room instead (LAN by default, or through a
+   public relay), use `liebstoeckel live my-talk`. See [Live presenting](/guides/live/).
 
 </Steps>
 

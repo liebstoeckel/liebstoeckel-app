@@ -37,10 +37,12 @@ This uploads the built deck, gets back public presenter/viewer links + QR, and r
 The relay serves the deck on its own origin, but with a response header:
 
 ```
-Content-Security-Policy: sandbox allow-scripts allow-fullscreen;
+Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline';
+  connect-src <relay-ws> <relay-http>; frame-ancestors 'none';
+  sandbox allow-scripts allow-popups;
 ```
 
-Omitting `allow-same-origin` puts the deck in a **unique opaque origin**: it can run scripts and sync over WebSocket, but it **cannot reach the relay's cookies, API, or storage**, and each context gets a fresh opaque origin (so decks are isolated from one another too). No separate origin or wildcard certificate needed.
+Omitting `allow-same-origin` puts the deck in a **unique opaque origin**: it can run scripts and sync over WebSocket, but it **cannot reach the relay's cookies, API, or storage**, and each context gets a fresh opaque origin (so decks are isolated from one another too). `allow-popups` is kept only for the presenter pop-out; `default-src 'none'` blocks any external fetch, since a built deck inlines all its assets. No separate origin or wildcard certificate needed.
 
 <Aside type="note" title="Plugin implication">
 In an opaque origin, `localStorage`/`IndexedDB` throw and cookies are denied. Plugin **client** parts must use WebSocket + shared state only; anything needing secrets or external HTTP belongs in the **server** part (which runs on your machine). WebSocket auth uses the **token in the URL**, so there's no CSWSH risk.

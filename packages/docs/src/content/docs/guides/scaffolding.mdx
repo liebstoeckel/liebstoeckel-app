@@ -131,8 +131,9 @@ ref resolves from a registry you map in the deck's `liebstoeckel.json`:
 liebstoeckel add @acme/heatmap
 ```
 
-Today a registry maps to the built-in `"default"` or a **local path**; npm, git, and
-HTTP transports are planned. A third-party registry is just a directory (or, later, a
+Today a registry maps to the built-in `"default"`, a **local path**, or an
+authenticated **HTTP(S)** base URL; npm and git transports are planned. A
+third-party registry is just a directory (or, later, a
 package) with an `items/<name>.json` manifest pointing at the source files to copy,
 so anyone can publish reusable building blocks, and `add` materializes them the same
 way: as owned source in your deck.

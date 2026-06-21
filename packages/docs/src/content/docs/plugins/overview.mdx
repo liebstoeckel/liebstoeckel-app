@@ -58,7 +58,7 @@ A package is recognized as a plugin by a marker in its `package.json`:
 At build time the deck's dependencies are scanned for this marker; matching plugins go into a **manifest** embedded in the deck. Any `server` entry is bundled (target `bun`) and base64-encoded into that manifest. It is decoded and run only by a live server, never in the browser.
 
 <Aside type="note" title="Threat model">
-The current model assumes **non-malicious clients** (XSS must still be impossible). Roles/moderation are client-enforced (honor system). Server-side write-role enforcement is a documented future step.
+Audience write-scope is **enforced server-side**: the live server and relay drop any audience update that touches state outside the plugin's declared `audienceWrites` allowlist, and rate-limit the rest. The presenter (or runner) may write the whole doc; an audience peer can only touch its allowed keys. The remaining trust assumption is **non-malicious clients** (XSS must still be impossible), since a plugin's *client* code runs in the audience's browser.
 </Aside>
 
 <LinkCard title="Build a plugin" href="/plugins/building-a-plugin/" description="A complete, working plugin from scratch." />
