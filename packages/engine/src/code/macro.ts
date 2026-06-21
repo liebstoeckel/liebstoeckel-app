@@ -1,5 +1,5 @@
 // Bun macro entrypoint. Import it with `with { type: "macro" }` from a deck so the
-// code is tokenized at BUILD time and the result inlined as a literal — no Shiki,
+// code is tokenized at BUILD time and the result inlined as a literal, no Shiki,
 // grammars, or WASM ship to the browser. Pass string literals so the bundler can
 // evaluate the call statically.
 //

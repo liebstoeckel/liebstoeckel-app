@@ -1,6 +1,6 @@
 import { defineTheme } from "../defineTheme";
 
-// "Nocturne Data Lab" — warm-tinted deep ink, expressive optical serif display,
+// "Nocturne Data Lab", warm-tinted deep ink, expressive optical serif display,
 // dual harmonized accents (chartreuse + cyan) with coral/amber for chart series.
 export const nocturne = defineTheme({
   name: "nocturne",

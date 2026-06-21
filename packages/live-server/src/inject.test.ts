@@ -17,7 +17,7 @@ describe("injectBootstrap", () => {
     expect(out).toContain("\\u003c");
   });
 
-  test("standalone HTML (no inject) has no live flag — fallback path", () => {
+  test("standalone HTML (no inject) has no live flag, fallback path", () => {
     const plain = "<html><head></head><body></body></html>";
     expect(plain).not.toContain("__LIEBSTOECKEL_LIVE__");
   });

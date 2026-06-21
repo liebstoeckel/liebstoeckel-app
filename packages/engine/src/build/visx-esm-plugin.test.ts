@@ -22,7 +22,7 @@ async function deepImportIsFunction(plugins: import("bun").BunPlugin[]): Promise
   }
 }
 
-// Each case does a real `Bun.build` (bundling visx) — CPU-heavy and slow under
+// Each case does a real `Bun.build` (bundling visx), CPU-heavy and slow under
 // loaded-CI host load, so give a generous explicit timeout (the default 5s flakes).
 const BUILD_TIMEOUT = 60_000;
 

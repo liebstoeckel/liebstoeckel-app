@@ -78,7 +78,7 @@ describe("hosted relay: audience write-scope enforcement", () => {
     const view = await wsOpen(`${wsBase}?t=${viewerToken}`);
     await view.first;
 
-    // In-scope: a vote (plugin:poll.votes) — must reach the presenter.
+    // In-scope: a vote (plugin:poll.votes), must reach the presenter.
     view.ws.send(
       setUpdate((d) => {
         const votes = new Y.Map<string>();
@@ -86,7 +86,7 @@ describe("hosted relay: audience write-scope enforcement", () => {
         d.getMap("plugin:poll").set("votes", votes);
       }),
     );
-    // Out-of-scope: hijack navigation — must be dropped.
+    // Out-of-scope: hijack navigation, must be dropped.
     view.ws.send(setUpdate((d) => d.getMap("nav").set("slide", 99)));
     await settle();
 

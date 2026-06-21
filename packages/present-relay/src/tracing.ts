@@ -10,10 +10,9 @@ import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-ho
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 
 // OTLP tracing for the relay ((internal ADR) step 3b / (internal ticket)). MANUAL spans + W3C
-// `traceparent` propagation — not auto-instrumentation (require-in-the-middle is unreliable
+// `traceparent` propagation, not auto-instrumentation (require-in-the-middle is unreliable
 // under Bun; the propagator + AsyncLocalStorage context API work, verified). **Gated**: a no-op
-// unless OTEL_EXPORTER_OTLP_ENDPOINT is set, so the services run identically with tracing off —
-// every helper below degrades to a safe no-op (the API's default no-op tracer/propagator).
+// unless OTEL_EXPORTER_OTLP_ENDPOINT is set, so the services run identically with tracing off, // every helper below degrades to a safe no-op (the API's default no-op tracer/propagator).
 //
 // Duplicated in packages/present-relay/src/tracing.ts (present-relay is OSS-published; a shared
 // package would force the five-place OSS lock-step).
@@ -70,7 +69,7 @@ export async function withSpan<T>(
   fn: (span: Span) => Promise<T> | T,
   // Default INTERNAL; set SERVER on ingress handlers and CLIENT on outbound calls so the
   // service graph + Traces-Drilldown "structure" view can build the trace hierarchy (those
-  // views key off SERVER spans with CLIENT edges — INTERNAL-only traces show no structure).
+  // views key off SERVER spans with CLIENT edges, INTERNAL-only traces show no structure).
   kind: SpanKind = SpanKind.INTERNAL,
 ): Promise<T> {
   const base = parent ?? context.active();

@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
  * Generate `items/<id>.json` manifests + `registry.json` from the source files in
- * `files/`. Dependencies are DERIVED from each file's imports — npm leaves from
- * `@visx/*` imports, registryDependencies from relative (`./X`) imports — so a
+ * `files/`. Dependencies are DERIVED from each file's imports, npm leaves from
+ * `@visx/*` imports, registryDependencies from relative (`./X`) imports, so a
  * manifest can never drift from the code it ships. Re-run after adding/editing an
  * item:  `bun run packages/registry/src/gen.ts`
  */
@@ -16,7 +16,7 @@ interface ItemMeta {
   /** primary source file under files/charts/ */
   file: string;
   description: string;
-  /** agent-facing usage metadata ((internal ADR)) — hand-authored, kept in sync with the source */
+  /** agent-facing usage metadata ((internal ADR)), hand-authored, kept in sync with the source */
   meta: RegistryItemMeta;
 }
 
@@ -38,7 +38,7 @@ const META: ItemMeta[] = [
     meta: { exports: "BrandAxisBottom, BrandAxisLeft", props: "(@visx/axis props: scale, top?, left?, …)",
       example: "<BrandAxisLeft scale={yScale} /> <BrandAxisBottom top={h} scale={xScale} />" } },
   { id: "hello-chart", type: "registry:chart", file: "HelloChart.tsx",
-    description: "A tiny animated visx bar chart that reads the active brand palette — the registry's hello world.",
+    description: "A tiny animated visx bar chart that reads the active brand palette, the registry's hello world.",
     meta: { exports: "HelloChart", props: `{ data?: HelloChartDatum[]; ${SIZE} }`,
       dataShape: "{ label: string; value: number }[]",
       example: "<HelloChart data={[{ label: 'A', value: 10 }, { label: 'B', value: 24 }]} />" } },
@@ -73,7 +73,7 @@ const META: ItemMeta[] = [
       dataShape: "{ x: number; y: number }[]",
       example: "<AreaChart data={[{ x: 0, y: 120 }, { x: 1, y: 180 }, { x: 2, y: 150 }]} />" } },
   { id: "sparkline", type: "registry:chart", file: "Sparkline.tsx",
-    description: "A tiny inline area+line sparkline (no axes) — takes data: number[] and a unique id.",
+    description: "A tiny inline area+line sparkline (no axes), takes data: number[] and a unique id.",
     meta: { exports: "Sparkline", props: `{ data?: number[]; id: string; ${SIZE} }`,
       dataShape: "number[]  // note: a unique `id` prop is required",
       example: "<Sparkline id=\"rev\" data={[12, 14, 11, 18, 22, 27]} />" } },
@@ -98,9 +98,9 @@ const META: ItemMeta[] = [
       dataShape: "{ name: string; value?: number; children?: TreemapNode[] }  // leaves carry value",
       example: "<TreemapChart data={{ name: 'Spend', children: [{ name: 'GPU', value: 320 }, { name: 'Storage', value: 210 }] }} />" } },
   { id: "radar-chart", type: "registry:chart", file: "RadarChart.tsx",
-    description: "Radar/spider chart with concentric grid and 1–2 filled series.",
+    description: "Radar/spider chart with concentric grid and 1-2 filled series.",
     meta: { exports: "RadarChart", props: `{ data?: RadarSeries[]; ${SIZE} }`,
-      dataShape: "{ name: string; data: { axis: string; value: number }[] }[]  // 1–2 series",
+      dataShape: "{ name: string; data: { axis: string; value: number }[] }[]  // 1-2 series",
       example: "<RadarChart data={[{ name: 'v2', data: [{ axis: 'Speed', value: 82 }, { axis: 'Cost', value: 58 }] }]} />" } },
   { id: "radial-bar-chart", type: "registry:chart", file: "RadialBarChart.tsx",
     description: "Bars arranged around a circle (Arc + scaleRadial), sweeping in.",
@@ -169,6 +169,6 @@ await Bun.write(join(REGISTRY_ROOT, "registry.json"), JSON.stringify(index, null
 
 console.log(`✓ generated ${items.length} item manifests + registry.json`);
 for (const i of items) {
-  console.log(`   ${i.name.padEnd(22)} deps: ${(i.dependencies ?? []).join(", ") || "—"}` +
+  console.log(`   ${i.name.padEnd(22)} deps: ${(i.dependencies ?? []).join(", ") || "none"}` +
     (i.registryDependencies?.length ? `  | reg: ${i.registryDependencies.join(", ")}` : ""));
 }

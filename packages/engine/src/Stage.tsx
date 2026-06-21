@@ -12,8 +12,8 @@ export const STAGE_H = 720;
 export const StageScaleContext = createContext(1);
 
 /** Fits a fixed STAGE_W×STAGE_H canvas into its parent, centered + letterboxed.
- *  The fit transform is expressed as **Motion values** — `scale` + a centering
- *  `x`/`y` translate, about a **top-left** origin — not a CSS `transform` string and
+ *  The fit transform is expressed as **Motion values**, `scale` + a centering
+ *  `x`/`y` translate, about a **top-left** origin, not a CSS `transform` string and
  *  not a center `transform-origin`. Motion's layout-projection tree only accounts
  *  for transforms it owns and assumes a top-left origin, so this is what keeps
  *  `layoutId`/`layout` morphs (`Magic`, `CodeMagic`) correct under the scaled stage

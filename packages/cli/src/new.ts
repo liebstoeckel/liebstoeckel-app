@@ -39,22 +39,22 @@ export function deckFiles(
   const brandImport = orgBrand ? `import orgBrand from "./brands/${orgBrand.name}";\n` : "";
   const brandThemesProp = orgBrand ? " brandThemes={[orgBrand]}" : "";
   // The default brand's catalog fonts ((internal ADR)) are @fontsource packages the baked
-  // brands/<name>.ts imports — add them so the deck's `bun install` fetches the
+  // brands/<name>.ts imports, add them so the deck's `bun install` fetches the
   // webfont (built decks inline it). `latest` (a third-party dist-tag) since the CLI
   // can't resolve their version like the framework deps; the lockfile pins on install.
   const fontDeps = Object.fromEntries((orgBrand?.dependencies ?? []).map((p) => [p, "latest"]));
   const pkg = {
-    // A scaffolded deck is the user's own private project — a BARE name, not the
+    // A scaffolded deck is the user's own private project, a BARE name, not the
     // framework's `@liebstoeckel/` npm scope ((internal ADR)). Only the framework
     // *dependencies* below keep that scope.
     name,
     version: "0.0.0",
     private: true,
     type: "module",
-    // Allowlist of what `bun pm pack` ships — and therefore what `liebstoeckel build`
+    // Allowlist of what `bun pm pack` ships, and therefore what `liebstoeckel build`
     // embeds as recoverable source and `eject` restores ((internal ADR)). Deny-by-default:
     // a stray .env / secret is never packed because it isn't listed here. bunfig.toml
-    // MUST stay listed — pack default-ignores it, and the ejected deck needs it for dev.
+    // MUST stay listed, pack default-ignores it, and the ejected deck needs it for dev.
     // Add new top-level source dirs here as the deck grows (the build warns if you forget).
     files: [
       "index.html",
@@ -191,14 +191,14 @@ function nearestPkgVersion(entry: string): string | null {
 const caret = (v: string | null | undefined) => (v && v !== "0.0.0" ? `^${v}` : null);
 
 /** The `^<version>` range to scaffold for a framework dep, read from that dep's
- *  OWN resolved package (independently versioned — (internal ADR)).
+ *  OWN resolved package (independently versioned, (internal ADR)).
  *
  *  Invariant: every scaffolded dependency MUST be a direct dependency of
  *  `@liebstoeckel/cli`, so it is installed alongside the CLI and resolvable both
  *  in-repo and standalone. We rely on that and **fail loud** if it doesn't hold.
  *  The old fallback to the CLI's *own* version was only correct under lockstep;
  *  with graph-driven versioning it would silently stamp a wrong, lockstep-shaped
- *  pin onto a package that no longer shares the CLI's version — a far worse failure
+ *  pin onto a package that no longer shares the CLI's version, a far worse failure
  *  than a clear error. */
 function depRange(name: string): string {
   let resolved: string;
@@ -228,12 +228,11 @@ export async function scaffold(
   opts: ScaffoldOptions = {},
 ): Promise<{ dir: string; files: string[]; brand: string }> {
   if (!VALID_NAME.test(name)) {
-    throw new Error(`invalid deck name "${name}" — use lower-case letters, digits and hyphens`);
+    throw new Error(`invalid deck name "${name}", use lower-case letters, digits and hyphens`);
   }
   const brand = opts.brand ?? "liebstoeckel";
   // Unless a brand was named explicitly (or opted out), bake the logged-in org's
-  // default brand so new decks are on-brand instantly ((internal ADR)). Best effort —
-  // never blocks scaffolding when offline / not logged in.
+  // default brand so new decks are on-brand instantly ((internal ADR)). Best effort, // never blocks scaffolding when offline / not logged in.
   const orgBrand = !opts.brand && !opts.noOrgBrand ? await (await import("./cloud")).fetchDefaultBrand() : null;
 
   // The deck materializes in the current directory as ./<name> (least surprising).

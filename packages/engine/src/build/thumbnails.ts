@@ -2,7 +2,7 @@
 // browser never executes, embedded into the single-file deck. Each entry maps a
 // slide index to a data-URI image (built by @liebstoeckel/thumbnails). The engine
 // reads it to render cheap <img> previews in the overview / presenter instead of
-// mounting N live slides. Pure string/JSON helpers — no DOM, no browser.
+// mounting N live slides. Pure string/JSON helpers, no DOM, no browser.
 
 export interface ThumbnailManifest {
   v: 1;
@@ -20,7 +20,7 @@ export const parseThumbnails = (json: string): ThumbnailManifest => JSON.parse(j
 
 /** Embed (or replace) the thumbnails manifest as an inert JSON <script> before
  *  the closing </body>. Re-embedding strips any prior block so re-running is idempotent.
- *  Inserts before the LAST </body> — a deck's inlined JS bundle can contain the string
+ *  Inserts before the LAST </body>, a deck's inlined JS bundle can contain the string
  *  "</body>" in a literal (e.g. an iframe srcdoc), and the real document </body> is last. */
 export function embedThumbnails(html: string, m: ThumbnailManifest): string {
   const stripped = stripThumbnails(html);

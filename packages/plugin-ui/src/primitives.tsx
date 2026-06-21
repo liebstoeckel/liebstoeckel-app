@@ -66,7 +66,7 @@ export function Button({
   );
 }
 
-/** Horizontal result bar with an animatable fill width (0–100). */
+/** Horizontal result bar with an animatable fill width (0-100). */
 export function Bar({
   pct,
   color,
@@ -105,7 +105,7 @@ export function Bar({
 
 /** A round chrome-rail button matching the deck's help affordance (1.75rem, brand
  *  border, muted→accent, fades in on hover). The default look for a plugin's global
- *  `Control` — but it imposes nothing: pass any `children` / `style` to restyle. */
+ *  `Control`, but it imposes nothing: pass any `children` / `style` to restyle. */
 export function ChromeButton({
   children,
   onClick,
@@ -159,7 +159,7 @@ export function Stack({ children, gap = "0.6rem", style }: { children?: ReactNod
 /** A bounded, internally-scrolling region. The inline slide canvas is a fixed
  *  1280×720 surface with `overflow:hidden` ((internal ADR)) and never scrolls, so a
  *  plugin whose content grows without bound (a Q&A queue, a chat, any feed) must
- *  cap its own height and scroll inside it — pin the header/input, wrap the growing
+ *  cap its own height and scroll inside it, pin the header/input, wrap the growing
  *  list in a ScrollArea. On mobile the breakout sheet already scrolls; this gives
  *  the inline/desktop path the same boundary. `maxHeight` accepts any CSS length
  *  (default a stage-relative cap that leaves room for surrounding chrome). */

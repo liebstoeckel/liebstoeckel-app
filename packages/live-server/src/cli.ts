@@ -18,8 +18,7 @@ export function classifyTargetPath(path: string, isDir: boolean): TargetKind {
 
 const TRUST_WARNING = `
 ⚠  liebstoeckel live server
-   This builds and runs the deck's code, including any plugins it bundles —
-   server-side plugin code executes on THIS machine. Only run decks you trust.
+   This builds and runs the deck's code, including any plugins it bundles, server-side plugin code executes on THIS machine. Only run decks you trust.
 `;
 
 /** Resolve a target into deck HTML (building the project if needed). */
@@ -67,7 +66,7 @@ export interface ThumbFlags {
 
 /** Derive thumbnail settings from the parsed flags. Capture is ON unless
  *  `--no-thumbnails` was passed; an unknown `--format` and non-numeric sizes are
- *  ignored (mirrors `liebstoeckel thumbs`). Pure — the unit-test anchor. */
+ *  ignored (mirrors `liebstoeckel thumbs`). Pure, the unit-test anchor. */
 export function thumbSettings(f: ThumbFlags): ThumbSettings {
   const num = (v: string | undefined): number | undefined => {
     const n = v == null ? NaN : Number(v);
@@ -119,7 +118,7 @@ async function localMain(arg: string, thumbs: ThumbSettings, port?: number) {
   const live = await startServer({ html, port });
 
   const local = buildLinks(`http://localhost:${live.port}`, live.session);
-  console.log(`\n▶  liebstoeckel live — session ${live.session.id}\n`);
+  console.log(`\n▶  liebstoeckel live, session ${live.session.id}\n`);
   console.log(`   on this machine   presenter  ${local.presenter}`);
   console.log(`                     audience   ${local.viewer}`);
   console.log(`   on the network    presenter  ${live.links.presenter}`);
@@ -148,7 +147,7 @@ async function relayMain(arg: string, relayUrl: string, relayToken: string, thum
     sessionId: info.id,
   });
 
-  console.log(`\n▶  liebstoeckel live (relayed) — session ${info.id}\n`);
+  console.log(`\n▶  liebstoeckel live (relayed), session ${info.id}\n`);
   console.log(`   public            presenter  ${info.urls.presenter}`);
   console.log(`                     audience   ${info.urls.viewer}`);
   if (runner.plugins.length) {

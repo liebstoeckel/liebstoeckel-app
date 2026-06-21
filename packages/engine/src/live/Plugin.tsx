@@ -26,7 +26,7 @@ export function LiveProvider({ value, children }: { value: LiveContextValue; chi
 
 /** Subscribe to a plugin's slice of the shared doc and assemble its `ClientProps`.
  *  The single piece of plumbing behind `<Plugin>`, the global surfaces, and the
- *  presenter console — so every surface reads the same live state identically. */
+ *  presenter console, so every surface reads the same live state identically. */
 export function usePluginProps(
   ctx: LiveContextValue,
   id: string,
@@ -66,7 +66,7 @@ export function Plugin({
 }: {
   id: string;
   /** instance discriminator ((internal ADR)); omit for the default slice. Two placements with
-   *  the same (id, instance) share state — that's how you intentionally mirror one. */
+   *  the same (id, instance) share state, that's how you intentionally mirror one. */
   instance?: string;
   /** optional human label for this instance, used in the presenter tabs to tell
    *  sibling instances apart (a plugin's `presenter.title(snapshot)` takes precedence). */
@@ -107,7 +107,7 @@ export function Plugin({
 
   const Slide = def.client.Slide;
   // Isolate each surface's Motion layout tree: a plugin's `layoutId` (e.g. Q&A's ranked
-  // rows) is also rendered by other live surfaces of the same plugin — the global panel,
+  // rows) is also rendered by other live surfaces of the same plugin, the global panel,
   // the presenter console, the mobile breakout. Sharing one `layoutId` across them makes
   // Motion morph one into another (rows "disappear" from the slide). A per-surface
   // LayoutGroup namespaces the ids so intra-surface animation still works but they never

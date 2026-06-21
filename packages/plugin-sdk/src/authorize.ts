@@ -11,7 +11,7 @@ import type { PluginManifest } from "./manifest";
 export type PeerRole = "presenter" | "runner" | "audience";
 
 /** The doc-level index a client appends to when it renders a `<Plugin>` (instance
- *  discovery, (internal ADR)). A legitimate audience write — the audience renders the deck. */
+ *  discovery, (internal ADR)). A legitimate audience write, the audience renders the deck. */
 export const PLUGIN_INDEX_KEY = "plugin-index";
 
 export interface AudienceScope {
@@ -22,7 +22,7 @@ export interface AudienceScope {
 }
 
 /** Build the audience write-scope from a deck's plugin manifest. Plugins that
- *  declare no `audienceWrites` contribute nothing — fail-closed. */
+ *  declare no `audienceWrites` contribute nothing, fail-closed. */
 export function buildAudienceScope(manifest: PluginManifest | null | undefined): AudienceScope {
   const pluginFields = new Map<string, ReadonlySet<string>>();
   for (const p of manifest?.plugins ?? []) {
@@ -74,7 +74,7 @@ function projectProtected(doc: Y.Doc, scope: AudienceScope): string {
     if (allowed === "*") continue;
     // A root integrated by applyUpdate is a generic AbstractType whose toJSON() is
     // empty until materialized; every liebstoeckel state root is a Y.Map (plugin
-    // state, nav, the instance index — see state.ts / instances.ts), so bind it as
+    // state, nav, the instance index, see state.ts / instances.ts), so bind it as
     // one. A deck that used a non-Map root would throw here → caught → fail closed.
     const js = doc.getMap(key).toJSON() as unknown;
     if (allowed && js && typeof js === "object" && !Array.isArray(js)) {

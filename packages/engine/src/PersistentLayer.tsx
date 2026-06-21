@@ -34,7 +34,7 @@ const same = (a: Rect | undefined, b: Rect) =>
 
 /** Holds each persistent element's slot rect **per slide index**. Visibility is
  *  decided by the layer from the *current* slide index (not by ref-counting mounted
- *  slots) — so when navigating to a slide that has no slot, the element hides at the
+ *  slots), so when navigating to a slide that has no slot, the element hides at the
  *  index change, in step with the transition, instead of lingering until the old
  *  slide finishes its exit. When the incoming slide also has a slot, its rect is
  *  present for the new index and the element travels to it. */
@@ -73,7 +73,7 @@ export function Slot({ id, className }: { id: string; className?: string }) {
     const el = ref.current!;
     const root = (el.closest("[data-deck-root]") as HTMLElement) ?? document.body;
     // getBoundingClientRect is post-transform (device px), but the persistent layer
-    // positions inside the stage's LOGICAL 1280×720 space — divide the stage scale
+    // positions inside the stage's LOGICAL 1280×720 space, divide the stage scale
     // back out, else the element is mis-placed whenever the stage isn't at 1:1.
     const s = scale || 1;
     const measure = (): Rect => {

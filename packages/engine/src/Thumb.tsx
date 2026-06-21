@@ -6,8 +6,7 @@ import { PersistentProvider } from "./PersistentLayer";
 
 /** A scaled, non-interactive thumbnail of a slide (overview + presenter).
  *
- *  Prefers a pre-rendered image (`src`, from the build-time thumbnails manifest) —
- *  a cheap `<img>` instead of a live React subtree. With no `src` it falls back to
+ *  Prefers a pre-rendered image (`src`, from the build-time thumbnails manifest), *  a cheap `<img>` instead of a live React subtree. With no `src` it falls back to
  *  rendering the slide **statically** (atmosphere frozen, no persistent layer);
  *  Slots register harmlessly. */
 export function DeckThumb({ Component, src, alt }: { Component?: ComponentType; src?: string; alt?: string }) {

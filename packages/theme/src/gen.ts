@@ -4,7 +4,7 @@
 import { brands } from "./brands";
 import { themeToCss } from "./defineTheme";
 
-const header = "/* AUTO-GENERATED from packages/theme/src/brands/*.ts — run `bun run gen`. */\n";
+const header = "/* AUTO-GENERATED from packages/theme/src/brands/*.ts, run `bun run gen`. */\n";
 const css = header + brands.map(themeToCss).join("\n") + "\n";
 
 await Bun.write(new URL("./brands.generated.css", import.meta.url), css);

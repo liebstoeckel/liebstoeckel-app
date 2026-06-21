@@ -1,4 +1,4 @@
-// `liebstoeckel login` + `liebstoeckel push` + `liebstoeckel orgs` — the cloud
+// `liebstoeckel login` + `liebstoeckel push` + `liebstoeckel orgs`, the cloud
 // path ((internal ADR)/0053). login runs the OAuth 2.0 device-authorization grant
 // (RFC 8628) against the control plane's /api/auth/device/* endpoints; push
 // uploads a single-file deck to the versioned /api/v1/decks with the resulting
@@ -20,7 +20,7 @@ const CLOUD_ARGS = {
  *  is not generally available yet, so OSS users see "coming soon" instead of a
  *  bare auth error that looks like a bug. */
 function notLoggedIn(): never {
-  console.error("✕ not logged in — run: liebstoeckel login --api <https://app-host>");
+  console.error("✕ not logged in, run: liebstoeckel login --api <https://app-host>");
   console.error("  (liebstoeckel cloud is coming soon; this command needs a hosted control plane)");
   process.exit(1);
 }
@@ -127,18 +127,18 @@ async function runLogin(api: string): Promise<void> {
       process.exit(1);
     }
   }
-  console.error("\n✕ login timed out — run `liebstoeckel login` again.");
+  console.error("\n✕ login timed out, run `liebstoeckel login` again.");
   process.exit(1);
 }
 
 export const loginCommand = defineCommand({
-  meta: { name: "login", description: "sign in to liebstoeckel cloud (device flow) — coming soon" },
+  meta: { name: "login", description: "sign in to liebstoeckel cloud (device flow), coming soon" },
   args: { api: CLOUD_ARGS.api },
   run: ({ args }) => runLogin((args.api ?? process.env.LIEBSTOECKEL_API ?? "").replace(/\/+$/, "")),
 });
 
 export const pushCommand = defineCommand({
-  meta: { name: "push", description: "upload/update a deck to liebstoeckel cloud — coming soon" },
+  meta: { name: "push", description: "upload/update a deck to liebstoeckel cloud, coming soon" },
   args: {
     deck: { type: "positional", required: false, description: "deck .html (default: ./dist)", valueHint: "deck.html" },
     title: { type: "string", description: "override the deck title", valueHint: "t" },
@@ -160,7 +160,7 @@ async function runPush(args: {
 }): Promise<void> {
   const creds = await loadCreds();
   const org = resolveOrg(args, creds?.org);
-  // With no path, push the built deck in ./dist ((internal ADR)) — matching `liebstoeckel build`.
+  // With no path, push the built deck in ./dist ((internal ADR)), matching `liebstoeckel build`.
   const file = args.deck ?? defaultDeckHtml();
   if (!file) {
     console.error(
@@ -199,7 +199,7 @@ async function runPush(args: {
 
   const res = await fetch(`${api}/api/v1/decks`, { method: "POST", headers, body: html });
   if (res.status === 401) {
-    console.error("✕ session expired — run `liebstoeckel login` again.");
+    console.error("✕ session expired, run `liebstoeckel login` again.");
     process.exit(1);
   }
   if (res.status === 403) {
@@ -216,7 +216,7 @@ async function runPush(args: {
     isNew: boolean;
   };
   const what = isNew ? "created" : `updated to v${version}`;
-  console.log(`\n✓ pushed "${deck.title}" (${what})${org ? ` in ${org}` : ""} — view it at ${api}\n`);
+  console.log(`\n✓ pushed "${deck.title}" (${what})${org ? ` in ${org}` : ""}, view it at ${api}\n`);
 }
 
 interface OrgList {
@@ -227,7 +227,7 @@ interface OrgList {
 async function fetchOrgs(api: string, token: string): Promise<OrgList> {
   const res = await fetch(`${api}/api/v1/orgs`, { headers: { authorization: `Bearer ${token}` } });
   if (res.status === 401) {
-    console.error("✕ session expired — run `liebstoeckel login` again.");
+    console.error("✕ session expired, run `liebstoeckel login` again.");
     process.exit(1);
   }
   if (!res.ok) {
@@ -258,7 +258,7 @@ const orgsUseCommand = defineCommand({
     const { orgs } = await fetchOrgs(api, creds.token);
     const match = orgs.find((o) => o.slug === args.slug);
     if (!match) {
-      console.error(`✕ no org "${args.slug}" — you're a member of: ${orgs.map((o) => o.slug).join(", ")}`);
+      console.error(`✕ no org "${args.slug}", you're a member of: ${orgs.map((o) => o.slug).join(", ")}`);
       process.exit(1);
     }
     await saveCreds({ ...creds, org: match.personal ? undefined : match.slug });
@@ -284,7 +284,7 @@ const orgsListCommand = defineCommand({
 });
 
 export const orgsCommand = defineCommand({
-  meta: { name: "orgs", description: "list your workspaces / set the default org — coming soon" },
+  meta: { name: "orgs", description: "list your workspaces / set the default org, coming soon" },
   subCommands: { list: orgsListCommand, use: orgsUseCommand },
   default: "list",
 });
@@ -299,9 +299,9 @@ interface CloudDeck {
   uniqueViews: number;
 }
 
-/** `liebstoeckel decks [--org <slug>]` — list the active org's decks + views. */
+/** `liebstoeckel decks [--org <slug>]`, list the active org's decks + views. */
 export const decksCommand = defineCommand({
-  meta: { name: "decks", description: "list your cloud decks (with view counts) — coming soon" },
+  meta: { name: "decks", description: "list your cloud decks (with view counts), coming soon" },
   args: { org: CLOUD_ARGS.org, api: CLOUD_ARGS.api },
   run: ({ args }) => runDecks(args),
 });
@@ -313,7 +313,7 @@ async function runDecks(args: { org?: string; api?: string }): Promise<void> {
   if (org) headers["x-org-slug"] = org;
   const res = await fetch(`${api}/api/v1/decks`, { headers });
   if (res.status === 401) {
-    console.error("✕ session expired — run `liebstoeckel login` again.");
+    console.error("✕ session expired, run `liebstoeckel login` again.");
     process.exit(1);
   }
   if (res.status === 403) {
@@ -326,7 +326,7 @@ async function runDecks(args: { org?: string; api?: string }): Promise<void> {
   }
   const { decks } = (await res.json()) as { decks: CloudDeck[] };
   if (!decks.length) {
-    console.log(`\n  no decks${org ? ` in ${org}` : ""} yet — push one with: liebstoeckel push\n`);
+    console.log(`\n  no decks${org ? ` in ${org}` : ""} yet, push one with: liebstoeckel push\n`);
     return;
   }
   console.log(`\n  decks${org ? ` in ${org}` : ""}:\n`);
@@ -414,7 +414,7 @@ const brandPushCommand = defineCommand({
       body: JSON.stringify({ tokens, default: !!args.default }),
     });
     if (res.status === 403) {
-      console.error("✕ forbidden — managing brands needs an admin/owner role on a paid org.");
+      console.error("✕ forbidden, managing brands needs an admin/owner role on a paid org.");
       process.exit(1);
     }
     if (!res.ok) {
@@ -428,7 +428,7 @@ const brandPushCommand = defineCommand({
       warnings?: { field: string; family: string; suggestion?: string }[];
     };
     if (warnings?.length) {
-      console.log("⚠ these fonts aren't in the catalog — they'll fall back to system fonts on pull");
+      console.log("⚠ these fonts aren't in the catalog, they'll fall back to system fonts on pull");
       console.log("  unless the deck supplies @font-face:");
       for (const w of warnings) {
         console.log(`    ${w.field}: ${w.family}${w.suggestion ? `   (did you mean "${w.suggestion}"?)` : ""}`);
@@ -454,12 +454,12 @@ const brandPullCommand = defineCommand({
     if (!name) {
       const def = (await fetchBrands(api, token, org)).find((b) => b.isDefault);
       if (!def) {
-        console.error("✕ no default brand set — run `liebstoeckel brand list` or pass a name.");
+        console.error("✕ no default brand set, run `liebstoeckel brand list` or pass a name.");
         process.exit(1);
       }
       name = def.name;
     }
-    // The brand IS a registry item — resolve it through the @org transport and
+    // The brand IS a registry item, resolve it through the @org transport and
     // write it as owned source, exactly like `add @org/<name>` ((internal ADR)).
     const { httpTransport, resolveScaffold } = await import("./add");
     const transport = httpTransport(`${api}/api/v1/orgs/registry`, brandHeaders(token, org), "@org");
@@ -492,7 +492,7 @@ const brandListCommand = defineCommand({
     const { api, token, org } = await brandApi(args);
     const brands = await fetchBrands(api, token, org);
     if (!brands.length) {
-      console.log(`\n  no brands${org ? ` in ${org}` : ""} yet — push one: liebstoeckel brand push ./brand.ts --default\n`);
+      console.log(`\n  no brands${org ? ` in ${org}` : ""} yet, push one: liebstoeckel brand push ./brand.ts --default\n`);
       return;
     }
     console.log(`\n  brands${org ? ` in ${org}` : ""}:\n`);
@@ -501,9 +501,9 @@ const brandListCommand = defineCommand({
   },
 });
 
-/** `liebstoeckel brand list|push|pull` — share org brands (registry, (internal ADR)). */
+/** `liebstoeckel brand list|push|pull`, share org brands (registry, (internal ADR)). */
 export const brandCommand = defineCommand({
-  meta: { name: "brand", description: "share org brands: push/pull theme token sets — coming soon" },
+  meta: { name: "brand", description: "share org brands: push/pull theme token sets, coming soon" },
   subCommands: { list: brandListCommand, push: brandPushCommand, pull: brandPullCommand },
   default: "list",
 });
@@ -511,7 +511,7 @@ export const brandCommand = defineCommand({
 async function fetchBrands(api: string, token: string, org?: string): Promise<BrandRow[]> {
   const res = await fetch(`${api}/api/v1/orgs/brands`, { headers: brandHeaders(token, org) });
   if (res.status === 401) {
-    console.error("✕ session expired — run `liebstoeckel login` again.");
+    console.error("✕ session expired, run `liebstoeckel login` again.");
     process.exit(1);
   }
   if (res.status === 403) {
@@ -529,7 +529,7 @@ const camel = (s: string) => s.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase()
 
 /** For `liebstoeckel new`: the org default brand's source + name (+ its `@fontsource`
  *  deps, (internal ADR), so the scaffolded package.json installs them), or null. Best
- *  effort — never blocks scaffolding if not logged in / no default. */
+ *  effort, never blocks scaffolding if not logged in / no default. */
 export async function fetchDefaultBrand(): Promise<{ name: string; source: string; dependencies: string[] } | null> {
   try {
     const creds = await loadCreds();
@@ -550,8 +550,7 @@ export async function fetchDefaultBrand(): Promise<{ name: string; source: strin
   }
 }
 
-/** The `@fontsource` side-effect imports a pulled brand source declares ((internal ADR)) —
- *  the deck's font deps. Inlined here (not imported from control-core) to keep the
+/** The `@fontsource` side-effect imports a pulled brand source declares ((internal ADR)), *  the deck's font deps. Inlined here (not imported from control-core) to keep the
  *  OSS CLI free of the private control plane. */
 export function fontPackagesFromSource(source: string): string[] {
   const pkgs = new Set<string>();

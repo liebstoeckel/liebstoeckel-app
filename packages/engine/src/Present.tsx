@@ -14,7 +14,7 @@ import { getParticipantId } from "./live/participant";
 import { captureRequest, printRequest } from "./build/capture-protocol";
 
 /** Concatenate deck-defined brand themes into one CSS string of `[data-brand]`
- *  blocks (empty when none). Pure — unit-testable without a DOM. */
+ *  blocks (empty when none). Pure, unit-testable without a DOM. */
 export function brandThemesCss(themes?: Theme[]): string {
   return (themes ?? []).map(themeToCss).join("\n");
 }
@@ -22,7 +22,7 @@ export function brandThemesCss(themes?: Theme[]): string {
 /** Whether to render the presenter confidence monitor: the `#presenter` hash asks
  *  for it, but a live **viewer** must never reach it (it exposes speaker notes and
  *  the plugin presenter consoles). Standalone (`role === undefined`) keeps the
- *  hash-gate as the presenter mechanism ((internal ADR)/0070). Pure — DOM-free. */
+ *  hash-gate as the presenter mechanism ((internal ADR)/0070). Pure, DOM-free. */
 export function presenterViewRequested(hash: string, role?: string): boolean {
   return hash.includes("presenter") && role !== "viewer";
 }
@@ -32,7 +32,7 @@ export function presenterViewRequested(hash: string, role?: string): boolean {
 // back to the standalone deck (BroadcastChannel presenter view via the P key).
 export function Present(props: DeckProps) {
   // Build-time thumbnail capture short-circuits everything else: no live connect,
-  // no nav, no presenter — just a motionless slide for the headless screenshotter.
+  // no nav, no presenter, just a motionless slide for the headless screenshotter.
   // Gate the live connection on it (hooks still run unconditionally).
   const [capture] = useState(() => captureRequest());
   const [print] = useState(() => printRequest());
@@ -52,7 +52,7 @@ export function Present(props: DeckProps) {
   const doc = useMemo(() => conn?.doc ?? new Y.Doc(), [conn]);
 
   // A plugin with global surfaces + a presenter console (e.g. Q&A) can be used without an
-  // on-slide placement, so register its default instance in the doc index — otherwise the
+  // on-slide placement, so register its default instance in the doc index, otherwise the
   // presenter console, which discovers instances from placements ((internal ADR)), wouldn't find
   // it. Runs in both the Deck and the presenter window, so it doesn't depend on a viewer
   // being connected. ((internal ADR))
@@ -73,7 +73,7 @@ export function Present(props: DeckProps) {
     plugins: registry,
   };
 
-  // The presenter confidence monitor is selected by the #presenter hash — but in a
+  // The presenter confidence monitor is selected by the #presenter hash, but in a
   // live session a *viewer* must never reach it (it leaks speaker notes + presenter
   // consoles). Standalone (no live role) keeps the hash-gate ((internal ADR)/0070).
   const [isPresenterWindow] = useState(
@@ -102,7 +102,7 @@ export function Present(props: DeckProps) {
     );
 
   // The confidence monitor (#presenter) works standalone (BroadcastChannel) and
-  // live (shared Yjs doc) — it reads the same controller as the audience Deck.
+  // live (shared Yjs doc), it reads the same controller as the audience Deck.
   const view = isPresenterWindow ? <PresenterView {...props} /> : <Deck {...props} />;
   return (
     <LiveProvider value={value}>

@@ -105,7 +105,7 @@ export function QrOverlay({ open, url, onClose }: { open: boolean; url?: string;
   return <QrShare open={open} onClose={onClose} items={[{ url, label: "Scan to follow along", sub: url }]} />;
 }
 
-/** Presenter: BOTH links — "Follow along" (read-only viewer) and "Drive from your
+/** Presenter: BOTH links, "Follow along" (read-only viewer) and "Drive from your
  *  phone" (presenter; scanning joins as a second driver). Q / header button in the
  *  presenter view. (DESIGN §QR & handoff.) */
 export function PresenterShare({

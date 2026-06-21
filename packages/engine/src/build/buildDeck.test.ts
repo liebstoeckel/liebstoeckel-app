@@ -7,7 +7,7 @@ import { buildServerBundle, buildPluginManifest, escapeInlineModuleScript, stamp
 
 describe("buildServerBundle", () => {
   // Real `Bun.build` (target:bun). Isolated (unique tmp dir), but bundling is
-  // CPU-heavy and slows sharply under full-suite/loaded-CI host load — the default
+  // CPU-heavy and slows sharply under full-suite/loaded-CI host load, the default
   // 5s timeout flakes there. ~0.5s unloaded; 60s is generous headroom for a loaded
   // box while still catching a genuine hang.
   test(
@@ -41,7 +41,7 @@ describe("escapeInlineModuleScript", () => {
     // only the </script token is neutralised (</body>, </html> untouched);
     // `<\/script>` is an identical JS string value but no longer a tag terminator
     expect(out).toContain('const s="<div><\\/script></body></html>";');
-    // exactly one literal </script> remains in the document — the real terminator
+    // exactly one literal </script> remains in the document, the real terminator
     expect(out.match(/<\/script>/g)?.length).toBe(1);
     expect(out.endsWith("</script></body></html>")).toBe(true);
   });
@@ -69,7 +69,7 @@ describe("stampGenerator", () => {
     expect(out).not.toContain("cli");
   });
 
-  test("is deterministic — no timestamp, same input → same output", () => {
+  test("is deterministic, no timestamp, same input → same output", () => {
     const parts = { engine: "1.2.3", generator: { name: "cli", version: "4.5.6" } };
     expect(stampGenerator(html, parts)).toBe(stampGenerator(html, parts));
   });

@@ -10,7 +10,7 @@ export interface Schema<T> {
   safeParse(value: unknown): { ok: true; value: T } | { ok: false; error: string };
   /** A sensible empty/default value. */
   default(): T;
-  /** phantom — for `Infer<>` only */
+  /** phantom, for `Infer<>` only */
   readonly _t?: T;
 }
 

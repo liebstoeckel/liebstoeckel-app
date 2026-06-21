@@ -62,7 +62,7 @@ export const relayCommand = defineCommand({
     const port = Number(args.port ?? process.env.PORT ?? 0) || 0;
     // Public base: an explicit override wins (CLI / single-pod env); otherwise a
     // StatefulSet pod derives its OWN per-pod base from its ordinal + host template
-    // ((internal ADR) §3 / (internal ticket) — POD_NAME via the downward API).
+    // ((internal ADR) §3 / (internal ticket), POD_NAME via the downward API).
     const publicBaseUrl =
       args["public-url"] ??
       process.env.PRESENT_RELAY_PUBLIC_URL ??
@@ -86,7 +86,7 @@ export const relayCommand = defineCommand({
     console.log(`   base url          ${base}`);
     console.log(`   health            ${base}/healthz`);
     if (generated) {
-      console.log(`\n   ⚠ no account tokens set — generated one for this run:`);
+      console.log(`\n   ⚠ no account tokens set, generated one for this run:`);
       console.log(`       ${tokens[0]}`);
       console.log(`   persist with PRESENT_RELAY_TOKENS=tok1,tok2 (or --tokens).`);
     }

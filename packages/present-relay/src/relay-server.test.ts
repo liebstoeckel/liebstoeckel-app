@@ -84,7 +84,7 @@ describe("relay control API auth", () => {
     expect(a.id).toBe("stable-abc");
     expect(a.urls.viewer).toContain("/s/stable-abc?t=");
     expect(a.urls.sync).toContain("/sync/stable-abc");
-    // The viewer grant the relay minted validates against this id — connecting works.
+    // The viewer grant the relay minted validates against this id, connecting works.
     const ok = await fetch(`${base}/s/stable-abc?t=${a.viewerGrant}`);
     expect(ok.status).toBe(200);
     // Re-creating under the same id (a re-provision) succeeds and stays the same id; the
@@ -103,9 +103,9 @@ describe("relay deck serving (opaque sandbox)", () => {
     expect(res.status).toBe(200);
     const csp = res.headers.get("content-security-policy") ?? "";
     expect(csp).toContain("sandbox allow-scripts");
-    expect(csp).toContain("allow-popups"); // presenter pop-out (window.open) — (internal ADR)
+    expect(csp).toContain("allow-popups"); // presenter pop-out (window.open), (internal ADR)
     expect(csp).not.toContain("allow-same-origin");
-    expect(csp).not.toContain("allow-fullscreen"); // invalid sandbox token — must not regress
+    expect(csp).not.toContain("allow-fullscreen"); // invalid sandbox token, must not regress
     expect(csp).toContain("connect-src");
     // (internal ADR): default-src lockdown closes the remote-load / GET-exfil gap.
     expect(csp).toContain("default-src 'none'");
@@ -207,7 +207,7 @@ describe("graceful shutdown flushes snapshots ((internal ADR) / (internal ticket
     expect(storage.store.has("org/live/flush.snap")).toBe(false);
 
     await relay!.stop();
-    relay = null; // already stopped — keep afterEach a no-op
+    relay = null; // already stopped, keep afterEach a no-op
 
     // The flush must have completed before stop() resolved (no lost results).
     expect(storage.store.has("org/live/flush.snap")).toBe(true);
@@ -232,7 +232,7 @@ describe("relay /stats (control-plane placement, (internal ticket))", () => {
   });
 });
 
-describe("relay cordon — drain control ((internal ticket))", () => {
+describe("relay cordon, drain control ((internal ticket))", () => {
   test("POST /cordon flips the flag in /stats and refuses new sessions; uncordon lifts it", async () => {
     const base = start();
     expect((await fetch(`${base}/cordon`, { method: "POST" })).status).toBe(401); // account-gated

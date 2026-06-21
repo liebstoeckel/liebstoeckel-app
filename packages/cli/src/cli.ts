@@ -4,7 +4,7 @@ import { looksLikeDeck } from "./targeting";
 
 // The umbrella dispatches in-process to one citty command per subcommand ((internal ADR):
 // uniform deck targeting, (internal ADR): agent-readable surface). Heavy command modules
-// are imported lazily — a subCommand is a `() => import(...)` thunk, so e.g. `build`
+// are imported lazily, a subCommand is a `() => import(...)` thunk, so e.g. `build`
 // never loads the live server and `live` never loads the bundler until invoked.
 const rootCommand = defineCommand({
   meta,
@@ -21,7 +21,7 @@ const rootCommand = defineCommand({
     thumbs: () => import("@liebstoeckel/thumbnails/cli").then((m) => m.thumbsCommand),
     export: () => import("@liebstoeckel/thumbnails/cli").then((m) => m.exportCommand),
     skill: () => import("./skill").then((m) => m.skillCommand),
-    // cloud (coming soon — the hosted service is not generally available yet):
+    // cloud (coming soon, the hosted service is not generally available yet):
     login: () => import("./cloud").then((m) => m.loginCommand),
     push: () => import("./cloud").then((m) => m.pushCommand),
     orgs: () => import("./cloud").then((m) => m.orgsCommand),
@@ -38,7 +38,7 @@ async function meta() {
   return {
     name: "liebstoeckel",
     version: await cliVersion(),
-    description: "code-first presentations — author decks in MDX + TSX, build one self-contained .html (alias: lst)",
+    description: "code-first presentations, author decks in MDX + TSX, build one self-contained .html (alias: lst)",
   };
 }
 

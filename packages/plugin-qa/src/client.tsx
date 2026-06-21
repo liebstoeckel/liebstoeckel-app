@@ -122,7 +122,7 @@ function CtrlButton({ glyph, title, onClick, active = false }: { glyph: string; 
   );
 }
 
-/** Submit a question / toggle a vote — the audience actions, shared by every surface. */
+/** Submit a question / toggle a vote, the audience actions, shared by every surface. */
 function useQaActions(p: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId">) {
   const submit = (text: string) => {
     const t = text.trim();
@@ -196,13 +196,13 @@ function Queue({ fill, ...p }: Pick<ClientProps<QaState>, "snapshot" | "state" |
       </AnimatePresence>
       {ranked.length === 0 && (
         <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
-          No questions yet — be the first.
+          No questions yet, be the first.
         </div>
       )}
     </Stack>
   );
   // `fill`: the presenter console already gives us a tall scrolling box, so don't impose
-  // the slide-canvas cap ((internal ADR)) — let the list use the full panel height. On the slide
+  // the slide-canvas cap ((internal ADR)), let the list use the full panel height. On the slide
   // and in the popover panel we keep the bounded ScrollArea.
   return fill ? list : <ScrollArea>{list}</ScrollArea>;
 }
@@ -226,7 +226,7 @@ function QaSlide(p: ClientProps<QaState>) {
   );
 }
 
-/** Presenter console: the live ranked queue with privileged moderation — mark
+/** Presenter console: the live ranked queue with privileged moderation, mark
  *  answered, dismiss, upvote. Each action writes the plugin's own state, so the
  *  audience Q&A slide reflects it instantly ((internal ADR)). */
 function QaConsole(p: ClientProps<QaState>) {
@@ -240,7 +240,7 @@ function QaConsole(p: ClientProps<QaState>) {
   );
 }
 
-/** A message line icon (stroke, 24 grid) matching the engine's chrome SVGs — used for the
+/** A message line icon (stroke, 24 grid) matching the engine's chrome SVGs, used for the
  *  chrome control and the presenter tab so Q&A looks consistent with the rest of the UI. */
 function QaIcon() {
   return (
@@ -250,7 +250,7 @@ function QaIcon() {
   );
 }
 
-/** Global panel: ask + upvote from anywhere. Participation only — moderation lives in the
+/** Global panel: ask + upvote from anywhere. Participation only, moderation lives in the
  *  presenter console (rows render as `viewer`, so no answer/dismiss here). */
 function QaPanel(p: GlobalProps<QaState>) {
   const { submit } = useQaActions(p);

@@ -3,7 +3,7 @@ import { resolveScaffold, localTransport, stripCategory, type RegistryTransport 
 import { validateItem, assertSafeTarget } from "@liebstoeckel/registry/schema";
 import { REGISTRY_ROOT } from "@liebstoeckel/registry";
 
-/** In-memory transport — keeps the resolver tests pure and network-free ((internal ADR)). */
+/** In-memory transport, keeps the resolver tests pure and network-free ((internal ADR)). */
 function fakeTransport(
   items: Record<string, unknown>,
   files: Record<string, string>,
@@ -78,7 +78,7 @@ describe("stripCategory", () => {
   });
 
   test("does NOT strip a plural/non-category first word (it's an item name)", () => {
-    // "charts" is not a category — `add charts bar-chart` keeps both, so the resolver
+    // "charts" is not a category, `add charts bar-chart` keeps both, so the resolver
     // reports the real "item charts not found" rather than silently dropping it.
     expect(stripCategory(["charts", "bar-chart"])).toEqual(["charts", "bar-chart"]);
   });

@@ -19,7 +19,7 @@ describe("deckFiles (pure templates)", () => {
       ]),
     );
     const pkg = JSON.parse(files["package.json"]!);
-    expect(pkg.name).toBe("my-talk"); // bare name — not the framework npm scope ((internal ADR))
+    expect(pkg.name).toBe("my-talk"); // bare name, not the framework npm scope ((internal ADR))
     expect(pkg.dependencies["@liebstoeckel/engine"]).toBe("workspace:*");
     expect(pkg.devDependencies["@liebstoeckel/thumbnails"]).toBe("workspace:*");
     expect(files["build.ts"]).toContain('buildDeck } from "@liebstoeckel/thumbnails/build"');
@@ -93,8 +93,7 @@ describe("scaffold (writes to disk)", () => {
     const res = await scaffold("ranges", { dir: root, noOrgBrand: true });
     const pkg = JSON.parse(readFileSync(join(res.dir, "package.json"), "utf8"));
     // depRange resolves each dep from its own package and fails loud rather than
-    // falling back to the CLI version, so a real scaffold emits concrete carets —
-    // independently versioned, never the lockstep `workspace:*` placeholder.
+    // falling back to the CLI version, so a real scaffold emits concrete carets, // independently versioned, never the lockstep `workspace:*` placeholder.
     expect(pkg.dependencies["@liebstoeckel/engine"]).toMatch(/^\^\d+\.\d+\.\d+/);
     expect(pkg.dependencies["@liebstoeckel/theme"]).toMatch(/^\^\d+\.\d+\.\d+/);
     expect(pkg.devDependencies["@liebstoeckel/thumbnails"]).toMatch(/^\^\d+\.\d+\.\d+/);

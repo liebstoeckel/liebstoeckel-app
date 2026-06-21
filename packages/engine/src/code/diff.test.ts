@@ -2,7 +2,7 @@ import { test, expect, describe } from "bun:test";
 import { matchLines, keySteps } from "./diff";
 import type { TokenizedStep } from "./types";
 
-// Build a step from plain lines (one token per line) — enough to exercise keying.
+// Build a step from plain lines (one token per line), enough to exercise keying.
 const step = (...lines: string[]): TokenizedStep => ({
   lang: "ts",
   lines: lines.map((l) => [{ content: l }]),

@@ -24,7 +24,7 @@ export function GlowTap({ label, onOpen, children }: { label: string; onOpen: ()
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${label} — tap to interact`}
+      aria-label={`${label}, tap to interact`}
       data-pi-no-nav
       onClick={onOpen}
       onKeyDown={(e) => {
@@ -74,7 +74,7 @@ export function GlowTap({ label, onOpen, children }: { label: string; onOpen: ()
   );
 }
 
-/** True on a short viewport (landscape phone / small window) — switch the breakout
+/** True on a short viewport (landscape phone / small window), switch the breakout
  *  from a full-width bottom sheet to a centered, height-capped card so its content
  *  doesn't overflow off the bottom. */
 function useShortViewport(): boolean {
@@ -90,7 +90,7 @@ function useShortViewport(): boolean {
   return short;
 }
 
-/** Track the **visual viewport** — the region NOT covered by the on-screen keyboard.
+/** Track the **visual viewport**, the region NOT covered by the on-screen keyboard.
  *  On mobile the keyboard overlays the layout viewport (`100vh`/`inset:0` don't shrink),
  *  so a bottom-anchored sheet ends up behind it. Pinning to `visualViewport` keeps the
  *  sheet in the visible area. Returns null when unsupported (desktop / SSR) → caller

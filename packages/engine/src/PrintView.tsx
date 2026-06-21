@@ -19,13 +19,13 @@ import {
 } from "./build/capture-protocol";
 
 // Past any real slide's step count, so every <Step> is revealed for a complete,
-// final-state page (reveals start at target — <Step> uses initial={false}).
+// final-state page (reveals start at target, <Step> uses initial={false}).
 const ALL_STEPS = 1e6;
 
 /** Build-time **print** render (vector PDF export): every selected slide laid out
  *  at the native 1280×720 canvas, each forced onto its own print page, so a single
  *  headless `page.pdf()` produces a multi-page, text-preserving PDF. No nav, no
- *  AnimatePresence, no scaling — final state only. Driven via the print protocol:
+ *  AnimatePresence, no scaling, final state only. Driven via the print protocol:
  *  publishes SLIDE_COUNT, renders the indices it's handed (PRINT_SELECT_EVENT), and
  *  echoes the select token into PRINT_READY once that selection has painted.
  *
@@ -111,13 +111,13 @@ export function PrintView({ slides, brands = ["default"], plugins = [] }: DeckPr
             never shows because each block fills the page (margin:0 in page.pdf). */}
         <style>{`@page { size: ${STAGE_W}px ${STAGE_H}px; margin: 0 }
 /* The deck is fullscreen (theme sets html,body{height:100%;overflow:hidden}). For
-   print we must let the document GROW so the stacked slides paginate — otherwise it
+   print we must let the document GROW so the stacked slides paginate, otherwise it
    clips to one viewport and only slide 1 prints. */
 html, body { height: auto !important; min-height: 0 !important; overflow: visible !important; margin: 0; padding: 0; background: #fff }
 #root { height: auto !important; overflow: visible !important; position: static !important }
 [data-print-page] { break-inside: avoid }
 /* The film-grain feTurbulence rasterizes to a ~20MB full-page bitmap per slide in
-   print — invisible noise, enormous cost. Drop it; charts/gradients stay vector. */
+   print, invisible noise, enormous cost. Drop it; charts/gradients stay vector. */
 [data-atmosphere-grain] { display: none !important }`}</style>
         <div data-print-root>
           {chosen.map((idx, n) => {

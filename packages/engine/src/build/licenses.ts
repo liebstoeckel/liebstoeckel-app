@@ -1,17 +1,17 @@
 // Bundle-time third-party license collection.
 //
-// A built deck inlines its client import graph — React, Motion, Yjs, the variable
-// fonts — into one minified `.html`. Every one of those licenses (MIT, OFL-1.1, and
+// A built deck inlines its client import graph, React, Motion, Yjs, the variable
+// fonts, into one minified `.html`. Every one of those licenses (MIT, OFL-1.1, and
 // our own MPL-2.0) requires its notice to travel with the redistributed code, but
 // `minify:true` strips all comments. So we recompute the notice from the *actual*
 // module graph of each build and embed it as an inert <script> (same minify-proof
 // carrier as `embedSource`/`embedManifest`). Recomputing per build is the point:
-// swap a font or add a chart lib and the notice updates itself — declared
+// swap a font or add a chart lib and the notice updates itself, declared
 // package.json deps would lie. Everything here is Bun-native (no new dependency).
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, sep } from "node:path";
 
-/** Inert <script> carrier — the browser never parses it (mirrors SOURCE_ATTR). */
+/** Inert <script> carrier, the browser never parses it (mirrors SOURCE_ATTR). */
 export const LICENSE_ATTR = "data-liebstoeckel-licenses";
 
 const NODE_MODULES = `${sep}node_modules${sep}`;
@@ -19,7 +19,7 @@ const FIRST_PARTY = "@liebstoeckel/";
 
 /** SPDX ids we consider satisfiable by attribution alone (no copyleft/source duties
  *  beyond shipping the notice, which we do). `licenses --check` fails on anything
- *  outside this set — a GPL/AGPL/CC-BY/unknown dep should be a loud build-time stop,
+ *  outside this set, a GPL/AGPL/CC-BY/unknown dep should be a loud build-time stop,
  *  not a silent ship. OFL-1.1 is here because we only ever *embed* fonts (allowed),
  *  never sell them standalone; MPL-2.0 is our own + build-tool-only deps. */
 export const ALLOWED_SPDX = new Set([
@@ -74,7 +74,7 @@ export function createLicenseCollector(opts: { selfName?: string } = {}): {
     // virtual modules (`\0`-prefixed), and data: URIs.
     if (p && p.startsWith(sep) && !p.includes("\0")) paths.add(p);
   };
-  // ONLY hook onLoad — never onResolve. A catch-all `onResolve` that returns undefined
+  // ONLY hook onLoad, never onResolve. A catch-all `onResolve` that returns undefined
   // is NOT a no-op in Bun's bundler: registering it perturbs resolution enough to
   // miscompile some modules under minification (observed: a deck importing `@visx/shape`
   // built minified threw `ReferenceError: <mangled> is not defined` from d3-shape's stack
@@ -95,7 +95,7 @@ export function createLicenseCollector(opts: { selfName?: string } = {}): {
 }
 
 /** Resolve a set of absolute file paths to their owning packages and build a report.
- *  `selfName` (the deck's own package name) is excluded — a deck never lists itself.
+ *  `selfName` (the deck's own package name) is excluded, a deck never lists itself.
  *  Exported for the CLI's collect-from-dir path and for tests. */
 export function buildReport(paths: Iterable<string>, selfName?: string): LicenseReport {
   const thirdParty = new Map<string, LicensePackage>(); // name@version → pkg
@@ -114,14 +114,14 @@ export function buildReport(paths: Iterable<string>, selfName?: string): License
     if (!meta.name) continue;
     if (selfName && meta.name === selfName) continue; // the deck never lists itself
 
-    // First-party (@liebstoeckel/*) by name — works whether they resolve to the
+    // First-party (@liebstoeckel/*) by name, works whether they resolve to the
     // monorepo's packages/*/src or to an installed node_modules/.bun/@liebstoeckel+*.
     if (meta.name.startsWith(FIRST_PARTY)) {
       firstParty.add(meta.name); // all MPL-2.0, reported once
       continue;
     }
     // Everything else is third-party only if it lives under node_modules; a local
-    // dir that isn't @liebstoeckel is the deck's own source — skip it.
+    // dir that isn't @liebstoeckel is the deck's own source, skip it.
     if (!p.includes(NODE_MODULES)) continue;
     const key = `${meta.name}@${meta.version ?? "?"}`;
     if (thirdParty.has(key)) continue;
@@ -255,7 +255,7 @@ export function renderNotices(report: LicenseReport, opts: RenderOptions = {}): 
     );
   }
   for (const p of report.packages) {
-    const header = `${p.name}@${p.version}  —  ${p.license}`;
+    const header = `${p.name}@${p.version} ,  ${p.license}`;
     parts.push(p.text ? `${header}\n\n${p.text}` : header);
   }
   return parts.join(DIVIDER) + "\n";

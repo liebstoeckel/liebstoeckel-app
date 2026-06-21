@@ -22,7 +22,7 @@ export const mdxComponents = {
     </li>
   ),
   strong: (p: { children?: ReactNode }) => <strong className="font-semibold text-accent" {...p} />,
-  // Inline code gets a themed pill; block code (Shiki-highlighted — children are
+  // Inline code gets a themed pill; block code (Shiki-highlighted, children are
   // colored <span>s, not a string) passes through so the parent .shiki <pre> styles it.
   code: (p: { children?: ReactNode; className?: string }) =>
     typeof p.children === "string" ? (

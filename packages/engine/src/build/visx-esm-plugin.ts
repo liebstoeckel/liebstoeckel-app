@@ -5,11 +5,11 @@ import { dirname } from "node:path";
  * Redirect deep visx CJS imports (`@visx/<pkg>/lib/...`) to the ESM mirror
  * (`@visx/<pkg>/esm/...`).
  *
- * Why: visx's ESM builds default-import their own CJS `lib/` files — e.g.
+ * Why: visx's ESM builds default-import their own CJS `lib/` files, e.g.
  * `@visx/grid` does `import Line from "@visx/shape/lib/shapes/Line"`. Those CJS
  * files are correctly marked (`exports.__esModule = true; exports.default = …`),
  * and Bun's *runtime* honors that. But `Bun.build` does NOT honor `__esModule`
- * for CJS default imports (oven-sh/bun#12463 — confirmed unfixed through the
+ * for CJS default imports (oven-sh/bun#12463, confirmed unfixed through the
  * 1.4.0 canary): the default import resolves to the module *namespace object*
  * instead of the component. It bundles cleanly and then crashes at render with
  * "Element type is invalid … got: object".

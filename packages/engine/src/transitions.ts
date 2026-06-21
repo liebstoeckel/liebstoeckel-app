@@ -23,7 +23,7 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 /** Built-in presets. `enter` is the off-state a slide animates *from*, `center`
  *  is on-screen, `exit` is the off-state the leaving slide animates *to*. */
 export const TRANSITIONS: Record<SlideTransitionName, SlideTransitionSpec> = {
-  // Default: a light opacity cross-fade — no transform, no blur.
+  // Default: a light opacity cross-fade, no transform, no blur.
   fade: {
     variants: { enter: { opacity: 0 }, center: { opacity: 1 }, exit: { opacity: 0 } },
     transition: { duration: 0.32, ease: "easeInOut" },
@@ -55,7 +55,7 @@ export const TRANSITIONS: Record<SlideTransitionName, SlideTransitionSpec> = {
     },
     transition: { duration: 0.45, ease: EASE },
   },
-  // Instant cut — no animation.
+  // Instant cut, no animation.
   none: {
     variants: { enter: { opacity: 1 }, center: { opacity: 1 }, exit: { opacity: 0 } },
     transition: { duration: 0 },
@@ -81,7 +81,7 @@ export function resolveTransition(t: SlideTransition | undefined, reduceMotion =
 }
 
 /** On a coarse-pointer (mobile/touch) device, slide transitions are disabled by
- *  default — they're janky on a heavily down-scaled stage and snappy cuts read
+ *  default, they're janky on a heavily down-scaled stage and snappy cuts read
  *  better there. Set `Present`'s `mobileTransitions` to opt back in. */
 export function mobileTransitionsDisabled(coarse: boolean, mobileTransitions = false): boolean {
   return coarse && !mobileTransitions;

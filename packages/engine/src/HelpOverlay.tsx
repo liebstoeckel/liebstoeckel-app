@@ -97,7 +97,7 @@ export function HelpOverlay({
             </div>
             {isViewer && (
               <p className="mb-4 font-body text-sm text-muted">
-                You're following as a <span className="text-text">viewer</span> — the presenter drives
+                You're following as a <span className="text-text">viewer</span>, the presenter drives
                 navigation. You can still interact (e.g. vote).
               </p>
             )}

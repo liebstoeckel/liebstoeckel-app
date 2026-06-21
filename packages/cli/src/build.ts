@@ -1,4 +1,4 @@
-// `liebstoeckel build|eject|pack|licenses` — the deck build/inspect commands.
+// `liebstoeckel build|eject|pack|licenses`, the deck build/inspect commands.
 // Heavy engine/thumbnails modules are imported lazily inside each `run` so the
 // umbrella pays for them only when the command is actually invoked.
 import { defineCommand } from "citty";
@@ -123,11 +123,11 @@ export const packCommand = defineCommand({
     try {
       const { gzip, files } = await collectDeckTarball(dir, { allowSecret: !!args.allowSecret });
       if (out) {
-        // pack's native gzip — `bun add ./<file>.tgz`-installable (zstd is embed-only).
+        // pack's native gzip, `bun add ./<file>.tgz`-installable (zstd is embed-only).
         await Bun.write(resolve(out), gzip);
         console.log(`\n✓ wrote ${files.length}-file source package → ${out}  (gzip; bun add-compatible)\n`);
       } else {
-        console.log(`\nsource package (${files.length} files) — what a build would embed:\n`);
+        console.log(`\nsource package (${files.length} files), what a build would embed:\n`);
       }
       for (const f of files) console.log(`   ${f}`);
       console.log();
@@ -154,7 +154,7 @@ export const licensesCommand = defineCommand({
     const check = !!args.check;
     const dir = deckDir(args);
 
-    // A built deck.html already carries its notices — print the embedded block
+    // A built deck.html already carries its notices, print the embedded block
     // (no rebuild). `--check` is not meaningful here: the block is rendered text, not the
     // structured report, so license gating needs the deck source instead.
     if (looksLikeDeck(dir) && /\.html?$/i.test(dir)) {
@@ -188,9 +188,9 @@ export const licensesCommand = defineCommand({
           const mark = report.flagged.some((f) => f.name === p.name && f.version === p.version) ? " ⚠" : "";
           console.log(`  ${`${p.name}@${p.version}`.padEnd(40)} ${p.license}${mark}`);
         }
-        if (report.firstParty.length) console.log(`\n  + ${report.firstParty.length} liebstoeckel package(s) — MPL-2.0`);
+        if (report.firstParty.length) console.log(`\n  + ${report.firstParty.length} liebstoeckel package(s), MPL-2.0`);
         if (!ok) {
-          console.error(`\n⚠ ${report.flagged.length} non-standard license(s) — review before distributing:`);
+          console.error(`\n⚠ ${report.flagged.length} non-standard license(s), review before distributing:`);
           for (const f of report.flagged) console.error(`    ${f.name}@${f.version}  ${f.license}`);
         } else {
           console.log(`\n✓ all bundled licenses are standard permissive / embeddable.`);

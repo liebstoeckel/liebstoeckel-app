@@ -13,10 +13,10 @@ export interface ConnectOptions {
   reconnectBaseMs?: number;
   reconnectMaxMs?: number;
   /** force-reconnect if no frame (incl. server keepalives) arrives within this
-   *  window — detects half-open sockets the browser won't `close`. 0 = disabled. */
+   *  window, detects half-open sockets the browser won't `close`. 0 = disabled. */
   staleMs?: number;
   /** After this many consecutive failed (re)connect attempts the session is likely
-   *  *gone* (re-provisioned to a new relay session) rather than a transient blip — so
+   *  *gone* (re-provisioned to a new relay session) rather than a transient blip, so
    *  retrying the same URL will 403 forever ((internal ADR) §5 / (internal ticket)). Fire
    *  `onUnrecoverable` once to recover via the stable link. 0 = never (default). */
   reloadAfterAttempts?: number;
@@ -74,7 +74,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   };
 
   // watchdog: if the socket is OPEN but we've heard nothing within staleMs, the
-  // connection is likely half-open — drop it so `close` triggers a reconnect.
+  // connection is likely half-open, drop it so `close` triggers a reconnect.
   if (staleMs > 0) {
     const period = Math.min(Math.max(Math.floor(staleMs / 3), 20), 30000);
     watchdog = setInterval(() => {

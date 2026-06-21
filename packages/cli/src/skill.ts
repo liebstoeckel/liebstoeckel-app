@@ -5,7 +5,7 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 /**
- * `liebstoeckel skill install` — materialize the bundled `liebstoeckel-deck` Skill
+ * `liebstoeckel skill install`, materialize the bundled `liebstoeckel-deck` Skill
  * into a deck for whichever agents the user runs ((internal ADR)). One canonical source
  * (shipped in this package, version-pinned to the CLI) is placed at each agent's
  * expected path, and a universal `AGENTS.md` block is written as the fallback for
@@ -59,7 +59,7 @@ async function writeSkill(destRoot: string, version: string): Promise<void> {
 const AGENTS_BLOCK_RE = /<!-- liebstoeckel:start -->[\s\S]*?<!-- liebstoeckel:end -->/;
 
 /** Merge the managed liebstoeckel block into an AGENTS.md body: replace it in place
- *  if present (idempotent), else append it. Pure — the unit-test anchor. */
+ *  if present (idempotent), else append it. Pure, the unit-test anchor. */
 export function mergeAgentsBlock(existing: string, block: string): string {
   const b = block.trim();
   if (AGENTS_BLOCK_RE.test(existing)) return existing.replace(AGENTS_BLOCK_RE, b);
@@ -95,7 +95,7 @@ async function applySkill(sub: "install" | "update", deckDir: string, targetArg:
     // rewritten); installing NEW agent paths stays `install`'s job.
     targets = ALL_TARGETS.filter((t) => existsSync(join(deckDir, SKILL_DIR[t])));
     if (targets.length === 0 && !existsSync(join(deckDir, "AGENTS.md"))) {
-      console.error(`✕ no liebstoeckel skill installed in ${deckDir} — run: liebstoeckel skill install`);
+      console.error(`✕ no liebstoeckel skill installed in ${deckDir}, run: liebstoeckel skill install`);
       process.exit(1);
     }
   } else {
@@ -103,7 +103,7 @@ async function applySkill(sub: "install" | "update", deckDir: string, targetArg:
     targets =
       !tArg || tArg === "all" ? ALL_TARGETS : (tArg.split(",").filter((t): t is Target => (ALL_TARGETS as string[]).includes(t)));
     if (targets.length === 0) {
-      console.error(`unknown --target "${tArg}" — use one or more of: ${ALL_TARGETS.join(", ")}, or all`);
+      console.error(`unknown --target "${tArg}", use one or more of: ${ALL_TARGETS.join(", ")}, or all`);
       process.exit(1);
     }
   }
@@ -125,7 +125,7 @@ async function applySkill(sub: "install" | "update", deckDir: string, targetArg:
         written.push(join(".cursor", "rules", "liebstoeckel.mdc"));
       }
     }
-    // AGENTS.md is the universal fallback — always write it
+    // AGENTS.md is the universal fallback, always write it
     await writeAgentsBlock(deckDir);
     written.push("AGENTS.md");
 
@@ -160,7 +160,7 @@ const skillUpdateCommand = defineCommand({
   run: ({ args }) => applySkill("update", args.dir ?? ".", undefined),
 });
 
-/** `liebstoeckel skill install|update` — manage the bundled deck-authoring Skill. */
+/** `liebstoeckel skill install|update`, manage the bundled deck-authoring Skill. */
 export const skillCommand = defineCommand({
   meta: { name: "skill", description: "install/refresh the agent skill for deck authoring" },
   subCommands: { install: skillInstallCommand, update: skillUpdateCommand },

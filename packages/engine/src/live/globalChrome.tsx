@@ -22,7 +22,7 @@ interface PanelController {
   close: () => void;
 }
 
-/** A lightweight popover for a global plugin Panel — portaled to device scale and
+/** A lightweight popover for a global plugin Panel, portaled to device scale and
  *  anchored just above the chrome rail (bottom-left), with a transparent outside-
  *  click catcher and NO backdrop blur/dim. Unlike the focus-stealing `BreakoutSheet`
  *  (used for full interactive breakouts like Q&A), a quick, frequent action such as
@@ -141,7 +141,7 @@ function PanelHost({ ctx, id, def, open, onClose, coarse }: { ctx: LiveContextVa
 
 /** Wires the global plugin controls into the chrome ((internal ADR)). Returns the rail
  *  triggers (pinned + custom on touch, all on desktop), the `⋮` menu rows for the rest
- *  (touch only — the rail can't overflow), and the centrally-hosted panels. One panel
+ *  (touch only, the rail can't overflow), and the centrally-hosted panels. One panel
  *  open at a time. */
 export function usePluginChrome(): { rail: ReactNode; menuActions: PluginMenuAction[]; panels: ReactNode } {
   const ctx = useLive();

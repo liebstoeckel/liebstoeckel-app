@@ -93,7 +93,7 @@ export async function startServer(opts: ServeOptions): Promise<LiveServer> {
     },
     websocket: {
       // Bun auto-sends pings (sendPings default) and closes connections idle past
-      // this window — so a dead client is detected and its peer cleaned up.
+      // this window, so a dead client is detected and its peer cleaned up.
       idleTimeout: 120,
       open(ws) {
         ws.data.peer = hub.join((d) => ws.send(d));

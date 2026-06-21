@@ -4,7 +4,7 @@ import { resolveTouchGesture, NO_NAV_SELECTOR } from "./mobile";
 /** Touch navigation: horizontal swipe + edge tap-zones, resolved by the pure
  *  `resolveTouchGesture`. Reuses `onNext`/`onPrev` so step-reveals still run before
  *  a slide change. Enable only where navigation is the user's job (standalone +
- *  presenter) — a live viewer follows the presenter. Gestures on interactive
+ *  presenter), a live viewer follows the presenter. Gestures on interactive
  *  elements (buttons, the plugin region) are ignored. */
 export function useTouchNav(opts: { enabled: boolean; onNext: () => void; onPrev: () => void }) {
   const { enabled, onNext, onPrev } = opts;
@@ -45,7 +45,7 @@ export function useTouchNav(opts: { enabled: boolean; onNext: () => void; onPrev
 
 /** True when a key event originates from a text-editable element. Typing in a
  *  plugin's input (e.g. the Q&A question box) must NOT trigger the global deck
- *  shortcuts — otherwise `f`/`o`/space/arrows/Enter drive the deck while you type.
+ *  shortcuts, otherwise `f`/`o`/space/arrows/Enter drive the deck while you type.
  *  Duck-typed (reads `tagName`/`isContentEditable`) so it's unit-testable without a
  *  DOM. */
 export function isEditableTarget(target: EventTarget | null): boolean {

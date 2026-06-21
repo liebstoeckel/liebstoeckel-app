@@ -15,7 +15,7 @@ const BASE_HTML = "<html><head><title>deck</title></head><body><div id=root></di
 // A synthetic plugin schema owned by this test. live-server / present-relay are
 // plugin-agnostic: they sync opaque, plugin-owned typed state addressed by id and
 // never reference any concrete plugin's schema (that's what lets a non-liebstoeckel
-// dev's plugin sync with zero server changes — (internal ADR)). So the test brings its
+// dev's plugin sync with zero server changes, (internal ADR)). So the test brings its
 // own schema rather than borrowing a real plugin's, same spirit as `@acme/seed`.
 const voteSchema = schema({ options: t.array(t.string), votes: t.record(t.string) });
 const countByOption = (s: { options: string[]; votes: Record<string, string> }) =>
@@ -79,8 +79,7 @@ describe("relay end-to-end (deck code stays local)", () => {
     );
     expect(runner.plugins).toEqual(["@acme/seed"]);
 
-    // a public viewer connects to the relay and should observe the seeded state —
-    // produced by the runner's server plugin, never executed on the relay itself
+    // a public viewer connects to the relay and should observe the seeded state, // produced by the runner's server plugin, never executed on the relay itself
     const viewer = track(
       connectLive(
         { ws: `${info.urls.sync}?t=${info.viewerToken}`, session: info.id, role: "viewer", token: info.viewerToken },

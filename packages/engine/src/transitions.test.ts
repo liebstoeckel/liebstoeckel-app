@@ -19,7 +19,7 @@ describe("resolveTransition", () => {
   });
 
   test("an unknown name falls back to the default", () => {
-    // @ts-expect-error — exercising the runtime fallback for a bad value
+    // @ts-expect-error, exercising the runtime fallback for a bad value
     expect(resolveTransition("nope")).toBe(TRANSITIONS[DEFAULT_TRANSITION]);
   });
 
@@ -31,7 +31,7 @@ describe("resolveTransition", () => {
     expect(resolveTransition(custom)).toBe(custom);
   });
 
-  test("reduced motion wins over any request — no transform/blur, just opacity", () => {
+  test("reduced motion wins over any request, no transform/blur, just opacity", () => {
     const r = resolveTransition("slide", true);
     expect(r.variants.center).toEqual({ opacity: 1 });
     // none of the variant states carry x / scale / filter under reduced motion

@@ -2,7 +2,7 @@
 // CACHED registry check and refreshes that cache in a detached background child,
 // so no command ever waits on the network. The check shells out to
 // `bun pm view`, so registry resolution (scoped .npmrc / bunfig) matches
-// installs exactly — Verdaccio today, public npm later, with zero config here.
+// installs exactly, Verdaccio today, public npm later, with zero config here.
 // The same module also compares a deck's installed agent skill (version-pinned
 // by `skill install`) against the running CLI and points at `skill update`.
 //
@@ -80,7 +80,7 @@ export async function updateReminder(argv: string[]): Promise<void> {
   const state = await readState();
   const current = await cliVersion();
   if (state && isNewer(state.latest, current)) {
-    console.error(`↑ ${PKG} ${state.latest} is available (you run ${current}) — update: bun update --latest ${PKG}`);
+    console.error(`↑ ${PKG} ${state.latest} is available (you run ${current}), update: bun update --latest ${PKG}`);
   }
   if (shouldRefresh(state, Date.now())) {
     // Detached child re-runs THIS file (import.meta.main → refresh()). It inherits
@@ -116,7 +116,7 @@ export async function skillReminder(deckDir: string, argv: string[]): Promise<vo
   if (!installed) return;
   const current = await cliVersion();
   if (isNewer(current, installed)) {
-    console.error(`↑ this deck's agent skill is v${installed}, the CLI is v${current} — refresh: liebstoeckel skill update`);
+    console.error(`↑ this deck's agent skill is v${installed}, the CLI is v${current}, refresh: liebstoeckel skill update`);
   }
 }
 

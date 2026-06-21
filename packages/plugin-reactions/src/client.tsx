@@ -134,7 +134,7 @@ function ReactionsOverlay({ snapshot, state }: ClientProps<ReactionsState>) {
   );
 }
 
-/** A line icon matching the engine's chrome/share/maximize SVGs (stroke, 24 grid) — a
+/** A line icon matching the engine's chrome/share/maximize SVGs (stroke, 24 grid), a
  *  smiley, since reactions are emoji feedback. Keeps the rail visually consistent. */
 function ReactionsIcon() {
   return (

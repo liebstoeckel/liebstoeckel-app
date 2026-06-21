@@ -10,9 +10,9 @@ function uuid(): string {
 }
 
 /** sessionStorage, or undefined if it isn't usable. Merely *accessing* the
- *  property throws ("Access is denied") in an opaque origin — a sandboxed deck
+ *  property throws ("Access is denied") in an opaque origin, a sandboxed deck
  *  (relay's `CSP: sandbox`) or a `setContent`/`data:` document (thumbnail capture)
- *  — so the access itself must be guarded, not just a typeof check. */
+ * , so the access itself must be guarded, not just a typeof check. */
 function safeSessionStorage(): Store | undefined {
   try {
     const s = sessionStorage;
@@ -24,8 +24,7 @@ function safeSessionStorage(): Store | undefined {
 
 /** Stable id for this browser session (one session = one participant). Persists
  *  in sessionStorage so a reload keeps identity (no double-counting votes). When
- *  storage is denied (opaque origin), falls back to an ephemeral per-load id —
- *  navigation still works; identity just doesn't survive a reload there. */
+ *  storage is denied (opaque origin), falls back to an ephemeral per-load id, *  navigation still works; identity just doesn't survive a reload there. */
 export function getParticipantId(storage?: Store): string {
   const store = storage ?? safeSessionStorage();
   if (!store) return uuid();

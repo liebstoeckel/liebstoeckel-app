@@ -31,7 +31,7 @@ export interface HubOptions {
   keepaliveMs?: number;
   /** if set, `audience`-role peers are write-scope enforced ((internal ADR)): updates that
    *  touch anything outside the scope are dropped, not applied. Absent → no
-   *  enforcement (every peer may write — the local/LAN trusted model, (internal ADR)). */
+   *  enforcement (every peer may write, the local/LAN trusted model, (internal ADR)). */
   audience?: AudiencePolicy;
 }
 
@@ -79,7 +79,7 @@ export class Hub {
     return this.peers.size;
   }
 
-  /** Encode the full doc state as opaque Yjs update bytes — for persisting a session
+  /** Encode the full doc state as opaque Yjs update bytes, for persisting a session
    *  snapshot to object storage ((internal ADR)). Persisting bytes runs no deck code. */
   snapshot(): Uint8Array {
     return Y.encodeStateAsUpdate(this.doc);
@@ -102,7 +102,7 @@ export class Hub {
 
     // An audience peer is write-scope enforced when a policy is configured ((internal ADR));
     // presenter/runner peers are trusted and write the whole doc. With no policy the
-    // Hub is the open, trusted relay ((internal ADR)) — every peer may write.
+    // Hub is the open, trusted relay ((internal ADR)), every peer may write.
     const enforced = role === "audience" && this.audience !== undefined;
     const bucket: TokenBucket | undefined =
       enforced && this.audience!.rate

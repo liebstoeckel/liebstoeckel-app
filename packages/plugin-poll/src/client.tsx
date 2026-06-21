@@ -71,7 +71,7 @@ function PollSlide(p: ClientProps<PollState>) {
 }
 
 /** Presenter console: the big live tally plus the privileged close/reopen control.
- *  Toggling `closed` is an audience-affecting action — the Slide reads it and locks
+ *  Toggling `closed` is an audience-affecting action, the Slide reads it and locks
  *  voting on the audience screen ((internal ADR)). */
 function PollConsole(p: ClientProps<PollState>) {
   const { snapshot, state, role } = p;
@@ -91,7 +91,7 @@ function PollConsole(p: ClientProps<PollState>) {
 }
 
 /** No live server → static preview. Prefers the author's configured question /
- *  options (props), then any seeded snapshot, then a generic placeholder — so the
+ *  options (props), then any seeded snapshot, then a generic placeholder, so the
  *  standalone .html and the build-time thumbnail both show the real poll. */
 function PollFallback({ snapshot, props = {} }: { snapshot: PollState; props?: Record<string, unknown> }) {
   const question = snapshot.question || (props.question as string) || "Live poll";
@@ -119,7 +119,7 @@ function PollFallback({ snapshot, props = {} }: { snapshot: PollState; props?: R
   );
 }
 
-/** A bar-chart line icon (stroke, 24 grid) matching the engine's chrome SVGs — for the
+/** A bar-chart line icon (stroke, 24 grid) matching the engine's chrome SVGs, for the
  *  presenter tab, so Poll looks consistent with the rest of the UI. */
 function PollIcon() {
   return (

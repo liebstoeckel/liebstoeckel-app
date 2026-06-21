@@ -31,7 +31,7 @@ function usePresenterInstances(ctx: LiveContextValue | null): Inst[] {
   return list;
 }
 
-// Notes container — matches the panel the presenter view used before tabs existed, so a
+// Notes container, matches the panel the presenter view used before tabs existed, so a
 // deck with no presenter instances looks the same ((internal ADR)).
 const NOTES_CLASS: Record<Variant, string> = {
   desktop:
@@ -84,7 +84,7 @@ function instLabel(inst: Inst, snapshot: unknown): string {
   return s.title?.(snapshot as never) || inst.title || inst.instance || s.label;
 }
 
-/** Dropdown trigger — shows the selected instance's label on one truncated line. */
+/** Dropdown trigger, shows the selected instance's label on one truncated line. */
 function InstanceTrigger({ ctx, inst, open, onToggle, variant }: { ctx: LiveContextValue; inst: Inst; open: boolean; onToggle: () => void; variant: Variant }) {
   const props = usePluginProps(ctx, inst.type, inst.def, {}, inst.instance);
   return (
@@ -104,7 +104,7 @@ function InstanceTrigger({ ctx, inst, open, onToggle, variant }: { ctx: LiveCont
   );
 }
 
-/** One row in the open instance menu — full label (wraps), check when selected, + badge. */
+/** One row in the open instance menu, full label (wraps), check when selected, + badge. */
 function InstanceMenuItem({ ctx, inst, selected, onPick }: { ctx: LiveContextValue; inst: Inst; selected: boolean; onPick: () => void }) {
   const props = usePluginProps(ctx, inst.type, inst.def, {}, inst.instance);
   const surface = inst.def.client.presenter!;
@@ -155,7 +155,7 @@ function Console({ ctx, inst, variant }: { ctx: LiveContextValue; inst: Inst; va
   const box = variant === "mobile" ? "mx-4 mb-3 p-4" : "p-5";
   // Namespace the console's Motion layout tree so a plugin whose UI uses `layoutId`
   // (e.g. Q&A's ranked rows) doesn't share layout identity with the SAME slide rendered
-  // live in the presenter's preview Thumb — which sits inside the ScaledStage's
+  // live in the presenter's preview Thumb, which sits inside the ScaledStage's
   // `transform`. Without this, Motion treats the two as one shared element and morphs
   // across the scale boundary (the (internal ADR) hazard).
   return (
@@ -193,7 +193,7 @@ function FocusControl({ focused, onToggle }: { focused: boolean; onToggle: () =>
 /** The presenter view's dominant content region: a tab strip switching between the
  *  speaker **Notes** (default) and **one tab per plugin type** that exposes a presenter
  *  surface ((internal ADR)/0033). A type with several instances exposes them through a compact
- *  dropdown in the console header — not one tab each ((internal ADR)). Plus a maximize toggle ((internal ADR)).
+ *  dropdown in the console header, not one tab each ((internal ADR)). Plus a maximize toggle ((internal ADR)).
  *  Identical structure desktop/mobile; with no instances the strip is just the notes label. */
 export function PresenterPanel({
   notes,
@@ -255,7 +255,7 @@ export function PresenterPanel({
         {onToggleFocus && variant === "desktop" && <FocusControl focused={focused} onToggle={onToggleFocus} />}
       </div>
 
-      {/* instance switcher (dropdown) for the selected multi-instance type — keeps long
+      {/* instance switcher (dropdown) for the selected multi-instance type, keeps long
           poll questions out of the strip ((internal ADR)) */}
       {ctx && pickerFor && (
         <InstanceDropdown
@@ -268,7 +268,7 @@ export function PresenterPanel({
       )}
 
       {/* key by selection: switching reuses this slot, but each instance's state may have a
-          different shape — without a remount the console would render one frame with the
+          different shape, without a remount the console would render one frame with the
           previous instance's snapshot (e.g. a poll snapshot reaching the Q&A console) and
           throw. The key forces a fresh mount → correct initial snapshot. */}
       {showingNotes ? (

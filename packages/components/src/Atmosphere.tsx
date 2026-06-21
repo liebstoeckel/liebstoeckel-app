@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 // a fine film-grain overlay (SVG turbulence), and a vignette. Pure decoration,
 // behind all content. Brand-aware via --brand-glow-* / --brand-accent.
 //
-// `still` renders the motionless variant (no infinite drift) — used by the
+// `still` renders the motionless variant (no infinite drift), used by the
 // build-time thumbnail capture and static thumbnails, so a screenshot is
 // deterministic and the overview never runs N infinite animations.
 export function Atmosphere({ still = false }: { still?: boolean }) {
@@ -27,7 +27,7 @@ export function Atmosphere({ still = false }: { still?: boolean }) {
         className="absolute inset-x-0 top-0 h-px"
         style={{ background: "linear-gradient(90deg, transparent, var(--brand-accent), transparent)", opacity: 0.35 }}
       />
-      {/* film grain — tagged so the vector-PDF print view can drop it (an
+      {/* film grain, tagged so the vector-PDF print view can drop it (an
           feTurbulence layer rasterizes to a huge full-page bitmap in print). */}
       <svg data-atmosphere-grain className="absolute inset-0 h-full w-full opacity-[0.05] mix-blend-overlay">
         <filter id="atmo-grain">

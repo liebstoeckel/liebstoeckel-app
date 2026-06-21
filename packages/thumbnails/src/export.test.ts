@@ -156,7 +156,7 @@ describe.skipIf(!hasChromium)("exportDeck (headless)", () => {
 // vector driver is tested in isolation: it reports a count, lays out the selected
 // slides as real DOM text, and echoes the select token into PRINT_READY.
 // Crucially this stub reproduces the deck's *fullscreen* CSS (html,body fill the
-// viewport and clip overflow) — the condition that made page.pdf() emit a single
+// viewport and clip overflow), the condition that made page.pdf() emit a single
 // clipped page until PrintView overrode it. The page-count assertion guards that.
 const PRINT_STUB = `<!doctype html><html><head><meta charset=utf-8>
 <style>html,body{height:100%;margin:0;overflow:hidden}</style></head><body>
@@ -214,7 +214,7 @@ describe.skipIf(!hasChromium)("printDeckPdf (vector, headless)", () => {
     expect(new TextDecoder("latin1").decode(pdf.subarray(0, 8))).toBe("%PDF-1.4");
     // real DOM text → embedded fonts + text-show operators (not a raster image)
     expect(textOps(pdf)).toBeGreaterThan(0);
-    // one page per selected slide — regression guard against the fullscreen-CSS clip
+    // one page per selected slide, regression guard against the fullscreen-CSS clip
     // that made page.pdf() emit a single page (the stub reproduces that CSS).
     const s = new TextDecoder("latin1").decode(pdf);
     expect(s).toContain("/Count 3");

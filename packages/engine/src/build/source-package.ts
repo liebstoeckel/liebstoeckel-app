@@ -10,7 +10,7 @@ import { SOURCE_ATTR } from "./source-attr";
 // then repacks gzip→zstd for the in-HTML embed. Everything here is Bun-native (no deps),
 // so the engine never grows a dependency for this.
 
-/** Inert <script> carrier — mirrors plugin-sdk's `embedManifest` (browser never parses it).
+/** Inert <script> carrier, mirrors plugin-sdk's `embedManifest` (browser never parses it).
  *  Defined in `source-attr.ts` so browser runtime can read it without this packer. */
 export { SOURCE_ATTR };
 
@@ -34,9 +34,9 @@ export interface CollectOptions {
 }
 
 export interface DeckTarball {
-  /** pack's native gzip `.tgz` bytes — npm/`bun add`-compatible. */
+  /** pack's native gzip `.tgz` bytes, npm/`bun add`-compatible. */
   gzip: Uint8Array<ArrayBuffer>;
-  /** repacked zstd of pack's (already-normalized) tar — the in-HTML embed payload. */
+  /** repacked zstd of pack's (already-normalized) tar, the in-HTML embed payload. */
   zstd: Uint8Array<ArrayBuffer>;
   /** deck-relative paths in the package (the `package/` prefix stripped). */
   files: string[];
@@ -90,9 +90,9 @@ export async function collectDeckTarball(dir: string, opts: CollectOptions = {})
       .filter(Boolean);
 
     // pack default-ignores bunfig.toml; if the deck has one but it wasn't packed (not in
-    // `files`), the ejected deck loses its dev-server plugins — warn, don't fail.
+    // `files`), the ejected deck loses its dev-server plugins, warn, don't fail.
     if (existsSync(join(dir, "bunfig.toml")) && !files.includes("bunfig.toml")) {
-      console.warn('⚠ bunfig.toml is not in the deck\'s "files" — the ejected deck won\'t run in dev mode');
+      console.warn('⚠ bunfig.toml is not in the deck\'s "files", the ejected deck won\'t run in dev mode');
     }
 
     // ── fail-closed gate ──────────────────────────────────────────────
@@ -111,7 +111,7 @@ export async function collectDeckTarball(dir: string, opts: CollectOptions = {})
     }
     if (violations.length && !opts.allowSecret) {
       throw new Error(
-        `Refusing to embed source — likely secrets:\n  ${violations.join("\n  ")}\n` +
+        `Refusing to embed source, likely secrets:\n  ${violations.join("\n  ")}\n` +
           `Add a "files" allowlist (or .npmignore) to the deck's package.json, or pass --allow-secret.`,
       );
     }
@@ -159,17 +159,17 @@ export async function ejectSource(html: string, outDir: string, opts: EjectOptio
   const zstd = extractSource(html);
   if (!zstd) {
     throw new Error(
-      "no embedded source package in this HTML — it was built with --no-inline-package " +
+      "no embedded source package in this HTML, it was built with --no-inline-package " +
         "(or by an older build). Rebuild without that flag to make the deck ejectable.",
     );
   }
-  if (zstd.length > MAX_COMPRESSED) throw new Error("embedded source package is implausibly large — refusing to eject");
+  if (zstd.length > MAX_COMPRESSED) throw new Error("embedded source package is implausibly large, refusing to eject");
 
   const tar = Bun.zstdDecompressSync(zstd);
-  if (tar.length > MAX_DECOMPRESSED) throw new Error("decompressed source exceeds the size cap — refusing to eject");
+  if (tar.length > MAX_DECOMPRESSED) throw new Error("decompressed source exceeds the size cap, refusing to eject");
 
   const names = tarEntryNames(tar);
-  if (names.length > MAX_ENTRIES) throw new Error("source package has too many entries — refusing to eject");
+  if (names.length > MAX_ENTRIES) throw new Error("source package has too many entries, refusing to eject");
   for (const n of names) {
     if (n.startsWith("/") || n.split("/").some((seg) => seg === "..")) {
       throw new Error(`unsafe path in source package: ${n}`);
@@ -177,7 +177,7 @@ export async function ejectSource(html: string, outDir: string, opts: EjectOptio
   }
 
   if (existsSync(outDir) && readdirSync(outDir).length > 0 && !opts.force) {
-    throw new Error(`${outDir} is not empty — pass force to overwrite`);
+    throw new Error(`${outDir} is not empty, pass force to overwrite`);
   }
 
   // Extract to a temp dir (Bun.Archive clamps traversal), then lift package/* into outDir.

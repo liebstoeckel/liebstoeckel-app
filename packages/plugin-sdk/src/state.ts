@@ -4,7 +4,7 @@ import { instanceStateKey } from "./instances";
 
 // Maps a plugin's typed state onto a Y.Map at `plugin:<id>` (or `plugin:<id>:<instance>`
 // for a named instance, (internal ADR)). Object/record fields
-// become nested Y.Maps (concurrent writes merge — e.g. poll votes); arrays become
+// become nested Y.Maps (concurrent writes merge, e.g. poll votes); arrays become
 // Y.Arrays. Reads come back as plain JS, validated against the schema's defaults.
 
 function toY(v: unknown): unknown {

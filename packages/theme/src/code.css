@@ -1,7 +1,7 @@
 /* Code views. Static fenced blocks are highlighted at build time by Shiki using
    its css-variables theme, which emits color:var(--shiki-token-*). We bind those
    variables to the active brand below, so code is on-palette and re-skins with
-   [data-brand] — no hand-maintained per-brand syntax theme. CodeMagic (animated)
+   [data-brand], with no hand-maintained per-brand syntax theme. CodeMagic (animated)
    reuses the same token colors. */
 [data-brand] {
   --shiki-foreground: var(--brand-text);
@@ -32,7 +32,7 @@
 .shiki {
   margin: 0;
   padding: 1.3rem 1.6rem;
-  /* clip rather than scroll — a scrollbar on a slide reads as overflow the author
+  /* clip rather than scroll: a scrollbar on a slide reads as overflow the author
      should fix; keep code sized to the canvas. */
   overflow: hidden;
   font-family: var(--brand-font-mono);
@@ -84,7 +84,7 @@
 .pi-codemagic {
   margin: 0;
   padding: 1.35rem 1.6rem;
-  /* never scroll — clip instead. Mid-morph the FLIP'd lines briefly overflow the
+  /* never scroll, clip instead. Mid-morph the FLIP'd lines briefly overflow the
      box and `overflow: auto` would flash scrollbars; code on a slide should fit. */
   overflow: hidden;
   background: transparent;

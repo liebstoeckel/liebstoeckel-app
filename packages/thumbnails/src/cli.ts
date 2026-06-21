@@ -38,7 +38,7 @@ export const thumbsCommand = defineCommand({
   async run({ args }) {
     const file = args.deck;
     if (!file) {
-      console.error("error: missing <deck.html> — the built deck to thumbnail");
+      console.error("error: missing <deck.html>, the built deck to thumbnail");
       process.exit(1);
     }
     const abs = resolve(file);
@@ -85,7 +85,7 @@ function deckBaseName(target: string): string {
 
 /** Resolve the export input to a built deck HTML string. A `.html` file is read
  *  directly; a deck source directory is bundled to a temp dir first (thumbnails
- *  skipped — export does its own rendering), so `export <dir>` works in one shot. */
+ *  skipped, export does its own rendering), so `export <dir>` works in one shot. */
 async function resolveDeckHtml(target: string): Promise<{ html: string; base: string }> {
   const abs = resolve(target);
   let isFile = false;
@@ -145,7 +145,7 @@ export const exportCommand = defineCommand({
     const out = args.out;
     const format = inferFormat(args.format, out);
     // PNG writes one file per slide into a directory; a `.png`-looking `-o` is almost
-    // always a mistake (you'd get a directory literally named "foo.png") — warn ((internal ticket)).
+    // always a mistake (you'd get a directory literally named "foo.png"), warn ((internal ticket)).
     if (format === "png" && out && /\.png$/i.test(out)) {
       process.stderr.write(
         `⚠  --format png writes one file per slide into a DIRECTORY; "-o ${out}" will be a directory (created if needed), not a single PNG.\n`,

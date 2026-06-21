@@ -4,16 +4,16 @@ import { REGISTRY_ROOT } from "@liebstoeckel/registry";
 import { validateItem, type RegistryIndex, type RegistryItem } from "@liebstoeckel/registry/schema";
 
 /**
- * `liebstoeckel registry list|view` — agent-readable discovery over the bundled
+ * `liebstoeckel registry list|view`, agent-readable discovery over the bundled
  * default registry ((internal ADR)). Output is JSON when `--json` is passed OR when stdout
  * is not a TTY (so an agent piping the command always gets structured data), and a
  * compact human view on an interactive terminal.
  *
- * Third-party / namespaced registries ((internal ADR)) are not resolved here yet — this
+ * Third-party / namespaced registries ((internal ADR)) are not resolved here yet, this
  * reads the bundled `@liebstoeckel` registry directly.
  */
 
-// JSON when asked, or when piped (an agent) — pretty only on an interactive TTY ((internal ADR)).
+// JSON when asked, or when piped (an agent), pretty only on an interactive TTY ((internal ADR)).
 const wantsJson = (json: boolean | undefined): boolean => !!json || !process.stdout.isTTY;
 
 const readIndex = (): Promise<RegistryIndex> =>
@@ -21,7 +21,7 @@ const readIndex = (): Promise<RegistryIndex> =>
 
 async function readItem(name: string): Promise<RegistryItem> {
   const f = Bun.file(join(REGISTRY_ROOT, "items", `${name}.json`));
-  if (!(await f.exists())) throw new Error(`registry item "${name}" not found — try \`liebstoeckel registry list\``);
+  if (!(await f.exists())) throw new Error(`registry item "${name}" not found, try \`liebstoeckel registry list\``);
   const item = (await f.json()) as RegistryItem;
   validateItem(item);
   return item;
@@ -116,7 +116,7 @@ const registryViewCommand = defineCommand({
   },
 });
 
-/** `liebstoeckel registry list|view` — agent-readable discovery ((internal ADR)). */
+/** `liebstoeckel registry list|view`, agent-readable discovery ((internal ADR)). */
 export const registryCommand = defineCommand({
   meta: { name: "registry", description: "browse the chart/component registry (JSON for agents)" },
   subCommands: { list: registryListCommand, view: registryViewCommand },

@@ -3,7 +3,7 @@ import { instanceStateKey, readPluginInstances, type PluginInstanceEntry } from 
 
 // Deck-free, browser-free decode of a persisted live session ((internal ADR)). The relay
 // snapshots the Yjs doc as opaque update bytes; the dashboard reads results back by
-// decoding plugin state from those bytes server-side — no deck code runs, just the
+// decoding plugin state from those bytes server-side, no deck code runs, just the
 // same schema→Y.Map mapping as state.ts, in reverse. The pure plugin derivations
 // (tally / rankedQuestions / …) then consume the decoded plain-JS state.
 
@@ -21,7 +21,7 @@ function toJS(v: unknown): unknown {
 /**
  * Decode one plugin instance's state from a Yjs snapshot to plain JS, or null if the
  * slice is empty/absent. Fields not present fall to the plugin's own defaults when the
- * caller validates against its schema — this returns exactly what was in the doc.
+ * caller validates against its schema, this returns exactly what was in the doc.
  */
 export function decodePluginState(
   snapshot: Uint8Array,

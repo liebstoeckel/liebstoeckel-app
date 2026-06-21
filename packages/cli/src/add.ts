@@ -9,7 +9,7 @@ import {
 } from "@liebstoeckel/registry/schema";
 
 /**
- * `liebstoeckel add` — scaffold registry items into a deck as owned source
+ * `liebstoeckel add`, scaffold registry items into a deck as owned source
  * ((internal ADR)), resolved over a pluggable transport ((internal ADR)). The resolver core
  * (`resolveScaffold`) is pure given a transport, so it is unit-tested with an
  * in-memory transport; only `runAdd` touches disk / spawns `bun add`.
@@ -33,7 +33,7 @@ function assertSafeRelPath(p: string): void {
 }
 
 /**
- * Reads a registry laid out as a local directory — the default/workspace registry,
+ * Reads a registry laid out as a local directory, the default/workspace registry,
  * and also how an npm/git carrier is read once installed to a temp dir ((internal ADR)).
  */
 export function localTransport(root: string, id = "@liebstoeckel"): RegistryTransport {
@@ -52,15 +52,15 @@ export function localTransport(root: string, id = "@liebstoeckel"): RegistryTran
 }
 
 /**
- * Reads a registry over authenticated HTTP — an org's cloud registry, or any
+ * Reads a registry over authenticated HTTP, an org's cloud registry, or any
  * `https://…` registry configured in `liebstoeckel.json` ((internal ADR)/0059). Speaks
  * the same protocol: `<base>/items/<name>.json` and `<base>/files/<path>`.
  */
 export function httpTransport(baseUrl: string, headers: Record<string, string>, id: string): RegistryTransport {
   const base = baseUrl.replace(/\/+$/, "");
   const fail = (what: string, res: Response): Error => {
-    if (res.status === 401) return new Error(`registry ${id}: not signed in — run \`liebstoeckel login\``);
-    if (res.status === 403) return new Error(`registry ${id}: forbidden (membership/plan) — check \`liebstoeckel orgs\``);
+    if (res.status === 401) return new Error(`registry ${id}: not signed in, run \`liebstoeckel login\``);
+    if (res.status === 403) return new Error(`registry ${id}: forbidden (membership/plan), check \`liebstoeckel orgs\``);
     return new Error(`registry ${id}: ${what} (HTTP ${res.status})`);
   };
   return {
@@ -87,7 +87,7 @@ export async function orgRegistryAuth(): Promise<{ baseUrl: string; headers: Rec
   const { loadCreds } = await import("./creds");
   const creds = await loadCreds();
   if (!creds?.token || !creds.api) {
-    throw new Error("the @org registry needs login — run `liebstoeckel login --api <host>`");
+    throw new Error("the @org registry needs login, run `liebstoeckel login --api <host>`");
   }
   const headers: Record<string, string> = { authorization: `Bearer ${creds.token}` };
   if (creds.org) headers["x-org-slug"] = creds.org;
@@ -184,7 +184,7 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
     return httpTransport(baseUrl, headers, ns);
   }
   if (spec == null) {
-    throw new Error(`no registry configured for namespace "${ns}" — add it to liebstoeckel.json "registries"`);
+    throw new Error(`no registry configured for namespace "${ns}", add it to liebstoeckel.json "registries"`);
   }
   if (spec.startsWith(".") || spec.startsWith("/")) {
     return localTransport(resolve(deckDir, spec), ns);
@@ -202,13 +202,13 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
   }
   // (internal ADR) also lists npm/git transports as planned; not wired yet.
   throw new Error(
-    `registry transport "${spec}" (namespace ${ns}) is not implemented yet — ` +
+    `registry transport "${spec}" (namespace ${ns}) is not implemented yet, ` +
       `bundled default, local-path, @org, and http(s) registries are wired ((internal ADR) plans npm/git).`,
   );
 }
 
 /** Optional `add <category> <name>...` sugar: strip a leading **singular** category
- *  keyword (`chart`, `hook`, …) when at least one item name follows it. Pure — the
+ *  keyword (`chart`, `hook`, …) when at least one item name follows it. Pure, the
  *  category words are exactly `CATEGORIES`, never their plurals ((internal ticket)). */
 export function stripCategory(positionals: string[]): string[] {
   if (positionals.length >= 2 && (CATEGORIES as readonly string[]).includes(positionals[0]!)) {
@@ -263,7 +263,7 @@ async function runAdd(args: {
   const dry = !!args.dry;
   const force = !!args.force;
   const noInstall = args.install === false;
-  // JSON when asked, or when piped (an agent) — pretty only on an interactive TTY ((internal ADR)).
+  // JSON when asked, or when piped (an agent), pretty only on an interactive TTY ((internal ADR)).
   const json = !!args.json || !process.stdout.isTTY;
 
   try {
@@ -287,7 +287,7 @@ async function runAdd(args: {
       for (const d of plan.npmDependencies) deps.add(d);
     }
 
-    // plan — computed before writing ((internal ADR) review-before-write)
+    // plan, computed before writing ((internal ADR) review-before-write)
     const plan = files.map((f) => {
       const exists = existsSync(join(deckDir, f.target));
       const action = exists && !force ? "skip" : exists ? "overwrite" : "create";
@@ -297,7 +297,7 @@ async function runAdd(args: {
     const dependencies = [...deps];
 
     if (!json) {
-      console.log(`\nliebstoeckel add — ${items.join(", ")}  →  ${deckDir}\n`);
+      console.log(`\nliebstoeckel add ${items.join(", ")}  →  ${deckDir}\n`);
       for (const p of plan) console.log(`   ${(p.action === "skip" ? "skip (exists)" : p.action).padEnd(14)} ${p.target}   [${p.item}]`);
       if (dependencies.length) console.log(`\n   dependencies: ${dependencies.join(", ")}`);
     }
@@ -306,7 +306,7 @@ async function runAdd(args: {
       if (json) {
         console.log(JSON.stringify({ action: "plan", dir: deckDir, items, files: plan.map(({ file, ...p }) => p), dependencies }, null, 2));
       } else {
-        console.log(`\n   (dry run — nothing written)\n`);
+        console.log(`\n   (dry run, nothing written)\n`);
       }
       return;
     }
@@ -320,14 +320,14 @@ async function runAdd(args: {
       const proc = $`${process.execPath} add --ignore-scripts ${dependencies}`.cwd(deckDir);
       if (json) await proc.quiet();
       else {
-        console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped — use --force to overwrite)` : ""));
+        console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped, use --force to overwrite)` : ""));
         console.log(`   installing: bun add --ignore-scripts ${dependencies.join(" ")}`);
         await proc;
         console.log(`   ✓ dependencies installed`);
       }
       installed = true;
     } else if (!json) {
-      console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped — use --force to overwrite)` : ""));
+      console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped, use --force to overwrite)` : ""));
       if (deps.size) console.log(`   → install deps yourself: bun add --ignore-scripts ${dependencies.join(" ")}`);
     }
 

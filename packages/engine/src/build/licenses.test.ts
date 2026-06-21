@@ -140,7 +140,7 @@ describe("renderNotices + embed/extract roundtrip", () => {
 });
 
 describe("createLicenseCollector hook surface (regression)", () => {
-  // A catch-all `onResolve` — even one that returns undefined — is NOT inert in Bun's
+  // A catch-all `onResolve`, even one that returns undefined, is NOT inert in Bun's
   // bundler: registering it perturbs resolution enough to miscompile modules under
   // minification. A deck importing `@visx/shape` built with `minify: true` threw
   // `ReferenceError: <mangled> is not defined` from d3-shape and rendered nothing (so

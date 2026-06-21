@@ -1,6 +1,6 @@
 import { defineTheme } from "../defineTheme";
 
-// "liebstoeckel" — the house brand. Noir, all-grotesk: forest-charcoal ground,
+// "liebstoeckel", the house brand. Noir, all-grotesk: forest-charcoal ground,
 // warm gold primary, sage secondary; a single confident grotesk for display + body,
 // monospace for labels/code. The tokens below are the canonical brand spec.
 export const liebstoeckel = defineTheme({
@@ -21,7 +21,7 @@ export const liebstoeckel = defineTheme({
     body: '"Schibsted Grotesk Variable", system-ui, sans-serif',
     mono: '"JetBrains Mono Variable", ui-monospace, monospace',
   },
-  // chart-series palette — gold → sage → soft-gold → teal → terracotta → olive
+  // chart-series palette, gold → sage → soft-gold → teal → terracotta → olive
   viz: ["#c9a24b", "#9cae86", "#e0c580", "#6fa39b", "#c77d4a", "#b7c96b"],
   glow: { a: "#1d2a16", b: "#33280f" },
 });

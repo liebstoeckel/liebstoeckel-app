@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 /** Magic Move for *stateless* content: a persistent element whose className
  *  changes between slides. `layout` FLIP-animates the box delta (spring). For
  *  *stateful* elements (iframe/video/live app), use the engine's <Slot>/Persistent
- *  layer instead — re-rendering content here would not preserve internal state. */
+ *  layer instead, re-rendering content here would not preserve internal state. */
 export function Magic({
   id,
   className,

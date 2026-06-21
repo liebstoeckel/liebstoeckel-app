@@ -3,7 +3,7 @@
 // these.
 
 /** Below this stage scale, controls inside the scaled canvas are too small to tap
- *  comfortably — plugins offer a full-size breakout instead. */
+ *  comfortably, plugins offer a full-size breakout instead. */
 export const BREAKOUT_SCALE_MAX = 0.6;
 
 /** Should a plugin offer tap-to-expand rather than inline interaction?
@@ -53,7 +53,7 @@ export function resolveTouchGesture(g: TouchGesture, opts: { swipeMin?: number; 
   return null;
 }
 
-/** Selector for elements that own their own taps — touch nav ignores gestures here. */
+/** Selector for elements that own their own taps, touch nav ignores gestures here. */
 export const NO_NAV_SELECTOR = "button, a, input, textarea, select, [role=button], [data-pi-no-nav]";
 
 export const isPortrait = (w: number, h: number): boolean => h > w;

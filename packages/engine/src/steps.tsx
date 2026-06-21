@@ -18,8 +18,8 @@ interface StepsApi {
 const StepsCtx = createContext<StepsApi | null>(null);
 
 /** The index of the slide a subtree belongs to. During the AnimatePresence overlap
- *  the exiting slide still carries its own (old) index here, so descendants — e.g.
- *  a persistent `<Slot>` — can tell whether they're on the *current* slide. -1
+ *  the exiting slide still carries its own (old) index here, so descendants, e.g.
+ *  a persistent `<Slot>`, can tell whether they're on the *current* slide. -1
  *  outside any slide. */
 export const SlideIndexContext = createContext(-1);
 

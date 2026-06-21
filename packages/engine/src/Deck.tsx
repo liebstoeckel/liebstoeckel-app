@@ -34,12 +34,11 @@ export type DeckProps = {
    *  `export const transition`. Defaults to a light `"fade"`. */
   transition?: SlideTransition;
   /** Deck-defined brand themes. Each is injected as a `[data-brand]` CSS block, so a
-   *  deck can ship its own brand(s) without editing the theme package — reference
+   *  deck can ship its own brand(s) without editing the theme package, reference
    *  them by `name` in `brands`. (Built-in brand names work via the theme styles
    *  with no entry here.) */
   brandThemes?: Theme[];
-  /** Allow slide transitions on mobile (coarse-pointer) devices. Off by default —
-   *  transitions are dropped there for snappier, jank-free navigation. Set true to
+  /** Allow slide transitions on mobile (coarse-pointer) devices. Off by default, *  transitions are dropped there for snappier, jank-free navigation. Set true to
    *  opt back in. */
   mobileTransitions?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,7 +49,7 @@ function openPresenter() {
   // preserve the query (incl. ?t=<token>) so a live presenter window authenticates
   const url = location.origin + location.pathname + location.search + "#presenter";
   // window.open can throw (relay sandbox without allow-popups) or return null (a
-  // popup blocker) — never let that bubble up as an uncaught DOMException.
+  // popup blocker), never let that bubble up as an uncaught DOMException.
   try {
     const w = window.open(url, "liebstoeckel-presenter", "width=1366,height=860");
     if (!w) console.warn("[liebstoeckel] presenter pop-out was blocked (popup blocker or sandbox).");
@@ -73,7 +72,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   const liveDeck = useLiveDeck(liveCtx?.doc ?? fallbackDoc, count, liveCtx?.role !== "viewer");
   const isLive = !!liveCtx?.live;
   const role = isLive ? liveCtx?.role : undefined;
-  // A live viewer follows the presenter — overview + the presenter pop-out are
+  // A live viewer follows the presenter, overview + the presenter pop-out are
   // presenter-only (they'd reach the confidence monitor / drive nav). Standalone
   // (no live role) drives its own deck, so canDrive is true ((internal ADR)).
   const canDrive = role !== "viewer";
@@ -154,7 +153,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   useEffect(() => {
     prevIndexRef.current = index;
   }, [index]);
-  // Mobile (coarse pointer) drops transitions by default — opt back in with
+  // Mobile (coarse pointer) drops transitions by default, opt back in with
   // `mobileTransitions`. Otherwise: per-slide override → deck default → "fade".
   const requested = mobileTransitionsDisabled(coarse, mobileTransitions)
     ? "none"
@@ -191,7 +190,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
 
             <PersistentLayer items={persistent} currentIndex={index} />
 
-            {/* deck-wide plugin overlays (e.g. reactions floaters) — over the
+            {/* deck-wide plugin overlays (e.g. reactions floaters), over the
                 slide, below chrome; non-interactive (live only, see (internal ADR)) */}
             <PluginOverlays />
 
@@ -234,7 +233,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
         </ScaledStage>
 
         {/* QR + overview render OUTSIDE the scaled canvas (device scale) so they're
-            full-size on a phone — the touch ⋮ menu opens them. */}
+            full-size on a phone, the touch ⋮ menu opens them. */}
         <QrOverlay open={qr} url={liveCtx?.viewerUrl} onClose={() => setQr(false)} />
         <AnimatePresence>
           {overview && (

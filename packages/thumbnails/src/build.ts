@@ -7,7 +7,7 @@ export interface BuildDeckOptions {
   entry?: string;
   outdir?: string;
   /** Final artifact name within `outdir`. Defaults to `<deck-slug>.html` derived
-   *  from the deck folder ((internal ADR)) — the same key `liebstoeckel push` upserts by. */
+   *  from the deck folder ((internal ADR)), the same key `liebstoeckel push` upserts by. */
   outfile?: string;
   minify?: boolean;
   pkgJson?: string;
@@ -36,8 +36,7 @@ function deckHtmlName(pkgJson?: string): string {
 }
 
 /** Build a deck to a single self-contained `.html` and, **by default**, capture +
- *  embed slide thumbnails. The batteries-included default a deck's `build.ts` uses —
- *  it wraps engine's browser-free `bundleDeck` primitive. Thumbnails are skipped,
+ *  embed slide thumbnails. The batteries-included default a deck's `build.ts` uses, *  it wraps engine's browser-free `bundleDeck` primitive. Thumbnails are skipped,
  *  not failed, when `LIEBSTOECKEL_NO_THUMBS` is set or no Chromium is available
  *  (the policy lives in `withThumbnails`). */
 export async function buildDeck(build: BuildDeckOptions = {}, capture: CaptureOptions = {}): Promise<void> {

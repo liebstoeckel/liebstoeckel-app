@@ -13,18 +13,18 @@ import type { ThumbnailManifest } from "@liebstoeckel/engine/build/thumbnails";
 
 export type ThumbnailFormat = "webp" | "jpeg" | "png";
 
-/** Thumbnail capture options — the slide driver's options ((internal ADR)) plus the
+/** Thumbnail capture options, the slide driver's options ((internal ADR)) plus the
  *  image-encoding policy specific to the thumbnail sink. Default width 640 ×
- *  scale 2 = 1280×720, the native authoring canvas — so the overview is never
+ *  scale 2 = 1280×720, the native authoring canvas, so the overview is never
  *  upscaled even on large/hi-dpi screens. Lower `width` to shrink a big deck. */
 export interface CaptureOptions extends RenderDriveOptions {
-  /** output image format (default "webp" — ~half a JPEG, alpha, no extra deps) */
+  /** output image format (default "webp", ~half a JPEG, alpha, no extra deps) */
   format?: ThumbnailFormat;
-  /** lossy quality 0–100 (ignored for png) */
+  /** lossy quality 0-100 (ignored for png) */
   quality?: number;
 }
 
-// Bun's built-in image codec (Bun.Image) — not yet in @types/bun, so typed here.
+// Bun's built-in image codec (Bun.Image), not yet in @types/bun, so typed here.
 // Lets us transcode the browser's PNG screenshot to WebP natively (no `sharp`).
 interface BunImageChain {
   webp(o?: { quality?: number }): BunImageChain;
@@ -65,7 +65,7 @@ export function resolveChromium(opts: CaptureOptions = {}): string {
     }
   }
   // executablePath() returns a computed path even when the browser isn't
-  // installed — verify the binary actually exists so hasChromium() stays honest
+  // installed, verify the binary actually exists so hasChromium() stays honest
   // (otherwise capture is attempted where no browser exists, e.g. CI).
   if (candidate && existsSync(candidate)) return candidate;
   throw new Error(
@@ -74,7 +74,7 @@ export function resolveChromium(opts: CaptureOptions = {}): string {
   );
 }
 
-/** Whether a Chromium is available for capture (cheap — resolves a path, no launch). */
+/** Whether a Chromium is available for capture (cheap, resolves a path, no launch). */
 export function hasChromium(opts: CaptureOptions = {}): boolean {
   try {
     resolveChromium(opts);
@@ -86,7 +86,7 @@ export function hasChromium(opts: CaptureOptions = {}): boolean {
 
 /** Decide whether to capture thumbnails: on by default, opt out with
  *  `LIEBSTOECKEL_NO_THUMBS`, and skipped (not failed) when no Chromium is available.
- *  Pure — `env`/`chromium` are injectable for tests. */
+ *  Pure, `env`/`chromium` are injectable for tests. */
 export function thumbnailsEnabled(
   env: Record<string, string | undefined> = process.env,
   chromium = hasChromium(),
@@ -120,7 +120,7 @@ export interface RenderDriveOptions {
   width?: number;
   /** viewport height in CSS px (default 16:9 of width). */
   height?: number;
-  /** device scale factor — renders at this multiple for crisp output (default 2). */
+  /** device scale factor, renders at this multiple for crisp output (default 2). */
   scale?: number;
   /** explicit Chromium/Chrome binary; else $LIEBSTOECKEL_CHROMIUM, else Playwright's */
   executablePath?: string;
@@ -134,7 +134,7 @@ export interface RenderDriveOptions {
    *  outside `[0, count)` are skipped. The capture protocol can jump to any
    *  index, so a subset is just a shorter list ((internal ADR) / 0043). */
   indices?: number[];
-  /** Resolve the index list once the deck's slide count is known — for specs that
+  /** Resolve the index list once the deck's slide count is known, for specs that
    *  are open-ended (e.g. "from slide 3 to the end"). Overrides `indices`. */
   selectIndices?(count: number): number[];
   /** progress callback: (nth-rendered, total-to-render). */
@@ -152,10 +152,10 @@ export interface RenderDriveResult {
 /**
  * The one headless drive loop ((internal ADR)): launch a browser, load a built deck in
  * capture mode, wait for fonts + the slide-count handshake, then step through the
- * requested slide indices — calling `onFrame(index, page)` once each slide has
+ * requested slide indices, calling `onFrame(index, page)` once each slide has
  * painted and settled. Sink-agnostic: the callback decides what a frame becomes.
  * Both `captureThumbnails` and `exportDeck` ride on this. The deck must render
- * `Present`/`CaptureView`. **Loud** — throws if no Chromium / never enters capture.
+ * `Present`/`CaptureView`. **Loud**, throws if no Chromium / never enters capture.
  */
 export async function renderDeckSlides(
   html: string,
@@ -181,12 +181,12 @@ export async function renderDeckSlides(
     try {
       await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key] != null, SLIDE_COUNT, { timeout });
     } catch {
-      throw new Error("deck never entered capture mode — ensure it renders <Present> (no __LIEBSTOECKEL_SLIDE_COUNT__)");
+      throw new Error("deck never entered capture mode, ensure it renders <Present> (no __LIEBSTOECKEL_SLIDE_COUNT__)");
     }
     const count = (await page.evaluate((key) => (window as unknown as Record<string, unknown>)[key], SLIDE_COUNT)) as number;
 
     // Resolve which slides to render: a count-aware resolver (open-ended specs)
-    // wins, else an explicit list, else every slide — always clamped to real slides.
+    // wins, else an explicit list, else every slide, always clamped to real slides.
     const requested = opts.selectIndices
       ? opts.selectIndices(count)
       : (opts.indices ?? Array.from({ length: count }, (_, i) => i));
@@ -231,7 +231,7 @@ export async function captureThumbnails(html: string, opts: CaptureOptions = {})
 }
 
 /** Options for the vector-PDF driver. The logical page is the authoring canvas
- *  (STAGE_W×STAGE_H, 1280×720) — selectable text, vector output, no raster. */
+ *  (STAGE_W×STAGE_H, 1280×720), selectable text, vector output, no raster. */
 export interface PrintDriveOptions {
   /** logical page width in CSS px (default 1280, the authoring canvas). */
   pageWidth?: number;
@@ -242,7 +242,7 @@ export interface PrintDriveOptions {
   /** override the launch flags (defaults are container-friendly) */
   launchArgs?: string[];
   /** settle time after the print selection paints (lets entrance motion finish).
-   *  More generous than capture's per-slide settle — every slide animates at once. */
+   *  More generous than capture's per-slide settle, every slide animates at once. */
   settleMs?: number;
   /** per-step timeout */
   timeoutMs?: number;
@@ -263,7 +263,7 @@ export interface PrintDriveResult {
  * Render a built deck through `PrintView` and produce a **single, text-preserving**
  * PDF ((internal ADR)): every selected slide is stacked one-per-page in the DOM, so one
  * `page.pdf()` yields a multi-page vector PDF with selectable text. `emulateMedia`
- * keeps the deck's *screen* styles (not print CSS). **Loud** — throws if no Chromium.
+ * keeps the deck's *screen* styles (not print CSS). **Loud**, throws if no Chromium.
  */
 export async function printDeckPdf(html: string, opts: PrintDriveOptions = {}): Promise<PrintDriveResult> {
   const pageWidth = opts.pageWidth ?? 1280;
@@ -285,7 +285,7 @@ export async function printDeckPdf(html: string, opts: PrintDriveOptions = {}): 
     try {
       await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key] != null, SLIDE_COUNT, { timeout });
     } catch {
-      throw new Error("deck never entered print mode — ensure it renders <Present> (no __LIEBSTOECKEL_SLIDE_COUNT__)");
+      throw new Error("deck never entered print mode, ensure it renders <Present> (no __LIEBSTOECKEL_SLIDE_COUNT__)");
     }
     const count = (await page.evaluate((key) => (window as unknown as Record<string, unknown>)[key], SLIDE_COUNT)) as number;
 

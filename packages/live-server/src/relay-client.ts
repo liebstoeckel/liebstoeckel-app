@@ -42,7 +42,7 @@ type ServerCtx = { doc: Y.Doc; session: { id: string } };
 
 /** Run a deck's *server* plugins locally and apply their effects to the relay's
  *  shared doc by connecting as the privileged "runner" peer. The relay never runs
- *  deck code — it only relays the resulting Yjs updates to viewers. No-op (still
+ *  deck code, it only relays the resulting Yjs updates to viewers. No-op (still
  *  resolves) for decks without any server plugins. */
 export async function runServerPluginsViaRelay(opts: {
   html: string;

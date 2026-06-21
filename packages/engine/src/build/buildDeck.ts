@@ -18,17 +18,17 @@ import { createLicenseCollector, renderNotices, embedLicenses, type LicenseRepor
  *  the exact same module graph as a real build. */
 const DECK_PLUGINS = [tailwind, mdx, visxEsmInterop];
 
-/** Default first-party notice embedded alongside the third-party block — the
+/** Default first-party notice embedded alongside the third-party block, the
  *  MPL-2.0 line + public source pointer that MPL §3.2(b)/§3.4 require to travel
  *  with the inlined engine code. */
 const DEFAULT_SELF_NOTICE =
   "This presentation embeds the liebstoeckel presentation engine, licensed under\n" +
   "the Mozilla Public License 2.0. Source code for the covered files is available\n" +
-  "at https://github.com/liebstoeckel/liebstoeckel — you may obtain it at no charge.";
+  "at https://github.com/liebstoeckel/liebstoeckel, you may obtain it at no charge.";
 
 /** Bundle a plugin's server entry into a self-contained, base64-encoded ESM module
  *  (target:"bun"). It externalizes nothing host-specific because the host injects
- *  `ctx` — so it rehydrates with no node_modules resolution. */
+ *  `ctx`, so it rehydrates with no node_modules resolution. */
 export async function buildServerBundle(entry: string): Promise<string> {
   const built = await Bun.build({ entrypoints: [entry], target: "bun", format: "esm", minify: true });
   if (!built.success) {
@@ -64,7 +64,7 @@ export async function buildPluginManifest(pkgJsonPath: string): Promise<PluginMa
   return { v: 1, plugins: entries };
 }
 
-/** The deck's own package name (so the license report can exclude it — a deck never
+/** The deck's own package name (so the license report can exclude it, a deck never
  *  lists itself). Best-effort: a missing/unreadable package.json just yields undefined. */
 async function readPkgName(pkgJsonPath: string): Promise<string | undefined> {
   try {
@@ -115,7 +115,7 @@ async function engineVersion(): Promise<string> {
  *  right after the doctype (the first thing in "view source") and a standard
  *  `<meta name="generator">` that tooling can parse. Records the engine version
  *  (always) and the invoking tool's version (e.g. the CLI) when the caller passes
- *  one. Versions only, no timestamp — so the same deck still builds to the same
+ *  one. Versions only, no timestamp, so the same deck still builds to the same
  *  bytes (the source-package embed is byte-deterministic). */
 export function stampGenerator(html: string, parts: { engine: string; generator?: Generator }): string {
   const tools = [`engine ${parts.engine}`];
@@ -126,9 +126,9 @@ export function stampGenerator(html: string, parts: { engine: string; generator?
     .replace(/<head[^>]*>/i, (m) => `${m}\n    <meta name="generator" content="${summary}" />`);
 }
 
-// Bundles a deck into a single self-contained .html — the browser-free build
+// Bundles a deck into a single self-contained .html, the browser-free build
 // primitive (no Chromium). Plugins (Tailwind, MDX) only run via the Bun.build()
-// JS API — NOT the `bun build` CLI. `compile:true` + target:"browser" inline
+// JS API, NOT the `bun build` CLI. `compile:true` + target:"browser" inline
 // JS/CSS and base64 the assets. Verified on Bun 1.3.
 //
 // For the batteries-included default (this + slide thumbnails) use `buildDeck`
@@ -149,7 +149,7 @@ export async function bundleDeck({
   entry?: string;
   outdir?: string;
   /** Final artifact name within `outdir` (default `index.html`; the user-facing
-   *  `buildDeck` wrapper passes the deck slug, e.g. `poll-demo.html` — (internal ADR)). */
+   *  `buildDeck` wrapper passes the deck slug, e.g. `poll-demo.html`, (internal ADR)). */
   outfile?: string;
   minify?: boolean;
   pkgJson?: string;
@@ -184,7 +184,7 @@ export async function bundleDeck({
   // Escape `</script>` inside the inlined bundle, then embed the plugin manifest
   // (incl. base64 server bundles) into the single file. Bun.build names its output
   // after the entry basename (`index.html`); we post-process that and ship it under
-  // `outfile` (the deck slug for the user-facing build — (internal ADR)).
+  // `outfile` (the deck slug for the user-facing build, (internal ADR)).
   const built = join(outdir, basename(entry));
   const outHtml = join(outdir, outfile);
   let html = escapeInlineModuleScript(await Bun.file(built).text());
@@ -192,11 +192,11 @@ export async function bundleDeck({
   if (manifest) html = embedManifest(html, manifest);
 
   // Re-add the third-party license notices that minify stripped, computed
-  // from the modules this build actually bundled — so it tracks font/lib swaps.
+  // from the modules this build actually bundled, so it tracks font/lib swaps.
   if (inlineLicenses) {
     const report = licenses.report();
     html = embedLicenses(html, renderNotices(report, { selfNotice }));
-    const flagged = report.flagged.length ? ` — ⚠ ${report.flagged.length} non-standard license(s)` : "";
+    const flagged = report.flagged.length ? `, ⚠ ${report.flagged.length} non-standard license(s)` : "";
     console.log(`✓ embedded license notices (${report.packages.length} third-party packages)${flagged}`);
   }
 
@@ -218,7 +218,7 @@ export async function bundleDeck({
   return result;
 }
 
-/** Resolve a deck's third-party license report WITHOUT emitting an artifact — runs
+/** Resolve a deck's third-party license report WITHOUT emitting an artifact, runs
  *  the same plugin set as a real build so the module graph matches, then discards
  *  the output. Backs `liebstoeckel licenses` over a deck directory. */
 export async function collectDeckLicenses({
@@ -263,8 +263,8 @@ function toDiagnostic(log: unknown): DeckDiagnostic {
 }
 
 /**
- * Validate that a deck **bundles** — resolves, transforms (MDX/Tailwind), and the
- * visx ESM-interop holds — without writing any artifact or capturing thumbnails
+ * Validate that a deck **bundles**, resolves, transforms (MDX/Tailwind), and the
+ * visx ESM-interop holds, without writing any artifact or capturing thumbnails
  * ((internal ADR)). Runs the same plugin pipeline as `bundleDeck` with `throw: false` and
  * returns structured diagnostics for an agent's check → fix loop. It does **not**
  * type-check (Bun.build doesn't); it answers "does this deck build?".

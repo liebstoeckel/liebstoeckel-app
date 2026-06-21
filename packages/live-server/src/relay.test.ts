@@ -103,8 +103,7 @@ describe("Hub snapshot/seed round-trip (re-provision continuity, (internal ticke
     const snap = a.snapshot();
     a.destroy();
 
-    // a brand-new Hub on a "new pod" seeded from the snapshot carries the same state —
-    // the audience's poll/Q&A survives a re-provision ((internal ADR) §5).
+    // a brand-new Hub on a "new pod" seeded from the snapshot carries the same state, // the audience's poll/Q&A survives a re-provision ((internal ADR) §5).
     const b = new Hub();
     b.seed(snap);
     const out = new Y.Doc();

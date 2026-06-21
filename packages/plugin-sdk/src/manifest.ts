@@ -26,7 +26,7 @@ export const encodeManifest = (m: PluginManifest): string => JSON.stringify(m);
 export const parseManifest = (json: string): PluginManifest => JSON.parse(json) as PluginManifest;
 
 /** Embed the manifest as an inert JSON <script> before the closing </body> (browser never
- *  runs it). Inserts before the LAST </body> — a deck's inlined JS bundle can contain the
+ *  runs it). Inserts before the LAST </body>, a deck's inlined JS bundle can contain the
  *  string "</body>" in a literal (e.g. an iframe srcdoc); the real document </body> is last. */
 export function embedManifest(html: string, m: PluginManifest): string {
   const tag = `<script type="application/json" ${MANIFEST_ATTR}>${encodeManifest(m)}</script>`;

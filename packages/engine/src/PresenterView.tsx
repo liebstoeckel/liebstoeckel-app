@@ -26,7 +26,7 @@ function useNow(ms = 1000) {
 
 type WakeLockNav = Navigator & { wakeLock?: { request(type: "screen"): Promise<{ release(): Promise<void> }> } };
 
-/** Hold a screen Wake Lock while `on` — a phone used as a remote shouldn't sleep
+/** Hold a screen Wake Lock while `on`, a phone used as a remote shouldn't sleep
  *  mid-talk. Best-effort (browser/permission dependent); re-acquires when the tab
  *  returns to the foreground (locks drop on hide). */
 function useWakeLock(on: boolean) {
@@ -65,7 +65,7 @@ type TimerCell = { at: number; epoch: number };
 
 /** The shared talk-timer start, the **conflict-free** way ((internal ADR)): each presenter
  *  writes its OWN cell (keyed by `doc.clientID`) so two clients never contend for one
- *  key — no LWW tie-break, no timing race. The start is a deterministic reduce over
+ *  key, no LWW tie-break, no timing race. The start is a deterministic reduce over
  *  the map: the MIN `at` within the highest `epoch`. Reset bumps the epoch (a higher
  *  epoch wins), so it propagates to every device. Each device computes elapsed itself
  *  (sub-second clock skew). Only drivers write; standalone → per-window fallback doc. */
@@ -95,7 +95,7 @@ function usePresenterStart(doc: Y.Doc, canWrite: boolean): { startedAt: number; 
     const apply = () => setStartedAt(reduce().start);
     map.observe(apply);
     apply();
-    // claim our own cell at the current epoch — only we ever write this key
+    // claim our own cell at the current epoch, only we ever write this key
     if (canWrite && !map.has(key)) map.set(key, { at: Date.now(), epoch: reduce().epoch });
     return () => map.unobserve(apply);
   }, [map, key, canWrite, reduce]);
@@ -118,7 +118,7 @@ function Label({ children, dot }: { children: ReactNode; dot?: boolean }) {
 
 // Fills its parent box; ScaledStage letterboxes the 16:9 slide inside. The PARENT
 // decides the size, so previews shrink to fit available height (never push the
-// notes off-screen). Rendered live (not a thumbnail) — the presenter's current/next
+// notes off-screen). Rendered live (not a thumbnail), the presenter's current/next
 // previews are only two slides, so this stays cheap while staying pixel-crisp and
 // reflecting live plugin state, unlike the static build-time thumbnails.
 function Thumb({ Component, interactive = true }: { Component?: ComponentType; interactive?: boolean }) {
@@ -164,7 +164,7 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
           <span className="text-muted">/{total}</span>
         </span>
       </div>
-      {/* segmented bar — one segment per step, filled up to the current reveal */}
+      {/* segmented bar, one segment per step, filled up to the current reveal */}
       <div className="flex gap-1.5">
         {Array.from({ length: total }).map((_, i) => (
           <span
@@ -175,7 +175,7 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
       </div>
       <span className="font-mono text-xs tracking-wide text-muted">
         {revealing
-          ? `${remaining} more ${remaining === 1 ? "reveal" : "reveals"} — then Next advances the slide`
+          ? `${remaining} more ${remaining === 1 ? "reveal" : "reveals"}, then Next advances the slide`
           : "Next advances to the following slide"}
       </span>
     </div>
@@ -195,7 +195,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
 
   // Share both links (Q / the header button), live only. The viewer link is
   // injected; the presenter link is this window's own URL minus the #presenter
-  // hash (it loaded with ?t=<presenterToken>) — scanning it drives from a phone.
+  // hash (it loaded with ?t=<presenterToken>), scanning it drives from a phone.
   const [share, setShare] = useState(false);
   const presenterUrl = useMemo(
     () => (typeof location !== "undefined" ? location.origin + location.pathname + location.search : undefined),
@@ -256,14 +256,14 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   // still makes Next a "Reveal →"). Symmetric for Prev at the very start.
   const atEnd = index >= count - 1 && step >= total;
   const atStart = index <= 0 && step <= 0;
-  const noNotes = <span className="text-muted">— no notes for this slide —</span>;
+  const noNotes = <span className="text-muted">, no notes for this slide, </span>;
   const shareOverlay = (
     <PresenterShare open={share} viewerUrl={liveCtx?.viewerUrl} presenterUrl={presenterUrl} onClose={() => setShare(false)} />
   );
 
   // ── Mobile: notes-first stack ((internal ADR)) ───────────────────────────────────
   // Notes dominate; a compact next+reveal peek; big thumb-zone Prev/Next. Vertical
-  // scroll moves the notes, horizontal swipe (useTouchNav) changes slides — the two
+  // scroll moves the notes, horizontal swipe (useTouchNav) changes slides, the two
   // axes don't collide, so notes scroll can't misfire a slide change.
   if (coarse) {
     return (
@@ -301,7 +301,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
             with a maximize toggle ((internal ADR)) */}
         <PresenterPanel variant="mobile" notes={notes ?? noNotes} focused={focused} onToggleFocus={toggleFocus} />
 
-        {/* 3 · compact next + reveal peek — reclaimed by focus mode */}
+        {/* 3 · compact next + reveal peek, reclaimed by focus mode */}
         {!focused && (
         <div className="flex shrink-0 items-center gap-3 border-t border-border px-4 py-2">
           <div className="h-12 w-[5.5rem] shrink-0 opacity-80">
@@ -311,7 +311,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
             <div className="uppercase tracking-[0.2em] text-muted">{Next ? "next up" : "end of deck"}</div>
             {total > 0 && (
               <div className={step < total ? "text-accent" : "text-muted"}>
-                {step < total ? `revealing ${step} / ${total} — Next reveals` : "Next → following slide"}
+                {step < total ? `revealing ${step} / ${total}, Next reveals` : "Next → following slide"}
               </div>
             )}
           </div>
@@ -390,7 +390,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           {live && (
             <button
               onClick={() => setShare((v) => !v)}
-              title="Share links (Q) — viewer + presenter QR"
+              title="Share links (Q), viewer + presenter QR"
               aria-label="Share session links"
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted transition hover:border-accent hover:text-accent"
             >
@@ -411,7 +411,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           shrink. Thumbnails get capped/flexible heights; the notes panel always
           keeps a guaranteed, scrollable minimum. */}
       <div className="flex min-h-0 flex-1 flex-col gap-5 p-5 lg:flex-row lg:gap-7 lg:p-7">
-        {/* current — hidden in focus mode (it's on the room's screen anyway) */}
+        {/* current, hidden in focus mode (it's on the room's screen anyway) */}
         {!focused && (
           <section className="flex min-h-0 min-w-0 flex-col gap-3 lg:flex-[1.55]">
             <Label dot>
@@ -428,8 +428,8 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
         {/* next + notes (full width in focus mode) */}
         <aside className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           {/* next preview hidden on phones to give notes the room, and in focus mode.
-              The height share (basis) sits on THIS wrapper — a flex child of the aside,
-              which has a definite height — so the inner preview can be flex-1 and fill
+              The height share (basis) sits on THIS wrapper, a flex child of the aside,
+              which has a definite height, so the inner preview can be flex-1 and fill
               it. (A % basis on an auto-height parent doesn't resolve, which collapsed
               the box to its min-height and made the preview render tiny.) */}
           {!focused && (

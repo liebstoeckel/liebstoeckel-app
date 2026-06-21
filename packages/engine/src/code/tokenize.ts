@@ -1,7 +1,7 @@
 // BUILD-TIME ONLY. Tokenizes code with Shiki using its css-variables theme, so
 // every token's color is a `var(--shiki-token-*)` string that the theme binds to
 // the active brand at runtime. Imported only from the `code` macro (stripped from
-// the browser bundle) and from build tooling — never from the deck runtime.
+// the browser bundle) and from build tooling, never from the deck runtime.
 import {
   createCssVariablesTheme,
   createHighlighter,

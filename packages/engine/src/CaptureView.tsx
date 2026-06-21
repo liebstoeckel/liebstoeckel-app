@@ -19,13 +19,13 @@ const ALL_STEPS = 1e6;
 
 /** Build-time thumbnail render: one motionless slide at a time, driven by the
  *  headless capturer via the capture protocol. No live connection, no nav, no
- *  AnimatePresence — just the final state of slide `index` on the fixed canvas. */
+ *  AnimatePresence, just the final state of slide `index` on the fixed canvas. */
 export function CaptureView({ slides, brands = ["default"], plugins = [] }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   const [index, setIndex] = useState(() => captureRequest()?.index ?? 0);
 
   // Provide an offline (live:false) plugin context so <Plugin> renders each
-  // plugin's fallback in the thumbnail — same as opening the standalone .html.
+  // plugin's fallback in the thumbnail, same as opening the standalone .html.
   const theme = useTheme();
   const doc = useMemo(() => new Y.Doc(), []);
   const liveValue = useMemo<LiveContextValue>(

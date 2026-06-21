@@ -12,7 +12,7 @@ export interface ClientProps<T> {
   doc: Y.Doc;
   /** typed state accessor (snapshot / set / recordSet / subscribe) */
   state: PluginState<T>;
-  /** current state snapshot — re-rendered on every change */
+  /** current state snapshot, re-rendered on every change */
   snapshot: T;
   /** "presenter" | "viewer" */
   role: Role;
@@ -33,7 +33,7 @@ export interface ClientProps<T> {
 
 export type ClientComponent<T> = ComponentType<ClientProps<T>>;
 
-/** Controls the open-state of a plugin's global `Panel` — the engine owns it the
+/** Controls the open-state of a plugin's global `Panel`, the engine owns it the
  *  same way it owns the Help/QR overlays. A `Control` toggles its sibling `Panel`. */
 export interface PanelController {
   open: boolean;
@@ -54,38 +54,38 @@ export type GlobalComponent<T> = ComponentType<GlobalProps<T>>;
 export interface GlobalSurfaces<T> {
   /** full-deck, `pointer-events:none` float layer above the slide, below chrome */
   Overlay?: ClientComponent<T>;
-  /** the panel's trigger label — used as the chrome button's `aria-label` and as its
+  /** the panel's trigger label, used as the chrome button's `aria-label` and as its
    *  row text when it overflows into the touch `⋮` menu ((internal ADR)). */
   label?: string;
   /** the trigger glyph (a stroke SVG to match the engine's chrome icons). */
   icon?: ReactNode;
   /** keep this control in the chrome rail on mobile instead of overflowing into the
-   *  `⋮` menu — for quick, frequent actions like reactions ((internal ADR)). Default false:
+   *  `⋮` menu, for quick, frequent actions like reactions ((internal ADR)). Default false:
    *  on a coarse pointer the control becomes a `⋮` menu row so the rail can't overflow.
    *  Ignored on desktop, where the rail has room for everything. */
   pinned?: boolean;
   /** advanced: a fully custom trigger component (instead of `icon`+`label`). Rendered
-   *  inline in the rail only — it does not participate in `⋮` overflow. */
+   *  inline in the rail only, it does not participate in `⋮` overflow. */
   Control?: GlobalComponent<T>;
   /** a drawer/modal portaled outside the scaled stage, toggled by the control */
   Panel?: GlobalComponent<T>;
   /** how the `Panel` opens. `"popover"` (default) is a light, non-dimming bubble above the
-   *  chrome rail — right for quick, frequent actions (reactions). `"sheet"` opens a
-   *  full-viewport breakout on touch (keyboard-friendly) — right for panels with a text
+   *  chrome rail, right for quick, frequent actions (reactions). `"sheet"` opens a
+   *  full-viewport breakout on touch (keyboard-friendly), right for panels with a text
    *  input (Q&A), where a bottom popover gets buried by the on-screen keyboard. On a
    *  fine-pointer (desktop) it stays a popover regardless. See (internal ADR) / 0037. */
   panelMode?: "popover" | "sheet";
 }
 
-/** A plugin's **presenter console** — one tab in the presenter view ((internal ADR)). It
+/** A plugin's **presenter console**, one tab in the presenter view ((internal ADR)). It
  *  may be a passive readout, an interactive moderator, or both: a plugin decides.
  *  Audience-affecting actions ("close voting", "pin question", "reveal results") are
- *  just role-gated writes to the plugin's own state, which its `Slide` reads — there
+ *  just role-gated writes to the plugin's own state, which its `Slide` reads, there
  *  is no separate broadcast channel. Mounted only when a server is connected. */
 export interface PresenterSurface<T> {
   /** tab label in the presenter panel (e.g. "Q&A", "Poll") */
   label: string;
-  /** optional tab glyph — emoji or node */
+  /** optional tab glyph, emoji or node */
   icon?: ReactNode;
   /** optional attention badge derived from live state (unread questions, total
    *  votes, …), shown as a small pill on the tab so a presenter notices a tab that
@@ -103,7 +103,7 @@ export interface PresenterSurface<T> {
 export interface PluginClient<T> {
   /** rendered in the deck (audience + presenter) */
   Slide: ClientComponent<T>;
-  /** optional presenter console — a tab in the presenter view ((internal ADR)) */
+  /** optional presenter console, a tab in the presenter view ((internal ADR)) */
   presenter?: PresenterSurface<T>;
   /** shown when no server is connected (standalone .html + thumbnail capture);
    *  receives the current snapshot and the author `props` from `<Plugin props>`. */
@@ -125,7 +125,7 @@ export interface PluginServerCtx<T> {
   state: PluginState<T>;
   session: { id: string };
   /** the instance this invocation is for ("" = default). A server plugin that supports
-   *  multiple instances enumerates the rest from the doc index — `readPluginInstances` /
+   *  multiple instances enumerates the rest from the doc index, `readPluginInstances` /
    *  `observePluginIndex` ((internal ADR) / 0034). */
   instance: string;
 }
@@ -138,7 +138,7 @@ export interface PluginDef<T> {
   client: PluginClient<T>;
 }
 
-/** Identity helper — carries types, lets tooling discover the shape. */
+/** Identity helper, carries types, lets tooling discover the shape. */
 export function definePlugin<T>(def: PluginDef<T>): PluginDef<T> {
   return def;
 }

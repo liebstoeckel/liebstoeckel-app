@@ -11,7 +11,7 @@ async function itemFiles(name: string): Promise<string[]> {
 
 // Whether a set of files bundles, resilient to a TRANSIENT Bun.build hiccup under
 // heavy concurrent load (memory/CPU pressure during the full suite). The property
-// is deterministic, so a real failure fails both attempts — only an infra hiccup
+// is deterministic, so a real failure fails both attempts, only an infra hiccup
 // is absorbed; genuine bundle breakage is still caught.
 async function bundlesOk(files: string[]): Promise<boolean> {
   let r = await verifyBundles(files);
@@ -57,14 +57,14 @@ describe("registry bundle-safety (the gate that replaced BANNED_NPM_DEPS)", () =
   );
 
   test(
-    "the real hazard — a default import of @visx/text — is caught at build",
+    "the real hazard, a default import of @visx/text, is caught at build",
     async () => {
       const dir = mkdtempSync(join(REGISTRY_ROOT, ".verify-"));
       try {
         const bad = join(dir, "Bad.tsx");
         writeFileSync(bad, `import Text from "@visx/text";\nexport const X = Text;\n`);
         // Negative case: deterministically fails (a default import with no default
-        // export), so no retry — assert it's caught with a clear message.
+        // export), so no retry, assert it's caught with a clear message.
         const r = await verifyBundles([bad]);
         expect(r.success).toBe(false);
         expect(r.logs.join("\n")).toMatch(/default/i);

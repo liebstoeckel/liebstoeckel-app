@@ -121,8 +121,8 @@ function DeckMenu({ actions }: { actions: MenuAction[] }) {
   );
 }
 
-/** Deck chrome rendered at DEVICE scale, pinned to the real viewport — outside the
- *  scaled 1280×720 canvas — so the buttons stay tappable on a phone. Carries the
+/** Deck chrome rendered at DEVICE scale, pinned to the real viewport, outside the
+ *  scaled 1280×720 canvas, so the buttons stay tappable on a phone. Carries the
  *  progress bar, the slide counter, the help/menu affordance, and any plugin-
  *  registered global controls ((internal ADR)). On a coarse pointer the rail is upsized
  *  and the keyboard-shortcut help is swapped for a tappable `⋮` action menu. */
@@ -154,7 +154,7 @@ export function DeckChrome({
   // menu on touch so the rail can't run off-screen ((internal ADR)). Panels are hosted here.
   const { rail: pluginRail, menuActions: pluginMenu, panels: pluginPanels } = usePluginChrome();
 
-  // Switch this window to the presenter view ((internal ADR)) — the touch counterpart to
+  // Switch this window to the presenter view ((internal ADR)), the touch counterpart to
   // the desktop `P` pop-out. `Present` selects the view by the #presenter hash at
   // mount, so set the hash and reload.
   const openPresenterView = () => {
@@ -163,7 +163,7 @@ export function DeckChrome({
     location.reload();
   };
 
-  // Note: no "Cycle theme" here — brand cycling stays the desktop `t` shortcut
+  // Note: no "Cycle theme" here, brand cycling stays the desktop `t` shortcut
   // (a niche preview/showcase affordance), not a touch action.
   const actions: MenuAction[] = [
     {
@@ -173,7 +173,7 @@ export function DeckChrome({
       onClick: () => void toggleFullscreen(document.documentElement),
     },
     ...(canDrive ? [{ key: "overview", label: "Overview", icon: ICON.grid, onClick: onOverview }] : []),
-    // Presenter view (notes-first confidence monitor) — drivers only, never viewers.
+    // Presenter view (notes-first confidence monitor), drivers only, never viewers.
     ...(canDrive ? [{ key: "presenter", label: "Presenter view", icon: ICON.notes, onClick: openPresenterView }] : []),
     ...(isLive && viewerUrl ? [{ key: "share", label: "Share / QR", icon: ICON.share, onClick: onQr }] : []),
     ...pluginMenu, // overflowed (unpinned) plugin controls, touch only

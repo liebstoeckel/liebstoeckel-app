@@ -2,7 +2,7 @@
 // Each relay pod owns a live session's Yjs Hub in memory, so the control plane pins a
 // session to one pod and hands audiences a per-pod host (`liebstoeckel-relayNNN…`). A
 // StatefulSet shares a single pod template, so a pod can't be handed a static per-pod
-// PRESENT_RELAY_PUBLIC_URL — instead it derives its OWN base from its ordinal (via the
+// PRESENT_RELAY_PUBLIC_URL, instead it derives its OWN base from its ordinal (via the
 // downward-API POD_NAME) plus a host template. Pure + unit-tested; no I/O.
 
 /** Extract the StatefulSet ordinal from a pod name (`liebstoeckel-relay-7` → 7). */

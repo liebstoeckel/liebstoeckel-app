@@ -24,7 +24,7 @@ export type ExportFormat = "png" | "pdf";
  *   "-4"     → slide 1 through 4
  *   "1,3,5-7"→ mixed
  * An empty / whitespace-only spec means "every slide". Out-of-range or malformed
- * parts throw — export should refuse a spec it can't honor rather than silently
+ * parts throw, export should refuse a spec it can't honor rather than silently
  * drop slides.
  */
 export function parseSlideRange(spec: string | undefined, count: number): number[] {
@@ -73,7 +73,7 @@ export interface JpegPage {
 }
 
 /**
- * Compose JPEG images into a minimal PDF — one image per page, drawn full-bleed.
+ * Compose JPEG images into a minimal PDF, one image per page, drawn full-bleed.
  * Each page's `MediaBox` is the logical `pageW`×`pageH` (points); the hi-res JPEG
  * is scaled into it, so the on-page resolution rides the capture scale factor.
  * Hand-rolled (one `DCTDecode` XObject per page) to avoid a PDF dependency.
@@ -122,7 +122,7 @@ export function pdfFromJpegPages(pages: JpegPage[], pageW: number, pageH: number
     const content = `q ${pageW} 0 0 ${pageH} 0 0 cm /Im0 Do Q`;
     obj(contentN, `<< /Length ${enc.encode(content).length} >>\nstream\n${content}\nendstream`);
 
-    // image XObject — body is a dict header, the raw JPEG bytes, then the stream tail
+    // image XObject, body is a dict header, the raw JPEG bytes, then the stream tail
     offsets[imageN] = offset;
     push(`${imageN} 0 obj\n`);
     push(
@@ -166,12 +166,12 @@ export interface ExportOptions extends Omit<RenderDriveOptions, "onSlide"> {
   outFile?: string;
   /** Base name for default output filenames (e.g. the deck name). */
   baseName?: string;
-  /** JPEG quality for PDF pages, 0–100 (default 92). Raster PDF only. */
+  /** JPEG quality for PDF pages, 0-100 (default 92). Raster PDF only. */
   quality?: number;
   /** PDF rendering mode (default "vector"):
-   *   • "vector" — one `page.pdf()` over a stacked print view → **selectable text**,
+   *   • "vector", one `page.pdf()` over a stacked print view → **selectable text**,
    *     vector graphics, smallest files. The default and recommended PDF.
-   *   • "raster" — one full-bleed JPEG per page → no text layer, but pixel-exact
+   *   • "raster", one full-bleed JPEG per page → no text layer, but pixel-exact
    *     fidelity for slides with effects that don't reproduce under print. */
   pdfMode?: "vector" | "raster";
   /** progress callback: (nth-rendered, total-to-render). */
@@ -187,8 +187,7 @@ export interface ExportResult {
   count: number;
 }
 
-/** Export a built single-file deck to PNG files or a PDF ((internal ADR)). **Loud** —
- *  throws if no Chromium is available (export is explicit, unlike thumbnails). */
+/** Export a built single-file deck to PNG files or a PDF ((internal ADR)). **Loud**, *  throws if no Chromium is available (export is explicit, unlike thumbnails). */
 export async function exportDeck(html: string, opts: ExportOptions): Promise<ExportResult> {
   const base = opts.baseName ?? "deck";
   const selectIndices =
@@ -214,7 +213,7 @@ export async function exportDeck(html: string, opts: ExportOptions): Promise<Exp
 
   // One render pass into memory. We only learn the deck's true slide count after
   // the driver returns, so collect frames first, then name + write with the final
-  // pad width — no rename dance.
+  // pad width, no rename dance.
   const isPdf = opts.format === "pdf";
   const quality = opts.quality ?? 92;
   const frames: { index: number; bytes: Uint8Array }[] = [];
