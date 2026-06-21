@@ -1,4 +1,4 @@
-/* liebstoeckel docs theme — "Noir, all-grotesk".
+/* liebstoeckel docs theme: "Noir, all-grotesk".
    Maps Starlight's token system onto the brand palette (mirrors the house brand in packages/theme/src/brands/liebstoeckel.ts).
    Dark-first (forest-charcoal + gold + sage); light pairing derived for readers who prefer it. */
 
@@ -15,12 +15,12 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ---- Dark (default) — Noir ---- */
+/* ---- Dark (default): Noir ---- */
 :root,
 :root[data-theme="dark"] {
-  --sl-color-accent-low: #352a10;   /* deep gold tint — subtle backgrounds */
-  --sl-color-accent: #c9a24b;       /* gold — buttons, focus, rules */
-  --sl-color-accent-high: #e0c580;  /* gold-soft (--accent-on-dark) — links, accent text */
+  --sl-color-accent-low: #352a10;   /* deep gold tint, subtle backgrounds */
+  --sl-color-accent: #c9a24b;       /* gold: buttons, focus, rules */
+  --sl-color-accent-high: #e0c580;  /* gold-soft (--accent-on-dark): links, accent text */
   --sl-color-text-accent: #e0c580;  /* keep accent-derived UI (e.g. the skip link) on brand, not Starlight's default periwinkle */
   --sl-color-white: #f4f1e6;        /* headings (warm near-white) */
   --sl-color-gray-1: #e9e6d7;       /* body text */
@@ -29,7 +29,7 @@
   --sl-color-gray-4: #6a7060;
   --sl-color-gray-5: #2c3326;       /* hairlines / borders */
   --sl-color-gray-6: #1a2014;       /* raised surfaces, code bg */
-  --sl-color-black: #10140e;        /* page ground — forest charcoal */
+  --sl-color-black: #10140e;        /* page ground: forest charcoal */
 }
 
 /* ---- Light pairing ---- */
@@ -46,7 +46,7 @@
   --sl-color-gray-5: #d8d3c2;       /* hairlines */
   --sl-color-gray-6: #efeada;       /* surfaces */
   --sl-color-gray-7: #f3eee2;
-  --sl-color-black: #f6f2e6;        /* page ground — warm cream */
+  --sl-color-black: #f6f2e6;        /* page ground: warm cream */
 }
 
 /* ---- Atmosphere: subtle gold + forest glow behind content (dark only) ---- */

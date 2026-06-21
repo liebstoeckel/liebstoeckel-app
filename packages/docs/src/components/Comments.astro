@@ -1,8 +1,8 @@
 ---
-// Comments.astro — buncus (self-hosted, GDPR-by-default GitHub Discussions)
+// Comments.astro: buncus (self-hosted, GDPR-by-default GitHub Discussions)
 // comment widget. Rendered by Footer.astro on every non-splash docs page.
 //
-// DRAFT. The GitHub-specific identifiers below are PLACEHOLDERS — fill them in
+// DRAFT. The GitHub-specific identifiers below are PLACEHOLDERS; fill them in
 // after enabling Discussions on the target repo and registering the GitHub App
 // (see deploy/apps/buncus.yaml). Until then the widget mounts and shows the
 // consent gate, but loading a thread errors (the buncus service is up; its
@@ -28,7 +28,7 @@
   (() => {
     // Maps to the liebstoeckel-app repo's Discussions (dedicated Comments
     // category, Announcement format so only the buncus App opens threads). Repo
-    // is private for now — fine while testing: reads go through the App token;
+    // is private for now, fine while testing: reads go through the App token;
     // only repo-access users can post.
     const REPO = "liebstoeckel/liebstoeckel-app";
     const REPO_ID = "R_kgDOSpc72A";
@@ -107,7 +107,7 @@
 </style>
 
 <!-- Brand the consent gate. It renders on THIS (host) page before the iframe,
-     styled by buncus' default.css (GitHub-ish colors) — outside the iframe's
+     styled by buncus' default.css (GitHub-ish colors), outside the iframe's
      `--bc-*` theme. buncus prepends default.css so the host can override; these
      rules ride Starlight tokens so the gate follows the docs light/dark theme.
      Global (not scoped) because the gate DOM is injected at runtime. -->
@@ -124,7 +124,7 @@
     margin: 0 0 12px;
   }
   .buncus-consent__text a {
-    /* the loader sets an inline color:inherit on the privacy link — override it */
+    /* the loader sets an inline color:inherit on the privacy link, so override it */
     color: var(--sl-color-accent-high) !important;
     text-decoration: underline;
   }
@@ -141,7 +141,7 @@
     padding: 6px 16px;
     font: inherit;
     font-weight: 600;
-    /* brand CTA: gold fill, ground ink — the token pair inverts per theme */
+    /* brand CTA: gold fill, ground ink; the token pair inverts per theme */
     color: var(--sl-color-black);
     background: var(--sl-color-accent);
   }

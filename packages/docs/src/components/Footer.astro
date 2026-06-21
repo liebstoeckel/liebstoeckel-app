@@ -35,7 +35,7 @@ const showComments = Astro.locals.starlightRoute.entry.data.template !== "splash
       <div class="foot-col">
         <h2>Legal</h2>
         <a href={`${APEX}/impressum/`} rel="noopener">Impressum</a>
-        {/* soft hyphen: the word is wider than a squeezed column — break as Datenschutz-erklärung */}
+        {/* soft hyphen: the word is wider than a squeezed column, so break as Datenschutz-erklärung */}
         <a href={`${APEX}/datenschutz/`} rel="noopener" lang="de">Datenschutz&shy;erkl&auml;rung</a>
       </div>
     </nav>
@@ -106,7 +106,7 @@ const showComments = Astro.locals.starlightRoute.entry.data.template !== "splash
     font-size: 0.88rem;
     text-decoration: none;
     min-height: 24px;
-    overflow-wrap: break-word; /* last resort — never overflow the content column */
+    overflow-wrap: break-word; /* last resort, never overflow the content column */
   }
   .foot-col a:hover {
     color: var(--sl-color-accent-high);

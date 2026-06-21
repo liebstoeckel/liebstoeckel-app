@@ -23,7 +23,7 @@ Both route through the same `withThumbnails(html, opts)` primitive, so the gate/
 3. The images go into a thumbnails manifest (`index → data-URI`) embedded in the HTML. The engine prefers these `<img>`s in the overview grid; absent, it falls back to a static live render.
 
 <Aside type="note" title="Container-friendly">
-Capture launches the full Chromium with `--no-sandbox --disable-gpu --single-process --no-zygote` (the lighter `chrome-headless-shell` can crash in sandboxes). Default output is the native **1280×720** so the grid never upscales on hi-dpi screens (~16–18 KB/slide WebP).
+Capture launches the full Chromium with `--no-sandbox --disable-gpu --single-process --no-zygote` (the lighter `chrome-headless-shell` can crash in sandboxes). Default output is the native **1280×720** so the grid never upscales on hi-dpi screens (~16 to 18 KB/slide WebP).
 </Aside>
 
 ## Standalone CLI

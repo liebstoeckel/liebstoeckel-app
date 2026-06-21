@@ -19,7 +19,7 @@ export default defineConfig({
     starlight({
       title: "liebstoeckel",
       // the brand-book header lockup: mark beside the wordmark, mark color
-      // picked by ground (gold on dark, darkened gold on cream) — assets are
+      // picked by ground (gold on dark, darkened gold on cream). Assets are
       // checked-in copies of @liebstoeckel/corporate-design's out/ SVGs
       logo: {
         dark: "./src/assets/logo-gold.svg",
@@ -33,7 +33,7 @@ export default defineConfig({
         // Default social card. Starlight emits og:title/description/url + the
         // twitter:summary_large_image card, but no image; supply the brand's
         // 1200x630 card (a checked-in copy of corporate-design's out/og-card.png)
-        // so shared docs links unfurl. Absolute URLs — unfurlers require them.
+        // so shared docs links unfurl. Absolute URLs, because unfurlers require them.
         { tag: "meta", attrs: { property: "og:image", content: "https://docs.liebstoeckel.app/og-card.png" } },
         { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
         { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
@@ -81,7 +81,7 @@ export default defineConfig({
         Footer: "./src/components/Footer.astro",
       },
       description:
-        "A code-first presentation engine that produces stunning, animated, single-file HTML decks — Bun + React 19 + Motion + Tailwind v4, authored in MDX + TSX.",
+        "A code-first presentation engine that produces stunning, animated, single-file HTML decks, built on Bun + React 19 + Motion + Tailwind v4, authored in MDX + TSX.",
       tagline: "Code-first presentations that talk back.",
       // `baseUrl` is required for the llms.txt generation + absolute Markdown URLs
       // the "Open in ChatGPT/Claude" actions link to.
