@@ -23,6 +23,7 @@
     "export": "bun packages/cli/src/cli.ts export",
     "test": "bun test packages",
     "test:e2e:os": "LIEBSTOECKEL_E2E_OS_SMOKE=1 bun test packages/e2e/src/cli-os-smoke.test.ts",
+    "test:e2e:upgrade": "LIEBSTOECKEL_E2E_UPGRADE=1 bun test packages/e2e/src/cli-upgrade.test.ts",
     "docs:dev": "cd packages/docs && bun --bun astro dev --host",
     "docs:build": "cd packages/docs && bun --bun astro build",
     "landing:dev": "cd packages/landing && bun --bun astro dev --host",

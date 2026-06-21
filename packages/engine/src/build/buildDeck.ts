@@ -19,6 +19,10 @@ import {
   type LicenseReport,
 } from "./licenses";
 
+// The single-copy guard primitives are part of the public build surface (the e2e
+// upgrade tier reduces over a real installed tree with them; (internal ADR)).
+export { firstPartyVersionConflicts, formatFirstPartyConflicts, type FirstPartyConflict } from "./licenses";
+
 /** The plugins every deck build runs (Tailwind CSS gen, MDX compile, visx ESM
  *  interop). Shared so the license collector and any collect-only build resolve
  *  the exact same module graph as a real build. */
