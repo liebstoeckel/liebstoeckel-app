@@ -7,6 +7,8 @@
 [![Docs](https://img.shields.io/badge/docs-liebstoeckel.app-c9a24b.svg)](https://docs.liebstoeckel.app)
 [![Built with Bun](https://img.shields.io/badge/built%20with-Bun-14151a.svg?logo=bun)](https://bun.com)
 
+> **Status: experimental, pre-1.0.** liebstoeckel is an evolving experiment, not yet production-ready. Before 1.0, breaking changes can land in any release without a major-version bump, so pin an exact version if you depend on it.
+
 liebstoeckel is a code-first presentation engine. You write slides in MDX for prose and TSX for anything interactive, theme them from one place, and build a single portable `.html` per deck.
 It runs on Bun, React 19, Motion, and Tailwind v4.
 
@@ -48,8 +50,6 @@ liebstoeckel build              # -> dist/my-talk.html
 That output is one `.html` with the JS, CSS, fonts, and assets inlined. No server, no CDN, no runtime deps. Open it directly, email it, or host it on anything static. It also embeds its own source by default, so `liebstoeckel eject` can turn the file back into an editable project.
 
 Working in this repository rather than a scaffolded deck? Run `bun install`, then `bun run demo:dev` for the minimal demo (port 3000) or `bun run showcase:dev` for the visx data-viz deck (port 3001).
-
-> liebstoeckel is pre-1.0. Breaking changes can land in minor releases, so pin exact versions if a deck has to keep building unchanged.
 
 ## From a prompt to a deck
 

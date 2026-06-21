@@ -4,7 +4,7 @@
 
 Part of [liebstoeckel](https://liebstoeckel.app), a code-first presentation framework. You write decks in MDX and TSX and build them into a single self-contained HTML file with no server or runtime dependencies. The same file works offline, and when you host it the deck runs a live session between the presenter and the audience. Built on Bun, React 19, Motion, and Tailwind v4.
 
-> Pre-release software. The API can still change.
+> **Status: experimental, pre-1.0.** liebstoeckel is an evolving experiment, not yet production-ready. Before 1.0, breaking changes can land in any release without a major-version bump, so pin an exact version if you depend on it.
 
 Themed building blocks (`Card`, `Button`, `Bar`, `Stack`, `Eyebrow`), plus `useTheme()` for reading the active brand's tokens. The components style themselves against the deck's `--brand-*` CSS variables, so a plugin's UI matches whatever brand is active without bundling Tailwind into your package.
 

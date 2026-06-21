@@ -4,7 +4,7 @@
 
 Part of [liebstoeckel](https://liebstoeckel.app), a code-first presentation framework. You write decks in MDX and TSX and build them into a single self-contained HTML file with no server or runtime dependencies. The same file works offline, and when you host it the deck runs a live session between the presenter and the audience. Built on Bun, React 19, Motion, and Tailwind v4.
 
-> Pre-release software. The API can still change.
+> **Status: experimental, pre-1.0.** liebstoeckel is an evolving experiment, not yet production-ready. Before 1.0, breaking changes can land in any release without a major-version bump, so pin an exact version if you depend on it.
 
 A stateless bridge you run on a public host. The presenter connects out to it, remote viewers connect in, and frames pass through, so you can present to people off your LAN without opening ports on your machine. The relay never runs deck code. It serves the deck under a locked-down `sandbox` CSP (an opaque origin) and only shuttles sync frames.
 

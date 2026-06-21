@@ -4,7 +4,7 @@
 
 Part of [liebstoeckel](https://liebstoeckel.app), a code-first presentation framework. You write decks in MDX and TSX and build them into a single self-contained HTML file with no server or runtime dependencies. The same file works offline, and when you host it the deck runs a live session between the presenter and the audience. Built on Bun, React 19, Motion, and Tailwind v4.
 
-> Pre-release software. The API can still change.
+> **Status: experimental, pre-1.0.** liebstoeckel is an evolving experiment, not yet production-ready. Before 1.0, breaking changes can land in any release without a major-version bump, so pin an exact version if you depend on it.
 
 Drop a poll onto a slide, share the live link, and watch the bars fill as the room votes. There's no poll server to run, since the state lives entirely in the deck's shared [Yjs](https://yjs.dev) document. The slide still renders offline and in thumbnails through a static fallback.
 
