@@ -6,10 +6,12 @@ import { rehydrateServerBundle } from "@liebstoeckel/plugin-sdk/manifest";
 import { buildServerBundle, buildPluginManifest, escapeInlineModuleScript, stampGenerator } from "./buildDeck";
 
 describe("buildServerBundle", () => {
-  // Real `Bun.build` (target:bun). Isolated (unique tmp dir), but bundling is
-  // CPU-heavy and slows sharply under full-suite/loaded-CI host load, the default
-  // 5s timeout flakes there. ~0.5s unloaded; 60s is generous headroom for a loaded
-  // box while still catching a genuine hang.
+  // Real `Bun.build` (target:bun). Isolated (unique tmp dir). Runs in ~0.3s alone
+  // and ~1.7s under 2x-core saturation, so the work itself is cheap. The rare flake
+  // is environmental: in the full 76-file suite on a host that also runs other heavy
+  // builds, a memory/CPU spike can starve one Bun.build for tens of seconds. The
+  // generous timeout catches a genuine hang; `retry` absorbs a one-off host spike so
+  // a single starved attempt doesn't redden the suite (a re-run lands after the spike).
   test(
     "bundles a server entry (target:bun) → base64 that rehydrates & runs with ctx",
     async () => {
@@ -24,7 +26,7 @@ describe("buildServerBundle", () => {
       const mod = await rehydrateServerBundle(b64, "fixture");
       expect((mod.default as (c: { n: number }) => number)({ n: 5 })).toBe(105);
     },
-    60_000,
+    { timeout: 60_000, retry: 2 },
   );
 });
 
