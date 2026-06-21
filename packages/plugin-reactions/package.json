@@ -29,6 +29,8 @@
   },
   "files": [
     "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
     "LICENSE"
   ],
   "engines": {

@@ -29,6 +29,8 @@
   },
   "files": [
     "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
     "LICENSE"
   ],
   "engines": {
@@ -44,6 +46,7 @@
     "./build/thumbnails": "./src/build/thumbnails.ts",
     "./build/capture-protocol": "./src/build/capture-protocol.ts",
     "./mdx-plugin": "./src/build/mdx-plugin.ts",
+    "./visx-esm-plugin": "./src/build/visx-esm-plugin.ts",
     "./code": "./src/code/macro.ts"
   },
   "dependencies": {

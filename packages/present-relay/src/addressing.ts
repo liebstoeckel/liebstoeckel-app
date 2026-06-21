@@ -21,8 +21,8 @@ export function ordinalTag(ordinal: number, width = 3): string {
 
 /**
  * Derive a relay pod's own public base URL from its pod name + a host template.
- * `liebstoeckel-relay-7` + `https://liebstoeckel-relayNNN.int.limond.de`
- *   → `https://liebstoeckel-relay007.int.limond.de` (trailing slashes trimmed).
+ * `liebstoeckel-relay-7` + `https://liebstoeckel-relayNNN.example.com`
+ *   → `https://liebstoeckel-relay007.example.com` (trailing slashes trimmed).
  * Returns undefined when it can't (no pod name / no `NNN` template / unparseable
  * ordinal) so the caller falls back to an explicit PRESENT_RELAY_PUBLIC_URL or the
  * request-derived origin.

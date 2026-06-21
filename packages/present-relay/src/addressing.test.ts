@@ -20,11 +20,11 @@ describe("relay per-pod addressing ((internal ticket))", () => {
   });
 
   test("relayPublicBaseFromPod derives the per-pod host and trims trailing slash", () => {
-    const tpl = "https://liebstoeckel-relayNNN.int.limond.de";
-    expect(relayPublicBaseFromPod("liebstoeckel-relay-0", tpl)).toBe("https://liebstoeckel-relay000.int.limond.de");
-    expect(relayPublicBaseFromPod("liebstoeckel-relay-7", tpl)).toBe("https://liebstoeckel-relay007.int.limond.de");
+    const tpl = "https://liebstoeckel-relayNNN.example.com";
+    expect(relayPublicBaseFromPod("liebstoeckel-relay-0", tpl)).toBe("https://liebstoeckel-relay000.example.com");
+    expect(relayPublicBaseFromPod("liebstoeckel-relay-7", tpl)).toBe("https://liebstoeckel-relay007.example.com");
     expect(relayPublicBaseFromPod("liebstoeckel-relay-12", `${tpl}/`)).toBe(
-      "https://liebstoeckel-relay012.int.limond.de",
+      "https://liebstoeckel-relay012.example.com",
     );
     // future prod domain works the same way
     expect(relayPublicBaseFromPod("liebstoeckel-relay-3", "https://liveNNN.liebdecks.app")).toBe(
@@ -33,7 +33,7 @@ describe("relay per-pod addressing ((internal ticket))", () => {
   });
 
   test("returns undefined when it can't derive (caller falls back)", () => {
-    const tpl = "https://liebstoeckel-relayNNN.int.limond.de";
+    const tpl = "https://liebstoeckel-relayNNN.example.com";
     expect(relayPublicBaseFromPod(undefined, tpl)).toBeUndefined();
     expect(relayPublicBaseFromPod("liebstoeckel-relay-0", undefined)).toBeUndefined();
     expect(relayPublicBaseFromPod("liebstoeckel-relay-0", "https://no-placeholder.example")).toBeUndefined();

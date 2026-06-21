@@ -20,34 +20,44 @@ bun add react react-dom yjs   # peers you provide
 ## Usage
 
 ```tsx
-// slides.tsx
-import { Presentation, Slide } from "@liebstoeckel/engine";
+// main.tsx — the deck entry, mounted by index.html
+import { createRoot } from "react-dom/client";
+import { Present } from "@liebstoeckel/engine";
+import "@liebstoeckel/theme/styles.css";
 
-export default (
-  <Presentation>
-    <Slide><h1>Hello, liebstoeckel</h1></Slide>
-    <Slide><h2>One file. Animated. Live.</h2></Slide>
-  </Presentation>
+import Intro from "./slides/intro.mdx";
+import Hello from "./slides/hello.tsx";
+
+createRoot(document.getElementById("root")!).render(
+  <Present slides={[Intro, Hello]} brands={["acme"]} />,
 );
 ```
 
-```ts
-// build.ts: compile the deck to a single HTML file
-import { buildDeck } from "@liebstoeckel/engine/build";
+Each slide is its own MDX or TSX module; `Present` orders them, renders Motion
+transitions, and (when hosted) runs the live presenter↔audience session.
 
-await buildDeck({ entry: "./slides.tsx", outDir: "dist", title: "My deck" });
+```ts
+// build.ts: compile the deck (entry is the index.html) to one self-contained file
+import { bundleDeck } from "@liebstoeckel/engine/build";
+
+await bundleDeck({ entry: "./index.html", outdir: "./dist" });
 // writes dist/index.html
 ```
+
+For thumbnails-in-the-build, use the batteries-included `buildDeck` from
+[`@liebstoeckel/thumbnails/build`](https://www.npmjs.com/package/@liebstoeckel/thumbnails)
+instead — it wraps `bundleDeck` and embeds per-slide screenshots.
 
 ## Exports
 
 | Entry | What |
 |---|---|
-| `@liebstoeckel/engine` | Runtime: `Presentation`, `Slide`, `useDeck`, `ThemeProvider` / `useTheme`, `definePlugin`, `builtinPlugins` |
-| `@liebstoeckel/engine/build` | `buildDeck(options)` writes self-contained HTML. Options: `entry`, `outDir`, `title`, `plugins`, `base`, `theme`, `thumbnails` |
+| `@liebstoeckel/engine` | Runtime: `Present`, `Deck`, `PresenterView`, `ScaledStage` / `SlideFrame`, `Step` / `StepsProvider` / `useRevealState`, `CodeMagic`, `Magic` / `Atmosphere`, `useDeckSync` / `useDeckNav`, and the live re-exports (`Plugin`, `LiveProvider`, `useLive`, …) |
+| `@liebstoeckel/engine/build` | `bundleDeck(options)` writes self-contained HTML. Options: `entry` (an `index.html`), `outdir`, `outfile`, `minify`, `pkgJson`, `inlinePackage`, `inlineLicenses` |
 | `@liebstoeckel/engine/live` | Live-mode client runtime (Yjs sync) |
 | `@liebstoeckel/engine/code` | The **Bun macro** for build-time syntax highlighting (animated code) |
 | `@liebstoeckel/engine/mdx-plugin` | The MDX build plugin |
+| `@liebstoeckel/engine/visx-esm-plugin` | The visx ESM-interop build plugin |
 
 ## Architecture
 

@@ -25,7 +25,7 @@ import { startServer } from "@liebstoeckel/live-server";
 const server = await startServer({ html: "dist/index.html" });
 
 console.log(server.links.presenter); // open this yourself
-console.log(server.links.audience);  // share this with the room
+console.log(server.links.viewer);    // share this with the room
 
 // …later
 await server.stop();

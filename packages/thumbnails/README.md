@@ -19,13 +19,13 @@ bun add react   # peer
 
 ## Usage
 
-The common case is to swap your `buildDeck` call for the thumbnail-aware one:
+The common case is to swap your engine `bundleDeck` call for this thumbnail-aware `buildDeck`:
 
 ```ts
 // build.ts
-import { buildDeckWithThumbnails } from "@liebstoeckel/thumbnails/build";
+import { buildDeck } from "@liebstoeckel/thumbnails/build";
 
-await buildDeckWithThumbnails({ entry: "./index.html", outdir: "./dist" });
+await buildDeck({ entry: "./index.html", outdir: "./dist" });
 // writes dist/index.html with per-slide thumbnails embedded
 ```
 
@@ -42,8 +42,8 @@ await addThumbnailsToFile("dist/index.html");
 | Entry | What |
 |---|---|
 | `@liebstoeckel/thumbnails` | `captureThumbnails`, `addThumbnailsToFile`, `resolveChromium`, `hasChromium`, `thumbnailsEnabled`, the manifest re-exports, and the `CaptureOptions` / `ThumbnailFormat` / `ThumbnailManifest` types |
-| `@liebstoeckel/thumbnails/build` | `buildDeckWithThumbnails(build?, capture?)`, the standard deck `build.ts` one-liner |
-| `@liebstoeckel/thumbnails/cli` | `runThumbs` (powers the `liebstoeckel-thumbnails` bin) |
+| `@liebstoeckel/thumbnails/build` | `buildDeck(build?, capture?)`, the standard deck `build.ts` one-liner |
+| `@liebstoeckel/thumbnails/cli` | `thumbsCommand` / `exportCommand` (citty commands; `thumbsCommand` powers the `liebstoeckel-thumbnails` bin) |
 
 `CaptureOptions` defaults: `width` 640, `format` `webp`, `quality` 80, `scale` 2, `settleMs` 250, `timeoutMs` 15000.
 
@@ -60,8 +60,8 @@ It drives a built single-file deck through its own capture protocol (re-exported
 |---|---|
 | `src/capture.ts` | The browser side. `captureThumbnails(html, opts)` launches headless Chromium through `playwright-core`, injects the `CAPTURE_FLAG` as a classic inline `<script>` (so it runs before the deferred deck bundle boots), waits for `SLIDE_COUNT`, then for each slide dispatches `CAPTURE_EVENT` and waits for `CAPTURE_READY` to match before a settle delay and a PNG `page.screenshot()`. It also holds `resolveChromium`, `hasChromium`, `thumbnailsEnabled`, and the PNG-to-WebP/JPEG transcode through `Bun.Image`. |
 | `src/index.ts` | `addThumbnailsToFile(path)` reads the HTML, runs `captureThumbnails`, then re-embeds in place with `embedThumbnails` (from the engine). It's idempotent, since a prior block is stripped first. It re-exports the engine manifest helpers (`embedThumbnails` / `extractThumbnails` / `stripThumbnails`). |
-| `src/build.ts` | `buildDeckWithThumbnails()` calls the engine's `buildDeck`, then `addThumbnailsToFile` on the output. It wraps capture in a guard (`thumbnailsEnabled`) and a try/catch, so the optional step never fails the build. |
-| `src/cli.ts` | `runThumbs` powers the `liebstoeckel-thumbs` bin and the CLI's `thumbs` command. It parses `--width/--quality/--scale/--format` and calls `addThumbnailsToFile`. |
+| `src/build.ts` | `buildDeck()` calls the engine's `bundleDeck`, then `addThumbnailsToFile` on the output. It wraps capture in a guard (`thumbnailsEnabled`) and a try/catch, so the optional step never fails the build. |
+| `src/cli.ts` | `thumbsCommand` powers the `liebstoeckel-thumbnails` bin and the CLI's `thumbs` command. It parses `--width/--quality/--scale/--format` and calls `addThumbnailsToFile`. |
 
 A few sequencing notes:
 

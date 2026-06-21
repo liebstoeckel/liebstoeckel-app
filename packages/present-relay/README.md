@@ -54,7 +54,7 @@ Terminate TLS at your proxy and forward `/sync/*` as a WebSocket. The image runs
 | `@liebstoeckel/present-relay` | `createRelay`, the `RelayServer` runtime, auth helpers (`safeEqual`, `matchAccount`, `bearer`), and the `RelayOptions` type |
 | `@liebstoeckel/present-relay/cli` | `runRelay` (powers the `liebstoeckel-relay` bin). Flags: `--port`/`PORT`, `--tokens`/`PRESENT_RELAY_TOKENS`, `--public-url`/`PRESENT_RELAY_PUBLIC_URL` |
 
-`createRelay` options: `accountTokens` (required, at least one), `port?`, `hostname?` (`0.0.0.0`), `publicBaseUrl?`, `maxDeckBytes?` (8MB), `maxSessionsPerAccount?` (20), `sessionTtlMs?` (6h), `maxFrameBytes?` (4MB), `keepaliveMs?` (25s). It returns a `RelayServer` with `port`, `baseUrl`, `sessions`, and `stop()`.
+`createRelay` options: `accountTokens` (required, at least one), `port?`, `hostname?` (`0.0.0.0`), `publicBaseUrl?`, `maxDeckBytes?` (8MB), `maxSessionsPerAccount?` (200), `sessionTtlMs?` (6h), `maxFrameBytes?` (4MB), `keepaliveMs?` (25s). It returns a `RelayServer` with `port`, `baseUrl`, `sessions`, and `stop()`.
 
 ## Gotchas
 
