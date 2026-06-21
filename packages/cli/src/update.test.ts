@@ -1,7 +1,7 @@
-import { test, expect, describe } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { afterEach, beforeEach, test, expect, describe } from "bun:test";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   compareVersions,
   isNewer,
@@ -9,8 +9,44 @@ import {
   remindersEnabled,
   parseSkillVersion,
   installedSkillVersion,
+  skillReminder,
+  updateReminder,
   type CheckState,
 } from "./update";
+
+/** Run a reminder with stderr captured + the interactive/agent gate forced, then
+ *  restore everything. Returns the joined stderr the user would have seen. */
+async function captureReminder(
+  fn: () => Promise<void>,
+  opts: { tty?: boolean; env?: Record<string, string | undefined> } = {},
+): Promise<string> {
+  const out: string[] = [];
+  const origErr = console.error;
+  const origTty = process.stderr.isTTY;
+  const restore: Array<[string, string | undefined]> = [
+    ["CI", process.env.CI],
+    ["LIEBSTOECKEL_NO_UPDATE_CHECK", process.env.LIEBSTOECKEL_NO_UPDATE_CHECK],
+  ];
+  console.error = (...a: unknown[]) => void out.push(a.map(String).join(" "));
+  try {
+    (process.stderr as { isTTY?: boolean }).isTTY = opts.tty ?? true;
+    delete process.env.CI;
+    delete process.env.LIEBSTOECKEL_NO_UPDATE_CHECK;
+    for (const [k, v] of Object.entries(opts.env ?? {})) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    await fn();
+  } finally {
+    console.error = origErr;
+    (process.stderr as { isTTY?: boolean }).isTTY = origTty;
+    for (const [k, v] of restore) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+  return out.join("\n");
+}
 
 describe("compareVersions / isNewer (pure)", () => {
   test("orders numeric triples numerically, not lexically", () => {
@@ -90,6 +126,83 @@ describe("skill version detection", () => {
       expect(await installedSkillVersion(dir)).toBe("0.2.0");
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("updateReminder (real message, cache-driven)", () => {
+  // The reminder prints from the cache, never a live lookup; a fresh checkedAt also
+  // means shouldRefresh is false, so no background `bun pm view` is spawned. We point
+  // $HOME at a sandbox so the lazily-resolved cache path lands there.
+  let home = "";
+  let origHome: string | undefined;
+  beforeEach(() => {
+    origHome = process.env.HOME;
+    home = mkdtempSync(join(tmpdir(), "lst-upd-home-"));
+    process.env.HOME = home;
+  });
+  afterEach(() => {
+    if (origHome === undefined) delete process.env.HOME;
+    else process.env.HOME = origHome;
+    rmSync(home, { recursive: true, force: true });
+  });
+  const seed = (latest: string | null) => {
+    const f = join(home, ".config", "liebstoeckel", "update-check.json");
+    mkdirSync(dirname(f), { recursive: true });
+    writeFileSync(f, JSON.stringify({ checkedAt: Date.now(), latest } satisfies CheckState));
+  };
+
+  test("prints the update notice with the bun update --latest hint", async () => {
+    seed("99.0.0"); // newer than the CLI's real version
+    const out = await captureReminder(() => updateReminder([]), { tty: true });
+    expect(out).toContain("@liebstoeckel/cli 99.0.0 is available");
+    expect(out).toContain("bun update --latest @liebstoeckel/cli");
+  });
+
+  test("silent when the cached latest is not newer", async () => {
+    seed("0.0.1");
+    expect(await captureReminder(() => updateReminder([]), { tty: true })).toBe("");
+  });
+
+  test("silent for agents: --json, a pipe, or CI", async () => {
+    seed("99.0.0");
+    expect(await captureReminder(() => updateReminder(["build", "--json"]), { tty: true })).toBe("");
+    expect(await captureReminder(() => updateReminder([]), { tty: false })).toBe("");
+    expect(await captureReminder(() => updateReminder([]), { tty: true, env: { CI: "1" } })).toBe("");
+  });
+});
+
+describe("skillReminder (real message)", () => {
+  const withSkill = (version: string | null): string => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-skillrem-"));
+    if (version) {
+      const sd = join(dir, ".claude", "skills", "liebstoeckel-deck");
+      mkdirSync(sd, { recursive: true });
+      writeFileSync(join(sd, "SKILL.md"), `---\nname: liebstoeckel-deck\nversion: ${version}\n---\n`);
+    }
+    return dir;
+  };
+
+  test("warns when the installed skill is older than the running CLI", async () => {
+    const dir = withSkill("0.0.1");
+    try {
+      const out = await captureReminder(() => skillReminder(dir, []), { tty: true });
+      expect(out).toContain("this deck's agent skill is v0.0.1");
+      expect(out).toContain("liebstoeckel skill update");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("silent when no skill is installed, or for a pipe", async () => {
+    const empty = withSkill(null);
+    const stale = withSkill("0.0.1");
+    try {
+      expect(await captureReminder(() => skillReminder(empty, []), { tty: true })).toBe("");
+      expect(await captureReminder(() => skillReminder(stale, []), { tty: false })).toBe("");
+    } finally {
+      rmSync(empty, { recursive: true, force: true });
+      rmSync(stale, { recursive: true, force: true });
     }
   });
 });

@@ -9,13 +9,15 @@
 // Reminders are stderr-only and OFF for agents/CI/pipes (`remindersEnabled`),
 // so the machine-readable contract ((internal ADR)) stays clean.
 import { existsSync, mkdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CONFIG_DIR } from "./creds";
 import { cliVersion, SKILL_DIR } from "./skill";
 
 const PKG = "@liebstoeckel/cli";
-const STATE_FILE = join(CONFIG_DIR, "update-check.json");
+// Resolve the cache path lazily, honouring $HOME (homedir() is the Windows fallback);
+// it lives next to the CLI's config (mirrors creds' CONFIG_DIR).
+const stateFile = () => join(process.env.HOME || homedir(), ".config", "liebstoeckel", "update-check.json");
 const CHECK_EVERY_MS = 24 * 60 * 60 * 1000;
 
 export interface CheckState {
@@ -67,7 +69,7 @@ export function remindersEnabled(
 
 async function readState(): Promise<CheckState | null> {
   try {
-    const s = (await Bun.file(STATE_FILE).json()) as CheckState;
+    const s = (await Bun.file(stateFile()).json()) as CheckState;
     return typeof s?.checkedAt === "number" ? s : null;
   } catch {
     return null;
@@ -139,8 +141,8 @@ async function refresh(): Promise<void> {
   } catch {
     // offline / no project / no registry: cache the miss
   }
-  mkdirSync(dirname(STATE_FILE), { recursive: true });
-  await Bun.write(STATE_FILE, JSON.stringify({ checkedAt: Date.now(), latest } satisfies CheckState));
+  mkdirSync(dirname(stateFile()), { recursive: true });
+  await Bun.write(stateFile(), JSON.stringify({ checkedAt: Date.now(), latest } satisfies CheckState));
 }
 
 if (import.meta.main) void refresh();
