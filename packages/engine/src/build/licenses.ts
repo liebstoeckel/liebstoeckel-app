@@ -67,6 +67,8 @@ export interface LicenseReport {
 export function createLicenseCollector(opts: { selfName?: string } = {}): {
   plugin: import("bun").BunPlugin;
   report: () => LicenseReport;
+  /** @liebstoeckel/* packages that resolved to >1 version in the captured graph. */
+  conflicts: () => FirstPartyConflict[];
 } {
   const paths = new Set<string>();
   const record = (p: string | undefined) => {
@@ -91,7 +93,63 @@ export function createLicenseCollector(opts: { selfName?: string } = {}): {
       });
     },
   };
-  return { plugin, report: () => buildReport(paths, opts.selfName) };
+  return {
+    plugin,
+    report: () => buildReport(paths, opts.selfName),
+    conflicts: () => firstPartyVersionConflicts(paths, opts.selfName),
+  };
+}
+
+/** A first-party package that resolved to more than one version in a single build's
+ *  module graph — i.e. two incompatible copies that would both be inlined. */
+export interface FirstPartyConflict {
+  name: string;
+  versions: string[];
+}
+
+/** Detect `@liebstoeckel/*` packages that appear at more than one version across the
+ *  bundled module graph. A deck inlines its whole import graph into one `.html`, so two
+ *  copies of e.g. `plugin-sdk` are two copies of the plugin↔host contract embedded side
+ *  by side — silently broken. This is the consumption-side guard for caret cross-deps:
+ *  a skewed/lagging plugin can pin an older sibling than `engine` resolves. A pure
+ *  reduction over the same paths the license collector already records (no extra build). */
+export function firstPartyVersionConflicts(paths: Iterable<string>, selfName?: string): FirstPartyConflict[] {
+  const versions = new Map<string, Set<string>>();
+  for (const p of paths) {
+    const pkgDir = nearestPackageDir(p);
+    if (!pkgDir) continue;
+    let meta: { name?: string; version?: string };
+    try {
+      meta = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8"));
+    } catch {
+      continue;
+    }
+    if (!meta.name || !meta.name.startsWith(FIRST_PARTY)) continue;
+    if (selfName && meta.name === selfName) continue;
+    let set = versions.get(meta.name);
+    if (!set) {
+      set = new Set();
+      versions.set(meta.name, set);
+    }
+    set.add(meta.version ?? "?");
+  }
+  const conflicts: FirstPartyConflict[] = [];
+  for (const [name, set] of versions) {
+    if (set.size > 1) conflicts.push({ name, versions: [...set].sort() });
+  }
+  return conflicts.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Loud, actionable message for a single-copy violation (used by `build`/`build --check`). */
+export function formatFirstPartyConflicts(conflicts: FirstPartyConflict[]): string {
+  const lines = conflicts.map((c) => `  ${c.name} → ${c.versions.join(", ")}`);
+  return (
+    "this deck bundles more than one version of a liebstoeckel package:\n" +
+    lines.join("\n") +
+    "\n\nA deck is inlined into one .html, so mixed versions ship duplicate, incompatible\n" +
+    "copies (e.g. two plugin-sdk runtimes) side by side. Update the framework packages\n" +
+    "together so each resolves to a single version (e.g. `bun update`), then rebuild."
+  );
 }
 
 /** Resolve a set of absolute file paths to their owning packages and build a report.

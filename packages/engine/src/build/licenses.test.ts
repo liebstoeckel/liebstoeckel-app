@@ -9,6 +9,8 @@ import {
   embedLicenses,
   extractLicenses,
   fallbackLicenseText,
+  firstPartyVersionConflicts,
+  formatFirstPartyConflicts,
   normalizeLicense,
   renderNotices,
   spdxAllowed,
@@ -111,6 +113,56 @@ describe("buildReport (path → package mapping)", () => {
   });
   test("non-permissive licenses are flagged for --check", () => {
     expect(report.flagged.map((f) => f.name)).toEqual(["somegpl"]);
+  });
+});
+
+describe("firstPartyVersionConflicts (single-copy guard)", () => {
+  // Hermetic fixture: a fake node_modules tree where the same package can appear at
+  // two versions (the skew a caret cross-dep + a lagging plugin produces).
+  const root = mkdtempSync(join(tmpdir(), "lic-guard-"));
+  const pkg = (rel: string, name: string, version: string) => {
+    const dir = join(root, rel);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ name, version, license: "MPL-2.0" }));
+    return join(dir, "index.js");
+  };
+  afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+  // engine resolves plugin-sdk@0.4.0; a lagging plugin nests its own plugin-sdk@0.3.3.
+  const engine = pkg("node_modules/@liebstoeckel/engine", "@liebstoeckel/engine", "0.4.0");
+  const sdkNew = pkg("node_modules/@liebstoeckel/plugin-sdk", "@liebstoeckel/plugin-sdk", "0.4.0");
+  const sdkOld = pkg(
+    "node_modules/@liebstoeckel/plugin-poll/node_modules/@liebstoeckel/plugin-sdk",
+    "@liebstoeckel/plugin-sdk",
+    "0.3.3",
+  );
+  const deck = pkg("deck-src", "my-deck", "0.0.0");
+
+  test("flags a package resolved at two versions", () => {
+    const conflicts = firstPartyVersionConflicts([engine, sdkNew, sdkOld, deck], "my-deck");
+    expect(conflicts).toEqual([{ name: "@liebstoeckel/plugin-sdk", versions: ["0.3.3", "0.4.0"] }]);
+  });
+
+  test("a single version of each package is clean", () => {
+    expect(firstPartyVersionConflicts([engine, sdkNew, deck], "my-deck")).toEqual([]);
+  });
+
+  test("same package loaded from many files at one version is not a conflict", () => {
+    const a = join(root, "node_modules/@liebstoeckel/plugin-sdk", "a.js");
+    const b = join(root, "node_modules/@liebstoeckel/plugin-sdk", "b.js");
+    expect(firstPartyVersionConflicts([sdkNew, a, b])).toEqual([]);
+  });
+
+  test("non-first-party duplicates are ignored (that's normal npm dedup)", () => {
+    const r1 = pkg("node_modules/react", "react", "18.0.0");
+    const r2 = pkg("node_modules/x/node_modules/react", "react", "19.0.0");
+    expect(firstPartyVersionConflicts([r1, r2])).toEqual([]);
+  });
+
+  test("formatFirstPartyConflicts is loud and actionable", () => {
+    const msg = formatFirstPartyConflicts([{ name: "@liebstoeckel/plugin-sdk", versions: ["0.3.3", "0.4.0"] }]);
+    expect(msg).toContain("@liebstoeckel/plugin-sdk → 0.3.3, 0.4.0");
+    expect(msg).toContain("bun update");
   });
 });
 

@@ -45,7 +45,7 @@
     "./cli": "./src/cli.ts"
   },
   "dependencies": {
-    "@liebstoeckel/engine": "workspace:*",
+    "@liebstoeckel/engine": "workspace:^",
     "citty": "^0.2.2",
     "playwright-core": "1.60.0"
   }

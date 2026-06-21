@@ -41,8 +41,8 @@
     "./logic": "./src/logic.ts"
   },
   "dependencies": {
-    "@liebstoeckel/plugin-sdk": "workspace:*",
-    "@liebstoeckel/plugin-ui": "workspace:*"
+    "@liebstoeckel/plugin-sdk": "workspace:^",
+    "@liebstoeckel/plugin-ui": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.2.7"

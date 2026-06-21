@@ -11,7 +11,13 @@ import {
 } from "@liebstoeckel/plugin-sdk/manifest";
 import mdx from "./mdx-plugin";
 import visxEsmInterop from "./visx-esm-plugin";
-import { createLicenseCollector, renderNotices, embedLicenses, type LicenseReport } from "./licenses";
+import {
+  createLicenseCollector,
+  renderNotices,
+  embedLicenses,
+  formatFirstPartyConflicts,
+  type LicenseReport,
+} from "./licenses";
 
 /** The plugins every deck build runs (Tailwind CSS gen, MDX compile, visx ESM
  *  interop). Shared so the license collector and any collect-only build resolve
@@ -166,6 +172,8 @@ export async function bundleDeck({
    *  next to the engine version. Omit when the engine builds on its own behalf. */
   generator?: Generator;
 } = {}) {
+  // The collector always runs (a pure onLoad observer): besides licenses it backs the
+  // single-copy guard below, which must hold whether or not we embed notices.
   const licenses = createLicenseCollector({ selfName: await readPkgName(pkgJson) });
   const result = await Bun.build({
     entrypoints: [entry],
@@ -173,13 +181,18 @@ export async function bundleDeck({
     minify,
     target: "browser",
     compile: true,
-    plugins: inlineLicenses ? [...DECK_PLUGINS, licenses.plugin] : DECK_PLUGINS,
+    plugins: [...DECK_PLUGINS, licenses.plugin],
   });
 
   if (!result.success) {
     for (const log of result.logs) console.error(log);
     throw new Error("Deck build failed");
   }
+
+  // Fail loud if the bundle pulled two versions of a liebstoeckel package — a deck is
+  // one inlined .html, so mixed framework versions ship duplicate, incompatible copies.
+  const conflicts = licenses.conflicts();
+  if (conflicts.length) throw new Error(formatFirstPartyConflicts(conflicts));
 
   // Escape `</script>` inside the inlined bundle, then embed the plugin manifest
   // (incl. base64 server bundles) into the single file. Bun.build names its output
@@ -269,18 +282,33 @@ function toDiagnostic(log: unknown): DeckDiagnostic {
  * returns structured diagnostics for an agent's check → fix loop. It does **not**
  * type-check (Bun.build doesn't); it answers "does this deck build?".
  */
-export async function checkDeck({ entry = "./index.html" }: { entry?: string } = {}): Promise<{
+export async function checkDeck({
+  entry = "./index.html",
+  pkgJson = "./package.json",
+}: { entry?: string; pkgJson?: string } = {}): Promise<{
   ok: boolean;
   diagnostics: DeckDiagnostic[];
 }> {
   try {
+    const licenses = createLicenseCollector({ selfName: await readPkgName(pkgJson) });
     const result = await Bun.build({
       entrypoints: [entry],
       target: "browser",
-      plugins: [tailwind, mdx, visxEsmInterop],
+      plugins: [...DECK_PLUGINS, licenses.plugin],
       throw: false,
     });
-    return { ok: result.success, diagnostics: result.logs.map(toDiagnostic) };
+    const diagnostics = result.logs.map(toDiagnostic);
+    let ok = result.success;
+    // Only meaningful on a graph that fully resolved; surface a duplicate liebstoeckel
+    // version as a loud diagnostic (ADR: the consumption-side single-copy guard).
+    if (ok) {
+      const conflicts = licenses.conflicts();
+      if (conflicts.length) {
+        ok = false;
+        diagnostics.push({ level: "error", message: formatFirstPartyConflicts(conflicts) });
+      }
+    }
+    return { ok, diagnostics };
   } catch (err) {
     // resolution / plugin failures can still throw (e.g. AggregateError)
     const errs = err instanceof AggregateError ? err.errors : [err];

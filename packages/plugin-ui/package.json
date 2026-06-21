@@ -40,7 +40,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@liebstoeckel/plugin-sdk": "workspace:*"
+    "@liebstoeckel/plugin-sdk": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.2.7"

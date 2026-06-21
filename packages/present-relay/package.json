@@ -45,7 +45,7 @@
     "./grant": "./src/grant.ts"
   },
   "dependencies": {
-    "@liebstoeckel/live-server": "workspace:*",
+    "@liebstoeckel/live-server": "workspace:^",
     "citty": "^0.2.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/context-async-hooks": "^2.7.1",
