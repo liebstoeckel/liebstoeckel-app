@@ -4,6 +4,7 @@ import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { ChromeButton } from "@liebstoeckel/plugin-ui";
 import { type ClientProps, type GlobalProps, type PluginDef } from "@liebstoeckel/plugin-sdk";
 import { useLive, usePluginProps, type LiveContextValue } from "./Plugin";
+import { PluginBoundary } from "./PluginBoundary";
 import { BreakoutSheet } from "./breakout";
 import { useCoarsePointer } from "../useCoarsePointer";
 import { globalPlugins } from "./globals";
@@ -75,7 +76,13 @@ function ChromePopover({ onClose, children }: { onClose: () => void; children: R
 function OverlayItem({ ctx, id, def }: { ctx: LiveContextValue; id: string; def: PluginDef<any> }) {
   const props = usePluginProps(ctx, id, def);
   const Overlay = def.client.global?.Overlay as ComponentType<ClientProps<unknown>> | undefined;
-  return Overlay ? <Overlay {...props} /> : null;
+  // This overlay is mounted deck-wide on every slide: if it throws, it would unmount the
+  // whole deck. Contain it so a bad audience-written value can't white-screen everyone.
+  return Overlay ? (
+    <PluginBoundary resetKey={props.snapshot}>
+      <Overlay {...props} />
+    </PluginBoundary>
+  ) : null;
 }
 
 /** Deck-wide overlay layer. Mounted as a child of `[data-deck-root]` so its
@@ -125,13 +132,17 @@ function PanelHost({ ctx, id, def, open, onClose, coarse }: { ctx: LiveContextVa
         (sheet ? (
           <BreakoutSheet label={def.client.global?.label ?? id} onClose={onClose}>
             <LayoutGroup id={`plugin-panel:${id}`}>
-              <Panel {...gprops} />
+              <PluginBoundary resetKey={base.snapshot}>
+                <Panel {...gprops} />
+              </PluginBoundary>
             </LayoutGroup>
           </BreakoutSheet>
         ) : (
           <ChromePopover onClose={onClose}>
             <LayoutGroup id={`plugin-panel:${id}`}>
-              <Panel {...gprops} />
+              <PluginBoundary resetKey={base.snapshot}>
+                <Panel {...gprops} />
+              </PluginBoundary>
             </LayoutGroup>
           </ChromePopover>
         ))}

@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import * as Y from "yjs";
-import { authorizeAudienceUpdate, buildAudienceScope, tokenBucket } from "./authorize";
+import {
+  authorizeAudienceUpdate,
+  buildAudienceScope,
+  tokenBucket,
+  MAX_AUDIENCE_STRING,
+  MAX_AUDIENCE_ENTRIES,
+} from "./authorize";
 import type { PluginManifest } from "./manifest";
 
 // A deck with the two interactive built-ins. poll lets the audience write `votes`;
@@ -105,6 +111,46 @@ describe("authorizeAudienceUpdate", () => {
   test("rejects garbage bytes (fail closed)", () => {
     const base = makeBase();
     expect(authorizeAudienceUpdate(Y.encodeStateAsUpdate(base), new Uint8Array([1, 2, 3, 4, 5]), scope)).toBe(false);
+  });
+
+  // Value bounds: scope is necessary but not sufficient — a peer writing *into* an
+  // allowed field must still respect coarse size/shape limits (DoS + render-crash guard).
+  test("rejects an oversized string written into an allowed field", () => {
+    const huge = "x".repeat(MAX_AUDIENCE_STRING + 1);
+    expect(allows((d) => (d.getMap("plugin:poll").get("votes") as Y.Map<unknown>).set("pidA", huge))).toBe(false);
+  });
+
+  test("rejects an oversized Q&A question text", () => {
+    expect(
+      allows((d) => {
+        const q = new Y.Map<unknown>();
+        q.set("text", "x".repeat(MAX_AUDIENCE_STRING + 1));
+        q.set("author", "anon");
+        q.set("ts", 1);
+        (d.getMap("plugin:qa").get("questions") as Y.Map<unknown>).set("q1", q);
+      }),
+    ).toBe(false);
+  });
+
+  test("allows a normal-length question (under the bound)", () => {
+    expect(
+      allows((d) => {
+        const q = new Y.Map<unknown>();
+        q.set("text", "x".repeat(280));
+        q.set("author", "anon");
+        q.set("ts", 1);
+        (d.getMap("plugin:qa").get("questions") as Y.Map<unknown>).set("q1", q);
+      }),
+    ).toBe(true);
+  });
+
+  test("rejects a runaway number of vote keys in one update", () => {
+    expect(
+      allows((d) => {
+        const votes = d.getMap("plugin:poll").get("votes") as Y.Map<unknown>;
+        for (let i = 0; i <= MAX_AUDIENCE_ENTRIES; i++) votes.set(`p${i}`, "red");
+      }),
+    ).toBe(false);
   });
 });
 

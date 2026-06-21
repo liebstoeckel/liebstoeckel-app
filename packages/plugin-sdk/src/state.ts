@@ -52,7 +52,11 @@ export function pluginState<T>(doc: Y.Doc, id: string, schema: Schema<T>, instan
   const snapshot = (): T => {
     const base = schema.default() as Record<string, unknown>;
     root.forEach((val, key) => (base[key] = toJS(val)));
-    return base as T;
+    // The doc is shared with an untrusted audience over the live link, which can write
+    // arbitrary JSON into a plugin's audience-writable fields. Coerce against the schema
+    // so a malformed remote value (e.g. an object where a string is expected) can never
+    // reach a plugin's render as an invalid React child and crash the whole deck.
+    return schema.sanitize(base);
   };
 
   return {

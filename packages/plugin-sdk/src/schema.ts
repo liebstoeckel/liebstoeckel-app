@@ -8,6 +8,13 @@ export interface Schema<T> {
   parse(value: unknown): T;
   /** Non-throwing parse. */
   safeParse(value: unknown): { ok: true; value: T } | { ok: false; error: string };
+  /** Best-effort coercion to a valid `T`: repairs/drops invalid parts instead of
+   *  throwing — an out-of-shape primitive falls back to the default, a record/array
+   *  drops the entries that fail. Used to make *untrusted remote state* safe to read
+   *  and render: an audience peer can write any JSON into its allowed live fields, so
+   *  a malformed value (e.g. a non-string where a string is expected) must never reach
+   *  React as a child and crash the whole deck. */
+  sanitize(value: unknown): T;
   /** A sensible empty/default value. */
   default(): T;
   /** phantom, for `Infer<>` only */
@@ -26,6 +33,9 @@ function make<T>(kind: string, def: () => T, check: (v: unknown) => v is T): Sch
     },
     safeParse(value) {
       return check(value) ? { ok: true, value } : { ok: false, error: `expected ${kind}` };
+    },
+    sanitize(value) {
+      return check(value) ? value : def();
     },
   };
 }
@@ -51,6 +61,15 @@ export const t = {
           return { ok: false, error: String((e as Error).message) };
         }
       },
+      sanitize(value) {
+        if (!Array.isArray(value)) return [];
+        const out: I[] = [];
+        for (const v of value) {
+          const r = item.safeParse(v);
+          if (r.ok) out.push(r.value);
+        }
+        return out;
+      },
     };
   },
 
@@ -70,6 +89,18 @@ export const t = {
         } catch (e) {
           return { ok: false, error: String((e as Error).message) };
         }
+      },
+      sanitize(input) {
+        if (typeof input !== "object" || input === null || Array.isArray(input)) return {};
+        const out: Record<string, V> = {};
+        // Drop entries whose value fails the schema (an audience peer could write a
+        // record entry of the wrong shape, e.g. a Q&A question whose `text` is an
+        // object); the surviving good entries are returned untouched.
+        for (const [k, v] of Object.entries(input)) {
+          const r = value.safeParse(v);
+          if (r.ok) out[k] = r.value;
+        }
+        return out;
       },
     };
   },
@@ -97,6 +128,17 @@ export const t = {
         } catch (e) {
           return { ok: false, error: String((e as Error).message) };
         }
+      },
+      sanitize(input) {
+        const src =
+          typeof input === "object" && input !== null && !Array.isArray(input)
+            ? (input as Record<string, unknown>)
+            : {};
+        const out = {} as Out;
+        // Coerce each known field independently; an unrepairable field falls back to
+        // its default, and keys outside the shape are dropped.
+        for (const k in shape) (out as Record<string, unknown>)[k] = shape[k]!.sanitize(src[k]);
+        return out;
       },
     };
   },

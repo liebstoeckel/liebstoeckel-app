@@ -18,6 +18,13 @@ const BASE_HTML = "<html><head><title>deck</title></head><body><div id=root></di
 // dev's plugin sync with zero server changes, (internal ADR)). So the test brings its
 // own schema rather than borrowing a real plugin's, same spirit as `@acme/seed`.
 const voteSchema = schema({ options: t.array(t.string), votes: t.record(t.string) });
+
+// A deck whose manifest declares the `vote` plugin's audience-writable field, so an
+// audience peer may write `votes` (but nothing else) under the default enforcement.
+const VOTE_DECK = embedManifest(BASE_HTML, {
+  v: 1,
+  plugins: [{ name: "@acme/vote", version: "1.0.0", hasServer: false, id: "vote", audienceWrites: ["votes"] }],
+} satisfies PluginManifest);
 const countByOption = (s: { options: string[]; votes: Record<string, string> }) =>
   s.options.map((option) => ({ option, count: Object.values(s.votes).filter((v) => v === option).length }));
 
@@ -105,7 +112,9 @@ describe("relay end-to-end (deck code stays local)", () => {
 
   test("typed plugin state converges across two clients through the relay", async () => {
     const base = startRelay();
-    const info = await uploadDeck(base, TOKEN, BASE_HTML);
+    // Default upload enforces audience write-scope; VOTE_DECK's manifest declares
+    // `votes` as audience-writable, so the viewer's vote is in scope and converges.
+    const info = await uploadDeck(base, TOKEN, VOTE_DECK);
     const mk = (role: "presenter" | "viewer", token: string, p: string) =>
       track(connectLive({ ws: `${info.urls.sync}?t=${token}`, session: info.id, role, token }, p));
 
@@ -132,6 +141,28 @@ describe("relay end-to-end (deck code stays local)", () => {
         { option: "B", count: 1 },
       ]);
     }
+  });
+
+  test("default enforcement drops a viewer write outside the manifest's audienceWrites", async () => {
+    const base = startRelay();
+    const info = await uploadDeck(base, TOKEN, VOTE_DECK); // enforce on by default
+    const mk = (role: "presenter" | "viewer", token: string, p: string) =>
+      track(connectLive({ ws: `${info.urls.sync}?t=${token}`, session: info.id, role, token }, p));
+    const presenter = mk("presenter", info.presenterToken, "pres");
+    const viewer = mk("viewer", info.viewerToken, "view");
+    await Promise.all([
+      new Promise<void>((r) => presenter.onStatus((c) => c && r())),
+      new Promise<void>((r) => viewer.onStatus((c) => c && r())),
+    ]);
+
+    // In scope (votes) → converges to the presenter.
+    pluginState(viewer.doc, "vote", voteSchema).recordSet("votes", "view", "B");
+    await waitUntil(() => Object.keys(pluginState(presenter.doc, "vote", voteSchema).snapshot().votes).length === 1);
+
+    // Out of scope (options is presenter-only) → the relay drops it; it never lands.
+    pluginState(viewer.doc, "vote", voteSchema).set("options", ["X", "Y", "Z"]);
+    await Bun.sleep(300);
+    expect(pluginState(presenter.doc, "vote", voteSchema).snapshot().options).toEqual([]);
   });
 
   test("endSession tears the session down", async () => {

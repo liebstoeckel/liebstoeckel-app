@@ -11,11 +11,25 @@ export interface RelaySessionInfo {
   urls: { presenter: string; viewer: string; sync: string };
 }
 
-/** Upload a built deck to a relay and create a public session (tokens + urls). */
-export async function uploadDeck(relayUrl: string, accountToken: string, html: string): Promise<RelaySessionInfo> {
+/** Upload a built deck to a relay and create a public session (tokens + urls).
+ *  Audience write-scope + rate-limiting are enforced by default: a public viewer link
+ *  invites strangers, so the relay must drop any audience update outside the plugins'
+ *  declared `audienceWrites` (the scope is read from the deck's own embedded manifest).
+ *  Pass `{ enforce: false }` only for a deliberately trusted audience. */
+export async function uploadDeck(
+  relayUrl: string,
+  accountToken: string,
+  html: string,
+  opts: { enforce?: boolean } = {},
+): Promise<RelaySessionInfo> {
+  const headers: Record<string, string> = {
+    authorization: `Bearer ${accountToken}`,
+    "content-type": "text/html",
+  };
+  if (opts.enforce !== false) headers["x-live-enforce"] = "1";
   const res = await fetch(`${relayUrl.replace(/\/$/, "")}/api/sessions`, {
     method: "POST",
-    headers: { authorization: `Bearer ${accountToken}`, "content-type": "text/html" },
+    headers,
     body: html,
   });
   if (!res.ok) {

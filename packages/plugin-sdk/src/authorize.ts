@@ -93,11 +93,72 @@ function projectProtected(doc: Y.Doc, scope: AudienceScope): string {
   return stableStringify(out);
 }
 
+// Universal bounds on the *values* an audience peer may write into its allowed fields.
+// Scope alone (which field changed) is not enough: a peer can write any JSON into an
+// allowed field, and an oversized string, pathological nesting, or a runaway number of
+// keys is a denial-of-service against the whole session (relay memory, late-join replay,
+// and a malformed value crashing the render). Plugins keep their own tighter schema; these
+// are the coarse, plugin-agnostic guard rails enforced at the relay trust boundary.
+export const MAX_AUDIENCE_STRING = 4096; // chars per string/key — caps oversized text/emoji
+export const MAX_AUDIENCE_ENTRIES = 5000; // keys/items per audience-writable container
+export const MAX_AUDIENCE_DEPTH = 6; // nesting depth — audience values are shallow
+
+/** Recursively check one audience-written value against the bounds above. */
+function withinBounds(value: unknown, depth: number): boolean {
+  if (depth > MAX_AUDIENCE_DEPTH) return false;
+  if (value === null) return true;
+  switch (typeof value) {
+    case "string":
+      return value.length <= MAX_AUDIENCE_STRING;
+    case "number":
+      return Number.isFinite(value);
+    case "boolean":
+      return true;
+    case "object": {
+      if (Array.isArray(value)) {
+        if (value.length > MAX_AUDIENCE_ENTRIES) return false;
+        return value.every((v) => withinBounds(v, depth + 1));
+      }
+      const entries = Object.entries(value as Record<string, unknown>);
+      if (entries.length > MAX_AUDIENCE_ENTRIES) return false;
+      for (const [k, v] of entries) {
+        if (k.length > MAX_AUDIENCE_STRING) return false;
+        if (!withinBounds(v, depth + 1)) return false;
+      }
+      return true;
+    }
+    default:
+      return false; // function / undefined / symbol / bigint — never valid shared state
+  }
+}
+
+/** Are all audience-writable subtrees in `doc` within bounds? */
+function audienceValuesWithinBounds(doc: Y.Doc, scope: AudienceScope): boolean {
+  for (const key of doc.share.keys()) {
+    const allowed = scopeForRoot(scope, key);
+    if (allowed === null) continue; // presenter-only root — not audience-writable
+    let js: Record<string, unknown>;
+    try {
+      js = doc.getMap(key).toJSON() as Record<string, unknown>;
+    } catch {
+      return false; // fail closed on an unexpected root shape
+    }
+    if (allowed === "*") {
+      if (!withinBounds(js, 0)) return false;
+      continue;
+    }
+    for (const field of allowed) {
+      if (field in js && !withinBounds(js[field], 0)) return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Would applying `update` (received from an audience peer) change anything **outside**
- * the audience write-scope? Returns true if the update is allowed, false if it must be
- * dropped. Pure: it clones `liveState` and never touches the live doc. Fails closed on
- * any decode error.
+ * the audience write-scope, or carry an out-of-bounds value inside it? Returns true if
+ * the update is allowed, false if it must be dropped. Pure: it clones `liveState` and
+ * never touches the live doc. Fails closed on any decode error.
  *
  * `liveState` is the relay's current `Y.encodeStateAsUpdate(hub.doc)`.
  */
@@ -108,7 +169,10 @@ export function authorizeAudienceUpdate(liveState: Uint8Array, update: Uint8Arra
     const before = projectProtected(clone, scope);
     Y.applyUpdate(clone, update);
     const after = projectProtected(clone, scope);
-    return before === after;
+    if (before !== after) return false; // touched a presenter-only field → drop
+    // Scope is fine; now bound the values written into the allowed fields so a single
+    // update can't carry a multi-megabyte string, deep nesting, or a runaway key count.
+    return audienceValuesWithinBounds(clone, scope);
   } catch {
     return false;
   } finally {

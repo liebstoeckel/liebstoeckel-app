@@ -4,6 +4,7 @@ import type * as Y from "yjs";
 import { pluginState, registerPluginInstance, type ClientProps, type PluginDef, type Role, type ThemeTokens } from "@liebstoeckel/plugin-sdk";
 import { mergeUi } from "./ui";
 import { GlowTap, BreakoutSheet, useBreakoutEligible } from "./breakout";
+import { PluginBoundary } from "./PluginBoundary";
 
 export interface LiveContextValue {
   live: boolean;
@@ -114,18 +115,20 @@ export function Plugin({
   // collide across surfaces (the (internal ADR) hazard, generalised).
   const slide = (key: string) => (
     <LayoutGroup key={key} id={`plugin:${id}:${instance}:${key}`}>
-      <Slide
-        doc={ctx.doc}
-        state={state}
-        snapshot={snap as never}
-        role={ctx.role}
-        live={ctx.live}
-        participantId={ctx.participant}
-        theme={ctx.theme}
-        ui={mergeUi({}, components)}
-        props={props}
-        instance={instance}
-      />
+      <PluginBoundary resetKey={snap}>
+        <Slide
+          doc={ctx.doc}
+          state={state}
+          snapshot={snap as never}
+          role={ctx.role}
+          live={ctx.live}
+          participantId={ctx.participant}
+          theme={ctx.theme}
+          ui={mergeUi({}, components)}
+          props={props}
+          instance={instance}
+        />
+      </PluginBoundary>
     </LayoutGroup>
   );
 
