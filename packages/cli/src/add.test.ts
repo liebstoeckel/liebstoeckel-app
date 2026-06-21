@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { resolveScaffold, localTransport, stripCategory, type RegistryTransport } from "./add";
+import { resolveScaffold, localTransport, stripCategory, sameOrigin, type RegistryTransport } from "./add";
 import { validateItem, assertSafeTarget } from "@liebstoeckel/registry/schema";
 import { REGISTRY_ROOT } from "@liebstoeckel/registry";
 
@@ -116,5 +116,26 @@ describe("bundled default registry", () => {
     );
     expect(plan.npmDependencies).toContain("@visx/scale");
     for (const f of plan.files) expect(f.content.length).toBeGreaterThan(0);
+  });
+});
+
+describe("sameOrigin (registry token-attach guard)", () => {
+  const api = "https://api.liebstoeckel.app";
+  test("attaches to the exact origin (trailing slash / path ignored)", () => {
+    expect(sameOrigin("https://api.liebstoeckel.app/items/x.json", api)).toBe(true);
+    expect(sameOrigin("https://api.liebstoeckel.app", api)).toBe(true);
+  });
+  test("rejects a sibling-suffix host", () => {
+    expect(sameOrigin("https://api.liebstoeckel.app.attacker.com/", api)).toBe(false);
+    expect(sameOrigin("https://api.liebstoeckel.appattacker.com/", api)).toBe(false);
+  });
+  test("rejects a userinfo-confusion host", () => {
+    expect(sameOrigin("https://api.liebstoeckel.app@attacker.com/", api)).toBe(false);
+  });
+  test("rejects a scheme downgrade", () => {
+    expect(sameOrigin("http://api.liebstoeckel.app/", api)).toBe(false);
+  });
+  test("fails closed on an unparseable URL", () => {
+    expect(sameOrigin("not a url", api)).toBe(false);
   });
 });

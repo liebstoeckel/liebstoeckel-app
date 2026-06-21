@@ -171,6 +171,18 @@ function parseRef(ref: string): { ns: string; name: string } {
   return { ns: "@liebstoeckel", name: ref };
 }
 
+/** True iff two URLs share an exact origin (scheme + host + port). Used to gate
+ *  attaching the stored cloud bearer token to a registry request. A parsed-origin
+ *  compare (not a string prefix) prevents a deck-controlled registry URL that merely
+ *  *starts with* the API host from siphoning the token to an attacker. */
+export function sameOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(a).origin === new URL(b).origin;
+  } catch {
+    return false;
+  }
+}
+
 async function transportFor(ns: string, deckDir: string, config: DeckConfig): Promise<RegistryTransport> {
   const spec = config.registries[ns];
   // default registry: bundled @liebstoeckel/registry, read as a local file tree
@@ -190,12 +202,17 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
     return localTransport(resolve(deckDir, spec), ns);
   }
   if (spec.startsWith("http://") || spec.startsWith("https://")) {
-    // Authenticated HTTP registry ((internal ADR)/0059). Auto-attach the stored bearer
-    // token when the URL is the host we're logged into.
+    // Authenticated HTTP registry ((internal ADR)/0059). Auto-attach the stored bearer token
+    // ONLY when the registry's origin is *exactly* the host we logged into. The registry
+    // URL comes from the deck's own liebstoeckel.json, so it is attacker-controlled for a
+    // cloned/third-party deck — compare parsed origins (scheme + host + port), never a
+    // string prefix: `startsWith` also matched a sibling-suffix host like
+    // `api.example.com.evil.com` or a `https://api.example.com@evil.com` userinfo URL,
+    // leaking the token to the attacker.
     const headers: Record<string, string> = {};
     const { loadCreds } = await import("./creds");
     const creds = await loadCreds();
-    if (creds?.token && creds.api && spec.startsWith(creds.api.replace(/\/+$/, ""))) {
+    if (creds?.token && creds.api && sameOrigin(spec, creds.api)) {
       headers.authorization = `Bearer ${creds.token}`;
     }
     return httpTransport(spec, headers, ns);
