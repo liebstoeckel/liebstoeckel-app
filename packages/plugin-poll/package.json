@@ -45,7 +45,7 @@
     "@liebstoeckel/plugin-ui": "workspace:*"
   },
   "peerDependencies": {
-    "react": ">=19.2.7"
+    "react": "^19.2.7"
   },
   "liebstoeckel": {
     "client": "./src/client.tsx",

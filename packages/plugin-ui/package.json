@@ -43,6 +43,6 @@
     "@liebstoeckel/plugin-sdk": "workspace:*"
   },
   "peerDependencies": {
-    "react": ">=19.2.7"
+    "react": "^19.2.7"
   }
 }
