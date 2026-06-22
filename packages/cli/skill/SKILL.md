@@ -91,6 +91,12 @@ Decks live under `presentations/<name>/` (or the project root). Slides are the f
 in `slides/`, listed in order by the entry. To add/replace a slide, swap a chart, or
 re-theme, see `references/editing.md`. Always finish with the `build --check` loop.
 
+Building a deck runs its code on this machine, so a deck you did **not** scaffold here
+is untrusted and `build`/`build --check` on it fails with an `untrusted deck` error.
+**Never** pass `--trust` (or set `LIEBSTOECKEL_TRUST_BUILD=1`) on your own — relay the
+trust question to the user and only proceed once they explicitly confirm. See the trust
+note in `references/editing.md`.
+
 ## Make a deck interactive (live plugins)
 
 Plugins add live, synced audience interaction; offline the deck still builds and shows
@@ -117,6 +123,9 @@ plugin, see `references/build-plugins.md`.
   won't clobber your edits unless `--force`. Never import a chart from a package, and
   never treat its props as a hard limit.
 - **Don't hand-write the final HTML** — author slides + components; let `build` render.
+- **Never trust a deck on the user's behalf.** Building runs the deck's code; if a
+  build fails with `untrusted deck`, do not blindly add `--trust` or
+  `LIEBSTOECKEL_TRUST_BUILD=1` — ask the user, and only proceed once they confirm.
 - Keep going until `build --check` passes; that is the definition of done.
 
 ## References

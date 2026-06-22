@@ -16,8 +16,8 @@ generally available.
 
 ## Supported versions
 
-The project is pre-1.0: only the **latest published release** of the
-`@liebstoeckel/*` packages receives security fixes.
+The project is experimental and pre-1.0: only the **latest published release** of
+the `@liebstoeckel/*` packages receives security fixes, on a best-effort basis.
 
 ## Scope and the trust model
 
