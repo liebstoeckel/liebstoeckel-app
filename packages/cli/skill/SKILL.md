@@ -109,7 +109,6 @@ re-theme, see `references/editing.md`. Always finish with the `build --check` lo
 - `references/components.md` — component types in the registry, using scaffolded components/charts, data shapes, the `add` workflow.
 - `references/authoring.md` — slide file conventions (MDX/TSX, notes, steps, layout, brands).
 - `references/editing.md` — editing decks: add/replace slides, swap charts, re-theme, eject.
-- `references/plugins.md` — adding interactive plugins (poll, Q&A, reactions): install, register in `<Present plugins>`, place with `<Plugin>`, offline fallback vs live.
 - `references/troubleshooting.md` — the `build --check` loop and common errors.
 
 Full reference docs: https://docs.liebstoeckel.app/llms.txt
