@@ -40,21 +40,25 @@ async function gateBuildTrust(dir: string, trustFlag: boolean | undefined, json 
   if (interactive) {
     console.error("✕ build aborted: deck not trusted.");
   } else {
-    // Carry the failure + remedy as JSON on stdout when a machine asked for it ((internal ADR)),
-    // so an agent learns it must re-run with --trust instead of getting empty output.
+    // Carry the failure as JSON on stdout when a machine asked for it ((internal ADR)) so an
+    // agent gets a structured signal instead of empty output — but frame trust as a HUMAN
+    // decision, NOT a flag to self-apply. Approving an untrusted deck is the user's call;
+    // an agent that pastes --trust on its own has bypassed the gate, so don't advertise it
+    // as the remedy here.
     if (json) {
       console.log(
         JSON.stringify({
           ok: false,
           error: "untrusted deck",
-          hint: `building runs the deck's code; re-run with --trust (or set LIEBSTOECKEL_TRUST_BUILD=1) if you trust ${abs}`,
+          hint: `building runs this deck's code on the machine — a human who trusts ${abs} must approve it; an agent must not self-approve`,
         }),
       );
     }
     console.error(
       `✕ refusing to build an untrusted deck non-interactively.\n` +
-        `  Building runs the deck's code on this machine — only build decks you trust.\n` +
-        `  If you trust ${abs}, re-run with --trust (or set LIEBSTOECKEL_TRUST_BUILD=1).`,
+        `  Building runs this deck's code on this machine — trusting it is a decision for a\n` +
+        `  human who has reviewed ${abs}, not for an agent to make on its own.\n` +
+        `  A human can approve it with --trust (or LIEBSTOECKEL_TRUST_BUILD=1).`,
     );
   }
   process.exit(1);
@@ -224,9 +228,10 @@ export const ejectCommand = defineCommand({
       // control is to rebuild only decks you trust. `liebstoeckel build` confirms it once.
       console.log(`\n   rebuild (runs the deck's code — only rebuild decks you trust):`);
       console.log(`     cd ${outDir} && bun install --ignore-scripts && liebstoeckel build`);
-      // An ejected deck isn't trusted yet, so the first rebuild prompts; non-interactively
-      // (CI/agent) it refuses without --trust. Surface that so the recipe is complete.
-      console.log(`   (non-interactive? add --trust to the build to skip the trust prompt)\n`);
+      // An ejected deck isn't trusted yet, so the first rebuild asks you to confirm. Frame
+      // that as a human decision — deliberately NOT "just add --trust", which trains an agent
+      // to self-approve a deck it didn't write (the exact bypass the gate exists to prevent).
+      console.log(`   the first rebuild asks you to confirm trust — that's a human decision, not one for an agent.\n`);
     } catch (e) {
       console.error(`✕ ${(e as Error).message}`);
       process.exit(1);

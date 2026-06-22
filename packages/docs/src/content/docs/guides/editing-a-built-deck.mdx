@@ -113,12 +113,13 @@ liebstoeckel build .          # → ./dist/<deck-slug>.html
 ```
 
 Rebuilding runs the deck's own build-time code, so the first build of an ejected deck
-asks you to trust it. In a terminal you confirm once; **non-interactively (CI, an agent,
-piped input) add `--trust`** (or set `LIEBSTOECKEL_TRUST_BUILD=1`) or the build refuses,
-fail-closed:
+asks you to trust it. In a terminal you confirm once. Non-interactively (CI, piped input)
+it refuses, fail-closed — and trusting a deck you didn't write is a **human** decision, so
+an AI agent should surface it to you rather than approve on its own. Once **you** have
+reviewed and trust the deck, approve it with `--trust` (or `LIEBSTOECKEL_TRUST_BUILD=1`):
 
 ```bash
-liebstoeckel build . --trust  # confirm an ejected deck non-interactively
+liebstoeckel build . --trust  # a human approving an ejected deck for a non-interactive build
 ```
 
 That's the whole loop: **eject → edit → build**, repeatable on any deck you hold.

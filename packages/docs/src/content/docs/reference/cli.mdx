@@ -170,7 +170,9 @@ scraping prose:
 
 `thumbnails` is `null` (with a `thumbnailsSkipped` reason) when no Chromium is available.
 A refused untrusted build emits `{ "ok": false, "error": "untrusted deck", "hint": "…" }`
-and exits non-zero — re-run with `--trust`.
+and exits non-zero. Trusting a deck you didn't write means agreeing to run its build-time
+code on your machine — a human decision; an AI agent should surface it rather than approve
+on its own. A human who trusts the deck approves it with `--trust` (or `LIEBSTOECKEL_TRUST_BUILD=1`).
 
 <Aside type="caution" title="Anyone with the file has the source">
 The embedded source is recoverable by anyone with the `.html`. A `"files"` allowlist in the deck's
