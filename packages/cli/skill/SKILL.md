@@ -91,6 +91,10 @@ Decks live under `presentations/<name>/` (or the project root). Slides are the f
 in `slides/`, listed in order by the entry. To add/replace a slide, swap a chart, or
 re-theme, see `references/editing.md`. Always finish with the `build --check` loop.
 
+Only have a built `.html`? Recover the editable project first with
+`liebstoeckel eject <deck.html> [outdir]`, then edit and rebuild as usual (details and
+the rebuild's trust caveat in `references/editing.md`).
+
 Building a deck runs its code on this machine, so a deck you did **not** scaffold here
 is untrusted and `build`/`build --check` on it fails with an `untrusted deck` error.
 **Never** pass `--trust` (or set `LIEBSTOECKEL_TRUST_BUILD=1`) on your own — relay the
