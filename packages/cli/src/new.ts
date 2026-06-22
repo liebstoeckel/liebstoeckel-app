@@ -97,6 +97,10 @@ dist/
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23121212'/%3E%3Crect x='7' y='9' width='18' height='13' rx='2' fill='none' stroke='%23c8a96a' stroke-width='2'/%3E%3C/svg%3E"
+    />
     <title>${title}</title>
   </head>
   <body data-brand="${brandId}">
@@ -119,7 +123,7 @@ const server = Bun.serve({
   routes: { "/": index },
   development: { hmr: true, console: true },
   hostname: "0.0.0.0",
-  port: 3000,
+  port: Number(process.env.PORT) || 3000,
 });
 
 console.log(\`▶  http://localhost:\${server.port}\`);

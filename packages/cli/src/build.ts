@@ -3,6 +3,7 @@
 // umbrella pays for them only when the command is actually invoked.
 import { defineCommand } from "citty";
 import { resolve, basename, join } from "node:path";
+import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { looksLikeDeck } from "./targeting";
@@ -16,7 +17,7 @@ const deckDir = (args: { deck?: string; dir?: string }): string => args.deck ?? 
  *  pass silently; an unfamiliar one is confirmed once (or pre-approved via `--trust` /
  *  `LIEBSTOECKEL_TRUST_BUILD=1`). Non-interactive without approval refuses, fail-closed.
  *  Exits the process on a no. */
-async function gateBuildTrust(dir: string, trustFlag: boolean | undefined): Promise<void> {
+async function gateBuildTrust(dir: string, trustFlag: boolean | undefined, json = false): Promise<void> {
   const abs = resolve(dir);
   const preapproved = trustFlag === true || process.env.LIEBSTOECKEL_TRUST_BUILD === "1";
   const interactive = !!process.stdin.isTTY && !!process.stdout.isTTY;
@@ -39,6 +40,17 @@ async function gateBuildTrust(dir: string, trustFlag: boolean | undefined): Prom
   if (interactive) {
     console.error("✕ build aborted: deck not trusted.");
   } else {
+    // Carry the failure + remedy as JSON on stdout when a machine asked for it ((internal ADR)),
+    // so an agent learns it must re-run with --trust instead of getting empty output.
+    if (json) {
+      console.log(
+        JSON.stringify({
+          ok: false,
+          error: "untrusted deck",
+          hint: `building runs the deck's code; re-run with --trust (or set LIEBSTOECKEL_TRUST_BUILD=1) if you trust ${abs}`,
+        }),
+      );
+    }
     console.error(
       `✕ refusing to build an untrusted deck non-interactively.\n` +
         `  Building runs the deck's code on this machine — only build decks you trust.\n` +
@@ -120,8 +132,10 @@ export const buildCommand = defineCommand({
   },
   async run({ args }) {
     const dir = deckDir(args);
+    // JSON output is requested explicitly or whenever stdout isn't a TTY (agent contract).
+    const json = !!args.json || !process.stdout.isTTY;
     // Building runs the deck's build-time code on this machine — confirm trust first.
-    await gateBuildTrust(dir, args.trust);
+    await gateBuildTrust(dir, args.trust, json);
     const prev = process.cwd();
     process.chdir(resolve(dir)); // resolve(".") = cwd, so the default is a no-op
     try {
@@ -130,7 +144,6 @@ export const buildCommand = defineCommand({
       if (args.check) {
         const { checkDeck } = await import("@liebstoeckel/engine/build");
         const { ok, diagnostics } = await checkDeck({ entry: "./index.html" });
-        const json = !!args.json || !process.stdout.isTTY;
         if (json) {
           console.log(JSON.stringify({ ok, diagnostics }, null, 2));
         } else if (ok) {
@@ -148,14 +161,35 @@ export const buildCommand = defineCommand({
       await warnIfSpeakerNotes(".");
       const { buildDeck } = await import("@liebstoeckel/thumbnails/build");
       const { cliVersion } = await import("./skill");
-      await buildDeck({
-        entry: "./index.html",
-        outdir: "./dist",
-        inlinePackage: args.inlinePackage !== false,
-        inlineLicenses: args.inlineLicenses !== false,
-        allowSecret: !!args.allowSecret,
-        generator: { name: "cli", version: await cliVersion() },
-      });
+      // In JSON mode stdout must be a single machine-readable object, so route the
+      // build's human progress prose (✓ built…, license/source/thumbnail notes) to
+      // stderr for the duration and print the structured result to stdout at the end.
+      const realLog = console.log;
+      if (json) console.log = (...a: unknown[]) => console.error(...a);
+      let result;
+      try {
+        result = await buildDeck({
+          entry: "./index.html",
+          outdir: "./dist",
+          inlinePackage: args.inlinePackage !== false,
+          inlineLicenses: args.inlineLicenses !== false,
+          allowSecret: !!args.allowSecret,
+          generator: { name: "cli", version: await cliVersion() },
+        });
+      } finally {
+        console.log = realLog;
+      }
+      if (json) {
+        console.log(
+          JSON.stringify({
+            ok: true,
+            artifact: resolve(result.artifact),
+            outfile: result.outfile,
+            thumbnails: result.thumbnails,
+            ...(result.thumbnailsSkipped ? { thumbnailsSkipped: result.thumbnailsSkipped } : {}),
+          }),
+        );
+      }
     } finally {
       process.chdir(prev);
     }
@@ -189,7 +223,10 @@ export const ejectCommand = defineCommand({
       // `--ignore-scripts` only blocks npm lifecycle scripts, not that — so the real
       // control is to rebuild only decks you trust. `liebstoeckel build` confirms it once.
       console.log(`\n   rebuild (runs the deck's code — only rebuild decks you trust):`);
-      console.log(`     cd ${outDir} && bun install --ignore-scripts && liebstoeckel build\n`);
+      console.log(`     cd ${outDir} && bun install --ignore-scripts && liebstoeckel build`);
+      // An ejected deck isn't trusted yet, so the first rebuild prompts; non-interactively
+      // (CI/agent) it refuses without --trust. Surface that so the recipe is complete.
+      console.log(`   (non-interactive? add --trust to the build to skip the trust prompt)\n`);
     } catch (e) {
       console.error(`✕ ${(e as Error).message}`);
       process.exit(1);
@@ -211,6 +248,12 @@ export const packCommand = defineCommand({
   async run({ args }) {
     const dir = resolve(deckDir(args));
     const out = args.out;
+    // A clean "this isn't a deck" beats leaking the underlying `bun pm pack` error
+    // ("package.json must have name and version") for the common wrong-directory mistake.
+    if (!existsSync(join(dir, "index.html"))) {
+      console.error(`✕ no deck here: ${dir}\n  run this in a deck directory (one with an index.html), or pass --dir <deck>.`);
+      process.exit(1);
+    }
     const { collectDeckTarball } = await import("@liebstoeckel/engine/build/source-package");
     try {
       const { gzip, files } = await collectDeckTarball(dir, { allowSecret: !!args.allowSecret });
@@ -256,6 +299,10 @@ export const licensesCommand = defineCommand({
     if (looksLikeDeck(dir) && /\.html?$/i.test(dir)) {
       if (check) {
         console.error(`✕ --check needs the deck source directory (it recomputes the bundle); a built .html carries only the rendered notices.\n  try: liebstoeckel licenses <deck-dir> --check`);
+        process.exit(1);
+      }
+      if (!existsSync(resolve(dir))) {
+        console.error(`✕ no such deck file: ${dir}`);
         process.exit(1);
       }
       const { extractLicenses } = await import("@liebstoeckel/engine/build/licenses");

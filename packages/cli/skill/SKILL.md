@@ -80,7 +80,7 @@ is your correctness signal.
 
 7. **Build or export:**
    ```bash
-   liebstoeckel build ./presentations/<name>                 # → dist/index.html
+   liebstoeckel build ./presentations/<name>                 # → dist/<name>.html
    liebstoeckel export ./presentations/<name> --format pdf -o deck.pdf
    ```
    Report the output path.
@@ -109,6 +109,7 @@ re-theme, see `references/editing.md`. Always finish with the `build --check` lo
 - `references/components.md` — component types in the registry, using scaffolded components/charts, data shapes, the `add` workflow.
 - `references/authoring.md` — slide file conventions (MDX/TSX, notes, steps, layout, brands).
 - `references/editing.md` — editing decks: add/replace slides, swap charts, re-theme, eject.
+- `references/plugins.md` — adding interactive plugins (poll, Q&A, reactions): install, register in `<Present plugins>`, place with `<Plugin>`, offline fallback vs live.
 - `references/troubleshooting.md` — the `build --check` loop and common errors.
 
 Full reference docs: https://docs.liebstoeckel.app/llms.txt

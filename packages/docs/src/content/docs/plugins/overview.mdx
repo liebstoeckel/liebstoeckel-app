@@ -44,6 +44,8 @@ import { Plugin } from "@liebstoeckel/engine";
 
 `<Plugin>` renders the plugin's `Slide` when a live server is connected, else its `fallback`. On touch screens it provides the [tap-to-interact breakout](/guides/mobile/) automatically.
 
+The `id` you place **must** be in `<Present plugins={[…]}>`. A `<Plugin>` whose id isn't registered renders nothing (the build still succeeds) — a blank spot on a slide almost always means a missing entry in `plugins`. Dev builds log a console warning to flag it.
+
 ## Discovery & bundling
 
 A package is recognized as a plugin by a marker in its `package.json`:

@@ -20,8 +20,19 @@ const CLOUD_ARGS = {
  *  is not generally available yet, so OSS users see "coming soon" instead of a
  *  bare auth error that looks like a bug. */
 function notLoggedIn(): never {
-  console.error("✕ not logged in, run: liebstoeckel login --api <https://app-host>");
-  console.error("  (liebstoeckel cloud is coming soon; this command needs a hosted control plane)");
+  // An agent (stdout not a TTY) gets the failure as JSON it can act on, per the
+  // agent-readable contract ((internal ADR)); a human at a terminal gets the prose.
+  if (!process.stdout.isTTY) {
+    console.log(
+      JSON.stringify({
+        error: "not logged in",
+        hint: "liebstoeckel cloud is coming soon; run `liebstoeckel login` once a control plane is available",
+      }),
+    );
+  } else {
+    console.error("✕ not logged in, run: liebstoeckel login --api <https://app-host>");
+    console.error("  (liebstoeckel cloud is coming soon; this command needs a hosted control plane)");
+  }
   process.exit(1);
 }
 

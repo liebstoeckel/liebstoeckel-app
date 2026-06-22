@@ -11,7 +11,15 @@
   "dependencies": {
     "@liebstoeckel/engine": "workspace:*",
     "@liebstoeckel/components": "workspace:*",
-    "@liebstoeckel/theme": "workspace:*"
+    "@liebstoeckel/theme": "workspace:*",
+    "@visx/axis": "^3.12.0",
+    "@visx/curve": "^3.12.0",
+    "@visx/gradient": "^3.12.0",
+    "@visx/group": "^3.12.0",
+    "@visx/scale": "^3.12.0",
+    "@visx/shape": "^3.12.0",
+    "@visx/text": "^3.12.0",
+    "motion": "^12.40.0"
   },
   "devDependencies": {
     "@liebstoeckel/thumbnails": "workspace:*"

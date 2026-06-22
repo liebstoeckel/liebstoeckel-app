@@ -10,7 +10,7 @@ import { LinkCard } from "@astrojs/starlight/components";
 A deck builds to a single self-contained file with JS and CSS inlined and assets base64'd. There's nothing else to host. The file is named after the deck folder, so `my-talk/` builds to `dist/my-talk.html`.
 
 ```bash
-liebstoeckel build my-talk        # → presentations/my-talk/dist/my-talk.html
+liebstoeckel build my-talk        # → my-talk/dist/my-talk.html
 ```
 
 The scaffolded `build.ts` does the same thing, so `bun run build` inside the deck works too:

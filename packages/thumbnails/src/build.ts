@@ -39,7 +39,19 @@ function deckHtmlName(pkgJson?: string): string {
  *  embed slide thumbnails. The batteries-included default a deck's `build.ts` uses, *  it wraps engine's browser-free `bundleDeck` primitive. Thumbnails are skipped,
  *  not failed, when `LIEBSTOECKEL_NO_THUMBS` is set or no Chromium is available
  *  (the policy lives in `withThumbnails`). */
-export async function buildDeck(build: BuildDeckOptions = {}, capture: CaptureOptions = {}): Promise<void> {
+/** What a build produced — returned so callers (e.g. the CLI's `build --json`) can
+ *  report a machine-readable result instead of scraping the progress prose. */
+export interface BuildDeckResult {
+  artifact: string;
+  outdir: string;
+  outfile: string;
+  /** Number of embedded thumbnails, or `null` when capture was skipped. */
+  thumbnails: number | null;
+  /** Why thumbnails were skipped (e.g. "no Chromium"), when applicable. */
+  thumbnailsSkipped?: string;
+}
+
+export async function buildDeck(build: BuildDeckOptions = {}, capture: CaptureOptions = {}): Promise<BuildDeckResult> {
   const outdir = build.outdir ?? "./dist";
   const outfile = build.outfile ?? deckHtmlName(build.pkgJson);
   await bundleDeck({ ...build, outfile });
@@ -50,9 +62,11 @@ export async function buildDeck(build: BuildDeckOptions = {}, capture: CaptureOp
   const { html, manifest, skipped } = await withThumbnails(await Bun.file(out).text(), { ...capture, onSlide });
   if (skipped) {
     console.log(`  thumbnails skipped: ${skipped}`);
-    return;
+    return { artifact: out, outdir, outfile, thumbnails: null, thumbnailsSkipped: skipped };
   }
   await Bun.write(out, html);
   process.stderr.write("\n");
-  console.log(`✓ embedded ${Object.keys(manifest!.thumbs).length} thumbnails (${manifest!.w}×${manifest!.h})`);
+  const n = Object.keys(manifest!.thumbs).length;
+  console.log(`✓ embedded ${n} thumbnails (${manifest!.w}×${manifest!.h})`);
+  return { artifact: out, outdir, outfile, thumbnails: n };
 }

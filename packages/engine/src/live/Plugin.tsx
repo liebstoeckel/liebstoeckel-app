@@ -99,6 +99,18 @@ export function Plugin({
     if (ctx?.live && def) registerPluginInstance(ctx.doc, id, instance, { title });
   }, [ctx?.live, ctx?.doc, def, id, instance, title]);
 
+  // Inside a <Present> but the id isn't in its `plugins={[…]}` — a very common authoring
+  // slip. Without this the component silently renders nothing (no fallback, no error),
+  // leaving a baffling blank slide. Warn so the mistake explains itself.
+  useEffect(() => {
+    if (ctx && !def) {
+      console.warn(
+        `[liebstoeckel] <Plugin id="${id}"> is not registered — add its plugin to ` +
+          `<Present plugins={[…]}> or it renders nothing.`,
+      );
+    }
+  }, [ctx, def, id]);
+
   if (!ctx || !def || !state) return null;
 
   if (!ctx.live) {

@@ -62,7 +62,7 @@ describe("bundled skill source", () => {
   test("ships SKILL.md + the referenced files", () => {
     expect(existsSync(join(SRC, "SKILL.md"))).toBe(true);
     expect(existsSync(join(SRC, "AGENTS.md"))).toBe(true);
-    for (const r of ["authoring", "components", "editing", "troubleshooting"]) {
+    for (const r of ["authoring", "components", "editing", "plugins", "troubleshooting"]) {
       expect(existsSync(join(SRC, "references", `${r}.md`))).toBe(true);
     }
   });

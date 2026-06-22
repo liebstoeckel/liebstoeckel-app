@@ -153,11 +153,24 @@ binary with `LIEBSTOECKEL_CHROMIUM`.
 | `--allow-secret` | override the secret gate that aborts if a packed file looks like a credential |
 | `--check` | validate the deck **bundles** and resolves one copy of each framework package (no output written); reports diagnostics + exits non-zero on error |
 | `--trust` | pre-approve this deck's build-time code (a deck is code; remembered after the first build) |
+| `--json` | machine-readable JSON result (default when stdout isn't a TTY); progress goes to stderr |
 
 `--check` is the fast validation gate (no Chromium, no thumbnails, nothing written):
 it returns `{ ok, diagnostics }`, each diagnostic carrying `message`/`file`/`line`,
 and exits non-zero when the deck doesn't bundle. It checks that imports resolve and
 MDX/TSX transforms; it does not type-check. Output is JSON when piped or with `--json`.
+
+With `--json` (or piped), a normal **write** build prints the human progress to stderr and
+emits a single result object on stdout, so an agent can read the artifact path without
+scraping prose:
+
+```json
+{ "ok": true, "artifact": "/abs/path/dist/my-talk.html", "outfile": "my-talk.html", "thumbnails": 6 }
+```
+
+`thumbnails` is `null` (with a `thumbnailsSkipped` reason) when no Chromium is available.
+A refused untrusted build emits `{ "ok": false, "error": "untrusted deck", "hint": "…" }`
+and exits non-zero — re-run with `--trust`.
 
 <Aside type="caution" title="Anyone with the file has the source">
 The embedded source is recoverable by anyone with the `.html`. A `"files"` allowlist in the deck's

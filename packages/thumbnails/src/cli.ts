@@ -50,16 +50,24 @@ export const thumbsCommand = defineCommand({
     }
 
     process.stderr.write(`▶  capturing thumbnails for ${file}\n`);
-    const manifest = await addThumbnailsToFile(abs, {
-      width: num(args.width),
-      quality: num(args.quality),
-      scale: num(args.scale),
-      format: thumbFormat(args.format),
-      onSlide: (i, n) => process.stderr.write(`\r   slide ${i + 1}/${n}   `),
-    });
-    process.stderr.write("\n");
-    const n = Object.keys(manifest.thumbs).length;
-    console.log(`✓ embedded ${n} thumbnail${n === 1 ? "" : "s"} (${manifest.w}×${manifest.h}) into ${file}`);
+    try {
+      const manifest = await addThumbnailsToFile(abs, {
+        width: num(args.width),
+        quality: num(args.quality),
+        scale: num(args.scale),
+        format: thumbFormat(args.format),
+        onSlide: (i, n) => process.stderr.write(`\r   slide ${i + 1}/${n}   `),
+      });
+      process.stderr.write("\n");
+      const n = Object.keys(manifest.thumbs).length;
+      console.log(`✓ embedded ${n} thumbnail${n === 1 ? "" : "s"} (${manifest.w}×${manifest.h}) into ${file}`);
+    } catch (e) {
+      // Mirror `export`'s clean handling: a missing Chromium (the common case) should be a
+      // one-line actionable error, not an uncaught stack trace that leaks internal paths.
+      process.stderr.write("\n");
+      console.error(`✕ thumbnails failed: ${(e as Error).message}`);
+      process.exit(1);
+    }
   },
 });
 

@@ -24,7 +24,7 @@ The umbrella CLI scaffolds a workspace-wired deck:
 1. Create a deck:
 
    ```bash
-   liebstoeckel new my-talk            # or: bunx liebstoeckel new my-talk --brand acme
+   liebstoeckel new my-talk            # or: bunx @liebstoeckel/cli new my-talk --brand acme
    ```
 
 2. Install dependencies (links the workspace packages):
@@ -36,7 +36,7 @@ The umbrella CLI scaffolds a workspace-wired deck:
 3. Start the dev server (instant HMR + React Fast Refresh):
 
    ```bash
-   cd my-talk && bun run dev           # http://localhost:3000
+   cd my-talk && bun run dev           # http://localhost:3000 (set PORT to change it)
    ```
 
    To present a live session for a room instead (LAN by default, or through a
@@ -48,11 +48,13 @@ A new deck looks like this:
 
 <FileTree>
 - my-talk/
+  - package.json      deps, scripts, and the `files` allowlist
   - index.html        the page shell (sets `data-brand`)
   - main.tsx          mounts `<Present>` with your slides
   - build.ts          single-file build (+ thumbnails)
   - server.ts         HMR dev server
   - bunfig.toml        dev-server plugins (tailwind + mdx)
+  - .gitignore
   - slides/
     - 01-intro.tsx
 </FileTree>
@@ -71,7 +73,7 @@ import Intro from "./slides/01-intro";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Present title="My Talk" brands={["nocturne"]} slides={[Intro]} />
+    <Present title="My Talk" brands={["liebstoeckel"]} slides={[Intro]} />
   </StrictMode>,
 );
 ```
