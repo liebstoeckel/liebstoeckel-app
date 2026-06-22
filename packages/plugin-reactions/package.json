@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/plugin-reactions",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Floating emoji reactions plugin for liebstoeckel decks.",
   "keywords": [
     "liebstoeckel-plugin",

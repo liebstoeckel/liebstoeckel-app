@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app/compare/plugin-reactions-v0.3.3...plugin-reactions-v0.3.4) (2026-06-22)
+
+
+### Features
+
+* **build:** caret cross-dep ranges + single-copy guard ((internal ADR)) ([d3a9e28](https://github.com/liebstoeckel/liebstoeckel-app/commit/d3a9e28049b79b7ffed66ecae2ba8fd7be2932ce))
+
+
+### Bug Fixes
+
+* **oss-release:** clear pre-release review blockers across OSS packages ([fd55fb0](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd55fb00715fdb4a9aaf9fe49f75240932d1fc8f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/plugin-sdk bumped to 0.3.4
+    * @liebstoeckel/plugin-ui bumped to 0.3.4
+
 ## [0.3.3](https://github.com/liebstoeckel/liebstoeckel-app/compare/plugin-reactions-v0.3.2...plugin-reactions-v0.3.3) (2026-06-09)
 
 

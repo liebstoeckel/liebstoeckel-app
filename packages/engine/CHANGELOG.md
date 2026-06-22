@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.5](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.4...engine-v0.3.5) (2026-06-22)
+
+
+### Features
+
+* **build:** caret cross-dep ranges + single-copy guard ((internal ADR)) ([d3a9e28](https://github.com/liebstoeckel/liebstoeckel-app/commit/d3a9e28049b79b7ffed66ecae2ba8fd7be2932ce))
+* **build:** stamp engine + CLI versions into built decks ([fd3422f](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd3422f8fa53fd43f9b7eb3c7672582f05137d52))
+* **engine:** surface the eject (editable-source) affordance in the help overlay ([d1e7ba2](https://github.com/liebstoeckel/liebstoeckel-app/commit/d1e7ba278008410d7868189a502cf46a8fd29098))
+* **engine:** surface the eject (editable-source) affordance in the help overlay ([d1e7ba2](https://github.com/liebstoeckel/liebstoeckel-app/commit/d1e7ba278008410d7868189a502cf46a8fd29098))
+* **engine:** surface the eject (editable-source) affordance in the help overlay ([64652c5](https://github.com/liebstoeckel/liebstoeckel-app/commit/64652c5bab14221dc44828d4bfc6857174b62322))
+
+
+### Bug Fixes
+
+* address pre-1.0 release QA findings across CLI, engine, docs ([598b41f](https://github.com/liebstoeckel/liebstoeckel-app/commit/598b41f2cf5812638a3426a4930c24e9500a469e))
+* **live:** harden live sessions against untrusted audience input ([24c2074](https://github.com/liebstoeckel/liebstoeckel-app/commit/24c20749b005a31b05a702807fbb926b34c056d4))
+* **oss-release:** clear pre-release review blockers across OSS packages ([fd55fb0](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd55fb00715fdb4a9aaf9fe49f75240932d1fc8f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/plugin-sdk bumped to 0.3.4
+    * @liebstoeckel/plugin-ui bumped to 0.3.4
+
 ## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.3...engine-v0.3.4) (2026-06-13)
 
 

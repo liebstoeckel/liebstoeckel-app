@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app/compare/registry-v0.3.3...registry-v0.3.4) (2026-06-22)
+
+
+### Bug Fixes
+
+* **oss-release:** clear pre-release review blockers across OSS packages ([fd55fb0](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd55fb00715fdb4a9aaf9fe49f75240932d1fc8f))
+
 ## [0.3.3](https://github.com/liebstoeckel/liebstoeckel-app/compare/registry-v0.3.2...registry-v0.3.3) (2026-06-09)
 
 

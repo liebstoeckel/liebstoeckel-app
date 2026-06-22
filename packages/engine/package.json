@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/engine",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "The compiler, React runtime, and single-file build pipeline at the core of liebstoeckel.",
   "keywords": [
     "liebstoeckel",

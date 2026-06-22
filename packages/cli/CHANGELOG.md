@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.3.7](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.6...cli-v0.3.7) (2026-06-22)
+
+
+### Features
+
+* **build:** caret cross-dep ranges + single-copy guard ((internal ADR)) ([d3a9e28](https://github.com/liebstoeckel/liebstoeckel-app/commit/d3a9e28049b79b7ffed66ecae2ba8fd7be2932ce))
+* **build:** stamp engine + CLI versions into built decks ([fd3422f](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd3422f8fa53fd43f9b7eb3c7672582f05137d52))
+* **cli:** add skills for live plugins and custom plugin authoring ([4b51842](https://github.com/liebstoeckel/liebstoeckel-app/commit/4b518424a18feb4c52420bd9acc69ad3d85fe6ea))
+* **cli:** gate building an untrusted deck and warn on speaker notes ([b1b42f2](https://github.com/liebstoeckel/liebstoeckel-app/commit/b1b42f2d0305a8e54d48570679473049a8e8be60))
+
+
+### Bug Fixes
+
+* address pre-1.0 release QA findings across CLI, engine, docs ([598b41f](https://github.com/liebstoeckel/liebstoeckel-app/commit/598b41f2cf5812638a3426a4930c24e9500a469e))
+* **cli:** compare registry origins before attaching the cloud token ([99e928b](https://github.com/liebstoeckel/liebstoeckel-app/commit/99e928b72d2aab040253e931f091b323f2ecb998))
+* **cli:** frame deck-trust as a human decision, stop advertising --trust to agents ([36acc71](https://github.com/liebstoeckel/liebstoeckel-app/commit/36acc716394409a7bdf6d01cea069d03590e4cbc))
+* **oss-release:** clear pre-release review blockers across OSS packages ([fd55fb0](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd55fb00715fdb4a9aaf9fe49f75240932d1fc8f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.5
+    * @liebstoeckel/live-server bumped to 0.3.5
+    * @liebstoeckel/present-relay bumped to 0.3.5
+    * @liebstoeckel/registry bumped to 0.3.4
+    * @liebstoeckel/thumbnails bumped to 0.3.5
+
 ## [0.3.6](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.5...cli-v0.3.6) (2026-06-13)
 
 

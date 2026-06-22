@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/cli",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "The liebstoeckel CLI to scaffold, develop, build, and present code-first decks.",
   "keywords": [
     "liebstoeckel",

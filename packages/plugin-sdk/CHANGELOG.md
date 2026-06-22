@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app/compare/plugin-sdk-v0.3.3...plugin-sdk-v0.3.4) (2026-06-22)
+
+
+### Bug Fixes
+
+* **live:** harden live sessions against untrusted audience input ([24c2074](https://github.com/liebstoeckel/liebstoeckel-app/commit/24c20749b005a31b05a702807fbb926b34c056d4))
+* **oss-release:** clear pre-release review blockers across OSS packages ([fd55fb0](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd55fb00715fdb4a9aaf9fe49f75240932d1fc8f))
+
 ## [0.3.3](https://github.com/liebstoeckel/liebstoeckel-app/compare/plugin-sdk-v0.3.2...plugin-sdk-v0.3.3) (2026-06-09)
 
 

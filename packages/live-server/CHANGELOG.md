@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.5](https://github.com/liebstoeckel/liebstoeckel-app/compare/live-server-v0.3.4...live-server-v0.3.5) (2026-06-22)
+
+
+### Features
+
+* **build:** caret cross-dep ranges + single-copy guard ((internal ADR)) ([d3a9e28](https://github.com/liebstoeckel/liebstoeckel-app/commit/d3a9e28049b79b7ffed66ecae2ba8fd7be2932ce))
+
+
+### Bug Fixes
+
+* **live:** harden live sessions against untrusted audience input ([24c2074](https://github.com/liebstoeckel/liebstoeckel-app/commit/24c20749b005a31b05a702807fbb926b34c056d4))
+* **oss-release:** clear pre-release review blockers across OSS packages ([fd55fb0](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd55fb00715fdb4a9aaf9fe49f75240932d1fc8f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.5
+    * @liebstoeckel/plugin-sdk bumped to 0.3.4
+    * @liebstoeckel/thumbnails bumped to 0.3.5
+
 ## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app/compare/live-server-v0.3.3...live-server-v0.3.4) (2026-06-13)
 
 

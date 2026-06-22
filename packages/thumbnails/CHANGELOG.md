@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.5](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.4...thumbnails-v0.3.5) (2026-06-22)
+
+
+### Features
+
+* **build:** caret cross-dep ranges + single-copy guard ((internal ADR)) ([d3a9e28](https://github.com/liebstoeckel/liebstoeckel-app/commit/d3a9e28049b79b7ffed66ecae2ba8fd7be2932ce))
+* **build:** stamp engine + CLI versions into built decks ([fd3422f](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd3422f8fa53fd43f9b7eb3c7672582f05137d52))
+
+
+### Bug Fixes
+
+* address pre-1.0 release QA findings across CLI, engine, docs ([598b41f](https://github.com/liebstoeckel/liebstoeckel-app/commit/598b41f2cf5812638a3426a4930c24e9500a469e))
+* **oss-release:** clear pre-release review blockers across OSS packages ([fd55fb0](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd55fb00715fdb4a9aaf9fe49f75240932d1fc8f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.5
+
 ## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.3...thumbnails-v0.3.4) (2026-06-13)
 
 
