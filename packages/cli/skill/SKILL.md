@@ -91,6 +91,21 @@ Decks live under `presentations/<name>/` (or the project root). Slides are the f
 in `slides/`, listed in order by the entry. To add/replace a slide, swap a chart, or
 re-theme, see `references/editing.md`. Always finish with the `build --check` loop.
 
+## Make a deck interactive (live plugins)
+
+Plugins add live, synced audience interaction; offline the deck still builds and shows
+a static fallback. They are **not in the registry** — don't `registry list` for them.
+The built-ins:
+
+- **poll** (`@liebstoeckel/plugin-poll`) — live voting; results update in real time.
+- **qa** (`@liebstoeckel/plugin-qa`) — audience asks + upvotes questions from any slide;
+  presenter moderates.
+- **reactions** (`@liebstoeckel/plugin-reactions`) — ephemeral floating emoji over the deck.
+
+Adding one is: `bun add` the package, register it on `<Present plugins={[…]}>`, and place
+`<Plugin id="…" props={…} />` on a slide — see `references/plugins.md`. To author a new
+plugin, see `references/build-plugins.md`.
+
 ## Rules
 
 - **Never invent component names, props, or data shapes** — read them from
@@ -109,6 +124,8 @@ re-theme, see `references/editing.md`. Always finish with the `build --check` lo
 - `references/components.md` — component types in the registry, using scaffolded components/charts, data shapes, the `add` workflow.
 - `references/authoring.md` — slide file conventions (MDX/TSX, notes, steps, layout, brands).
 - `references/editing.md` — editing decks: add/replace slides, swap charts, re-theme, eject.
+- `references/plugins.md` — add live plugins (poll/qa/reactions): register, place, present live.
+- `references/build-plugins.md` — author a custom plugin (`definePlugin`, state, surfaces, server).
 - `references/troubleshooting.md` — the `build --check` loop and common errors.
 
 Full reference docs: https://docs.liebstoeckel.app/llms.txt
