@@ -24,6 +24,8 @@ import { normalizeSlides, type SlideInput } from "./slides";
 import { resolveTransition, mobileTransitionsDisabled, type SlideDirection, type SlideTransition } from "./transitions";
 import type { Theme } from "@liebstoeckel/theme";
 import { useCoarsePointer } from "./useCoarsePointer";
+import { moveSelection, gridCols, type GridDir } from "./overview";
+import type { NavMode } from "./interaction";
 
 export type DeckProps = {
   slides: SlideInput[];
@@ -102,7 +104,27 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   // a deliberate end state (like PowerPoint) instead of replaying the last slide's
   // steps. Local to the driving window; cleared on any navigation away.
   const [ended, setEnded] = useState(false);
+  // Keyboard selection within the overview grid (seeded to the current slide on open).
+  const [sel, setSel] = useState(0);
   const brand = brands[brandIdx % brands.length];
+
+  // The active interaction layer drives keyboard routing: a modal layer (overview,
+  // end) owns its keys so deck nav never leaks through it.
+  const mode: NavMode = overview ? "overview" : ended ? "end" : "slide";
+
+  // Refs mirror the composing state so the keyboard handlers stay stable and never
+  // read a stale closure when layers interact.
+  const overviewRef = useRef(overview);
+  overviewRef.current = overview;
+  const selRef = useRef(sel);
+  selRef.current = sel;
+  const jumpRef = useRef(jump);
+  jumpRef.current = jump;
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  const totalRef = useRef(total);
+  totalRef.current = total;
+  const selectedThumbRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     document.body.dataset.brand = brand;
@@ -117,36 +139,77 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
     return () => window.removeEventListener("contextmenu", onCtx);
   }, []);
 
+  // Overview open/close. Opening seeds the selection to the current slide and clears
+  // the end state + jump buffer — the modal layers are mutually exclusive.
+  const openOverview = useCallback(() => {
+    setEnded(false);
+    setJump("");
+    setSel(indexRef.current);
+    setOverview(true);
+  }, []);
+  const closeOverview = useCallback(() => {
+    setOverview(false);
+    setJump("");
+  }, []);
+  const toggleOverview = useCallback(() => {
+    if (overviewRef.current) closeOverview();
+    else openOverview();
+  }, [openOverview, closeOverview]);
+
+  // Numeric jump is layer-aware: in the overview it moves the live selection (the
+  // grid IS the jump surface); otherwise it drives the floating HUD and commits.
   const onDigit = useCallback(
     (key: string) => {
-      const r = accumulateDigits(jump, key);
+      if (overviewRef.current) {
+        const buffer = (jumpRef.current + key).slice(0, 3);
+        setJump(buffer);
+        const target = parseInt(buffer, 10) - 1;
+        if (!Number.isNaN(target)) setSel(Math.min(Math.max(target, 0), Math.max(count - 1, 0)));
+        return;
+      }
+      const r = accumulateDigits(jumpRef.current, key);
       setJump(r.buffer);
       if (r.commit != null) ctrl.setIndex(r.commit);
     },
-    [jump, ctrl],
+    [count, ctrl],
   );
+
+  // Overview keyboard: arrows move the selection, Enter opens it.
+  const onGridMove = useCallback(
+    (dir: GridDir) => {
+      setJump("");
+      const width = typeof window === "undefined" ? 1280 : window.innerWidth;
+      setSel((s) => moveSelection(s, count, gridCols(width), dir));
+    },
+    [count],
+  );
+  const onSelect = useCallback(() => {
+    ctrl.setIndex(selRef.current);
+    closeOverview();
+  }, [ctrl, closeOverview]);
+  // Esc / back: close the overview, otherwise leave the end screen.
+  const onExitModal = useCallback(() => {
+    if (overviewRef.current) closeOverview();
+    else setEnded(false);
+  }, [closeOverview]);
+  const onRestart = useCallback(() => {
+    setEnded(false);
+    ctrl.setIndex(0);
+  }, [ctrl]);
 
   // Advancing past the last slide's final step enters the end screen rather than
   // calling ctrl.next (which would reset the last slide's step to 0 and replay it).
-  // Only the deck's driver gets the end state; a live viewer just follows.
+  // Only the deck's driver gets it; a live viewer just follows. In a modal layer
+  // routeKey never yields "next", so this only fires while actually presenting.
   const handleNext = useCallback(() => {
-    if (ended) return;
-    if (canDrive && index >= count - 1 && step >= total) {
+    if (canDrive && indexRef.current >= count - 1 && stepRef.current >= totalRef.current) {
       setEnded(true);
       return;
     }
     ctrl.next();
-  }, [ended, canDrive, index, count, step, total, ctrl]);
-  // Back from the end screen returns to the (fully revealed) last slide; otherwise
-  // normal step/slide retreat.
-  const handlePrev = useCallback(() => {
-    if (ended) {
-      setEnded(false);
-      return;
-    }
-    ctrl.prev();
-  }, [ended, ctrl]);
-  // Any jump elsewhere (overview, numeric) clears the end state.
+  }, [canDrive, count, ctrl]);
+  const handlePrev = useCallback(() => ctrl.prev(), [ctrl]);
+  // A jump elsewhere (overview select, numeric commit) clears the end state.
   useEffect(() => {
     setEnded(false);
   }, [index]);
@@ -154,6 +217,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   useDeckNav({
     count,
     setIndex: ctrl.setIndex,
+    mode,
     onNext: handleNext,
     onPrev: handlePrev,
     onToggleBrand: brands.length > 1 ? () => setBrandIdx((n) => n + 1) : undefined,
@@ -161,14 +225,18 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
     onToggleHelp: () => setHelp((v) => !v),
     onFullscreen: () => void toggleFullscreen(document.documentElement),
     onBlur: () => setBlurred((v) => !v),
-    onOverview: canDrive ? () => setOverview((v) => !v) : undefined,
+    onOverview: canDrive ? toggleOverview : undefined,
     onQr: () => setQr((v) => !v),
     onDigit,
+    onGridMove,
+    onSelect,
+    onExitModal,
+    onRestart,
   });
 
-  // Touch nav for everyone who drives their own deck (standalone + presenter); a
-  // live viewer follows the presenter, so it isn't bound for them.
-  useTouchNav({ enabled: role !== "viewer", onNext: handleNext, onPrev: handlePrev });
+  // Touch nav drives the deck only while presenting — suppressed under any modal
+  // layer so a swipe can't move the slide behind the overview / end screen.
+  useTouchNav({ enabled: role !== "viewer" && !overview && !ended, onNext: handleNext, onPrev: handlePrev });
 
   const Current = norm[index]?.Component ?? (() => null);
 
@@ -188,6 +256,12 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
     ? "none"
     : (norm[index]?.transition ?? deckTransition);
   const slideTransition = resolveTransition(requested, !!reduceMotion);
+
+  // Keep the keyboard-selected overview thumbnail in view as you arrow through a
+  // long deck.
+  useEffect(() => {
+    if (overview) selectedThumbRef.current?.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+  }, [sel, overview, reduceMotion]);
 
   return (
     <MDXProvider components={mdxComponents}>
@@ -223,20 +297,6 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
                 slide, below chrome; non-interactive (live only, see (internal ADR)) */}
             <PluginOverlays />
 
-            {/* jump-to-number buffer */}
-            <AnimatePresence>
-              {jump && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute left-1/2 top-8 -translate-x-1/2 rounded-xl border border-border bg-surface/80 px-5 py-2 font-mono text-2xl text-text backdrop-blur"
-                >
-                  → {jump}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} ejectable={ejectable} />
             <PortraitHint />
           </div>
@@ -271,18 +331,30 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={reduceMotion ? { duration: 0 } : undefined}
             >
-              <div className="mb-6 font-mono text-sm uppercase tracking-[0.3em] text-muted">Overview · tap or type a number</div>
+              <div className="mb-6 flex items-baseline justify-between gap-4">
+                <div className="font-mono text-sm uppercase tracking-[0.3em] text-muted">
+                  Overview · ←↑↓→ move · Enter open · or type a number
+                </div>
+                {jump && <div className="font-mono text-sm text-text">→ {jump}</div>}
+              </div>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-5">
                 {norm.map((s, i) => (
                   <button
                     key={i}
+                    ref={i === sel ? selectedThumbRef : undefined}
                     onClick={() => {
                       ctrl.setIndex(i);
-                      setOverview(false);
+                      closeOverview();
                     }}
-                    className={`relative aspect-video overflow-hidden rounded-xl border text-left transition ${
-                      i === index ? "border-primary" : "border-border hover:border-text"
+                    aria-current={i === index ? "true" : undefined}
+                    className={`relative aspect-video overflow-hidden rounded-xl border text-left outline-none transition ${
+                      i === sel
+                        ? "border-primary ring-2 ring-primary"
+                        : i === index
+                          ? "border-primary"
+                          : "border-border hover:border-text"
                     }`}
                   >
                     <DeckThumb Component={s.Component} src={thumbs?.get(i)} alt={`Slide ${i + 1}`} />
@@ -294,22 +366,45 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
           )}
         </AnimatePresence>
 
-        {/* terminal end-of-deck screen (advancing past the last slide) — a calm,
-            deliberate stop, NOT a wrap; covers the slide + ambient motion. */}
+        {/* terminal end-of-deck card (advancing past the last slide) — a calm,
+            deliberate stop, NOT a wrap; covers the slide + ambient motion. Tapping the
+            backdrop goes back; the action row offers Back / Overview / Restart. */}
         <AnimatePresence>
           {ended && (
             <motion.div
-              className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-bg text-center"
+              className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-bg text-center"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={reduceMotion ? { duration: 0 } : { duration: 0.3 }}
               onClick={() => setEnded(false)}
             >
-              <div className="font-mono text-sm uppercase tracking-[0.3em] text-muted">End of deck</div>
-              <div className="font-mono text-xs text-muted/70">
-                {count} {count === 1 ? "slide" : "slides"} · press ← or tap to go back
+              <div className="space-y-2">
+                <div className="font-mono text-sm uppercase tracking-[0.3em] text-muted">End of deck</div>
+                <div className="font-mono text-xs text-muted/60">{count} {count === 1 ? "slide" : "slides"}</div>
               </div>
+              <div className="flex flex-wrap items-center justify-center gap-3" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => setEnded(false)} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">← Back</button>
+                <button onClick={openOverview} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">Overview</button>
+                <button onClick={onRestart} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">↺ Restart</button>
+              </div>
+              <div className="font-mono text-[0.7rem] text-muted/50">← back · O overview · R restart · type a number to jump</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* numeric-jump HUD — a single top layer above EVERY overlay (device scale), so
+            typing a number reads correctly in slide and end modes. In the overview the
+            buffer renders in its header instead (the grid is the jump surface). */}
+        <AnimatePresence>
+          {jump && !overview && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="pointer-events-none absolute left-1/2 top-8 z-[60] -translate-x-1/2 rounded-xl border border-border bg-surface/80 px-5 py-2 font-mono text-2xl text-text backdrop-blur"
+            >
+              → {jump}
             </motion.div>
           )}
         </AnimatePresence>
@@ -325,7 +420,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
           canDrive={canDrive}
           viewerUrl={liveCtx?.viewerUrl}
           onHelp={() => setHelp(true)}
-          onOverview={() => setOverview((v) => !v)}
+          onOverview={toggleOverview}
           onQr={() => setQr((v) => !v)}
         />
        </div>

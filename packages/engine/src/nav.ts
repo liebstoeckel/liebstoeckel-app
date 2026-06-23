@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { resolveTouchGesture, NO_NAV_SELECTOR } from "./mobile";
+import { routeKey, preventsDefault, type NavMode } from "./interaction";
+import type { GridDir } from "./overview";
 
 /** Touch navigation: horizontal swipe + edge tap-zones, resolved by the pure
  *  `resolveTouchGesture`. Reuses `onNext`/`onPrev` so step-reveals still run before
@@ -62,11 +64,15 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   }
 }
 
-// Keyboard navigation. `onNext`/`onPrev` let the deck intercept for step reveals;
-// they fall back to slide nav. Slide index lives in the deck controller (synced).
+// Keyboard navigation, routed by the active interaction layer (`mode`). In a modal
+// layer (overview, end) the layer owns its keys and deck nav never leaks through —
+// the routing is the pure `routeKey` (key × mode → action); this hook just dispatches.
+// `onNext`/`onPrev` let the deck intercept for step reveals; they fall back to slide nav.
 export function useDeckNav(opts: {
   count: number;
   setIndex: (updater: (n: number) => number | number) => void;
+  /** Active interaction layer. Defaults to "slide". */
+  mode?: NavMode;
   onNext?: () => void;
   onPrev?: () => void;
   onToggleBrand?: () => void;
@@ -77,10 +83,19 @@ export function useDeckNav(opts: {
   onOverview?: () => void;
   onQr?: () => void;
   onDigit?: (key: string) => void;
+  /** Overview grid selection move (← → ↑ ↓ while the overview is open). */
+  onGridMove?: (dir: GridDir) => void;
+  /** Confirm the overview selection (Enter). */
+  onSelect?: () => void;
+  /** Close the top modal / go back (Esc, or ← on the end screen). */
+  onExitModal?: () => void;
+  /** Restart to the first slide (R / Home on the end screen). */
+  onRestart?: () => void;
 }) {
   const {
     count,
     setIndex,
+    mode = "slide",
     onNext,
     onPrev,
     onToggleBrand,
@@ -91,6 +106,10 @@ export function useDeckNav(opts: {
     onOverview,
     onQr,
     onDigit,
+    onGridMove,
+    onSelect,
+    onExitModal,
+    onRestart,
   } = opts;
 
   useEffect(() => {
@@ -99,51 +118,33 @@ export function useDeckNav(opts: {
     const onKey = (e: KeyboardEvent) => {
       // don't hijack typing in a plugin's input (Q&A box, etc.)
       if (isEditableTarget(e.target)) return;
-      switch (e.key) {
-        case "ArrowRight":
-        case " ":
-        case "PageDown":
-          e.preventDefault();
-          next();
-          break;
-        case "ArrowLeft":
-        case "PageUp":
-          e.preventDefault();
-          prev();
-          break;
-        case "Home":
-          setIndex(() => 0);
-          break;
-        case "End":
-          setIndex(() => count - 1);
-          break;
-        case "t":
-          onToggleBrand?.();
-          break;
-        case "p":
-          onOpenPresenter?.();
-          break;
-        case "f":
-          onFullscreen?.();
-          break;
-        case "b":
-          onBlur?.();
-          break;
-        case "o":
-          onOverview?.();
-          break;
-        case "q":
-          onQr?.();
-          break;
-        case "?":
-        case "h":
-          onToggleHelp?.();
-          break;
-        default:
-          if (onDigit && (/^[0-9]$/.test(e.key) || e.key === "Enter" || e.key === "Escape")) onDigit(e.key);
+      const action = routeKey(mode, e.key);
+      if (action == null) return;
+      if (preventsDefault(e.key)) e.preventDefault();
+      if (typeof action === "object") {
+        if ("grid" in action) onGridMove?.(action.grid);
+        else onDigit?.(action.digit);
+        return;
+      }
+      switch (action) {
+        case "next": next(); break;
+        case "prev": prev(); break;
+        case "first": setIndex(() => 0); break;
+        case "last": setIndex(() => count - 1); break;
+        case "select": onSelect?.(); break;
+        case "exitModal": onExitModal?.(); break;
+        case "restart": onRestart?.(); break;
+        case "toggleBrand": onToggleBrand?.(); break;
+        case "presenter": onOpenPresenter?.(); break;
+        case "fullscreen": onFullscreen?.(); break;
+        case "blur": onBlur?.(); break;
+        case "overview": onOverview?.(); break;
+        case "qr": onQr?.(); break;
+        case "help": onToggleHelp?.(); break;
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [count, setIndex, onNext, onPrev, onToggleBrand, onOpenPresenter, onToggleHelp, onFullscreen, onBlur, onOverview, onQr, onDigit]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count, setIndex, mode, onNext, onPrev, onToggleBrand, onOpenPresenter, onToggleHelp, onFullscreen, onBlur, onOverview, onQr, onDigit, onGridMove, onSelect, onExitModal, onRestart]);
 }
