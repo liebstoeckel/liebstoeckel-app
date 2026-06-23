@@ -125,6 +125,8 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   const totalRef = useRef(total);
   totalRef.current = total;
   const selectedThumbRef = useRef<HTMLButtonElement | null>(null);
+  // True while a Restart's masked crossfade-to-slide-1 is in flight (see onRestart).
+  const pendingRestartRef = useRef(false);
 
   useEffect(() => {
     document.body.dataset.brand = brand;
@@ -193,8 +195,24 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
     else setEnded(false);
   }, [closeOverview]);
   const onRestart = useCallback(() => {
-    setEnded(false);
+    // Restart to slide 1 without the last slide flashing into view. The end card is
+    // an opaque full-screen layer, so we keep it up (do NOT clear `ended`) while the
+    // slide layer crossfades to slide 1 *behind* it — masked — and drop the card only
+    // once that exit completes (AnimatePresence onExitComplete). `pendingRestartRef`
+    // makes the index-change effect skip its usual end-clear during that window.
+    if (indexRef.current === 0) {
+      setEnded(false); // already on slide 1 — nothing to mask
+      return;
+    }
+    pendingRestartRef.current = true;
     ctrl.setIndex(0);
+    // Safety net: if onExitComplete never fires (interrupted animation), reveal anyway.
+    window.setTimeout(() => {
+      if (pendingRestartRef.current) {
+        pendingRestartRef.current = false;
+        setEnded(false);
+      }
+    }, 700);
   }, [ctrl]);
 
   // Advancing past the last slide's final step enters the end screen rather than
@@ -209,9 +227,10 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
     ctrl.next();
   }, [canDrive, count, ctrl]);
   const handlePrev = useCallback(() => ctrl.prev(), [ctrl]);
-  // A jump elsewhere (overview select, numeric commit) clears the end state.
+  // A jump elsewhere (overview select, numeric commit) clears the end state — except
+  // during a Restart, where the end card intentionally stays up to mask the crossfade.
   useEffect(() => {
-    setEnded(false);
+    if (!pendingRestartRef.current) setEnded(false);
   }, [index]);
 
   useDeckNav({
@@ -272,7 +291,17 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
        <div className="relative h-dvh w-screen overflow-hidden bg-bg">
         <ScaledStage className="absolute inset-0">
           <div data-deck-root className="absolute inset-0">
-            <AnimatePresence custom={direction}>
+            <AnimatePresence
+              custom={direction}
+              onExitComplete={() => {
+                // Restart kept the end card up to mask the crossfade to slide 1; the
+                // exiting last slide is now gone, so it's safe to drop the card.
+                if (pendingRestartRef.current) {
+                  pendingRestartRef.current = false;
+                  setEnded(false);
+                }
+              }}
+            >
               <motion.div
                 key={index}
                 custom={direction}
@@ -328,7 +357,10 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
           {overview && (
             <motion.div
               className="absolute inset-0 z-40 overflow-auto bg-bg/95 p-[4%] backdrop-blur-xl"
-              initial={{ opacity: 0 }}
+              // Mount already opaque (no fade-in): opening from the end screen, the
+              // overview must cover the last slide *immediately* while the end card
+              // fades out on top, otherwise the slide flashes through the gap.
+              initial={{ opacity: 1 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={reduceMotion ? { duration: 0 } : undefined}
