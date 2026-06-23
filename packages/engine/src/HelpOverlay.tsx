@@ -10,7 +10,7 @@ const EDIT_DOCS_URL = "https://docs.liebstoeckel.app/guides/editing-a-built-deck
 function Kbd({ children, dim }: { children: string; dim?: boolean }) {
   return (
     <kbd
-      className={`inline-flex min-w-[1.9rem] items-center justify-center rounded-md border px-2 py-1 font-mono text-sm shadow-sm ${
+      className={`inline-flex min-w-[1.6rem] items-center justify-center rounded-md border px-1.5 py-0.5 font-mono text-xs shadow-sm ${
         dim ? "border-border/50 bg-bg/40 text-muted" : "border-border bg-bg text-text"
       }`}
     >
@@ -83,10 +83,10 @@ export function HelpOverlay({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
             transition={{ type: "spring", stiffness: 260, damping: 24 }}
-            className="relative w-[440px] rounded-2xl border border-border bg-surface/90 p-7 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
+            className="relative max-h-[88%] w-[400px] overflow-auto rounded-2xl border border-border bg-surface/90 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
           >
-            <div className="mb-5 flex items-baseline justify-between">
-              <span className="font-heading text-2xl font-semibold text-text">Shortcuts</span>
+            <div className="mb-4 flex items-baseline justify-between">
+              <span className="font-heading text-xl font-semibold text-text">Shortcuts</span>
               {role ? (
                 <span className="font-mono text-[11px] uppercase tracking-[0.25em] text-accent">
                   ● live · {role}
@@ -101,7 +101,7 @@ export function HelpOverlay({
                 navigation. You can still interact (e.g. vote).
               </p>
             )}
-            <ul className="space-y-3">
+            <ul className="space-y-1.5">
               {shortcuts.map((s) => {
                 const disabled = isViewer && s.presenterOnly;
                 return (
@@ -110,7 +110,7 @@ export function HelpOverlay({
                     className={`flex items-center justify-between gap-4 ${disabled ? "opacity-40" : ""}`}
                     title={disabled ? "Presenter only" : undefined}
                   >
-                    <span className="font-body text-lg text-text/85">
+                    <span className="font-body text-sm text-text/85">
                       {s.label}
                       {disabled && <span className="ml-2 font-mono text-[10px] uppercase tracking-wider text-muted">presenter</span>}
                     </span>
@@ -127,8 +127,8 @@ export function HelpOverlay({
               })}
             </ul>
             {ejectable && (
-              <div className="mt-6 border-t border-border pt-4">
-                <p className="font-body text-sm text-text/80">
+              <div className="mt-4 border-t border-border pt-3">
+                <p className="font-body text-[13px] text-text/80">
                   This deck embeds its own source, recover it with{" "}
                   <code className="rounded bg-bg/60 px-1.5 py-0.5 font-mono text-[13px] text-text">
                     liebstoeckel eject
@@ -145,7 +145,7 @@ export function HelpOverlay({
                 </p>
               </div>
             )}
-            <div className="mt-6 border-t border-border pt-4 text-center font-mono text-[11px] uppercase tracking-[0.25em] text-muted">
+            <div className="mt-4 border-t border-border pt-3 text-center font-mono text-[11px] uppercase tracking-[0.25em] text-muted">
               right-click anywhere to toggle
             </div>
           </motion.div>
