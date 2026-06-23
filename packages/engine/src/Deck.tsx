@@ -98,6 +98,10 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   const [overview, setOverview] = useState(false);
   const [qr, setQr] = useState(false);
   const [jump, setJump] = useState("");
+  // Terminal "end of deck" screen: advancing past the final slide's last step shows
+  // a deliberate end state (like PowerPoint) instead of replaying the last slide's
+  // steps. Local to the driving window; cleared on any navigation away.
+  const [ended, setEnded] = useState(false);
   const brand = brands[brandIdx % brands.length];
 
   useEffect(() => {
@@ -122,11 +126,36 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
     [jump, ctrl],
   );
 
+  // Advancing past the last slide's final step enters the end screen rather than
+  // calling ctrl.next (which would reset the last slide's step to 0 and replay it).
+  // Only the deck's driver gets the end state; a live viewer just follows.
+  const handleNext = useCallback(() => {
+    if (ended) return;
+    if (canDrive && index >= count - 1 && step >= total) {
+      setEnded(true);
+      return;
+    }
+    ctrl.next();
+  }, [ended, canDrive, index, count, step, total, ctrl]);
+  // Back from the end screen returns to the (fully revealed) last slide; otherwise
+  // normal step/slide retreat.
+  const handlePrev = useCallback(() => {
+    if (ended) {
+      setEnded(false);
+      return;
+    }
+    ctrl.prev();
+  }, [ended, ctrl]);
+  // Any jump elsewhere (overview, numeric) clears the end state.
+  useEffect(() => {
+    setEnded(false);
+  }, [index]);
+
   useDeckNav({
     count,
     setIndex: ctrl.setIndex,
-    onNext: ctrl.next,
-    onPrev: ctrl.prev,
+    onNext: handleNext,
+    onPrev: handlePrev,
     onToggleBrand: brands.length > 1 ? () => setBrandIdx((n) => n + 1) : undefined,
     onOpenPresenter: canDrive ? openPresenter : undefined,
     onToggleHelp: () => setHelp((v) => !v),
@@ -139,7 +168,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
 
   // Touch nav for everyone who drives their own deck (standalone + presenter); a
   // live viewer follows the presenter, so it isn't bound for them.
-  useTouchNav({ enabled: role !== "viewer", onNext: ctrl.next, onPrev: ctrl.prev });
+  useTouchNav({ enabled: role !== "viewer", onNext: handleNext, onPrev: handlePrev });
 
   const Current = norm[index]?.Component ?? (() => null);
 
@@ -260,6 +289,26 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
                     <span className="absolute bottom-1 right-2 font-mono text-xs text-muted">{i + 1}</span>
                   </button>
                 ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* terminal end-of-deck screen (advancing past the last slide) — a calm,
+            deliberate stop, NOT a wrap; covers the slide + ambient motion. */}
+        <AnimatePresence>
+          {ended && (
+            <motion.div
+              className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-bg text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 0.3 }}
+              onClick={() => setEnded(false)}
+            >
+              <div className="font-mono text-sm uppercase tracking-[0.3em] text-muted">End of deck</div>
+              <div className="font-mono text-xs text-muted/70">
+                {count} {count === 1 ? "slide" : "slides"} · press ← or tap to go back
               </div>
             </motion.div>
           )}
