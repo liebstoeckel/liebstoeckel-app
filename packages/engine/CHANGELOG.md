@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.6](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.5...engine-v0.3.6) (2026-06-24)
+
+
+### Features
+
+* **engine:** coherent overview + end-of-deck navigation layer ((internal ticket)) ([4268db4](https://github.com/liebstoeckel/liebstoeckel-app/commit/4268db4e4f7dd9efb8ef9b24fa84235f4a23e3b8))
+
+
+### Bug Fixes
+
+* **engine:** compact the Shortcuts help overlay (was nearly full-height) ([5f5a54e](https://github.com/liebstoeckel/liebstoeckel-app/commit/5f5a54ece000318067e8f11df9fe332cc11c73e1))
+* **engine:** no last-slide flash leaving the end screen (overview / restart) ([f9f0f0f](https://github.com/liebstoeckel/liebstoeckel-app/commit/f9f0f0f1754daf8513607fd87f93c7e386b4d858))
+* **engine:** terminal end-of-deck screen instead of replaying the last slide ([42817c5](https://github.com/liebstoeckel/liebstoeckel-app/commit/42817c5bda6199af1a9c8257a1c4b8d94d30d027))
+
 ## [0.3.5](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.4...engine-v0.3.5) (2026-06-22)
 
 

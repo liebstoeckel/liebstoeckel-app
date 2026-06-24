@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/present-relay",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "WAN relay for liebstoeckel live mode, reaching remote audiences without exposing your laptop.",
   "keywords": [
     "liebstoeckel",

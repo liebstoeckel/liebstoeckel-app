@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.8](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.7...cli-v0.3.8) (2026-06-24)
+
+
+### Bug Fixes
+
+* **cli:** drop stale "not on npm yet" install note ([fb557d9](https://github.com/liebstoeckel/liebstoeckel-app/commit/fb557d9c786969cbd173f84cf9ee2ba1bd42cd86))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.6
+    * @liebstoeckel/live-server bumped to 0.3.6
+    * @liebstoeckel/present-relay bumped to 0.3.6
+    * @liebstoeckel/thumbnails bumped to 0.3.6
+
 ## [0.3.7](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.6...cli-v0.3.7) (2026-06-22)
 
 

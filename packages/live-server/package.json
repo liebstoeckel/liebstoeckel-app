@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/live-server",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Live presenter and audience sync for liebstoeckel decks over Yjs and WebSocket.",
   "keywords": [
     "liebstoeckel",

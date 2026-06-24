@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.6](https://github.com/liebstoeckel/liebstoeckel-app/compare/live-server-v0.3.5...live-server-v0.3.6) (2026-06-24)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.6
+    * @liebstoeckel/thumbnails bumped to 0.3.6
+
 ## [0.3.5](https://github.com/liebstoeckel/liebstoeckel-app/compare/live-server-v0.3.4...live-server-v0.3.5) (2026-06-22)
 
 
