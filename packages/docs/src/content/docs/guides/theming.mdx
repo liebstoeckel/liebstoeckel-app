@@ -49,10 +49,39 @@ const acme = defineTheme({
 <Present brands={["acme"]} brandThemes={[acme]} slides={[…]} />
 ```
 
-That's it: `brands` names the active brand, `brandThemes` supplies its tokens. (Bring fonts via `@font-face` / a `<link>` in your `index.html`.)
+That's it: `brands` names the active brand, `brandThemes` supplies its tokens. Fonts need one extra step, see below.
 
 <Aside type="tip" title="Semantic, not literal">
 Name colors by role (`primary`, `accent`, `surface`), never by hue. A slide written once looks right under every brand you give it.
+</Aside>
+
+## Fonts
+
+A brand's `fonts.*` values are `font-family` **strings**. The glyphs only ship if a matching `@font-face` is **bundled**: The build inlines its woff2 into the single file. Naming a font in a brand does not load it.
+
+The four house families are already bundled by `@liebstoeckel/theme/styles.css`, so a brand can use them for free: `"Schibsted Grotesk Variable"`, `"Hanken Grotesk Variable"`, `"Fraunces Variable"`, `"JetBrains Mono Variable"`.
+
+To use **another** font, install its [Fontsource](https://fontsource.org) package and bundle a single latin variable face, mirroring the theme's own `fonts.css`:
+
+```css title="brands/acme.css"
+@font-face {
+  font-family: "Manrope Variable";   /* exact family named in the brand */
+  src: url("@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2") format("woff2");
+  font-weight: 200 900;              /* the package's variable range */
+  font-style: normal;
+  font-display: swap;
+}
+```
+
+```tsx title="main.tsx"
+import "@liebstoeckel/theme/styles.css";
+import "./brands/acme.css";          // bundle the face
+```
+
+Bun resolves the bare `@fontsource-variable/…` `url()` and base64-inlines the woff2 (`bun add @fontsource-variable/manrope` first).
+
+<Aside type="caution" title="Don't let a font silently fall back">
+Reference the single `…-latin-wght-normal.woff2` directly. **Don't** `import "@fontsource-variable/<id>"` or its `/index.css`: those pull `unicode-range`-subset faces that don't survive inlining and silently fall back to a system font. The family name must match **exactly**, including a `Variable` suffix (`"Manrope Variable"` ≠ a system `"Manrope"`).
 </Aside>
 
 ## Available tokens

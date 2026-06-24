@@ -74,6 +74,9 @@ import { Step } from "@liebstoeckel/engine";
 --brand <brand>` sets the default. Re-theming a deck = change the brand; every
 component and token follows. Don't hard-code hex colors — use tokens / `useBrandColors`.
 
+To **create a custom brand** (typed `defineTheme` in `brands/<name>.ts` wired via
+`brandThemes`) and bundle its fonts, see `references/brands.md`.
+
 ## MDX slides
 
 A slide can be `.mdx` instead of `.tsx` for prose-heavy content; it still

@@ -11,6 +11,7 @@ import {
 } from "@liebstoeckel/plugin-sdk/manifest";
 import mdx from "./mdx-plugin";
 import visxEsmInterop from "./visx-esm-plugin";
+import { brandFontWarning } from "./font-audit";
 import {
   createLicenseCollector,
   renderNotices,
@@ -224,6 +225,11 @@ export async function bundleDeck({
     html = embedSource(html, zstd);
     console.log(`✓ embedded source package (${files.length} files, ${(zstd.length / 1024).toFixed(1)}KB)`);
   }
+
+  // Warn (don't fail) if a brand names a `"… Variable"` webfont that no @font-face
+  // bundles, it would silently fall back to a system font in the shipped file.
+  const fontWarning = brandFontWarning(html);
+  if (fontWarning) console.warn(fontWarning);
 
   // Stamp the build's provenance (engine + invoking-tool versions) into the head.
   html = stampGenerator(html, { engine: await engineVersion(), generator });

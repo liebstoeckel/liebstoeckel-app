@@ -101,6 +101,22 @@ is untrusted and `build`/`build --check` on it fails with an `untrusted deck` er
 trust question to the user and only proceed once they explicitly confirm. See the trust
 note in `references/editing.md`.
 
+## Brand a deck (custom theme / fonts)
+
+Pick a built-in brand with `liebstoeckel new <name> --brand <liebstoeckel|nocturne|acme|sunset>`,
+or create a **custom** one. A brand is a typed token object (colors, fonts, chart
+palette); define it with `defineTheme` in `brands/<name>.ts` and wire it via
+`<Present brands={["<name>"]} brandThemes={[brand]}>` + `<body data-brand="<name>">`.
+**Don't hand-write a raw `[data-brand]` CSS block, and don't hardcode hex in slides**
+— use role tokens (`text-primary`, `bg-surface`, `font-heading`).
+
+Fonts are the one real trap: a brand names a font, but glyphs only ship if a matching
+`@font-face` is **bundled**. Naming a `"… Variable"` font with no bundled face
+**silently falls back to a system font** (build prints `⚠ brand font not bundled`).
+Use a house family (already bundled) or add one latin variable `@font-face` — never
+`import "@fontsource-variable/<id>/index.css"`. Full recipe + verification in
+`references/brands.md`.
+
 ## Make a deck interactive (live plugins)
 
 Plugins add live, synced audience interaction; offline the deck still builds and shows
@@ -136,6 +152,7 @@ plugin, see `references/build-plugins.md`.
 
 - `references/components.md` — component types in the registry, using scaffolded components/charts, data shapes, the `add` workflow.
 - `references/authoring.md` — slide file conventions (MDX/TSX, notes, steps, layout, brands).
+- `references/brands.md` — create a custom brand (typed `defineTheme` + `brandThemes`) and bundle fonts correctly (the silent-fallback trap).
 - `references/editing.md` — editing decks: add/replace slides, swap charts, re-theme, eject.
 - `references/plugins.md` — add live plugins (poll/qa/reactions): register, place, present live.
 - `references/build-plugins.md` — author a custom plugin (`definePlugin`, state, surfaces, server).
