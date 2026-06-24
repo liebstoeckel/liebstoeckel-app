@@ -12,6 +12,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { bunBin } from "./bun";
 import { cliVersion, SKILL_DIR } from "./skill";
 
 const PKG = "@liebstoeckel/cli";
@@ -87,7 +88,7 @@ export async function updateReminder(argv: string[]): Promise<void> {
   if (shouldRefresh(state, Date.now())) {
     // Detached child re-runs THIS file (import.meta.main → refresh()). It inherits
     // the cwd, so `bun pm view` sees the same .npmrc/bunfig the user's installs use.
-    const child = Bun.spawn([process.execPath, fileURLToPath(import.meta.url)], {
+    const child = Bun.spawn([bunBin, fileURLToPath(import.meta.url)], {
       stdin: "ignore",
       stdout: "ignore",
       stderr: "ignore",
@@ -131,7 +132,7 @@ async function refresh(): Promise<void> {
   process.on("SIGHUP", () => {});
   let latest: string | null = null;
   try {
-    const proc = Bun.spawnSync([process.execPath, "pm", "view", PKG, "dist-tags.latest"], {
+    const proc = Bun.spawnSync([bunBin, "pm", "view", PKG, "dist-tags.latest"], {
       stdout: "pipe",
       stderr: "ignore",
       timeout: 15_000,

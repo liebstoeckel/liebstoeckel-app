@@ -48,6 +48,13 @@ const KNOWN_COMMANDS = new Set(Object.keys((rootCommand.subCommands as Record<st
 async function main() {
   const argv = process.argv.slice(2);
 
+  // Preflight on every run: confirm the Bun interpreting this CLI satisfies
+  // engines.bun. The same binary (bunBin === process.execPath) backs every
+  // shell-out below, so this gate covers exactly what `build` etc. will use,
+  // a too-old Bun otherwise fails deep inside a command with an opaque error.
+  const { assertBunVersion } = await import("./bun");
+  await assertBunVersion();
+
   // Best-effort reminders (stderr-only; off for --json/pipes/CI, see update.ts):
   // a cached "new CLI version" note and a "deck skill older than the CLI" note.
   try {

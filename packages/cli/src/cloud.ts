@@ -6,6 +6,7 @@
 import { defineCommand } from "citty";
 import { existsSync, readdirSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
+import { bunBin } from "./bun";
 import { loadCreds, saveCreds } from "./creds";
 
 const CLIENT_ID = "liebstoeckel-cli";
@@ -486,7 +487,7 @@ const brandPullCommand = defineCommand({
       const { $ } = await import("bun");
       console.log(`   installing fonts: bun add --ignore-scripts ${deps.join(" ")}`);
       // pin the interpreter; --ignore-scripts per the registry trust model ((internal ADR))
-      await $`${process.execPath} add --ignore-scripts ${deps}`.cwd(deckDir);
+      await $`${bunBin} add --ignore-scripts ${deps}`.cwd(deckDir);
       console.log(`   ✓ fonts installed\n`);
     } else if (deps.length) {
       console.log(`   → install its fonts: bun add --ignore-scripts ${deps.join(" ")}\n`);

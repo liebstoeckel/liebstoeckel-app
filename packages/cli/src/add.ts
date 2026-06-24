@@ -7,6 +7,7 @@ import {
   CATEGORIES,
   type RegistryItem,
 } from "@liebstoeckel/registry/schema";
+import { bunBin } from "./bun";
 
 /**
  * `liebstoeckel add`, scaffold registry items into a deck as owned source
@@ -334,7 +335,7 @@ async function runAdd(args: {
     if (deps.size && !noInstall) {
       const { $ } = await import("bun");
       // pin the interpreter; --ignore-scripts per the registry trust model ((internal ADR))
-      const proc = $`${process.execPath} add --ignore-scripts ${dependencies}`.cwd(deckDir);
+      const proc = $`${bunBin} add --ignore-scripts ${dependencies}`.cwd(deckDir);
       if (json) await proc.quiet();
       else {
         console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped, use --force to overwrite)` : ""));
