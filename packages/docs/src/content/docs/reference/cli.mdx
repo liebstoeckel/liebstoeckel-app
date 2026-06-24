@@ -365,6 +365,23 @@ rewrites the skill for the agent paths already present in the deck (plus the
 `AGENTS.md` block) without adding new ones; when a deck's skill is older than the CLI
 you run, commands print a one-line reminder to do exactly that.
 
+## `doctor`
+
+Check the build environment — the Bun version (must satisfy the CLI's `engines.bun`) and whether a Chrome/Chromium was found for thumbnails and PNG/PDF export. Optionally install one.
+
+```bash
+liebstoeckel doctor                     # human summary (Bun + Chromium + config path)
+liebstoeckel doctor --json              # machine-readable (default when piped)
+liebstoeckel doctor --install-chromium  # download Playwright's Chromium, record its path
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--install-chromium` | Install Playwright's Chromium if none resolves, then record its path in `~/.config/liebstoeckel/config.json` so every later build/export reuses it |
+| `--json` | Machine-readable output (default when piped) |
+
+`doctor` resolves Chromium the same way builds do (see [Chromium setup](/guides/chromium/#resolution-order)): an existing system Chrome is found automatically, so often nothing needs installing. Only `export`/`thumbs` require a browser; `build` skips thumbnails without one.
+
 ## Staying up to date
 
 The CLI checks its registry for a newer `@liebstoeckel/cli` at most **once a day**, in

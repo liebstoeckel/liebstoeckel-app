@@ -1,4 +1,6 @@
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { chromium, type Page } from "playwright-core";
 import {
   CAPTURE_EVENT,
@@ -54,23 +56,68 @@ const DEFAULT_ARGS = [
   "--no-zygote",
 ];
 
-/** Resolve a Chromium binary: explicit → $LIEBSTOECKEL_CHROMIUM → Playwright's. */
-export function resolveChromium(opts: CaptureOptions = {}): string {
-  let candidate = opts.executablePath ?? process.env.LIEBSTOECKEL_CHROMIUM;
-  if (!candidate) {
+/** Well-known Chrome/Chromium locations to probe when no binary is set explicitly,
+ *  so a machine that already has Chrome "just works" without LIEBSTOECKEL_CHROMIUM
+ *  Order = preference; the caller verifies each exists on disk. Pure (env-driven). */
+export function systemChromiumCandidates(env: Record<string, string | undefined> = process.env): string[] {
+  const out: string[] = [];
+  // De-facto standard env vars other Chrome-driving tools honor.
+  if (env.PUPPETEER_EXECUTABLE_PATH) out.push(env.PUPPETEER_EXECUTABLE_PATH);
+  if (env.CHROME_PATH) out.push(env.CHROME_PATH);
+  // Puppeteer's install cache (`bunx puppeteer browsers install chrome`).
+  const pcache = join(homedir(), ".cache", "puppeteer", "chrome");
+  for (const sub of ["chrome-linux64/chrome", "chrome-win64/chrome.exe"]) {
     try {
-      candidate = chromium.executablePath();
+      for (const p of new Bun.Glob(`*/${sub}`).scanSync({ cwd: pcache, absolute: true, onlyFiles: false })) out.push(p);
     } catch {
-      candidate = undefined;
+      // no cache dir / glob unsupported → skip
     }
   }
+  // PATH binaries (Linux/BSD).
+  for (const bin of ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge"]) {
+    const p = Bun.which(bin);
+    if (p) out.push(p);
+  }
+  // macOS app bundles + common Windows install paths.
+  out.push(
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+  );
+  for (const base of [env.PROGRAMFILES, env["PROGRAMFILES(X86)"], env.LOCALAPPDATA]) {
+    if (base) out.push(join(base, "Google", "Chrome", "Application", "chrome.exe"));
+  }
+  return out;
+}
+
+/** First system Chrome/Chromium that exists on disk, or undefined. */
+function detectSystemChromium(): string | undefined {
+  for (const c of systemChromiumCandidates()) if (c && existsSync(c)) return c;
+  return undefined;
+}
+
+/** Resolve a Chromium binary: explicit → $LIEBSTOECKEL_CHROMIUM → a system
+ *  Chrome/Chromium → Playwright's. The first one that exists on disk wins. */
+export function resolveChromium(opts: CaptureOptions = {}): string {
+  const explicit = opts.executablePath ?? process.env.LIEBSTOECKEL_CHROMIUM;
+  if (explicit && existsSync(explicit)) return explicit;
+
+  const system = detectSystemChromium();
+  if (system) return system;
+
   // executablePath() returns a computed path even when the browser isn't
   // installed, verify the binary actually exists so hasChromium() stays honest
   // (otherwise capture is attempted where no browser exists, e.g. CI).
-  if (candidate && existsSync(candidate)) return candidate;
+  let playwright: string | undefined;
+  try {
+    playwright = chromium.executablePath();
+  } catch {
+    playwright = undefined;
+  }
+  if (playwright && existsSync(playwright)) return playwright;
+
   throw new Error(
-    "No Chromium found for thumbnail capture. Run `bunx playwright install chromium`, " +
-      "or set LIEBSTOECKEL_CHROMIUM to a Chrome/Chromium binary.",
+    "No Chromium found for slide capture. Run `liebstoeckel doctor --install-chromium`, " +
+      "set LIEBSTOECKEL_CHROMIUM to a Chrome/Chromium binary, or `bunx playwright install chromium`.",
   );
 }
 
@@ -93,7 +140,7 @@ export function thumbnailsEnabled(
 ): { enabled: boolean; reason?: string } {
   if (env.LIEBSTOECKEL_NO_THUMBS) return { enabled: false, reason: "LIEBSTOECKEL_NO_THUMBS is set" };
   if (!chromium) {
-    return { enabled: false, reason: "no Chromium (run `bunx playwright install chromium` or set LIEBSTOECKEL_CHROMIUM)" };
+    return { enabled: false, reason: "no Chromium (run `liebstoeckel doctor --install-chromium` or set LIEBSTOECKEL_CHROMIUM)" };
   }
   return { enabled: true };
 }

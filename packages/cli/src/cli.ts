@@ -21,6 +21,7 @@ const rootCommand = defineCommand({
     thumbs: () => import("@liebstoeckel/thumbnails/cli").then((m) => m.thumbsCommand),
     export: () => import("@liebstoeckel/thumbnails/cli").then((m) => m.exportCommand),
     skill: () => import("./skill").then((m) => m.skillCommand),
+    doctor: () => import("./doctor").then((m) => m.doctorCommand),
     // cloud (coming soon, the hosted service is not generally available yet):
     login: () => import("./cloud").then((m) => m.loginCommand),
     push: () => import("./cloud").then((m) => m.pushCommand),
@@ -54,6 +55,14 @@ async function main() {
   // a too-old Bun otherwise fails deep inside a command with an opaque error.
   const { assertBunVersion } = await import("./bun");
   await assertBunVersion();
+
+  // Feed a `doctor`-recorded Chromium into the resolution order when the user
+  // hasn't set LIEBSTOECKEL_CHROMIUM, so a browser configured once is reused.
+  try {
+    await (await import("./config")).hydrateChromiumEnv();
+  } catch {
+    // never block a command on config
+  }
 
   // Best-effort reminders (stderr-only; off for --json/pipes/CI, see update.ts):
   // a cached "new CLI version" note and a "deck skill older than the CLI" note.

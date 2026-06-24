@@ -37,3 +37,19 @@ export a slide to PNG:
 ```bash
 liebstoeckel export <deck> --slides 1 -o ./out     # PNG of slide 1 at 2560×1440
 ```
+
+## No Chromium (thumbnails / PNG / PDF export)
+
+PNG/PDF export and overview thumbnails need a Chrome/Chromium. `build` skips
+thumbnails gracefully without one, but `export`/`thumbs` fail. Diagnose and fix
+with `doctor` (it auto-detects an existing system/Puppeteer Chrome, so often
+nothing needs installing):
+
+```bash
+liebstoeckel doctor --json                 # { chromium: { path, ok }, bun: {…} }
+liebstoeckel doctor --install-chromium      # if ok:false — installs + remembers it
+```
+
+`--install-chromium` records the path in `~/.config/liebstoeckel/config.json`, so
+later builds reuse it. You can also set `LIEBSTOECKEL_CHROMIUM=<path>` to a binary
+directly. Both are non-interactive — safe to run unattended.

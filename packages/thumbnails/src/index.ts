@@ -7,6 +7,7 @@ export {
   printDeckPdf,
   resolveChromium,
   hasChromium,
+  systemChromiumCandidates,
   thumbnailsEnabled,
   type CaptureOptions,
   type RenderDriveOptions,

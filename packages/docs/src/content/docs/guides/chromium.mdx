@@ -17,11 +17,27 @@ Viewing, authoring, and live-presenting a deck need only a normal browser. A few
 
 The split is deliberate. `build` and `live` treat thumbnails as a best-effort enhancement, so a missing browser never blocks a build. `thumbs` and `export` exist only to produce that output, so they fail loudly instead of writing nothing.
 
+## Check what you have
+
+`liebstoeckel doctor` reports your build environment (Bun version, whether a Chromium was found, and where its path is recorded):
+
+```bash
+liebstoeckel doctor            # human summary; --json for the machine-readable form
+```
+
+If a Chrome or Chromium is already on the machine, liebstoeckel usually finds it on its own (see [Resolution order](#resolution-order)), you may not need to do anything.
+
 ## Provide a Chromium
 
-Two ways, either works.
+If `doctor` reports none, any of these works.
 
-Install the Chromium that Playwright manages (liebstoeckel ships `playwright-core`, which has no browser of its own):
+Let liebstoeckel install and remember Playwright's Chromium for you:
+
+```bash
+liebstoeckel doctor --install-chromium     # installs, then records the path in your config
+```
+
+Or install it yourself (liebstoeckel ships `playwright-core`, which has no browser of its own):
 
 ```bash
 bunx playwright install chromium
@@ -43,8 +59,9 @@ Point `LIEBSTOECKEL_CHROMIUM` at a complete Chrome or Chromium build. The lighte
 When a feature needs a browser, liebstoeckel looks in this order and uses the first binary that exists on disk:
 
 1. An explicit `executablePath` passed to the thumbnails/export API.
-2. The `LIEBSTOECKEL_CHROMIUM` environment variable.
-3. The Chromium installed by Playwright.
+2. The `LIEBSTOECKEL_CHROMIUM` environment variable — including the path `doctor` records in your config (`~/.config/liebstoeckel/config.json`), which the CLI loads into this variable when you haven't set it yourself.
+3. A **system Chrome/Chromium**: `PUPPETEER_EXECUTABLE_PATH` / `CHROME_PATH`, Puppeteer's install cache, `google-chrome` / `chromium` / `chromium-browser` on `PATH`, and the standard macOS/Windows install locations.
+4. The Chromium installed by Playwright.
 
 The existence check matters: Playwright reports a computed path even when nothing is installed, so liebstoeckel verifies the file is really there before trusting it. This keeps the "no Chromium" path honest in CI.
 
@@ -62,8 +79,8 @@ In a container image, either run `bunx playwright install chromium` during the b
 
 The "no Chromium found" message is expected if you never installed one. What follows depends on the command:
 
-- `liebstoeckel build` and `liebstoeckel live` log a note that thumbnails were skipped and finish normally. Provide a browser (above) to get the overview thumbnails back.
-- `liebstoeckel thumbs` and `liebstoeckel export` stop with an error that names both fixes (install Playwright's Chromium, or set `LIEBSTOECKEL_CHROMIUM`).
+- `liebstoeckel build` and `liebstoeckel live` log a note that thumbnails were skipped and finish normally. Run `liebstoeckel doctor --install-chromium` (or provide a browser as above) to get the overview thumbnails back.
+- `liebstoeckel thumbs` and `liebstoeckel export` stop with an error that names the fixes (`liebstoeckel doctor --install-chromium`, or set `LIEBSTOECKEL_CHROMIUM`).
 
 ## Skip thumbnails on purpose
 
