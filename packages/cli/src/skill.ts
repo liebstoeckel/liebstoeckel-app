@@ -2,7 +2,8 @@ import { defineCommand } from "citty";
 import { fileURLToPath } from "node:url";
 import { existsSync, readdirSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 
 /**
  * `liebstoeckel skill install`, materialize the bundled `liebstoeckel-deck` Skill
@@ -21,13 +22,54 @@ const PKG_JSON = fileURLToPath(new URL("../package.json", import.meta.url));
 type Target = "claude" | "codex" | "cursor" | "gemini";
 const ALL_TARGETS: Target[] = ["claude", "codex", "cursor", "gemini"];
 
-// Where each agent looks for a skill folder, relative to the deck root.
+// Where each agent looks for a skill folder, relative to the root (a project dir
+// for a `project` install, the home dir for a `user` install). Agents read the
+// same `.<agent>/skills/...` layout under either root.
 export const SKILL_DIR: Record<Target, string> = {
   claude: join(".claude", "skills", SKILL_NAME),
   codex: join(".agents", "skills", SKILL_NAME), // also read by Gemini's shared path
   cursor: join(".cursor", "skills", SKILL_NAME),
   gemini: join(".gemini", "skills", SKILL_NAME),
 };
+
+/** Where a skill install lands: a single project/deck, or the user account (every
+ *  project). `project` writes the per-agent dirs + the AGENTS.md fallback into the
+ *  deck root; `user` writes the per-agent dirs under `~` (e.g. `~/.claude/skills/`). */
+export type Scope = "project" | "user";
+
+/** Decide the install scope from the flags and context, or signal that the caller
+ *  must prompt / error. Pure (no IO), so the policy is unit-tested:
+ *   - `--global` or `--scope user|project` is taken as given;
+ *   - an explicit `--dir` means "this project";
+ *   - otherwise a TTY prompts, and a non-interactive run defaults to the project
+ *     only when the cwd is actually a deck, never silently writing skill files
+ *     into a random directory (the home-dir pollution from the field report). */
+export function resolveScope(opts: {
+  scopeArg?: string;
+  global?: boolean;
+  dirGiven: boolean;
+  interactive: boolean;
+  cwdIsDeck: boolean;
+}): { scope: Scope } | { prompt: true } | { error: string } {
+  if (opts.global) return { scope: "user" };
+  if (opts.scopeArg) {
+    if (opts.scopeArg === "project" || opts.scopeArg === "user") return { scope: opts.scopeArg };
+    return { error: `unknown --scope "${opts.scopeArg}", use: project | user` };
+  }
+  if (opts.dirGiven) return { scope: "project" };
+  if (opts.interactive) return { prompt: true };
+  if (opts.cwdIsDeck) return { scope: "project" };
+  return {
+    error:
+      "not inside a deck and no scope given. Pass `--scope user` to install for your account (~), " +
+      "or `--dir <deck>` / `--scope project` to install into a project.",
+  };
+}
+
+/** A directory is a deck/project if it has a package.json (decks are npm packages). */
+function isDeckDir(dir: string): boolean {
+  return existsSync(join(dir, "package.json"));
+}
 
 export async function cliVersion(): Promise<string> {
   try {
@@ -88,14 +130,24 @@ Discover components with \`liebstoeckel registry list --json\`; validate with \`
   await Bun.write(dest, mdc);
 }
 
-async function applySkill(sub: "install" | "update", deckDir: string, targetArg: string | undefined): Promise<void> {
+export async function applySkill(
+  sub: "install" | "update",
+  root: string,
+  scope: Scope,
+  targetArg: string | undefined,
+): Promise<void> {
+  // AGENTS.md is a project-root convention (the fallback an agent reads when it
+  // opens a deck). A `user` install skips it. A bare `~/AGENTS.md` is the home-dir
+  // pollution the field report flagged, and isn't a reliable global instruction path.
+  const writeAgents = scope === "project";
   let targets: Target[];
   if (sub === "update") {
-    // Refresh whatever is already installed (the AGENTS.md block is always
-    // rewritten); installing NEW agent paths stays `install`'s job.
-    targets = ALL_TARGETS.filter((t) => existsSync(join(deckDir, SKILL_DIR[t])));
-    if (targets.length === 0 && !existsSync(join(deckDir, "AGENTS.md"))) {
-      console.error(`✕ no liebstoeckel skill installed in ${deckDir}, run: liebstoeckel skill install`);
+    // Refresh whatever is already installed (the AGENTS.md block is rewritten when
+    // present); installing NEW agent paths stays `install`'s job.
+    targets = ALL_TARGETS.filter((t) => existsSync(join(root, SKILL_DIR[t])));
+    const agentsPresent = writeAgents && existsSync(join(root, "AGENTS.md"));
+    if (targets.length === 0 && !agentsPresent) {
+      console.error(`✕ no liebstoeckel skill installed in ${root}, run: liebstoeckel skill install`);
       process.exit(1);
     }
   } else {
@@ -114,32 +166,77 @@ async function applySkill(sub: "install" | "update", deckDir: string, targetArg:
     // de-dupe destination dirs (some agents share a path)
     const seen = new Set<string>();
     for (const t of targets) {
-      const destRoot = join(deckDir, SKILL_DIR[t]);
+      const destRoot = join(root, SKILL_DIR[t]);
       if (!seen.has(destRoot)) {
         await writeSkill(destRoot, version);
         seen.add(destRoot);
         written.push(SKILL_DIR[t] + "/");
       }
       if (t === "cursor") {
-        await writeCursorRule(deckDir);
+        await writeCursorRule(root);
         written.push(join(".cursor", "rules", "liebstoeckel.mdc"));
       }
     }
-    // AGENTS.md is the universal fallback, always write it
-    await writeAgentsBlock(deckDir);
-    written.push("AGENTS.md");
+    if (writeAgents) {
+      await writeAgentsBlock(root);
+      written.push("AGENTS.md");
+    }
 
-    console.log(`\n✓ ${sub === "update" ? "updated" : "installed"} the liebstoeckel-deck skill (v${version}) → ${deckDir}\n`);
+    const where = scope === "user" ? `your user account (${root})` : root;
+    console.log(`\n✓ ${sub === "update" ? "updated" : "installed"} the liebstoeckel-deck skill (v${version}) → ${where}\n`);
     for (const w of written) console.log(`   ${w}`);
-    console.log(`\n   targets: ${targets.join(", ")}\n`);
+    console.log(`\n   scope: ${scope} · targets: ${targets.join(", ")}\n`);
   } catch (e) {
     console.error(`✕ ${(e as Error).message}`);
     process.exit(1);
   }
 }
 
+/** Resolve scope (prompting on a TTY when ambiguous) then run the install/update.
+ *  `dir` is the explicit `--dir` value (undefined = none given). */
+async function runSkill(
+  sub: "install" | "update",
+  args: { dir?: string; scope?: string; global?: boolean; target?: string },
+): Promise<void> {
+  const interactive = !!process.stdin.isTTY && !!process.stdout.isTTY;
+  const decision = resolveScope({
+    scopeArg: args.scope,
+    global: args.global,
+    dirGiven: args.dir !== undefined,
+    interactive,
+    cwdIsDeck: isDeckDir(args.dir ?? "."),
+  });
+
+  let scope: Scope;
+  if ("error" in decision) {
+    console.error(`✕ ${decision.error}`);
+    process.exit(1);
+  } else if ("prompt" in decision) {
+    // TTY-only (resolveScope returns `prompt` only when interactive). Bun's prompt
+    // reads a line; default = project (the contained, safe choice).
+    const ans = (prompt("Install the liebstoeckel-deck skill for [P]roject (./) or [u]ser account (~)?", "p") ?? "p")
+      .trim()
+      .toLowerCase();
+    scope = ans.startsWith("u") ? "user" : "project";
+  } else {
+    scope = decision.scope;
+  }
+
+  const root = scope === "user" ? homedir() : resolve(args.dir ?? ".");
+  await applySkill(sub, root, scope, args.target);
+}
+
+const scopeArgs = {
+  scope: {
+    type: "string",
+    description: "install location: project (a deck) or user (your account ~, every project)",
+    valueHint: "project|user",
+  },
+  global: { type: "boolean", description: "shorthand for --scope user (install for your account, ~)" },
+} as const;
+
 const skillInstallCommand = defineCommand({
-  meta: { name: "install", description: "install the agent skill (SKILL.md + AGENTS.md) into a deck" },
+  meta: { name: "install", description: "install the agent skill into a deck (--scope project) or your account (--scope user)" },
   args: {
     target: {
       type: "string",
@@ -147,17 +244,19 @@ const skillInstallCommand = defineCommand({
       description: "agents to target: claude, codex, cursor, gemini, all (comma-separated)",
       valueHint: "claude|codex|cursor|gemini|all",
     },
-    dir: { type: "string", description: "target deck directory (default: cwd)", valueHint: "deck" },
+    dir: { type: "string", description: "target deck directory (project scope; default: cwd)", valueHint: "deck" },
+    ...scopeArgs,
   },
-  run: ({ args }) => applySkill("install", args.dir ?? ".", args.target),
+  run: ({ args }) => runSkill("install", args),
 });
 
 const skillUpdateCommand = defineCommand({
   meta: { name: "update", description: "refresh the installed agent skill to the running CLI version" },
   args: {
-    dir: { type: "string", description: "target deck directory (default: cwd)", valueHint: "deck" },
+    dir: { type: "string", description: "target deck directory (project scope; default: cwd)", valueHint: "deck" },
+    ...scopeArgs,
   },
-  run: ({ args }) => applySkill("update", args.dir ?? ".", undefined),
+  run: ({ args }) => runSkill("update", args),
 });
 
 /** `liebstoeckel skill install|update`, manage the bundled deck-authoring Skill. */

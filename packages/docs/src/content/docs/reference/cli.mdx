@@ -345,15 +345,19 @@ ships inside the CLI package, version-pinned so it always matches your installed
 `liebstoeckel`, and is placed where each agent looks for it.
 
 ```bash
-liebstoeckel skill install                        # all agents + AGENTS.md, into the current dir
+liebstoeckel skill install --dir ./my-deck        # into one deck/project (writes AGENTS.md too)
+liebstoeckel skill install --global               # into your user account (~) — every project
 liebstoeckel skill install --target codex --dir ./my-deck
 liebstoeckel skill update                         # refresh the installed skill to the CLI's version
 ```
 
 | Flag | Meaning |
 | --- | --- |
+| `--scope <project\|user>` | where to install, a project/deck, or your user account (`~`); `--global` is shorthand for `--scope user` |
 | `--target <list>` | (install) `claude`, `codex`, `cursor`, `gemini`, or `all` (default); comma-separated |
-| `--dir <deck>` | where to install (default: current directory) |
+| `--dir <deck>` | the deck/project for a `project`-scope install (default: current directory) |
+
+**Scope.** A `project` install writes the per-agent skill folders **and** the `AGENTS.md` fallback into the deck. A `user` install writes the folders under your home (`~/.claude/skills/…` and the rest) so every project sees the skill, and does **not** drop a bare `~/AGENTS.md`. When you don't pass a scope, an interactive terminal asks which you want; with `--dir` it's a project install; and a non-interactive run refuses rather than scatter skill files into a directory that isn't a deck — pass `--scope user` or `--dir <deck>` to be explicit.
 
 It writes the same skill to each agent's path (`.claude/skills/`, `.agents/skills/` for
 Codex/Gemini, `.cursor/skills/` + a rule) and merges a managed block into `AGENTS.md`,

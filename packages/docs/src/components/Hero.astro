@@ -13,7 +13,7 @@ const { title = data.title, tagline, actions = [] } = data.hero || {};
 // Bun adds the CLI (raw TS under Bun), then the skill goes to your agent
 const INSTALL_LINES = `npm install -g bun
 bun add -g @liebstoeckel/cli
-liebstoeckel skill install`;
+liebstoeckel skill install --global`;
 ---
 
 <div class="hero">
@@ -51,7 +51,7 @@ liebstoeckel skill install`;
       </div>
       <pre><code><span class="c-pr">$</span> npm install <span class="c-fl">-g</span> bun
 <span class="c-pr">$</span> bun add <span class="c-fl">-g</span> <span class="c-hl">@liebstoeckel/cli</span>
-<span class="c-pr">$</span> liebstoeckel <span class="c-cmd">skill install</span></code></pre>
+<span class="c-pr">$</span> liebstoeckel <span class="c-cmd">skill install</span> <span class="c-fl">--global</span></code></pre>
     </div>
   </div>
 </div>
