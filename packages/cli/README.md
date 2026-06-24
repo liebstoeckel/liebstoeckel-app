@@ -10,8 +10,6 @@ This is the umbrella CLI. One binary scaffolds a deck, runs a hot-reloading dev 
 
 ## Install
 
-> It isn't on the public npm registry yet. The commands below are how it will install once it ships. For now, run it from a checkout of the repo (`bun run live|relay|thumbs …`) or from a workspace that links the packages.
-
 ```sh
 bun add -d @liebstoeckel/cli
 # …or run it without installing:
