@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { playwrightCoreVersion } from "@liebstoeckel/thumbnails";
-import { buildReport, installChromiumArgs } from "./doctor";
+import { buildReport, diagnosticExitCode, installChromiumArgs } from "./doctor";
 import { bunBin } from "./bun";
 
 describe("buildReport", () => {
@@ -18,6 +18,24 @@ describe("buildReport", () => {
       path: null,
       ok: false,
     });
+  });
+});
+
+describe("diagnosticExitCode", () => {
+  const report = (bunOk: boolean, chromiumOk: boolean): Parameters<typeof diagnosticExitCode>[0] => ({
+    bun: { version: "1.3.14", required: ">=1.3", ok: bunOk },
+    chromium: { path: chromiumOk ? "/usr/bin/chromium" : null, ok: chromiumOk },
+    configFile: "/tmp/config.json",
+  });
+
+  test("non-zero when Bun is unsatisfied (gateable by CI/agents)", () => {
+    expect(diagnosticExitCode(report(false, true))).not.toBe(0);
+    expect(diagnosticExitCode(report(false, false))).not.toBe(0);
+  });
+
+  test("zero when Bun is fine, even with no Chromium (Chromium is optional)", () => {
+    expect(diagnosticExitCode(report(true, true))).toBe(0);
+    expect(diagnosticExitCode(report(true, false))).toBe(0);
   });
 });
 

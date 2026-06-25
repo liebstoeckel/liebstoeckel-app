@@ -35,6 +35,13 @@ export function buildReport(parts: {
   };
 }
 
+/** Exit code for the diagnostic path (unit-tested). Non-zero only when a hard
+ *  requirement is unmet: Bun is hard, Chromium is optional (`build` skips
+ *  thumbnails without it), so a missing browser reports but does not fail. */
+export function diagnosticExitCode(report: DoctorReport): number {
+  return report.bun.ok ? 0 : 1;
+}
+
 /** The shell-out that installs Playwright's Chromium. Pinned two ways: the Bun
  *  interpreter is `bunBin` (the one running this CLI), and `playwright@<version>`
  *  matches the `playwright-core` the capturer resolves browsers through. An
@@ -96,17 +103,22 @@ export const doctorCommand = defineCommand({
 
     if (json) {
       console.log(JSON.stringify({ ...report, storedChromium: stored ?? null }));
-      return;
+    } else {
+      const ok = (b: boolean) => (b ? "✓" : "✗");
+      console.error(`${ok(report.bun.ok)} Bun ${report.bun.version} (needs ${report.bun.required})`);
+      console.error(
+        report.chromium.ok
+          ? `${ok(true)} Chromium ${report.chromium.path}`
+          : `${ok(false)} Chromium not found, run \`liebstoeckel doctor --install-chromium\` or set LIEBSTOECKEL_CHROMIUM\n` +
+              `    (only \`export\`/\`thumbs\` require it; \`build\` skips thumbnails without it)`,
+      );
+      console.error(`  config: ${CONFIG_FILE}`);
     }
 
-    const ok = (b: boolean) => (b ? "✓" : "✗");
-    console.error(`${ok(report.bun.ok)} Bun ${report.bun.version} (needs ${report.bun.required})`);
-    console.error(
-      report.chromium.ok
-        ? `${ok(true)} Chromium ${report.chromium.path}`
-        : `${ok(false)} Chromium not found, run \`liebstoeckel doctor --install-chromium\` or set LIEBSTOECKEL_CHROMIUM\n` +
-            `    (only \`export\`/\`thumbs\` require it; \`build\` skips thumbnails without it)`,
-    );
-    console.error(`  config: ${CONFIG_FILE}`);
+    // Exit non-zero so an agent/CI can gate on the check (the umbrella's preflight
+    // already enforces Bun before any command, so this is belt-and-suspenders for
+    // direct/programmatic use).
+    const code = diagnosticExitCode(report);
+    if (code) process.exit(code);
   },
 });
