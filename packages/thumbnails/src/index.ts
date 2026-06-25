@@ -8,6 +8,7 @@ export {
   resolveChromium,
   hasChromium,
   systemChromiumCandidates,
+  playwrightCoreVersion,
   thumbnailsEnabled,
   type CaptureOptions,
   type RenderDriveOptions,

@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { resolveChromium } from "@liebstoeckel/thumbnails";
+import { resolveChromium, playwrightCoreVersion } from "@liebstoeckel/thumbnails";
 import { bunBin, bunVersionError, requiredBunRange } from "./bun";
 import { loadConfig, saveConfig, CONFIG_FILE } from "./config";
 
@@ -35,10 +35,19 @@ export function buildReport(parts: {
   };
 }
 
-/** Install Playwright's Chromium (the capturer launches via playwright-core),
- *  pinned to the running Bun. Streams progress; returns success. */
+/** The shell-out that installs Playwright's Chromium. Pinned two ways: the Bun
+ *  interpreter is `bunBin` (the one running this CLI), and `playwright@<version>`
+ *  matches the `playwright-core` the capturer resolves browsers through. An
+ *  unpinned `playwright install` would fetch registry-latest and drop a revision
+ *  `chromium.executablePath()` can't find (a "successful" install that still fails). */
+export function installChromiumArgs(): string[] {
+  return [bunBin, "x", `playwright@${playwrightCoreVersion}`, "install", "chromium"];
+}
+
+/** Install Playwright's Chromium (the capturer launches via playwright-core).
+ *  Streams progress; returns success. */
 async function installChromium(): Promise<boolean> {
-  const proc = Bun.spawn([bunBin, "x", "playwright", "install", "chromium"], {
+  const proc = Bun.spawn(installChromiumArgs(), {
     stdin: "inherit",
     stdout: "inherit",
     stderr: "inherit",

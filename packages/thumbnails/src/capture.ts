@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright-core";
@@ -14,6 +15,14 @@ import {
 import type { ThumbnailManifest } from "@liebstoeckel/engine/build/thumbnails";
 
 export type ThumbnailFormat = "webp" | "jpeg" | "png";
+
+/** The exact `playwright-core` version this package resolves browsers through.
+ *  `chromium.executablePath()` looks for one specific bundled revision, so any
+ *  install must use the *matching* npm release. `doctor --install-chromium` pins
+ *  `playwright@<this>`. An unpinned `playwright install` resolves to registry-latest
+ *  and drops a newer revision into a different dir, which this version can't find
+ *  (the install "succeeds" yet capture still reports no Chromium). */
+export const playwrightCoreVersion: string = createRequire(import.meta.url)("playwright-core/package.json").version;
 
 /** Thumbnail capture options, the slide driver's options ((internal ADR)) plus the
  *  image-encoding policy specific to the thumbnail sink. Default width 640 ×

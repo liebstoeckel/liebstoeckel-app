@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { buildReport } from "./doctor";
+import { playwrightCoreVersion } from "@liebstoeckel/thumbnails";
+import { buildReport, installChromiumArgs } from "./doctor";
+import { bunBin } from "./bun";
 
 describe("buildReport", () => {
   test("bun.ok reflects whether the version satisfies the range", () => {
@@ -16,5 +18,24 @@ describe("buildReport", () => {
       path: null,
       ok: false,
     });
+  });
+});
+
+describe("installChromiumArgs", () => {
+  // Regression: an unpinned `playwright install` resolves to registry-latest and
+  // drops a Chromium revision the pinned playwright-core can't find, so the install
+  // "succeeds" yet `resolveChromium()` still returns nothing. The version MUST be
+  // pinned to the playwright-core the capturer launches through.
+  test("pins playwright to the resolved playwright-core version", () => {
+    const args = installChromiumArgs();
+    expect(args).toContain(`playwright@${playwrightCoreVersion}`);
+    // never the bare, registry-latest form
+    expect(args).not.toContain("playwright");
+    expect(args.slice(1)).toEqual(["x", `playwright@${playwrightCoreVersion}`, "install", "chromium"]);
+  });
+
+  test("runs through the Bun interpreting this CLI (bunBin), not a bare PATH bun", () => {
+    expect(installChromiumArgs()[0]).toBe(bunBin);
+    expect(bunBin).toBe(process.execPath);
   });
 });
