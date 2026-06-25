@@ -112,7 +112,7 @@ palette); define it with `defineTheme` in `brands/<name>.ts` and wire it via
 
 Fonts are the one real trap: a brand names a font, but glyphs only ship if a matching
 `@font-face` is **bundled**. Naming a `"… Variable"` font with no bundled face
-**silently falls back to a system font** (build prints `⚠ brand font not bundled`).
+**silently falls back to a system font** (build prints `⚠ brand font won't render`).
 Use a house family (already bundled) or add one latin variable `@font-face` — never
 `import "@fontsource-variable/<id>/index.css"`. Full recipe + verification in
 `references/brands.md`.

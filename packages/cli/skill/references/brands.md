@@ -15,7 +15,11 @@ is how a past session drifted). Use the typed path below.
   ```bash
   liebstoeckel new <name> --dir presentations --brand nocturne
   ```
-  Built-ins need no font work (their fonts are already bundled).
+  `liebstoeckel` and `nocturne` bundle their fonts — zero font work. `acme` and
+  `sunset` use `"Inter"` / `"JetBrains Mono"`, which are **not** bundled: they
+  render only where those fonts are installed and otherwise fall back to
+  `system-ui` / `monospace` (e.g. PDF export under headless Chromium). To bundle a
+  font for a brand, see **Fonts** below.
 
 - **Custom** — define your own typed brand as owned source in the deck (below).
   `--brand <id>` alone does **not** create the brand; an unknown id silently
@@ -92,7 +96,8 @@ The trap: if you name a `"… Variable"` family that nothing bundles, the browse
 you saw in dev (a past session shipped Noto Sans this way). The build now warns:
 
 ```
-⚠ brand font not bundled: "Nunito Sans Variable"
+⚠ brand font won't render (text will fall back to a system font):
+  named by the brand but no @font-face bundles them: "Nunito Sans Variable"
 ```
 
 Treat that warning as **must-fix**. Two correct options:
