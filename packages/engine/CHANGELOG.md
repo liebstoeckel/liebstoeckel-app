@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.7](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.6...engine-v0.3.7) (2026-06-30)
+
+
+### Features
+
+* **engine:** detect font bundling issues in builds, warn on silent fallbacks ([f667e16](https://github.com/liebstoeckel/liebstoeckel-app/commit/f667e161058649816119365158862e20ae03f6fe))
+
 ## [0.3.6](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.5...engine-v0.3.6) (2026-06-24)
 
 

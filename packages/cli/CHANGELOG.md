@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.3.9](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.8...cli-v0.3.9) (2026-06-30)
+
+
+### Features
+
+* **cli:** add `doctor` command to diagnose and configure build environment ([582325c](https://github.com/liebstoeckel/liebstoeckel-app/commit/582325cb48ce203f60a86a844f6cbda942fb19da))
+* **cli:** add Bun version preflight and pin interpreter in shell-outs ([bea0bd0](https://github.com/liebstoeckel/liebstoeckel-app/commit/bea0bd0bd14786d685e39742cd106c443ea52690))
+* **cli:** add scoped skill installation with `--scope` and safeguard against cwd pollution ([c1d7ca1](https://github.com/liebstoeckel/liebstoeckel-app/commit/c1d7ca135ebb4250a925ee81d4a06667f28bdcb7))
+* **engine:** detect font bundling issues in builds, warn on silent fallbacks ([f667e16](https://github.com/liebstoeckel/liebstoeckel-app/commit/f667e161058649816119365158862e20ae03f6fe))
+
+
+### Bug Fixes
+
+* **cli:** accept prerelease/canary Bun builds in version preflight ([1485975](https://github.com/liebstoeckel/liebstoeckel-app/commit/14859751c05bf50f3b630b7d82feb3d563a32e17))
+* **cli:** doctor exits non-zero when Bun is unsatisfied ([59c26d4](https://github.com/liebstoeckel/liebstoeckel-app/commit/59c26d4d4eec0171a00b9ed405b61b321719d34f))
+* **cli:** pin `doctor --install-chromium` to playwright-core's version ([3d645b1](https://github.com/liebstoeckel/liebstoeckel-app/commit/3d645b12b25d66fcbe018ac6e4fea60a79a3b25f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.7
+    * @liebstoeckel/live-server bumped to 0.3.7
+    * @liebstoeckel/present-relay bumped to 0.3.7
+    * @liebstoeckel/thumbnails bumped to 0.3.7
+
 ## [0.3.8](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.7...cli-v0.3.8) (2026-06-24)
 
 

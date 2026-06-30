@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.7](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.6...thumbnails-v0.3.7) (2026-06-30)
+
+
+### Features
+
+* **cli:** add `doctor` command to diagnose and configure build environment ([582325c](https://github.com/liebstoeckel/liebstoeckel-app/commit/582325cb48ce203f60a86a844f6cbda942fb19da))
+
+
+### Bug Fixes
+
+* **cli:** pin `doctor --install-chromium` to playwright-core's version ([3d645b1](https://github.com/liebstoeckel/liebstoeckel-app/commit/3d645b12b25d66fcbe018ac6e4fea60a79a3b25f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.7
+
 ## [0.3.6](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.5...thumbnails-v0.3.6) (2026-06-24)
 
 
