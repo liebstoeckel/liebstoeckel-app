@@ -1,0 +1,46 @@
+---
+title: Security policy
+description: "How to report vulnerabilities, which versions receive fixes, the deck trust model, and the declared support period."
+---
+
+## Reporting a vulnerability
+
+Report security issues privately to **security@liebstoeckel.app**. Do not open a
+public issue for anything you believe is a vulnerability. Include what you can:
+the affected package and version, a reproduction or proof of concept, and the
+impact as you understand it. You will get an acknowledgement within three
+business days.
+
+Machine-readable contact details are published at
+[`/.well-known/security.txt`](https://liebstoeckel.app/.well-known/security.txt)
+(RFC 9116) on liebstoeckel.app and docs.liebstoeckel.app.
+
+We follow coordinated disclosure with a 90-day default window and offer safe
+harbor for good-faith research: test only against your own deployments or
+accounts, do not access other people's data, and give us reasonable time to fix
+before disclosing. Full policy:
+[SECURITY.md](https://github.com/liebstoeckel/liebstoeckel-app/blob/main/SECURITY.md).
+
+## Supported versions and support period
+
+The project is pre-1.0: only the latest published release of the
+`@liebstoeckel/*` packages receives security fixes, on a best-effort basis. The
+declared support period for the 0.x line currently runs through
+**2028-12-31**; we intend to declare a longer period with the 1.0 release.
+
+## The trust model, in one paragraph
+
+A deck is a program. `liebstoeckel build` and `liebstoeckel live` execute deck
+code (including any server-side plugin code it bundles) with your privileges;
+that is by design, so "a malicious deck can run code on the machine that builds
+it" is expected behavior, not a vulnerability. Treat third-party decks like
+third-party code, and rebuild untrusted decks with `--ignore-scripts` (see
+`eject`). Relays and audience browsers, by contrast, must never execute
+deck-controlled code: an escape of that boundary is exactly the kind of report
+we want to hear about.
+
+## Dependency transparency
+
+Software bills of materials (CycloneDX and SPDX) and dependency vulnerability
+scans are generated for each release and gate the release pipeline. If you
+need the current SBOM, ask at security@liebstoeckel.app.

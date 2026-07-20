@@ -33,3 +33,9 @@ deploy/**/charts/
 
 # stray verification screenshots (root, hidden)
 /.*.png
+
+# cra-cli lookup cache (the .cra/ store itself IS committed: SBOMs, scans, lifetimes)
+.cra/cache/
+
+# local scratch notes, never committed
+docs/private/
