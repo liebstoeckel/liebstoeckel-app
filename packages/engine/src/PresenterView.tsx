@@ -192,7 +192,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   const sync = useDeckSync(norm.length);
   const liveDeck = useLiveDeck(liveCtx?.doc ?? fallbackDoc, norm.length, liveCtx?.role !== "viewer");
   const ctrl = live ? liveDeck : sync;
-  const { index, step: rawStep, total, setIndex, next, prev } = ctrl;
+  const { index, step: rawStep, total, ended, setIndex, setEnded, next, prev } = ctrl;
   // The presenter never mounts a StepsProvider, so it resolves the reveal position
   // itself. STEP_ALL means "fully revealed", so even while `total` still describes
   // the slide we just left this reads as a filled bar rather than a wrong number.
@@ -210,21 +210,32 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   // still makes Next a "Reveal →"). Symmetric for Prev at the very start.
   const atEnd = index >= norm.length - 1 && step >= total;
   const atStart = index <= 0 && step <= 0;
-  // Advancing at the end must not reach the controller: it would clamp the index
-  // onto the last slide while resetting the step, replaying that slide's reveals.
-  // The deck window is protected by its terminal end layer, which this window has
-  // no equivalent of, so it reuses the same guard that disables the Next button.
+  // The forward control finishes the deck before it goes inert, so the presenter can
+  // put the audience on the end card from here instead of the run just stopping.
+  const advanceLabel = ended ? "Ended" : atEnd ? "End →" : step < total ? "Reveal →" : "Next →";
+  // Advancing past the last reveal ends the deck rather than calling next(), which
+  // would clamp the index back onto the last slide and replay its reveals. `ended`
+  // is shared state, so this is what puts the AUDIENCE on the end card: driving
+  // from here has to be able to finish the deck, not just refuse to go further.
   const advance = useCallback(() => {
-    if (!atEnd) next();
-  }, [atEnd, next]);
+    if (ended) return;
+    if (atEnd) setEnded(true);
+    else next();
+  }, [atEnd, ended, next, setEnded]);
+  // Symmetrically, Back leaves the end screen before it resumes stepping, so the
+  // last slide is where you land rather than the one before it.
+  const retreat = useCallback(() => {
+    if (ended) setEnded(false);
+    else prev();
+  }, [ended, prev, setEnded]);
   useDeckNav({
     count: norm.length,
     setIndex,
     onNext: advance,
-    onPrev: prev,
+    onPrev: retreat,
     onQr: live ? () => setShare((v) => !v) : undefined,
   });
-  useTouchNav({ enabled: true, onNext: advance, onPrev: prev });
+  useTouchNav({ enabled: true, onNext: advance, onPrev: retreat });
   const now = useNow();
   // Talk timer: the START is shared via the doc (conflict-free per-client cells,
   // (internal ADR)) so every presenter surface agrees; standalone falls back to the
@@ -326,11 +337,17 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
             {Next ? <Thumb Component={Next} interactive={false} /> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
           </div>
           <div className="min-w-0 flex-1 font-mono text-[11px]">
-            <div className="uppercase tracking-[0.2em] text-muted">{Next ? "next up" : "end of deck"}</div>
-            {total > 0 && (
-              <div className={step < total ? "text-accent" : "text-muted"}>
-                {step < total ? `revealing ${step} / ${total}, Next reveals` : "Next → following slide"}
-              </div>
+            <div className="uppercase tracking-[0.2em] text-muted">
+              {ended ? "deck ended" : Next ? "next up" : "end of deck"}
+            </div>
+            {ended ? (
+              <div className="text-accent">the audience sees the end card, ← goes back in</div>
+            ) : (
+              total > 0 && (
+                <div className={step < total ? "text-accent" : "text-muted"}>
+                  {step < total ? `revealing ${step} / ${total}, Next reveals` : "Next → following slide"}
+                </div>
+              )
             )}
           </div>
         </div>
@@ -342,19 +359,19 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           style={{ paddingBottom: "calc(0.85rem + env(safe-area-inset-bottom))" }}
         >
           <button
-            onClick={prev}
-            disabled={atStart}
+            onClick={retreat}
+            disabled={atStart && !ended}
             aria-label="Previous"
             className="flex-1 rounded-xl border border-border py-4 font-mono text-lg text-muted transition active:border-text active:text-text disabled:opacity-40"
           >
             ←
           </button>
           <button
-            onClick={next}
-            disabled={atEnd}
+            onClick={advance}
+            disabled={ended}
             className="flex-[2.4] rounded-xl bg-primary py-4 font-mono text-base font-semibold uppercase tracking-widest text-on-primary transition active:brightness-110 disabled:opacity-40"
           >
-            {step < total ? "Reveal →" : "Next →"}
+            {advanceLabel}
           </button>
         </div>
       </div>
@@ -367,18 +384,18 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   const navRow = (
     <div className="flex shrink-0 items-center gap-3">
       <button
-        onClick={prev}
-        disabled={atStart}
+        onClick={retreat}
+        disabled={atStart && !ended}
         className="flex-1 rounded-xl border border-border py-3 font-mono text-sm uppercase tracking-widest text-muted transition hover:border-text hover:text-text disabled:opacity-40 disabled:hover:border-border disabled:hover:text-muted"
       >
         ← Prev
       </button>
       <button
-        onClick={next}
-        disabled={atEnd}
+        onClick={advance}
+        disabled={ended}
         className="flex-[2] rounded-xl bg-primary py-3 font-mono text-sm font-semibold uppercase tracking-widest text-on-primary transition hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100"
       >
-        {step < total ? "Reveal →" : "Next →"}
+        {advanceLabel}
       </button>
     </div>
   );

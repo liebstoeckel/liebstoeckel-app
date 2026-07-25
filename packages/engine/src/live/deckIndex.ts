@@ -25,10 +25,14 @@ export interface DeckController {
   total: number;
   /** The slide index `total` describes; see totalIsFresh. */
   totalFor: number;
+  /** The terminal end-of-deck screen, shared so the presenter can put the
+   *  audience into it. Any slide change clears it. */
+  ended: boolean;
   canDrive: boolean;
   setIndex(u: number | ((n: number) => number)): void;
   setStep(step: StepPos): void;
   setTotal(total: number, forIndex: number): void;
+  setEnded(ended: boolean): void;
   next(): void;
   prev(): void;
 }
@@ -36,13 +40,15 @@ export interface DeckController {
 /** Deck nav state backed by the shared doc: viewers follow, only `canDrive` (the
  *  presenter role) writes. Carries index + step + total so reveals follow too. */
 export function useLiveDeck(doc: Y.Doc, count: number, canDrive: boolean): DeckController {
-  // `step` carries the STEP_ALL sentinel as a string, so the map is not number-only.
-  const map = doc.getMap<number | string>("deck");
+  // `step` carries the STEP_ALL sentinel as a string and `ended` is a flag, so the
+  // map is not number-only.
+  const map = doc.getMap<number | string | boolean>("deck");
   const read = () => ({
     index: (map.get("index") as number) ?? 0,
     step: (map.get("step") as StepPos) ?? 0,
     total: (map.get("total") as number) ?? 0,
     totalFor: (map.get("totalFor") as number) ?? 0,
+    ended: (map.get("ended") as boolean) ?? false,
   });
   const [s, setS] = useState(read);
   useEffect(() => {
@@ -59,6 +65,9 @@ export function useLiveDeck(doc: Y.Doc, count: number, canDrive: boolean): DeckC
     doc.transact(() => {
       map.set("index", clampN(n, count));
       map.set("step", stepOnEnter(entry));
+      // Moving to a slide always leaves the end screen, in the same transaction so
+      // no viewer observes a slide change that is still flagged as ended.
+      map.set("ended", false);
     });
 
   // Resolving STEP_ALL needs a total describing the slide we're on; right after a
@@ -76,6 +85,9 @@ export function useLiveDeck(doc: Y.Doc, count: number, canDrive: boolean): DeckC
     },
     setStep(step) {
       if (canDrive) map.set("step", step);
+    },
+    setEnded(ended) {
+      if (canDrive) map.set("ended", ended);
     },
     setTotal(total, forIndex) {
       if (!canDrive) return;

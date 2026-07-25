@@ -20,6 +20,10 @@ export type DeckState = {
   total: number;
   /** The slide index `total` describes; see totalIsFresh. */
   totalFor: number;
+  /** The terminal end-of-deck screen. Shared rather than window-local so the
+   *  presenter can put the audience into it, which is the whole point of the end
+   *  screen: the driver decides the deck is over. Any slide change clears it. */
+  ended: boolean;
   startedAt: number;
 };
 type Msg = ({ type: "state" } & DeckState) | { type: "request" };
@@ -32,6 +36,7 @@ export function useDeckSync(count: number) {
     step: 0,
     total: 0,
     totalFor: 0,
+    ended: false,
     startedAt: Date.now(),
   }));
   const ref = useRef(state);
@@ -50,9 +55,17 @@ export function useDeckSync(count: number) {
           s.step === m.step &&
           s.total === m.total &&
           s.totalFor === m.totalFor &&
+          s.ended === m.ended &&
           s.startedAt === m.startedAt
             ? s
-            : { index: m.index, step: m.step, total: m.total, totalFor: m.totalFor, startedAt: m.startedAt },
+            : {
+                index: m.index,
+                step: m.step,
+                total: m.total,
+                totalFor: m.totalFor,
+                ended: m.ended,
+                startedAt: m.startedAt,
+              },
         );
       } else if (m.type === "request") {
         ch.postMessage({ type: "state", ...ref.current });
@@ -77,6 +90,7 @@ export function useDeckSync(count: number) {
       commit({
         index: clamp(typeof updater === "function" ? updater(ref.current.index) : updater),
         step: stepOnEnter("jump"),
+        ended: false,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [commit, count],
@@ -89,6 +103,7 @@ export function useDeckSync(count: number) {
     },
     [commit],
   );
+  const setEnded = useCallback((ended: boolean) => commit({ ended }), [commit]);
   const resetTimer = useCallback(() => commit({ startedAt: Date.now() }), [commit]);
 
   // next/prev read the freshest state (ref) so rapid presses don't read stale step.
@@ -100,14 +115,18 @@ export function useDeckSync(count: number) {
     const s = ref.current;
     if (stale(s)) return;
     const r = stepForward(resolveStep(s.step, s.total), s.total);
-    commit(r.advanceSlide ? { index: clamp(s.index + 1), step: stepOnEnter("forward") } : { step: r.step });
+    commit(
+      r.advanceSlide ? { index: clamp(s.index + 1), step: stepOnEnter("forward"), ended: false } : { step: r.step },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commit, count]);
   const prev = useCallback(() => {
     const s = ref.current;
     if (stale(s)) return;
     const r = stepBack(resolveStep(s.step, s.total));
-    commit(r.retreatSlide ? { index: clamp(s.index - 1), step: stepOnEnter("backward") } : { step: r.step });
+    commit(
+      r.retreatSlide ? { index: clamp(s.index - 1), step: stepOnEnter("backward"), ended: false } : { step: r.step },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commit, count]);
 
@@ -116,11 +135,13 @@ export function useDeckSync(count: number) {
     step: state.step,
     total: state.total,
     totalFor: state.totalFor,
+    ended: state.ended,
     startedAt: state.startedAt,
     canDrive: true,
     setIndex,
     setStep,
     setTotal,
+    setEnded,
     resetTimer,
     next,
     prev,

@@ -74,6 +74,27 @@ describe("useLiveDeck slide-entry policy", () => {
     expect(read(doc)).toEqual({ index: 1, step: 1 });
   });
 
+  test("the end screen is shared, so the presenter can end the deck for everyone", () => {
+    const doc = new Y.Doc();
+    const ctrl = drive(doc);
+    ctrl.setIndex(2);
+    ctrl.setEnded(true);
+    expect(doc.getMap("deck").get("ended")).toBe(true);
+  });
+
+  test("any slide change leaves the end screen, in one transaction", () => {
+    const doc = new Y.Doc();
+    const ctrl = drive(doc);
+    ctrl.setIndex(2);
+    ctrl.setEnded(true);
+    // A viewer must never observe a slide change that is still flagged as ended.
+    const seen: Array<{ index: unknown; ended: unknown }> = [];
+    doc.getMap("deck").observe(() => seen.push({ index: doc.getMap("deck").get("index"), ended: doc.getMap("deck").get("ended") }));
+    ctrl.setIndex(0);
+    expect(doc.getMap("deck").get("ended")).toBe(false);
+    expect(seen).toEqual([{ index: 0, ended: false }]);
+  });
+
   test("viewers never write", () => {
     const doc = new Y.Doc();
     let ctrl!: DeckController;

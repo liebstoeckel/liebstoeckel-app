@@ -105,8 +105,14 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   const [jump, setJump] = useState("");
   // Terminal "end of deck" screen: advancing past the final slide's last step shows
   // a deliberate end state (like PowerPoint) instead of replaying the last slide's
-  // steps. Local to the driving window; cleared on any navigation away.
-  const [ended, setEnded] = useState(false);
+  // steps. It lives in shared state, so driving from the presenter window puts THIS
+  // window into it too; the controllers clear it on any slide change.
+  const ended = ctrl.ended;
+  const setEnded = ctrl.setEnded;
+  // Purely presentational, and deliberately NOT shared: Restart clears `ended` as it
+  // moves to slide 1, so this keeps the opaque card painted over the crossfade in
+  // the window that asked for it. See onRestart.
+  const [mask, setMask] = useState(false);
   // Keyboard selection within the overview grid (seeded to the current slide on open).
   const [sel, setSel] = useState(0);
   const brand = brands[brandIdx % brands.length];
@@ -128,8 +134,6 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   const totalRef = useRef(total);
   totalRef.current = total;
   const selectedThumbRef = useRef<HTMLButtonElement | null>(null);
-  // True while a Restart's masked crossfade-to-slide-1 is in flight (see onRestart).
-  const pendingRestartRef = useRef(false);
 
   useEffect(() => {
     document.body.dataset.brand = brand;
@@ -151,7 +155,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
     setJump("");
     setSel(indexRef.current);
     setOverview(true);
-  }, []);
+  }, [setEnded]);
   const closeOverview = useCallback(() => {
     setOverview(false);
     setJump("");
@@ -196,27 +200,22 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   const onExitModal = useCallback(() => {
     if (overviewRef.current) closeOverview();
     else setEnded(false);
-  }, [closeOverview]);
+  }, [closeOverview, setEnded]);
   const onRestart = useCallback(() => {
     // Restart to slide 1 without the last slide flashing into view. The end card is
-    // an opaque full-screen layer, so we keep it up (do NOT clear `ended`) while the
-    // slide layer crossfades to slide 1 *behind* it — masked — and drop the card only
-    // once that exit completes (AnimatePresence onExitComplete). `pendingRestartRef`
-    // makes the index-change effect skip its usual end-clear during that window.
+    // an opaque full-screen layer, so it stays painted while the slide layer
+    // crossfades to slide 1 *behind* it, masked, and drops only once that exit
+    // completes (AnimatePresence onExitComplete). Moving the index clears the shared
+    // `ended`, so the mask is what holds the card up for the duration.
     if (indexRef.current === 0) {
       setEnded(false); // already on slide 1 — nothing to mask
       return;
     }
-    pendingRestartRef.current = true;
+    setMask(true);
     ctrl.setIndex(0);
     // Safety net: if onExitComplete never fires (interrupted animation), reveal anyway.
-    window.setTimeout(() => {
-      if (pendingRestartRef.current) {
-        pendingRestartRef.current = false;
-        setEnded(false);
-      }
-    }, 700);
-  }, [ctrl]);
+    window.setTimeout(() => setMask(false), 700);
+  }, [ctrl, setEnded]);
 
   // Advancing past the last slide's final step enters the end screen rather than
   // calling ctrl.next (which would reset the last slide's step to 0 and replay it).
@@ -231,11 +230,6 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
     ctrl.next();
   }, [canDrive, count, ctrl]);
   const handlePrev = useCallback(() => ctrl.prev(), [ctrl]);
-  // A jump elsewhere (overview select, numeric commit) clears the end state — except
-  // during a Restart, where the end card intentionally stays up to mask the crossfade.
-  useEffect(() => {
-    if (!pendingRestartRef.current) setEnded(false);
-  }, [index]);
 
   useDeckNav({
     count,
@@ -300,10 +294,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
               onExitComplete={() => {
                 // Restart kept the end card up to mask the crossfade to slide 1; the
                 // exiting last slide is now gone, so it's safe to drop the card.
-                if (pendingRestartRef.current) {
-                  pendingRestartRef.current = false;
-                  setEnded(false);
-                }
+                setMask(false);
               }}
             >
               <motion.div
@@ -406,7 +397,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
             deliberate stop, NOT a wrap; covers the slide + ambient motion. Tapping the
             backdrop goes back; the action row offers Back / Overview / Restart. */}
         <AnimatePresence>
-          {ended && (
+          {(ended || mask) && (
             <motion.div
               className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-bg text-center"
               initial={{ opacity: 0 }}
