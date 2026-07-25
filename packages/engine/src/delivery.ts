@@ -30,3 +30,40 @@ export function stepForward(step: number, total: number): { step: number; advanc
 export function stepBack(step: number): { step: number; retreatSlide: boolean } {
   return step > 0 ? { step: step - 1, retreatSlide: false } : { step: 0, retreatSlide: true };
 }
+
+/** "Show every reveal on whichever slide we land on." A slide's reveal count is
+ *  produced by logic that runs at render time, so a backward move cannot name a
+ *  concrete step when it is committed. It sends this instead, and each consumer
+ *  resolves it against the total it actually knows (see resolveStep).
+ *
+ *  Deliberately a string in a union rather than a magic number: as `-1` it would
+ *  flow silently through `total - step`, `i < step` and `step <= 0`, making
+ *  correctness a matter of remembering to resolve at every site. As a union it
+ *  is a compile error at each of them until the case is handled. */
+export const STEP_ALL = "all" as const;
+
+/** A reveal position: a concrete slot, or "every slot on the slide we land on". */
+export type StepPos = number | typeof STEP_ALL;
+
+/** How the deck enters a slide, which decides the reveal state it lands on:
+ *  forward and jumps start unrevealed, backward lands fully revealed so reverse
+ *  navigation replays the reveals in opposite order (as PowerPoint et al. do)
+ *  instead of dumping you on a blank slide. One policy, shared by every
+ *  controller, so standalone and live decks cannot drift apart. */
+export type SlideEntry = "forward" | "backward" | "jump";
+export function stepOnEnter(entry: SlideEntry): StepPos {
+  return entry === "backward" ? STEP_ALL : 0;
+}
+
+/** Resolve a reveal position against a slide's real reveal count. A concrete
+ *  step passes through untouched. */
+export function resolveStep(step: StepPos, total: number): number {
+  return step === STEP_ALL ? total : step;
+}
+
+/** Whether `total` describes the slide currently at `index`. `total` is reported
+ *  by the mounted slide, so right after a slide change it still describes the
+ *  one we left; resolving STEP_ALL against it would land on the wrong reveal. */
+export function totalIsFresh(totalFor: number, index: number): boolean {
+  return totalFor === index;
+}

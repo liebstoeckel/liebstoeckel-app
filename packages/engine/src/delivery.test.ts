@@ -1,5 +1,52 @@
 import { test, expect, describe } from "bun:test";
-import { clampIndex, fullscreenAction, accumulateDigits, stepForward, stepBack } from "./delivery";
+import {
+  clampIndex,
+  fullscreenAction,
+  accumulateDigits,
+  stepForward,
+  stepBack,
+  stepOnEnter,
+  resolveStep,
+  totalIsFresh,
+  STEP_ALL,
+} from "./delivery";
+
+// The slide-entry step policy: what `step` becomes when `index` changes. Public
+// issues #4 and #5 were all one defect, every call site answering this its own way.
+describe("slide-entry step policy", () => {
+  test("forward and jumps land unrevealed, backward lands fully revealed", () => {
+    expect(stepOnEnter("forward")).toBe(0);
+    // A jump used to inherit the origin slide's step and partially reveal the target.
+    expect(stepOnEnter("jump")).toBe(0);
+    // Reverse navigation replays the reveals instead of dumping you on a blank slide.
+    expect(stepOnEnter("backward")).toBe(STEP_ALL);
+  });
+
+  test("resolveStep expands the sentinel and passes concrete steps through", () => {
+    expect(resolveStep(STEP_ALL, 3)).toBe(3);
+    expect(resolveStep(STEP_ALL, 0)).toBe(0);
+    expect(resolveStep(2, 3)).toBe(2);
+  });
+
+  test("resolved sentinel steps back through the reveals in reverse order", () => {
+    // Entering slide N backwards shows all 3 reveals; ArrowLeft then hides the last.
+    const shown = resolveStep(STEP_ALL, 3);
+    expect(stepBack(shown)).toEqual({ step: 2, retreatSlide: false });
+    // ...and only retreats another slide once they are all hidden again.
+    expect(stepBack(0)).toEqual({ step: 0, retreatSlide: true });
+  });
+
+  test("advancing from a fully revealed slide moves on rather than re-revealing", () => {
+    expect(stepForward(resolveStep(STEP_ALL, 3), 3)).toEqual({ step: 0, advanceSlide: true });
+  });
+
+  test("a total only counts for the slide it was measured on", () => {
+    // Guards the double-backward-keypress edge: until the landed slide reports,
+    // `total` still describes the slide we left.
+    expect(totalIsFresh(2, 2)).toBe(true);
+    expect(totalIsFresh(3, 2)).toBe(false);
+  });
+});
 
 describe("clampIndex / fullscreenAction", () => {
   test("clamp", () => {

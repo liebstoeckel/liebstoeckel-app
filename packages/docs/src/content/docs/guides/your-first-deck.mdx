@@ -79,6 +79,23 @@ Wrap anything in `<Step>` to reveal it on the next press. Steps reveal in docume
 
 The presenter view shows a prominent step counter so you always know whether a press will reveal or advance.
 
+### How reveals behave when you change slides
+
+Reveals replay in reverse when you go backwards. Pressing `←` hides the last
+revealed step, and once a slide is fully hidden the press before that takes you
+to the **previous slide with all of its reveals already shown** — the state your
+audience last saw it in, the same way PowerPoint and Keynote behave. Going
+forwards is the mirror image: you enter each slide unrevealed and build it up.
+
+Jumping is different from stepping, and deliberately so. Picking a slide in the
+overview (`o`) or typing its number lands on that slide **unrevealed**, whichever
+slide you came from and however far into it you were.
+
+On the last slide, once everything is revealed, the next press ends the deck
+rather than advancing. The deck window shows the end card (`←` or `Esc` goes
+back, `r` restarts); the presenter view simply stops advancing, and its Next
+button is disabled to show why.
+
 ## Speaker notes
 
 Export `notes` (plain JSX) from a slide module. The presenter window renders it in a styled panel alongside the current/next slide previews and a timer.

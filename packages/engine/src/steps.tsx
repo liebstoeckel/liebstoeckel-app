@@ -1,5 +1,6 @@
 import { createContext, useContext, useId, useLayoutEffect, useState, type ReactNode } from "react";
 import { motion } from "motion/react";
+import { resolveStep, type StepPos } from "./delivery";
 
 interface Entry {
   id: string;
@@ -34,14 +35,22 @@ export function StepsProvider({
   onTotal,
   children,
 }: {
-  step: number;
+  /** May be the STEP_ALL sentinel: entering a slide backwards asks for "every
+   *  reveal on whichever slide we land on", and this provider is the first place
+   *  that count actually exists. Resolving it here (rather than writing a number
+   *  back into shared state) means the very first painted frame is correct. */
+  step: StepPos;
   slideIndex: number;
   onTotal?: (slideIndex: number, total: number) => void;
   children: ReactNode;
 }) {
   const [entries, setEntries] = useState<Entry[]>([]);
+  const total = entries.reduce((s, e) => s + e.weight, 0);
   const api: StepsApi = {
-    step,
+    // Consumers only ever see a concrete slot count. As entries register, `total`
+    // grows and a STEP_ALL slide reveals in step with it, so a backward entry
+    // paints fully revealed instead of flashing blank.
+    step: resolveStep(step, total),
     register: (id, weight = 1) =>
       setEntries((arr) => {
         const i = arr.findIndex((e) => e.id === id);
@@ -61,7 +70,6 @@ export function StepsProvider({
       return 0;
     },
   };
-  const total = entries.reduce((s, e) => s + e.weight, 0);
   useLayoutEffect(() => {
     onTotal?.(slideIndex, total);
   }, [total, slideIndex, onTotal]);

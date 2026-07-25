@@ -8,6 +8,7 @@ import { useLive } from "./live/Plugin";
 import { PresenterPanel } from "./live/presenterPanel";
 import { BreakoutAllowedContext } from "./live/breakout";
 import { useLiveDeck } from "./live/deckIndex";
+import { resolveStep } from "./delivery";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { PresenterShare } from "./QrOverlay";
 import { PersistentProvider } from "./PersistentLayer";
@@ -191,7 +192,11 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   const sync = useDeckSync(norm.length);
   const liveDeck = useLiveDeck(liveCtx?.doc ?? fallbackDoc, norm.length, liveCtx?.role !== "viewer");
   const ctrl = live ? liveDeck : sync;
-  const { index, step, total, setIndex, next, prev } = ctrl;
+  const { index, step: rawStep, total, setIndex, next, prev } = ctrl;
+  // The presenter never mounts a StepsProvider, so it resolves the reveal position
+  // itself. STEP_ALL means "fully revealed", so even while `total` still describes
+  // the slide we just left this reads as a filled bar rather than a wrong number.
+  const step = resolveStep(rawStep, total);
 
   // Share both links (Q / the header button), live only. The viewer link is
   // injected; the presenter link is this window's own URL minus the #presenter
@@ -201,8 +206,25 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
     () => (typeof location !== "undefined" ? location.origin + location.pathname + location.search : undefined),
     [],
   );
-  useDeckNav({ count: norm.length, setIndex, onNext: next, onPrev: prev, onQr: live ? () => setShare((v) => !v) : undefined });
-  useTouchNav({ enabled: true, onNext: next, onPrev: prev });
+  // Nothing left to advance to: last slide AND all reveals shown (a remaining reveal
+  // still makes Next a "Reveal →"). Symmetric for Prev at the very start.
+  const atEnd = index >= norm.length - 1 && step >= total;
+  const atStart = index <= 0 && step <= 0;
+  // Advancing at the end must not reach the controller: it would clamp the index
+  // onto the last slide while resetting the step, replaying that slide's reveals.
+  // The deck window is protected by its terminal end layer, which this window has
+  // no equivalent of, so it reuses the same guard that disables the Next button.
+  const advance = useCallback(() => {
+    if (!atEnd) next();
+  }, [atEnd, next]);
+  useDeckNav({
+    count: norm.length,
+    setIndex,
+    onNext: advance,
+    onPrev: prev,
+    onQr: live ? () => setShare((v) => !v) : undefined,
+  });
+  useTouchNav({ enabled: true, onNext: advance, onPrev: prev });
   const now = useNow();
   // Talk timer: the START is shared via the doc (conflict-free per-client cells,
   // (internal ADR)) so every presenter surface agrees; standalone falls back to the
@@ -252,10 +274,6 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   const wall = new Date(now).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const elapsed = fmtElapsed(now - startedAt);
   const count = norm.length;
-  // Nothing left to advance to: last slide AND all reveals shown (a remaining reveal
-  // still makes Next a "Reveal →"). Symmetric for Prev at the very start.
-  const atEnd = index >= count - 1 && step >= total;
-  const atStart = index <= 0 && step <= 0;
   const noNotes = <span className="text-muted">, no notes for this slide, </span>;
   const shareOverlay = (
     <PresenterShare open={share} viewerUrl={liveCtx?.viewerUrl} presenterUrl={presenterUrl} onClose={() => setShare(false)} />

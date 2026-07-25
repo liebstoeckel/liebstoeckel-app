@@ -19,7 +19,7 @@ import { QrOverlay } from "./QrOverlay";
 import { PluginOverlays } from "./live/globalChrome";
 import { DeckChrome } from "./DeckChrome";
 import { StepsProvider } from "./steps";
-import { accumulateDigits, toggleFullscreen } from "./delivery";
+import { accumulateDigits, toggleFullscreen, resolveStep } from "./delivery";
 import { normalizeSlides, type SlideInput } from "./slides";
 import { resolveTransition, mobileTransitionsDisabled, type SlideDirection, type SlideTransition } from "./transitions";
 import type { Theme } from "@liebstoeckel/theme";
@@ -87,7 +87,10 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   indexRef.current = index;
   const onTotal = useCallback(
     (slideIndex: number, n: number) => {
-      if (slideIndex === indexRef.current) ctrl.setTotal(n);
+      // Carry the index this count describes: until the landed slide reports,
+      // `total` still describes the one we left, and a STEP_ALL step must not be
+      // resolved against it.
+      if (slideIndex === indexRef.current) ctrl.setTotal(n, slideIndex);
     },
     [ctrl],
   );
@@ -220,7 +223,8 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   // Only the deck's driver gets it; a live viewer just follows. In a modal layer
   // routeKey never yields "next", so this only fires while actually presenting.
   const handleNext = useCallback(() => {
-    if (canDrive && indexRef.current >= count - 1 && stepRef.current >= totalRef.current) {
+    const shown = resolveStep(stepRef.current, totalRef.current);
+    if (canDrive && indexRef.current >= count - 1 && shown >= totalRef.current) {
       setEnded(true);
       return;
     }
