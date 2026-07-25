@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import * as Y from "yjs";
 import { MDXProvider } from "@mdx-js/react";
 import { mdxComponents } from "@liebstoeckel/components";
@@ -8,7 +8,8 @@ import { useLive } from "./live/Plugin";
 import { PresenterPanel } from "./live/presenterPanel";
 import { BreakoutAllowedContext } from "./live/breakout";
 import { useLiveDeck } from "./live/deckIndex";
-import { resolveStep } from "./delivery";
+import { resolveStep, type StepPos } from "./delivery";
+import { StepsProvider } from "./steps";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { PresenterShare } from "./QrOverlay";
 import { PersistentProvider } from "./PersistentLayer";
@@ -122,7 +123,22 @@ function Label({ children, dot }: { children: ReactNode; dot?: boolean }) {
 // notes off-screen). Rendered live (not a thumbnail), the presenter's current/next
 // previews are only two slides, so this stays cheap while staying pixel-crisp and
 // reflecting live plugin state, unlike the static build-time thumbnails.
-function Thumb({ Component, interactive = true }: { Component?: ComponentType; interactive?: boolean }) {
+function Thumb({
+  Component,
+  interactive = true,
+  reveal,
+}: {
+  Component?: ComponentType;
+  interactive?: boolean;
+  /** Render this preview inside a StepsProvider, so it shows the same reveal state
+   *  the audience sees AND reports the slide's reveal count. The presenter window
+   *  is a full driver but renders no Deck, so without this nothing measures the
+   *  slide it is driving: `total` is never written and a backward move can never
+   *  resolve. Only the CURRENT slide may pass this; the next-slide preview would
+   *  report its own count over the current one. */
+  reveal?: { step: StepPos; slideIndex: number; onTotal: (slideIndex: number, total: number) => void };
+}) {
+  const body = Component ? <Component /> : null;
   return (
     <div
       className={`relative h-full w-full overflow-hidden rounded-2xl border border-border bg-bg shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] ${interactive ? "" : "pointer-events-none"}`}
@@ -131,7 +147,15 @@ function Thumb({ Component, interactive = true }: { Component?: ComponentType; i
         <PersistentProvider>
           <BreakoutAllowedContext.Provider value={false}>
             <ScaledStage className="absolute inset-0">
-              <SlideFrame still>{Component ? <Component /> : null}</SlideFrame>
+              <SlideFrame still>
+                {reveal ? (
+                  <StepsProvider step={reveal.step} slideIndex={reveal.slideIndex} onTotal={reveal.onTotal}>
+                    {body}
+                  </StepsProvider>
+                ) : (
+                  body
+                )}
+              </SlideFrame>
             </ScaledStage>
           </BreakoutAllowedContext.Provider>
         </PersistentProvider>
@@ -207,10 +231,21 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   const liveDeck = useLiveDeck(liveCtx?.doc ?? fallbackDoc, norm.length, liveCtx?.role !== "viewer");
   const ctrl = live ? liveDeck : sync;
   const { index, step: rawStep, total, ended, setIndex, setEnded, next, prev } = ctrl;
-  // The presenter never mounts a StepsProvider, so it resolves the reveal position
-  // itself. STEP_ALL means "fully revealed", so even while `total` still describes
-  // the slide we just left this reads as a filled bar rather than a wrong number.
+  // The presenter's own counters resolve the reveal position themselves. STEP_ALL
+  // means "fully revealed", so even while `total` still describes the slide we just
+  // left this reads as a filled bar rather than a wrong number.
   const step = resolveStep(rawStep, total);
+  // The current-slide preview measures the slide and reports its reveal count, the
+  // same contract Deck has. Gated by the current index so a preview left over from a
+  // slide we have moved off cannot clobber the entering slide's count.
+  const indexRef = useRef(index);
+  indexRef.current = index;
+  const onTotal = useCallback(
+    (slideIndex: number, n: number) => {
+      if (slideIndex === indexRef.current) ctrl.setTotal(n, slideIndex);
+    },
+    [ctrl],
+  );
 
   // Share both links (Q / the header button), live only. The viewer link is
   // injected; the presenter link is this window's own URL minus the #presenter
@@ -473,7 +508,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
                 : `On screen · ${String(index + 1).padStart(2, "0")} / ${String(norm.length).padStart(2, "0")}`}
             </Label>
             <div className="h-[30vh] min-h-0 min-w-0 lg:h-auto lg:flex-1">
-              <Thumb Component={Current} />
+              <Thumb Component={Current} reveal={{ step: rawStep, slideIndex: index, onTotal }} />
             </div>
             {total > 0 && <StepIndicator step={step} total={total} ended={ended} atEnd={atEnd} />}
             {navRow}
