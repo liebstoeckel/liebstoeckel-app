@@ -150,12 +150,17 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
 
   // Overview open/close. Opening seeds the selection to the current slide and clears
   // the end state + jump buffer — the modal layers are mutually exclusive.
+  // Deliberately does NOT clear `ended`: that state is shared, and the overview is
+  // a presenter-local layer, so browsing it would otherwise drop the audience out
+  // of the end card and back onto the last slide. The end card is hidden locally
+  // while the grid is open (the layers are mutually exclusive on screen) and the
+  // deck only actually leaves the end state when a slide is selected, which clears
+  // it through setIndex.
   const openOverview = useCallback(() => {
-    setEnded(false);
     setJump("");
     setSel(indexRef.current);
     setOverview(true);
-  }, [setEnded]);
+  }, []);
   const closeOverview = useCallback(() => {
     setOverview(false);
     setJump("");
@@ -402,7 +407,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
             audience buttons that either do nothing or leak the whole deck would be
             worse than showing none. */}
         <AnimatePresence>
-          {(ended || mask) && (
+          {(ended || mask) && !overview && (
             <motion.div
               className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-bg text-center"
               initial={{ opacity: 0 }}
