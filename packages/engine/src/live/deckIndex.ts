@@ -70,9 +70,10 @@ export function useLiveDeck(doc: Y.Doc, count: number, canDrive: boolean): DeckC
       map.set("ended", false);
     });
 
-  // Resolving STEP_ALL needs a total describing the slide we're on; right after a
-  // slide change it still describes the one we left, so wait for the landed slide
-  // to report rather than step to a number derived from the wrong count.
+  // Guards PREV only. STEP_ALL resolves to exactly `total`, so going forward from a
+  // fully revealed slide advances whatever the number is; only stepBack needs the
+  // real count. Guarding next() too would dead-end forward navigation permanently in
+  // a session where nothing mounts a StepsProvider to report totals.
   const stale = (cur: ReturnType<typeof read>) =>
     cur.step === STEP_ALL && !totalIsFresh(cur.totalFor, cur.index);
 
@@ -102,7 +103,6 @@ export function useLiveDeck(doc: Y.Doc, count: number, canDrive: boolean): DeckC
     next() {
       if (!canDrive) return;
       const cur = read();
-      if (stale(cur)) return;
       const r = stepForward(resolveStep(cur.step, cur.total), cur.total);
       if (r.advanceSlide) setIndexTo(cur.index + 1, "forward");
       else map.set("step", r.step);

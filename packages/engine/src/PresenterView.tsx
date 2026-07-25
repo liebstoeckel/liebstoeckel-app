@@ -142,7 +142,17 @@ function Thumb({ Component, interactive = true }: { Component?: ComponentType; i
 
 // Prominent step/reveal progress, readable from a distance. Makes it obvious why
 // the slide isn't advancing yet: there are still reveals left on this slide.
-function StepIndicator({ step, total, ended }: { step: number; total: number; ended: boolean }) {
+function StepIndicator({
+  step,
+  total,
+  ended,
+  atEnd,
+}: {
+  step: number;
+  total: number;
+  ended: boolean;
+  atEnd: boolean;
+}) {
   const revealing = step < total;
   const remaining = total - step;
   return (
@@ -179,7 +189,9 @@ function StepIndicator({ step, total, ended }: { step: number; total: number; en
           ? "The deck has ended, ← goes back into the last slide"
           : revealing
             ? `${remaining} more ${remaining === 1 ? "reveal" : "reveals"}, then Next advances the slide`
-            : "Next advances to the following slide"}
+            : atEnd
+              ? "Last slide, Next ends the deck"
+              : "Next advances to the following slide"}
       </span>
     </div>
   );
@@ -347,7 +359,11 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
             ) : (
               total > 0 && (
                 <div className={step < total ? "text-accent" : "text-muted"}>
-                  {step < total ? `revealing ${step} / ${total}, Next reveals` : "Next → following slide"}
+                  {step < total
+                    ? `revealing ${step} / ${total}, Next reveals`
+                    : atEnd
+                      ? "Next → ends the deck"
+                      : "Next → following slide"}
                 </div>
               )
             )}
@@ -459,7 +475,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
             <div className="h-[30vh] min-h-0 min-w-0 lg:h-auto lg:flex-1">
               <Thumb Component={Current} />
             </div>
-            {total > 0 && <StepIndicator step={step} total={total} ended={ended} />}
+            {total > 0 && <StepIndicator step={step} total={total} ended={ended} atEnd={atEnd} />}
             {navRow}
           </section>
         )}

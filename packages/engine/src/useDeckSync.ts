@@ -107,13 +107,16 @@ export function useDeckSync(count: number) {
   const resetTimer = useCallback(() => commit({ startedAt: Date.now() }), [commit]);
 
   // next/prev read the freshest state (ref) so rapid presses don't read stale step.
-  // Resolving STEP_ALL needs a total that describes the slide we're on; right after
-  // a slide change it still describes the one we left, so we wait for the landed
-  // slide to report rather than step to a number derived from the wrong count.
+  //
+  // Only PREV is guarded against a stale total. STEP_ALL resolves to exactly `total`,
+  // so stepForward always reports advanceSlide whatever the number is: going forward
+  // from a fully revealed slide is "next slide" regardless of how many reveals it
+  // had. stepBack needs the real count (total - 1), and with a stale 0 it would
+  // retreat an extra slide instead. Guarding next() as well would let forward
+  // navigation dead-end permanently wherever nothing reports a total.
   const stale = (s: DeckState) => s.step === STEP_ALL && !totalIsFresh(s.totalFor, s.index);
   const next = useCallback(() => {
     const s = ref.current;
-    if (stale(s)) return;
     const r = stepForward(resolveStep(s.step, s.total), s.total);
     commit(
       r.advanceSlide ? { index: clamp(s.index + 1), step: stepOnEnter("forward"), ended: false } : { step: r.step },

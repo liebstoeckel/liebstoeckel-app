@@ -74,6 +74,22 @@ describe("useLiveDeck slide-entry policy", () => {
     expect(read(doc)).toEqual({ index: 1, step: 1 });
   });
 
+  test("forward navigation survives a total that is never reported", () => {
+    // In a live session driven from #presenter with only viewers otherwise, nothing
+    // mounts a StepsProvider, so `total`/`totalFor` are never written. The sentinel
+    // then never resolves. Forward must still work: STEP_ALL resolves to exactly
+    // `total`, so "fully revealed" advances whatever that number is. Guarding next()
+    // on staleness too would wedge the arrow keys permanently.
+    const doc = new Y.Doc();
+    const ctrl = drive(doc);
+    ctrl.setIndex(2);
+    ctrl.setStep(0);
+    ctrl.prev(); // -> slide 1, STEP_ALL, with total still describing slide 2 (unset: 0)
+    expect(read(doc)).toEqual({ index: 1, step: STEP_ALL });
+    ctrl.next();
+    expect(read(doc)).toEqual({ index: 2, step: 0 });
+  });
+
   test("the end screen is shared, so the presenter can end the deck for everyone", () => {
     const doc = new Y.Doc();
     const ctrl = drive(doc);
