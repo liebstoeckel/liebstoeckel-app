@@ -394,8 +394,13 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
         </AnimatePresence>
 
         {/* terminal end-of-deck card (advancing past the last slide) — a calm,
-            deliberate stop, NOT a wrap; covers the slide + ambient motion. Tapping the
-            backdrop goes back; the action row offers Back / Overview / Restart. */}
+            deliberate stop, NOT a wrap; covers the slide + ambient motion. For the
+            DRIVER, tapping the backdrop goes back and the action row offers Back /
+            Overview / Restart. A live viewer gets the card with none of that: the
+            state is shared so the audience sees the deck has ended, but the controls
+            act on everyone's deck and the overview is presenter-only, so showing an
+            audience buttons that either do nothing or leak the whole deck would be
+            worse than showing none. */}
         <AnimatePresence>
           {(ended || mask) && (
             <motion.div
@@ -404,18 +409,22 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={reduceMotion ? { duration: 0 } : { duration: 0.3 }}
-              onClick={() => setEnded(false)}
+              onClick={canDrive ? () => setEnded(false) : undefined}
             >
               <div className="space-y-2">
                 <div className="font-mono text-sm uppercase tracking-[0.3em] text-muted">End of deck</div>
                 <div className="font-mono text-xs text-muted/60">{count} {count === 1 ? "slide" : "slides"}</div>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-3" onClick={(e) => e.stopPropagation()}>
-                <button onClick={() => setEnded(false)} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">← Back</button>
-                <button onClick={openOverview} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">Overview</button>
-                <button onClick={onRestart} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">↺ Restart</button>
-              </div>
-              <div className="font-mono text-[0.7rem] text-muted/50">← back · O overview · R restart · type a number to jump</div>
+              {canDrive && (
+                <>
+                  <div className="flex flex-wrap items-center justify-center gap-3" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => setEnded(false)} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">← Back</button>
+                    <button onClick={openOverview} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">Overview</button>
+                    <button onClick={onRestart} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">↺ Restart</button>
+                  </div>
+                  <div className="font-mono text-[0.7rem] text-muted/50">← back · O overview · R restart · type a number to jump</div>
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

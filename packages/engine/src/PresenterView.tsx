@@ -142,7 +142,7 @@ function Thumb({ Component, interactive = true }: { Component?: ComponentType; i
 
 // Prominent step/reveal progress, readable from a distance. Makes it obvious why
 // the slide isn't advancing yet: there are still reveals left on this slide.
-function StepIndicator({ step, total }: { step: number; total: number }) {
+function StepIndicator({ step, total, ended }: { step: number; total: number; ended: boolean }) {
   const revealing = step < total;
   const remaining = total - step;
   return (
@@ -175,9 +175,11 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
         ))}
       </div>
       <span className="font-mono text-xs tracking-wide text-muted">
-        {revealing
-          ? `${remaining} more ${remaining === 1 ? "reveal" : "reveals"}, then Next advances the slide`
-          : "Next advances to the following slide"}
+        {ended
+          ? "The deck has ended, ← goes back into the last slide"
+          : revealing
+            ? `${remaining} more ${remaining === 1 ? "reveal" : "reveals"}, then Next advances the slide`
+            : "Next advances to the following slide"}
       </span>
     </div>
   );
@@ -450,12 +452,14 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
         {!focused && (
           <section className="flex min-h-0 min-w-0 flex-col gap-3 lg:flex-[1.55]">
             <Label dot>
-              On screen · {String(index + 1).padStart(2, "0")} / {String(norm.length).padStart(2, "0")}
+              {ended
+                ? "On screen · end card"
+                : `On screen · ${String(index + 1).padStart(2, "0")} / ${String(norm.length).padStart(2, "0")}`}
             </Label>
             <div className="h-[30vh] min-h-0 min-w-0 lg:h-auto lg:flex-1">
               <Thumb Component={Current} />
             </div>
-            {total > 0 && <StepIndicator step={step} total={total} />}
+            {total > 0 && <StepIndicator step={step} total={total} ended={ended} />}
             {navRow}
           </section>
         )}
@@ -469,7 +473,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
               the box to its min-height and made the preview render tiny.) */}
           {!focused && (
             <div className="hidden min-h-[120px] shrink basis-[34%] flex-col gap-3 lg:flex">
-              <Label>{Next ? "Next up" : "End of deck"}</Label>
+              <Label>{ended ? "Deck ended" : Next ? "Next up" : "End of deck"}</Label>
               <div className="min-h-0 min-w-0 flex-1 opacity-80">
                 {Next ? <Thumb Component={Next} interactive={false} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
               </div>
