@@ -17,6 +17,7 @@ import Finale from "./slides/06-finale";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Present
+      brands={["acme", "sunset"]}
       slides={[Start, Five, Bare, Weighted, Single, Finale]}
       persistent={[{ id: "probe", render: () => <StateProbe /> }]}
     />
