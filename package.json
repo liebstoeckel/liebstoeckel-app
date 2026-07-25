@@ -11,6 +11,8 @@
     "demo:dev": "cd presentations/demo && bun --hot ./server.ts",
     "demo:build": "cd presentations/demo && bun run build.ts",
     "showcase:dev": "cd presentations/visx-showcase && bun --hot ./server.ts",
+    "steplab:dev": "cd presentations/step-lab && bun --hot ./server.ts",
+    "steplab:build": "cd presentations/step-lab && bun run build.ts",
     "showcase:build": "cd presentations/visx-showcase && bun run build.ts",
     "registry:dev": "cd presentations/registry-demo && bun --hot ./server.ts",
     "registry:build": "cd presentations/registry-demo && bun run build.ts",

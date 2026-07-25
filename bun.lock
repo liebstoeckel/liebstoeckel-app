@@ -425,6 +425,18 @@
         "@liebstoeckel/thumbnails": "workspace:*",
       },
     },
+    "presentations/step-lab": {
+      "name": "@liebstoeckel/step-lab",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liebstoeckel/components": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
+        "@liebstoeckel/theme": "workspace:*",
+      },
+      "devDependencies": {
+        "@liebstoeckel/thumbnails": "workspace:*",
+      },
+    },
     "presentations/visx-showcase": {
       "name": "@liebstoeckel/visx-showcase",
       "version": "0.0.0",
@@ -746,6 +758,8 @@
     "@liebstoeckel/registry": ["@liebstoeckel/registry@workspace:packages/registry"],
 
     "@liebstoeckel/registry-demo": ["@liebstoeckel/registry-demo@workspace:presentations/registry-demo"],
+
+    "@liebstoeckel/step-lab": ["@liebstoeckel/step-lab@workspace:presentations/step-lab"],
 
     "@liebstoeckel/theme": ["@liebstoeckel/theme@workspace:packages/theme"],
 
