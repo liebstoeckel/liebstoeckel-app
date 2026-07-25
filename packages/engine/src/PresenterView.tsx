@@ -130,13 +130,9 @@ function Thumb({
 }: {
   Component?: ComponentType;
   interactive?: boolean;
-  /** Render this preview inside a StepsProvider, so it shows the same reveal state
-   *  the audience sees AND reports the slide's reveal count. The presenter window
-   *  is a full driver but renders no Deck, so without this nothing measures the
-   *  slide it is driving: `total` is never written and a backward move can never
-   *  resolve. Only the CURRENT slide may pass this; the next-slide preview would
-   *  report its own count over the current one. */
-  reveal?: { step: StepPos; slideIndex: number; onTotal: (slideIndex: number, total: number) => void };
+  /** Render this preview inside a StepsProvider so it shows the same reveal state
+   *  the audience sees. Reporting the count is NOT done here, see SlideMeasure. */
+  reveal?: { step: StepPos; slideIndex: number; onTotal?: (slideIndex: number, total: number) => void };
 }) {
   const body = Component ? <Component /> : null;
   return (
@@ -160,6 +156,34 @@ function Thumb({
           </BreakoutAllowedContext.Provider>
         </PersistentProvider>
       </MDXProvider>
+    </div>
+  );
+}
+
+// The presenter's reveal-count reporter, and the ONLY one.
+//
+// The presenter window is a full driver (keyboard, index, step, ending the deck)
+// but renders no Deck, so unless it measures the slide itself nothing writes
+// `total` and a backward move can never resolve its sentinel. Measuring from a
+// *preview* is not enough: previews come and go with the layout (focus mode drops
+// the current one, the phone layout never had one), and each of those is the same
+// bug again. So this renders the current slide once, unconditionally, purely to
+// count it, display:none so it costs no paint. It is the invariant "whatever
+// drives the deck can measure it", made independent of what is on screen.
+function SlideMeasure({
+  Component,
+  slideIndex,
+  step,
+  onTotal,
+}: {
+  Component?: ComponentType;
+  slideIndex: number;
+  step: StepPos;
+  onTotal: (slideIndex: number, total: number) => void;
+}) {
+  return (
+    <div className="hidden" aria-hidden>
+      <Thumb Component={Component} interactive={false} reveal={{ step, slideIndex, onTotal }} />
     </div>
   );
 }
@@ -346,6 +370,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   if (coarse) {
     return (
       <div className="flex h-dvh w-screen flex-col bg-bg font-body text-text">
+        <SlideMeasure Component={Current} slideIndex={index} step={rawStep} onTotal={onTotal} />
         {shareOverlay}
         {/* 1 · slim status bar */}
         <div
@@ -454,6 +479,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
   );
   return (
     <div className="flex h-screen w-screen flex-col bg-bg font-body text-text">
+      <SlideMeasure Component={Current} slideIndex={index} step={rawStep} onTotal={onTotal} />
       {/* top bar */}
       <header className="flex items-center justify-between border-b border-border px-4 py-3 lg:px-8 lg:py-4">
         <div className="flex items-baseline gap-3">
@@ -508,7 +534,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
                 : `On screen · ${String(index + 1).padStart(2, "0")} / ${String(norm.length).padStart(2, "0")}`}
             </Label>
             <div className="h-[30vh] min-h-0 min-w-0 lg:h-auto lg:flex-1">
-              <Thumb Component={Current} reveal={{ step: rawStep, slideIndex: index, onTotal }} />
+              <Thumb Component={Current} reveal={{ step: rawStep, slideIndex: index }} />
             </div>
             {total > 0 && <StepIndicator step={step} total={total} ended={ended} atEnd={atEnd} />}
             {navRow}
