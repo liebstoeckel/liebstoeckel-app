@@ -249,7 +249,13 @@ async function launchDriverBrowser(opts: { executablePath?: string; launchArgs?:
   const executablePath = resolveChromium(opts);
   const args = opts.launchArgs ?? DEFAULT_ARGS;
   if (process.platform === "win32" || process.env.LIEBSTOECKEL_CDP_DRIVER) {
-    return launchCdpBrowser(executablePath, args);
+    // Chrome >= 150 silently closes the --remote-debugging-port WebSocket when
+    // the browser runs with --single-process (the pipe transport playwright
+    // uses is unaffected). Those flags are Linux sandbox helpers with no role
+    // on this transport: in production raw CDP only runs on Windows, where
+    // they are already excluded.
+    const cdpArgs = args.filter((a) => a !== "--single-process" && a !== "--no-zygote");
+    return launchCdpBrowser(executablePath, cdpArgs);
   }
   const browser = await chromium.launch({ headless: true, executablePath, args });
   return {
