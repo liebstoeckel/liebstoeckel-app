@@ -59,11 +59,12 @@ Point `LIEBSTOECKEL_CHROMIUM` at a complete Chrome or Chromium build. The lighte
 When a feature needs a browser, liebstoeckel looks in this order and uses the first binary that exists on disk:
 
 1. An explicit `executablePath` passed to the thumbnails/export API.
-2. The `LIEBSTOECKEL_CHROMIUM` environment variable — including the path `doctor` records in your config (`~/.config/liebstoeckel/config.json`), which the CLI loads into this variable when you haven't set it yourself.
-3. A **system Chrome/Chromium**: `PUPPETEER_EXECUTABLE_PATH` / `CHROME_PATH`, Puppeteer's install cache, `google-chrome` / `chromium` / `chromium-browser` on `PATH`, and the standard macOS/Windows install locations.
-4. The Chromium installed by Playwright.
+2. The `LIEBSTOECKEL_CHROMIUM` environment variable — including the path `doctor` records in your config (`~/.config/liebstoeckel/config.json`), which the CLI loads into this variable when you haven't set it yourself. Surrounding quotes and whitespace are stripped (a common artifact of `set VAR="C:\..."` on Windows), and a configured path that doesn't exist prints a warning before falling back to auto-detection.
+3. A **system Chrome/Chromium**: `PUPPETEER_EXECUTABLE_PATH` / `CHROME_PATH`, Puppeteer's install cache, `google-chrome` / `chromium` / `chromium-browser` / `chrome` on `PATH`, the standard macOS and Windows install locations (including per-user installs and 32-bit/64-bit `Program Files` variants), and on Windows the registry's App Paths entry, which finds Chrome wherever the installer put it.
+4. On Windows, **Microsoft Edge** as a last resort — it is preinstalled everywhere and uses the same engine, so capture output is identical.
+5. The Chromium installed by Playwright.
 
-The existence check matters: Playwright reports a computed path even when nothing is installed, so liebstoeckel verifies the file is really there before trusting it. This keeps the "no Chromium" path honest in CI.
+The existence check matters: Playwright reports a computed path even when nothing is installed, so liebstoeckel verifies the file is really there before trusting it. This keeps the "no Chromium" path honest in CI. When nothing is found, `liebstoeckel doctor` lists every location it probed.
 
 ## Containers and CI
 
@@ -73,7 +74,13 @@ Capture launches Chromium with container-friendly flags so it runs without a GPU
 --no-sandbox --disable-gpu --disable-dev-shm-usage --single-process --no-zygote
 ```
 
+(`--single-process` and `--no-zygote` are Linux sandbox helpers and are not passed on Windows, where they would crash Chrome.)
+
 In a container image, either run `bunx playwright install chromium` during the build, or install your distro's Chromium package and set `LIEBSTOECKEL_CHROMIUM` to it.
+
+## Windows
+
+On Windows, liebstoeckel drives the browser over the Chrome DevTools Protocol directly (it launches Chrome with a DevTools port and connects with a native WebSocket) instead of Playwright's usual transports, which do not work under Bun on Windows. This is automatic and produces identical output. Setting `LIEBSTOECKEL_CDP_DRIVER=1` forces the same transport on any platform, useful when debugging capture issues.
 
 ## When no Chromium is found
 

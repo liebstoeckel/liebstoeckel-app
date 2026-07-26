@@ -37,7 +37,8 @@
       "@liebstoeckel/present-relay": ["./packages/present-relay/src/index.ts"],
       "@liebstoeckel/present-relay/*": ["./packages/present-relay/src/*"],
       "@liebstoeckel/registry": ["./packages/registry/src/index.ts"],
-      "@liebstoeckel/registry/*": ["./packages/registry/src/*"]
+      "@liebstoeckel/registry/*": ["./packages/registry/src/*"],
+      "@liebstoeckel/components/*": ["./packages/components/src/*"]
     }
   },
   "include": ["packages", "presentations", "types"],

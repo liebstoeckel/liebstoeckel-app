@@ -384,7 +384,7 @@ liebstoeckel doctor --install-chromium  # download Playwright's Chromium, record
 | `--install-chromium` | Install Playwright's Chromium if none resolves, then record its path in `~/.config/liebstoeckel/config.json` so every later build/export reuses it |
 | `--json` | Machine-readable output (default when piped) |
 
-`doctor` resolves Chromium the same way builds do (see [Chromium setup](/guides/chromium/#resolution-order)): an existing system Chrome is found automatically, so often nothing needs installing. Only `export`/`thumbs` require a browser; `build` skips thumbnails without one.
+`doctor` resolves Chromium the same way builds do (see [Chromium setup](/guides/chromium/#resolution-order)): an existing system Chrome is found automatically, so often nothing needs installing. Only `export`/`thumbs` require a browser; `build` skips thumbnails without one. When no browser is found, the human output lists every probed location, and `--json` adds them as `probedCandidates`.
 
 ## Staying up to date
 

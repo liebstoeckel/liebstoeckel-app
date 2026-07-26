@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { motion } from "motion/react";
 import { scaleLinear } from "@visx/scale";
 import { Group } from "@visx/group";
@@ -7,6 +7,7 @@ import { curveMonotoneX } from "@visx/curve";
 import { AxisBottom, AxisLeft } from "@visx/axis";
 import { GridRows } from "@visx/grid";
 import { useBrandColors } from "./useBrandColors";
+import { axisNumber, pointNumber, widestWidth } from "./chartText";
 
 export interface LineSeries {
   label: string;
@@ -52,8 +53,6 @@ const DEFAULT_DATA: LineSeries[] = [
   },
 ];
 
-const X_LABELS = ["W1", "W2", "W3", "W4", "W5", "W6", "W7"];
-
 /**
  * LineChart — scaffolded via `liebstoeckel add line-chart`.
  *
@@ -72,12 +71,16 @@ export function LineChart({
   height?: number;
 }) {
   const c = useBrandColors();
-  const m = { top: 24, right: 24, bottom: 40, left: 40 };
-  const iw = width - m.left - m.right;
-  const ih = height - m.top - m.bottom;
-
   const allX = useMemo(() => data.flatMap((s) => s.points.map((p) => p.x)), [data]);
   const allY = useMemo(() => data.flatMap((s) => s.points.map((p) => p.y)), [data]);
+
+  // The left margin is sized to the widest tick label the y-axis will render
+  // (compact from 10k, so "1.2M" instead of a clipped "1,200,000").
+  const tickFont = 12;
+  const yTickLabels = scaleLinear({ domain: [0, Math.max(...allY) * 1.1], nice: true }).ticks(5).map(axisNumber);
+  const m = { top: 24, right: 24, bottom: 40, left: Math.max(40, Math.ceil(widestWidth(yTickLabels, tickFont)) + 14) };
+  const iw = width - m.left - m.right;
+  const ih = height - m.top - m.bottom;
 
   const x = useMemo(
     () => scaleLinear({ domain: [Math.min(...allX), Math.max(...allX)], range: [0, iw] }),
@@ -88,7 +91,12 @@ export function LineChart({
     [allY, ih],
   );
 
-  const clipId = "line-reveal-clip";
+  // Integer-x data (periods, years) gets integer ticks; a unique clip id keeps
+  // several charts on screen (overview grid) from sharing one reveal clip.
+  const allInt = allX.every(Number.isInteger);
+  const xTickValues = allInt ? x.ticks(Math.min(7, new Set(allX).size)).filter(Number.isInteger) : undefined;
+  // useId's colons are stripped: they are illegal inside an unquoted url(#...).
+  const clipId = `line-reveal-clip-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
 
   return (
     <svg width={width} height={height} role="img" aria-label="Multi-series line chart of weekly trends">
@@ -112,10 +120,11 @@ export function LineChart({
           hideAxisLine
           tickStroke={c.muted}
           tickLength={4}
+          tickFormat={(v) => axisNumber(Number(v))}
           tickLabelProps={() => ({
             fill: c.muted,
             fontFamily: "var(--brand-font-mono)",
-            fontSize: 12,
+            fontSize: tickFont,
             textAnchor: "end",
             dx: -4,
             dy: 4,
@@ -124,10 +133,11 @@ export function LineChart({
         <AxisBottom
           top={ih}
           scale={x}
-          numTicks={X_LABELS.length}
+          numTicks={7}
+          tickValues={xTickValues}
           stroke={c.border}
           tickStroke={c.muted}
-          tickFormat={(v) => X_LABELS[Number(v)] ?? String(v)}
+          tickFormat={(v) => pointNumber(Number(v))}
           tickLabelProps={() => ({
             fill: c.muted,
             fontFamily: "var(--brand-font-body)",

@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright-core";
+import { launchCdpBrowser, type DriverBrowser, type DriverPage } from "./cdp";
 import {
   CAPTURE_EVENT,
   CAPTURE_FLAG,
@@ -56,59 +57,140 @@ function encodeDataUri(png: Uint8Array, format: ThumbnailFormat, quality: number
 
 // Container-friendly flags. The full Chromium (not chrome-headless-shell, which
 // SIGSEGVs in some sandboxes) plus --single-process/--no-zygote launches cleanly
-// without a GPU or a user namespace.
+// without a GPU or a user namespace. Those two are Linux sandbox helpers only:
+// on Windows --single-process crashes Chrome outright, and there is no zygote.
 const DEFAULT_ARGS = [
   "--no-sandbox",
   "--disable-gpu",
   "--disable-dev-shm-usage",
-  "--single-process",
-  "--no-zygote",
+  ...(process.platform === "win32" ? [] : ["--single-process", "--no-zygote"]),
 ];
 
-/** Well-known Chrome/Chromium locations to probe when no binary is set explicitly,
- *  so a machine that already has Chrome "just works" without LIEBSTOECKEL_CHROMIUM
- *  Order = preference; the caller verifies each exists on disk. Pure (env-driven). */
-export function systemChromiumCandidates(env: Record<string, string | undefined> = process.env): string[] {
-  const out: string[] = [];
+/** Case-insensitive env lookup. Windows env var names are case-insensitive and
+ *  their canonical casing is mixed ("ProgramFiles(x86)", "LocalAppData"); a
+ *  runtime's process.env proxy may or may not normalize that, and plain object
+ *  copies of the env (spawn envs, tests) never do. Exact key wins, then the
+ *  first case-insensitive match. */
+function envLookup(env: Record<string, string | undefined>, name: string): string | undefined {
+  if (env[name] !== undefined) return env[name];
+  const lower = name.toLowerCase();
+  for (const key of Object.keys(env)) {
+    if (key.toLowerCase() === lower) return env[key];
+  }
+  return undefined;
+}
+
+/** The two preference tiers of well-known browser locations: Chrome/Chromium
+ *  everywhere first, Edge (same engine, preinstalled on Windows) as the fallback
+ *  of last resort. Pure (env-driven); the caller verifies existence on disk. */
+function candidateTiers(env: Record<string, string | undefined>): { chrome: string[]; edge: string[] } {
+  const chrome: string[] = [];
+  const edge: string[] = [];
   // De-facto standard env vars other Chrome-driving tools honor.
-  if (env.PUPPETEER_EXECUTABLE_PATH) out.push(env.PUPPETEER_EXECUTABLE_PATH);
-  if (env.CHROME_PATH) out.push(env.CHROME_PATH);
+  const puppeteer = envLookup(env, "PUPPETEER_EXECUTABLE_PATH");
+  const chromePath = envLookup(env, "CHROME_PATH");
+  if (puppeteer) chrome.push(puppeteer);
+  if (chromePath) chrome.push(chromePath);
   // Puppeteer's install cache (`bunx puppeteer browsers install chrome`).
   const pcache = join(homedir(), ".cache", "puppeteer", "chrome");
   for (const sub of ["chrome-linux64/chrome", "chrome-win64/chrome.exe"]) {
     try {
-      for (const p of new Bun.Glob(`*/${sub}`).scanSync({ cwd: pcache, absolute: true, onlyFiles: false })) out.push(p);
+      for (const p of new Bun.Glob(`*/${sub}`).scanSync({ cwd: pcache, absolute: true, onlyFiles: false })) chrome.push(p);
     } catch {
       // no cache dir / glob unsupported → skip
     }
   }
-  // PATH binaries (Linux/BSD).
-  for (const bin of ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge"]) {
+  // PATH binaries. The first names are Linux/BSD; "chrome"/"chromium" also match
+  // a chrome.exe/chromium.exe a Windows user put on PATH (Bun.which honors PATHEXT).
+  for (const bin of ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome"]) {
     const p = Bun.which(bin);
-    if (p) out.push(p);
+    if (p) chrome.push(p);
   }
-  // macOS app bundles + common Windows install paths.
-  out.push(
+  // macOS app bundles.
+  chrome.push(
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
   );
-  for (const base of [env.PROGRAMFILES, env["PROGRAMFILES(X86)"], env.LOCALAPPDATA]) {
-    if (base) out.push(join(base, "Google", "Chrome", "Application", "chrome.exe"));
+  // Windows install roots. Chrome installs per-machine under ProgramFiles (64-bit)
+  // or ProgramFiles(x86), and per-user under LocalAppData; ProgramW6432 covers the
+  // 64-bit root when the process itself runs as 32-bit.
+  const winRoots = ["PROGRAMFILES", "PROGRAMW6432", "PROGRAMFILES(X86)", "LOCALAPPDATA"]
+    .map((name) => envLookup(env, name))
+    .filter((base): base is string => !!base);
+  for (const base of winRoots) chrome.push(join(base, "Google", "Chrome", "Application", "chrome.exe"));
+  for (const base of winRoots) chrome.push(join(base, "Chromium", "Application", "chrome.exe"));
+  for (const bin of ["microsoft-edge", "msedge"]) {
+    const p = Bun.which(bin);
+    if (p) edge.push(p);
   }
-  return out;
+  for (const base of winRoots) edge.push(join(base, "Microsoft", "Edge", "Application", "msedge.exe"));
+  return { chrome: [...new Set(chrome)], edge: [...new Set(edge)] };
 }
 
-/** First system Chrome/Chromium that exists on disk, or undefined. */
-function detectSystemChromium(): string | undefined {
-  for (const c of systemChromiumCandidates()) if (c && existsSync(c)) return c;
+/** Every well-known Chrome/Chromium/Edge location, in preference order, so a
+ *  machine that already has a browser "just works" without LIEBSTOECKEL_CHROMIUM. */
+export function systemChromiumCandidates(env: Record<string, string | undefined> = process.env): string[] {
+  const tiers = candidateTiers(env);
+  return [...tiers.chrome, ...tiers.edge];
+}
+
+/** Resolve a browser exe via the Windows registry "App Paths" key, the OS's own
+ *  record of where an installer put the binary. Catches installs in nonstandard
+ *  roots that the well-known-path probe misses. No-op off Windows. */
+function windowsAppPath(exe: string): string | undefined {
+  if (process.platform !== "win32") return undefined;
+  for (const hive of ["HKCU", "HKLM"]) {
+    try {
+      const res = Bun.spawnSync(
+        ["reg", "query", `${hive}\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\${exe}`, "/ve"],
+        { stdout: "pipe", stderr: "ignore" },
+      );
+      if (res.exitCode !== 0) continue;
+      const m = res.stdout.toString().match(/REG(?:_EXPAND)?_SZ\s+(.*\.exe)/i);
+      const p = m?.[1]?.trim().replace(/^"(.*)"$/, "$1");
+      if (p && existsSync(p)) return p;
+    } catch {
+      // reg.exe unavailable → skip
+    }
+  }
   return undefined;
+}
+
+/** First system Chrome/Chromium that exists on disk, or undefined. The registry
+ *  probe sits between the Chrome-flavored path guesses and the Edge fallback so
+ *  a nonstandard Chrome install still beats a standard Edge one. */
+function detectSystemChromium(): string | undefined {
+  const tiers = candidateTiers(process.env);
+  for (const c of tiers.chrome) if (c && existsSync(c)) return c;
+  const regChrome = windowsAppPath("chrome.exe");
+  if (regChrome) return regChrome;
+  for (const c of tiers.edge) if (c && existsSync(c)) return c;
+  return windowsAppPath("msedge.exe");
+}
+
+const warnedExplicit = new Set<string>();
+
+/** Normalize a user-supplied binary path: trim whitespace and strip one pair of
+ *  surrounding quotes. Windows shells often hand over `set VAR="C:\Program
+ *  Files\..."` with the quotes kept in the value, which then never exists on disk. */
+export function normalizeBinaryPath(raw: string): string {
+  const trimmed = raw.trim();
+  const m = trimmed.match(/^"(.*)"$/) ?? trimmed.match(/^'(.*)'$/);
+  return m ? m[1]! : trimmed;
 }
 
 /** Resolve a Chromium binary: explicit → $LIEBSTOECKEL_CHROMIUM → a system
  *  Chrome/Chromium → Playwright's. The first one that exists on disk wins. */
 export function resolveChromium(opts: CaptureOptions = {}): string {
-  const explicit = opts.executablePath ?? process.env.LIEBSTOECKEL_CHROMIUM;
+  const raw = opts.executablePath ?? process.env.LIEBSTOECKEL_CHROMIUM;
+  const explicit = raw === undefined ? undefined : normalizeBinaryPath(raw);
   if (explicit && existsSync(explicit)) return explicit;
+  if (explicit && !warnedExplicit.has(explicit)) {
+    // A configured path that points nowhere is the silent killer of detection:
+    // say so once, then keep going through the auto-detect chain best-effort.
+    warnedExplicit.add(explicit);
+    console.error(`[liebstoeckel] configured Chromium not found at ${explicit}, falling back to auto-detection`);
+  }
 
   const system = detectSystemChromium();
   if (system) return system;
@@ -128,6 +210,55 @@ export function resolveChromium(opts: CaptureOptions = {}): string {
     "No Chromium found for slide capture. Run `liebstoeckel doctor --install-chromium`, " +
       "set LIEBSTOECKEL_CHROMIUM to a Chrome/Chromium binary, or `bunx playwright install chromium`.",
   );
+}
+
+/** Adapt a playwright Page to the driver surface the slide drivers consume. */
+function playwrightPage(page: Page): DriverPage {
+  return {
+    setContent: async (html, timeoutMs) => {
+      await page.setContent(html, { waitUntil: "load", timeout: timeoutMs });
+    },
+    evaluate: (fn, arg) => page.evaluate(fn as (a: unknown) => never, arg),
+    waitForFunction: async (fn, arg, timeoutMs) => {
+      await page.waitForFunction(fn as (a: unknown) => unknown, arg, { timeout: timeoutMs });
+    },
+    waitForTimeout: (ms) => page.waitForTimeout(ms),
+    screenshot: async (o) =>
+      new Uint8Array(await page.screenshot(o.type === "jpeg" ? { type: "jpeg", quality: o.quality } : { type: "png" })),
+    emulateScreenMedia: () => page.emulateMedia({ media: "screen" }),
+    pdf: async (o) =>
+      new Uint8Array(
+        await page.pdf({
+          width: `${o.widthPx}px`,
+          height: `${o.heightPx}px`,
+          printBackground: true,
+          margin: { top: "0", right: "0", bottom: "0", left: "0" },
+          preferCSSPageSize: false,
+        }),
+      ),
+  };
+}
+
+/** Launch the headless browser behind the right transport. Playwright's own
+ *  transports both dead-end under Bun on Windows (its pipe launch needs stdio
+ *  fds Bun does not deliver there, its WebSocket fallback needs the http
+ *  upgrade Bun's client lacks), so Windows drives Chrome over raw CDP with
+ *  Bun's native WebSocket instead. `LIEBSTOECKEL_CDP_DRIVER=1` forces the CDP
+ *  transport on any platform (useful to exercise that path in tests/CI). */
+async function launchDriverBrowser(opts: { executablePath?: string; launchArgs?: string[] }): Promise<DriverBrowser> {
+  const executablePath = resolveChromium(opts);
+  const args = opts.launchArgs ?? DEFAULT_ARGS;
+  if (process.platform === "win32" || process.env.LIEBSTOECKEL_CDP_DRIVER) {
+    return launchCdpBrowser(executablePath, args);
+  }
+  const browser = await chromium.launch({ headless: true, executablePath, args });
+  return {
+    async newPage({ width, height, deviceScaleFactor }) {
+      const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor });
+      return playwrightPage(page);
+    },
+    close: () => browser.close(),
+  };
 }
 
 /** Whether a Chromium is available for capture (cheap, resolves a path, no launch). */
@@ -216,7 +347,7 @@ export interface RenderDriveResult {
 export async function renderDeckSlides(
   html: string,
   opts: RenderDriveOptions,
-  onFrame: (index: number, page: Page) => Promise<void>,
+  onFrame: (index: number, page: DriverPage) => Promise<void>,
 ): Promise<RenderDriveResult> {
   const width = opts.width ?? 640;
   const height = opts.height ?? Math.round((width * 9) / 16);
@@ -224,18 +355,14 @@ export async function renderDeckSlides(
   const settleMs = opts.settleMs ?? 250;
   const timeout = opts.timeoutMs ?? 15000;
 
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: resolveChromium(opts),
-    args: opts.launchArgs ?? DEFAULT_ARGS,
-  });
+  const browser = await launchDriverBrowser(opts);
   try {
-    const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale });
-    await page.setContent(injectCaptureFlag(html), { waitUntil: "load", timeout });
+    const page = await browser.newPage({ width, height, deviceScaleFactor: scale });
+    await page.setContent(injectCaptureFlag(html), timeout);
     // fonts affect layout/metrics; wait once before stepping through slides
     await page.evaluate(() => (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts?.ready);
     try {
-      await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key] != null, SLIDE_COUNT, { timeout });
+      await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key as string] != null, SLIDE_COUNT, timeout);
     } catch {
       throw new Error("deck never entered capture mode, ensure it renders <Present> (no __LIEBSTOECKEL_SLIDE_COUNT__)");
     }
@@ -259,7 +386,7 @@ export async function renderDeckSlides(
       await page.waitForFunction(
         ([key, idx]) => (window as unknown as Record<string, unknown>)[key as string] === idx,
         [CAPTURE_READY, i] as const,
-        { timeout },
+        timeout,
       );
       if (settleMs > 0) await page.waitForTimeout(settleMs);
       await onFrame(i, page);
@@ -327,19 +454,15 @@ export async function printDeckPdf(html: string, opts: PrintDriveOptions = {}): 
   const settleMs = opts.settleMs ?? 700;
   const timeout = opts.timeoutMs ?? 30000;
 
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: resolveChromium(opts),
-    args: opts.launchArgs ?? DEFAULT_ARGS,
-  });
+  const browser = await launchDriverBrowser(opts);
   try {
-    const page = await browser.newPage({ viewport: { width: pageWidth, height: pageHeight } });
+    const page = await browser.newPage({ width: pageWidth, height: pageHeight });
     // print with the deck's screen styling, not print-media CSS
-    await page.emulateMedia({ media: "screen" });
-    await page.setContent(injectFlag(html, PRINT_FLAG, {}), { waitUntil: "load", timeout });
+    await page.emulateScreenMedia();
+    await page.setContent(injectFlag(html, PRINT_FLAG, {}), timeout);
     await page.evaluate(() => (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts?.ready);
     try {
-      await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key] != null, SLIDE_COUNT, { timeout });
+      await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key as string] != null, SLIDE_COUNT, timeout);
     } catch {
       throw new Error("deck never entered print mode, ensure it renders <Present> (no __LIEBSTOECKEL_SLIDE_COUNT__)");
     }
@@ -357,18 +480,12 @@ export async function printDeckPdf(html: string, opts: PrintDriveOptions = {}): 
     await page.waitForFunction(
       ([key, tok]) => (window as unknown as Record<string, unknown>)[key as string] === tok,
       [PRINT_READY, token] as const,
-      { timeout },
+      timeout,
     );
     if (settleMs > 0) await page.waitForTimeout(settleMs);
 
-    const pdf = await page.pdf({
-      width: `${pageWidth}px`,
-      height: `${pageHeight}px`,
-      printBackground: true,
-      margin: { top: "0", right: "0", bottom: "0", left: "0" },
-      preferCSSPageSize: false,
-    });
-    return { pdf: new Uint8Array(pdf), count, pages: indices.length };
+    const pdf = await page.pdf({ widthPx: pageWidth, heightPx: pageHeight });
+    return { pdf, count, pages: indices.length };
   } finally {
     await browser.close();
   }

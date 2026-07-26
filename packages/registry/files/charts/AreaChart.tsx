@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { motion } from "motion/react";
 import { scaleLinear } from "@visx/scale";
 import { Group } from "@visx/group";
@@ -8,6 +8,7 @@ import { LinearGradient } from "@visx/gradient";
 import { AxisBottom, AxisLeft } from "@visx/axis";
 import { GridRows } from "@visx/grid";
 import { useBrandColors } from "./useBrandColors";
+import { axisNumber, pointNumber, widestWidth } from "./chartText";
 
 export interface AreaPoint {
   x: number;
@@ -27,8 +28,6 @@ const DEFAULT_DATA: AreaPoint[] = [
   { x: 9, y: 288 },
 ];
 
-const X_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"];
-
 /**
  * AreaChart — scaffolded via `liebstoeckel add area-chart`.
  *
@@ -47,7 +46,14 @@ export function AreaChart({
   height?: number;
 }) {
   const c = useBrandColors();
-  const m = { top: 24, right: 24, bottom: 40, left: 44 };
+
+  // The left margin is sized to the widest tick label the y-axis will render
+  // (compact from 10k, so "1.2M" instead of a clipped "1,200,000").
+  const tickFont = 12;
+  const yTickLabels = scaleLinear({ domain: [0, Math.max(...data.map((d) => d.y)) * 1.1], nice: true })
+    .ticks(5)
+    .map(axisNumber);
+  const m = { top: 24, right: 24, bottom: 40, left: Math.max(44, Math.ceil(widestWidth(yTickLabels, tickFont)) + 14) };
   const iw = width - m.left - m.right;
   const ih = height - m.top - m.bottom;
 
@@ -69,8 +75,14 @@ export function AreaChart({
     [data, ih],
   );
 
-  const gradientId = "area-fill-gradient";
-  const clipId = "area-reveal-clip";
+  // Integer-x data (periods, years) gets integer ticks; unique ids keep several
+  // charts on screen (overview grid) from sharing one gradient/clip.
+  const allInt = data.every((d) => Number.isInteger(d.x));
+  const xTickValues = allInt ? x.ticks(Math.min(8, new Set(data.map((d) => d.x)).size)).filter(Number.isInteger) : undefined;
+  // useId's colons are stripped: they are illegal inside an unquoted url(#...).
+  const uid = useId().replace(/[^a-zA-Z0-9-]/g, "");
+  const gradientId = `area-fill-gradient-${uid}`;
+  const clipId = `area-reveal-clip-${uid}`;
 
   return (
     <svg width={width} height={height} role="img" aria-label="Area chart of a single trend over time">
@@ -102,10 +114,11 @@ export function AreaChart({
           hideAxisLine
           tickStroke={c.muted}
           tickLength={4}
+          tickFormat={(v) => axisNumber(Number(v))}
           tickLabelProps={() => ({
             fill: c.muted,
             fontFamily: "var(--brand-font-mono)",
-            fontSize: 12,
+            fontSize: tickFont,
             textAnchor: "end",
             dx: -4,
             dy: 4,
@@ -114,10 +127,11 @@ export function AreaChart({
         <AxisBottom
           top={ih}
           scale={x}
-          numTicks={X_LABELS.length}
+          numTicks={8}
+          tickValues={xTickValues}
           stroke={c.border}
           tickStroke={c.muted}
-          tickFormat={(v) => X_LABELS[Number(v)] ?? String(v)}
+          tickFormat={(v) => pointNumber(Number(v))}
           tickLabelProps={() => ({
             fill: c.muted,
             fontFamily: "var(--brand-font-body)",

@@ -17,6 +17,7 @@ export {
   type PrintDriveResult,
   type ThumbnailFormat,
 } from "./capture";
+export type { DriverBrowser, DriverPage } from "./cdp";
 export {
   exportDeck,
   parseSlideRange,
@@ -32,6 +33,14 @@ export {
   stripThumbnails,
   type ThumbnailManifest,
 } from "@liebstoeckel/engine/build/thumbnails";
+export {
+  lintDeckHtml,
+  auditSlideDom,
+  type VisualFinding,
+  type VisualFindingKind,
+  type VisualLintOptions,
+  type VisualLintResult,
+} from "./lint";
 
 export interface WithThumbnailsResult {
   /** the deck HTML, with thumbnails embedded, or unchanged if skipped */

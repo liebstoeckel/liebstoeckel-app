@@ -42,7 +42,9 @@
   },
   "exports": {
     ".": "./src/cli.ts",
-    "./new": "./src/new.ts"
+    "./new": "./src/new.ts",
+    "./add": "./src/add.ts",
+    "./trust": "./src/trust.ts"
   },
   "dependencies": {
     "@liebstoeckel/engine": "workspace:^",

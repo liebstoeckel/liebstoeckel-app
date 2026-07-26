@@ -5,6 +5,7 @@ import { scaleBand, scaleLinear } from "@visx/scale";
 import { Group } from "@visx/group";
 import { Bar } from "@visx/shape";
 import { useBrandColors } from "./useBrandColors";
+import { axisNumber, fitLabel, widestWidth } from "./chartText";
 
 export interface HorizontalBarChartDatum {
   label: string;
@@ -40,11 +41,18 @@ export function HorizontalBarChart({
   height?: number;
 }) {
   const c = useBrandColors();
-  const m = { top: 16, right: 56, bottom: 16, left: 104 };
+  const sorted = useMemo(() => [...data].sort((a, b) => b.value - a.value), [data]);
+
+  // Margins are sized to the actual labels (capped so the bars keep room);
+  // anything longer than the cap is ellipsis-truncated instead of being
+  // clipped by the svg edge.
+  const labelFont = 13;
+  const valueFont = 14;
+  const labelW = Math.min(widestWidth(sorted.map((d) => d.label), labelFont), Math.max(64, width * 0.32));
+  const valueW = widestWidth(sorted.map((d) => axisNumber(d.value)), valueFont);
+  const m = { top: 16, right: Math.ceil(valueW) + 16, bottom: 16, left: Math.ceil(labelW) + 16 };
   const iw = width - m.left - m.right;
   const ih = height - m.top - m.bottom;
-
-  const sorted = useMemo(() => [...data].sort((a, b) => b.value - a.value), [data]);
 
   const y = useMemo(
     () => scaleBand({ domain: sorted.map((d) => d.label), range: [0, ih], padding: 0.3 }),
@@ -72,9 +80,9 @@ export function HorizontalBarChart({
                 dominantBaseline="middle"
                 fill={c.muted}
                 fontFamily="var(--brand-font-body)"
-                fontSize={13}
+                fontSize={labelFont}
               >
-                {d.label}
+                {fitLabel(d.label, labelFont, m.left - 14)}
               </text>
               <motion.g
                 initial={{ scaleX: 0 }}
@@ -99,12 +107,12 @@ export function HorizontalBarChart({
                 dominantBaseline="middle"
                 fill={c.text}
                 fontFamily="var(--brand-font-mono)"
-                fontSize={14}
+                fontSize={valueFont}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: i * 0.08 + 0.32 }}
               >
-                {d.value}
+                {axisNumber(d.value)}
               </motion.text>
             </g>
           );

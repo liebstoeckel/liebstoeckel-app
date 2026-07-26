@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { Pie } from "@visx/shape";
 import { Group } from "@visx/group";
 import { useBrandColors } from "./useBrandColors";
+import { axisNumber, fitLabel, widestWidth } from "./chartText";
 
 export interface DonutDatum {
   label: string;
@@ -41,9 +42,17 @@ export function DonutChart({
   const c = useBrandColors();
 
   // Only reserve a side legend when the chart is wide enough to keep the donut
-  // legible; otherwise center a full-size donut and drop the legend.
+  // legible; otherwise center a full-size donut and drop the legend. The
+  // legend width follows its content (swatch + label + value), capped so the
+  // donut keeps room; labels past the cap are ellipsis-truncated.
   const showLegend = width >= 360;
-  const legendW = showLegend ? 132 : 0;
+  const legendFont = 13;
+  const legendValueW = Math.ceil(widestWidth(data.map((d) => axisNumber(d.value)), legendFont));
+  const legendLabelW = Math.ceil(widestWidth(data.map((d) => d.label), legendFont));
+  const legendW = showLegend
+    ? Math.min(Math.max(132, 18 + legendLabelW + 12 + legendValueW + 16), Math.floor(width * 0.45))
+    : 0;
+  const legendLabelMax = legendW - 18 - legendValueW - 12 - 16;
   const chartW = width - legendW;
 
   const pad = 10;
@@ -122,7 +131,7 @@ export function DonutChart({
             fontSize={totalFont}
             fontWeight={600}
           >
-            {total}
+            {axisNumber(total)}
           </text>
           <text
             textAnchor="middle"
@@ -150,8 +159,8 @@ export function DonutChart({
                 transition={{ delay: i * 0.1 + 0.2 }}
               >
                 <rect x={0} y={-9} width={11} height={11} rx={3} fill={fill} />
-                <text x={18} y={1} fill={c.text} fontFamily="var(--brand-font-body)" fontSize={13}>
-                  {d.label}
+                <text x={18} y={1} fill={c.text} fontFamily="var(--brand-font-body)" fontSize={legendFont}>
+                  {fitLabel(d.label, legendFont, legendLabelMax)}
                 </text>
                 <text
                   x={legendW - 16}
@@ -159,9 +168,9 @@ export function DonutChart({
                   textAnchor="end"
                   fill={c.muted}
                   fontFamily="var(--brand-font-mono)"
-                  fontSize={13}
+                  fontSize={legendFont}
                 >
-                  {d.value}
+                  {axisNumber(d.value)}
                 </text>
               </motion.g>
             );

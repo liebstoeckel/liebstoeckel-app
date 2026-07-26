@@ -20,7 +20,9 @@
       "@liebstoeckel/registry": ["./packages/registry/src/index.ts"],
       "@liebstoeckel/registry/*": ["./packages/registry/src/*"],
       "@liebstoeckel/corporate-design": ["./packages/corporate-design/src/index.ts"],
-      "@liebstoeckel/corporate-design/*": ["./packages/corporate-design/src/*"]
+      "@liebstoeckel/corporate-design/*": ["./packages/corporate-design/src/*"],
+      "@liebstoeckel/components/*": ["./packages/components/src/*"],
+      "@liebstoeckel/cli/*": ["./packages/cli/src/*"]
     }
   }
 }

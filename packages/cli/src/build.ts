@@ -106,6 +106,44 @@ async function warnIfSpeakerNotes(dir: string): Promise<void> {
   }
 }
 
+/** The `--visual` report: lint findings, or why the pass was skipped. */
+interface VisualLintReport {
+  skipped?: string;
+  count: number;
+  findings: import("@liebstoeckel/thumbnails").VisualFinding[];
+}
+
+/** Bundle the deck (cwd) to a temp dir with embeds off, render it headless, and
+ *  lint every slide for cut-off/overflowing text. Skips (never fails) when no
+ *  Chromium is available, mirroring the thumbnails policy. */
+async function runVisualLint(json: boolean): Promise<VisualLintReport> {
+  const { hasChromium, lintDeckHtml } = await import("@liebstoeckel/thumbnails");
+  if (!hasChromium()) {
+    return {
+      skipped: "no Chromium (run `liebstoeckel doctor --install-chromium` or set LIEBSTOECKEL_CHROMIUM)",
+      count: 0,
+      findings: [],
+    };
+  }
+  const { bundleDeck } = await import("@liebstoeckel/engine/build");
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const outdir = await mkdtemp(join(tmpdir(), "lst-visual-"));
+  // The lint bundle is throwaway: no source/license embeds, and its progress
+  // prose stays off stdout in JSON mode (single machine-readable object).
+  const realLog = console.log;
+  if (json) console.log = (...a: unknown[]) => console.error(...a);
+  try {
+    await bundleDeck({ entry: "./index.html", outdir, outfile: "lint.html", inlinePackage: false, inlineLicenses: false });
+    const html = await Bun.file(join(outdir, "lint.html")).text();
+    const { count, findings } = await lintDeckHtml(html);
+    return { count, findings };
+  } finally {
+    console.log = realLog;
+    await rm(outdir, { recursive: true, force: true });
+  }
+}
+
 export const buildCommand = defineCommand({
   meta: {
     name: "build",
@@ -128,6 +166,10 @@ export const buildCommand = defineCommand({
     },
     "allow-secret": { type: "boolean", description: "allow packing files outside the deck's `files` allowlist" },
     check: { type: "boolean", description: "validate the deck bundles without writing an artifact" },
+    visual: {
+      type: "boolean",
+      description: "with --check: also render headless and lint for cut-off text and overflowing containers (needs Chromium)",
+    },
     trust: {
       type: "boolean",
       description: "trust this deck's build-time code (a deck is code; remembered after the first build)",
@@ -144,22 +186,42 @@ export const buildCommand = defineCommand({
     process.chdir(resolve(dir)); // resolve(".") = cwd, so the default is a no-op
     try {
       // `--check`: validate the deck bundles (no artifact, no thumbnails) and report
-      // structured diagnostics for an agent's fix loop ((internal ADR)).
+      // structured diagnostics for an agent's fix loop ((internal ADR)). `--visual` adds a
+      // headless render pass that lints every slide for cut-off/overflowing text.
       if (args.check) {
         const { checkDeck } = await import("@liebstoeckel/engine/build");
         const { ok, diagnostics } = await checkDeck({ entry: "./index.html" });
+        const visual = ok && args.visual ? await runVisualLint(json) : undefined;
+        const allOk = ok && (visual == null || visual.skipped != null || visual.findings.length === 0);
         if (json) {
-          console.log(JSON.stringify({ ok, diagnostics }, null, 2));
-        } else if (ok) {
-          console.log("✓ deck builds (check passed)");
+          console.log(JSON.stringify({ ok: allOk, diagnostics, ...(visual ? { visual } : {}) }, null, 2));
         } else {
-          for (const d of diagnostics) {
-            const loc = d.file ? ` ${d.file}${d.line ? `:${d.line}` : ""}` : "";
-            console.error(`✕${loc} ${d.message}`);
+          if (ok) console.log("✓ deck builds (check passed)");
+          else {
+            for (const d of diagnostics) {
+              const loc = d.file ? ` ${d.file}${d.line ? `:${d.line}` : ""}` : "";
+              console.error(`✕${loc} ${d.message}`);
+            }
+          }
+          if (visual) {
+            if (visual.skipped) {
+              console.log(`- visual lint skipped: ${visual.skipped}`);
+            } else if (visual.findings.length === 0) {
+              console.log(`✓ visual lint clean (${visual.count} slides)`);
+            } else {
+              console.error(`⚠ visual lint: ${visual.findings.length} finding(s) across ${visual.count} slides`);
+              for (const f of visual.findings) {
+                console.error(`  slide[${f.slide}] ${f.kind} "${f.text}": ${f.detail}  (${f.path})`);
+              }
+            }
           }
         }
-        if (!ok) process.exit(1);
+        if (!allOk) process.exit(1);
         return;
+      }
+      if (args.visual) {
+        console.error("✕ --visual is a lint pass on --check; run: liebstoeckel build --check --visual");
+        process.exit(1);
       }
 
       await warnIfSpeakerNotes(".");

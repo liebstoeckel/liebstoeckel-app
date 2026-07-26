@@ -132,4 +132,22 @@ describe.skipIf(!hasChromium)("captureThumbnails (headless)", () => {
     expect(Object.keys(m.thumbs).length).toBe(6); // title, poll, poll (pace), qa, reactions, outro
     expect(m.thumbs[0]!.startsWith("data:image/webp;base64,")).toBe(true);
   }, 45_000);
+
+  test("captures identically over the raw-CDP transport (the Windows path)", async () => {
+    // Windows always drives Chrome this way (playwright's transports break
+    // under Bun there); exercising it on every platform keeps it from rotting.
+    process.env.LIEBSTOECKEL_CDP_DRIVER = "1";
+    try {
+      const m = await captureThumbnails(STUB, { width: 160, quality: 70, scale: 1, settleMs: 0 });
+      expect(Object.keys(m.thumbs).length).toBe(3);
+      expect(m.w).toBe(160);
+      expect(m.h).toBe(90);
+      for (const uri of Object.values(m.thumbs)) {
+        expect(uri.startsWith("data:image/webp;base64,")).toBe(true);
+        expect(uri.length).toBeGreaterThan(100);
+      }
+    } finally {
+      delete process.env.LIEBSTOECKEL_CDP_DRIVER;
+    }
+  }, 30_000);
 });

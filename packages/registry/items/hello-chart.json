@@ -3,7 +3,7 @@
   "name": "hello-chart",
   "type": "registry:chart",
   "version": "0.1.0",
-  "description": "A tiny animated visx bar chart that reads the active brand palette — the registry's hello world.",
+  "description": "A tiny animated visx bar chart that reads the active brand palette, the registry's hello world.",
   "dependencies": [
     "@visx/group",
     "@visx/scale"

@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { resolveChromium, playwrightCoreVersion } from "@liebstoeckel/thumbnails";
+import { resolveChromium, systemChromiumCandidates, playwrightCoreVersion } from "@liebstoeckel/thumbnails";
 import { bunBin, bunVersionError, requiredBunRange } from "./bun";
 import { loadConfig, saveConfig, CONFIG_FILE } from "./config";
 
@@ -101,8 +101,12 @@ export const doctorCommand = defineCommand({
     });
     const stored = (await loadConfig()).chromium;
 
+    // On a miss, show where we actually looked: turns "not found" from a dead
+    // end into something a user (or agent) can act on.
+    const probed = report.chromium.ok ? undefined : systemChromiumCandidates();
+
     if (json) {
-      console.log(JSON.stringify({ ...report, storedChromium: stored ?? null }));
+      console.log(JSON.stringify({ ...report, storedChromium: stored ?? null, ...(probed ? { probedCandidates: probed } : {}) }));
     } else {
       const ok = (b: boolean) => (b ? "✓" : "✗");
       console.error(`${ok(report.bun.ok)} Bun ${report.bun.version} (needs ${report.bun.required})`);
@@ -112,6 +116,10 @@ export const doctorCommand = defineCommand({
           : `${ok(false)} Chromium not found, run \`liebstoeckel doctor --install-chromium\` or set LIEBSTOECKEL_CHROMIUM\n` +
               `    (only \`export\`/\`thumbs\` require it; \`build\` skips thumbnails without it)`,
       );
+      if (probed) {
+        console.error(`    looked in:`);
+        for (const p of probed) console.error(`      ${p}`);
+      }
       console.error(`  config: ${CONFIG_FILE}`);
     }
 

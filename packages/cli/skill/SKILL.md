@@ -78,6 +78,17 @@ is your correctness signal.
    If `ok` is false, fix each diagnostic (it carries `file`/`line`/`message`) and
    re-run until `ok` is true.
 
+   Once it compiles, add `--visual` for a headless render pass that lints every
+   slide for cut-off text and overflowing containers (needs Chromium; skips
+   cleanly without one):
+   ```bash
+   liebstoeckel build --check --visual --dir ./presentations/<name>   # + visual: { count, findings[] }
+   ```
+   Each finding carries `slide` (0-based), the clipped `text`, and a `detail`
+   like "text sticks 39px past the svg's left edge". Fix by shortening the
+   content or giving the layout more room (e.g. a wider chart margin), then
+   re-run until `findings` is empty.
+
 7. **Build or export:**
    ```bash
    liebstoeckel build ./presentations/<name>                 # → dist/<name>.html

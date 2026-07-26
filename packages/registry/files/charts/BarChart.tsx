@@ -7,6 +7,7 @@ import { Bar } from "@visx/shape";
 import { AxisBottom, AxisLeft } from "@visx/axis";
 import { GridRows } from "@visx/grid";
 import { useBrandColors } from "./useBrandColors";
+import { axisNumber, fitLabel, widestWidth } from "./chartText";
 
 export interface BarChartDatum {
   label: string;
@@ -41,7 +42,13 @@ export function BarChart({
   height?: number;
 }) {
   const c = useBrandColors();
-  const m = { top: 28, right: 20, bottom: 40, left: 44 };
+  const yMax = Math.max(...data.map((d) => d.value)) * 1.1;
+
+  // The left margin is sized to the widest tick label the y-axis will render
+  // (compact from 10k, so "1.2M" instead of a clipped "1,200,000").
+  const tickFont = 11;
+  const yTickLabels = scaleLinear({ domain: [0, yMax] }).ticks(5).map(axisNumber);
+  const m = { top: 28, right: 20, bottom: 40, left: Math.max(36, Math.ceil(widestWidth(yTickLabels, tickFont)) + 14) };
   const iw = width - m.left - m.right;
   const ih = height - m.top - m.bottom;
 
@@ -49,10 +56,7 @@ export function BarChart({
     () => scaleBand({ domain: data.map((d) => d.label), range: [0, iw], padding: 0.32 }),
     [data, iw],
   );
-  const y = useMemo(
-    () => scaleLinear({ domain: [0, Math.max(...data.map((d) => d.value)) * 1.1], range: [ih, 0] }),
-    [data, ih],
-  );
+  const y = useMemo(() => scaleLinear({ domain: [0, yMax], range: [ih, 0] }), [yMax, ih]);
 
   return (
     <svg width={width} height={height} role="img" aria-label="Vertical bar chart of values by category">
@@ -63,10 +67,11 @@ export function BarChart({
           hideAxisLine
           tickStroke={c.muted}
           numTicks={5}
+          tickFormat={(v) => axisNumber(Number(v))}
           tickLabelProps={() => ({
             fill: c.muted,
             fontFamily: "var(--brand-font-mono)",
-            fontSize: 11,
+            fontSize: tickFont,
             textAnchor: "end",
             dx: -4,
             dy: 4,
@@ -107,7 +112,7 @@ export function BarChart({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 + 0.32 }}
               >
-                {d.value}
+                {axisNumber(d.value)}
               </motion.text>
             </g>
           );
@@ -117,6 +122,7 @@ export function BarChart({
           scale={x}
           stroke={c.border}
           tickStroke={c.muted}
+          tickFormat={(v) => fitLabel(String(v), 12, x.bandwidth() + 10)}
           tickLabelProps={() => ({
             fill: c.muted,
             fontFamily: "var(--brand-font-body)",

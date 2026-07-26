@@ -3,7 +3,7 @@
   "name": "sparkline",
   "type": "registry:chart",
   "version": "0.1.0",
-  "description": "A tiny inline area+line sparkline (no axes) — takes data: number[] and a unique id.",
+  "description": "A tiny inline area+line sparkline (no axes), takes data: number[] and a unique id.",
   "dependencies": [
     "@visx/curve",
     "@visx/gradient",

@@ -9,6 +9,7 @@
     "@visx/shape"
   ],
   "registryDependencies": [
+    "chart-text",
     "use-brand-colors"
   ],
   "files": [
