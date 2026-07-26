@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.8](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.7...thumbnails-v0.3.8) (2026-07-26)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.8
+
 ## [0.3.7](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.6...thumbnails-v0.3.7) (2026-06-30)
 
 

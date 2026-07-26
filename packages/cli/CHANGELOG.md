@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.10](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.9...cli-v0.3.10) (2026-07-26)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.8
+    * @liebstoeckel/live-server bumped to 0.3.8
+    * @liebstoeckel/present-relay bumped to 0.3.8
+    * @liebstoeckel/thumbnails bumped to 0.3.8
+
 ## [0.3.9](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.8...cli-v0.3.9) (2026-06-30)
 
 

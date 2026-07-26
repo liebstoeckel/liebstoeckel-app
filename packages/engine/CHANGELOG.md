@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.8](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.7...engine-v0.3.8) (2026-07-26)
+
+
+### Bug Fixes
+
+* **engine:** browsing the overview no longer drops the audience out of the end card ([6a2bccc](https://github.com/liebstoeckel/liebstoeckel-app/commit/6a2bccc1f71cdf6a0b8ac0a649179b02b4c82b1f))
+* **engine:** don't let a stale total dead-end forward navigation ([e31964c](https://github.com/liebstoeckel/liebstoeckel-app/commit/e31964c9865e71f6e3f860c260dd6e8a15d76f2e))
+* **engine:** measure the current slide independently of what is on screen ([77eb7d4](https://github.com/liebstoeckel/liebstoeckel-app/commit/77eb7d4c0c9eb7b8969d261213948cd8bf4294d2))
+* **engine:** one slide-entry step policy for reveals (public issues [#4](https://github.com/liebstoeckel/liebstoeckel-app/issues/4), [#5](https://github.com/liebstoeckel/liebstoeckel-app/issues/5)) ([4032122](https://github.com/liebstoeckel/liebstoeckel-app/commit/4032122dd3b89b6284253b40251d5ac8c86fce57))
+* **engine:** share the end-of-deck state so the presenter can end the deck ([99769e5](https://github.com/liebstoeckel/liebstoeckel-app/commit/99769e5e9f3cbafa4dc1b3ee78cd973a8b8928e3))
+* **engine:** the audience end card carries no driver controls ([bbee85b](https://github.com/liebstoeckel/liebstoeckel-app/commit/bbee85b821bc9baaa0bc96010533be4d33ffc114))
+* **engine:** the presenter measures the slide it drives ((internal ticket)) ([34bf2a7](https://github.com/liebstoeckel/liebstoeckel-app/commit/34bf2a74bb16363e29b9f43d5142179fbb1726cb))
+
 ## [0.3.7](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.6...engine-v0.3.7) (2026-06-30)
 
 
