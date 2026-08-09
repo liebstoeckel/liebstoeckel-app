@@ -186,7 +186,7 @@ export const buildCommand = defineCommand({
     process.chdir(resolve(dir)); // resolve(".") = cwd, so the default is a no-op
     try {
       // `--check`: validate the deck bundles (no artifact, no thumbnails) and report
-      // structured diagnostics for an agent's fix loop ((internal ADR)). `--visual` adds a
+      // structured diagnostics for an agent's fix loop. `--visual` adds a
       // headless render pass that lints every slide for cut-off/overflowing text.
       if (args.check) {
         const { checkDeck } = await import("@liebstoeckel/engine/build");

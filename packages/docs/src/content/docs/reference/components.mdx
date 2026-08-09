@@ -17,6 +17,49 @@ From `@liebstoeckel/engine` (see [Engine API](/reference/engine-api/)):
 - `<Slot id className?>`: place the *same stateful* element (defined via `persistent`) on a slide; it travels/snaps/fades across slides.
 - `<Plugin id props? components?>`: place a live plugin.
 
+## Slide layouts
+
+`@liebstoeckel/components` ships ready-made layouts for the common slide shapes, so a
+deck (or an agent writing one) can compose a full presentation without hand-building
+each slide. All of them animate in with the house motion style, scale their type down
+as content volume grows, and reflow (e.g. into two columns) before content would
+overflow the 1280x720 stage.
+
+| Component | Props | Use |
+| --- | --- | --- |
+| `TitleSlide` | `title`, `kicker?`, `subtitle?`, `byline?`, `date?` | opening slide |
+| `SectionSlide` | `title`, `index?`, `subtitle?` | numbered section divider |
+| `BulletsSlide` | `title`, `bullets`, `kicker?` | staggered list; bullets are strings or `{ text, detail? }`; heavy lists flow into two columns |
+| `TwoColumnSlide` | `title`, `left`, `right`, `kicker?` | side-by-side `Column`s (`heading?`, `text?`, `bullets?`, `children?`) |
+| `QuoteSlide` | `quote`, `attribution?`, `role?` | full-stage pull quote |
+| `BigStatSlide` | `stats`, `title?`, `kicker?`, `aside?` | headline numbers; each `Stat` (`value`, `label`, `prefix?`, `suffix?`, `decimals?`, `note?`) counts up on entry |
+| `ChartSlide` | `title`, `children`, `kicker?`, `insight?`, `aside?` | frame for a chart (e.g. a [registry](/reference/cli/#registry) chart) with an insight line |
+| `ClosingSlide` | `title`, `subtitle?`, `contact?`, `url?` | final slide |
+
+The building blocks are exported too, for custom slides that should match:
+`Kicker` (uppercase eyebrow label), `SlideHeading` (animated heading; size it with
+`headingSize(text, "hero" | "large" | "medium")`, which steps the type down as the text
+gets longer), `Caption`, `AnimatedNumber` (`value`, `prefix?`, `suffix?`, `decimals?`),
+and `layoutEase` (the shared easing curve).
+
+```tsx
+import { BulletsSlide } from "@liebstoeckel/components";
+
+export default function Agenda() {
+  return (
+    <BulletsSlide
+      kicker="Agenda"
+      title="Where we are going"
+      bullets={[
+        { text: "The problem", detail: "why decks rot in binary formats" },
+        "One self-contained .html",
+        "Live sessions and plugins",
+      ]}
+    />
+  );
+}
+```
+
 ## Plugin UI primitives
 
 From `@liebstoeckel/plugin-ui`, used inside plugin client surfaces. They style against `var(--brand-*)` so they're automatically on-brand.
