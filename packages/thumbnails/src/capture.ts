@@ -342,13 +342,41 @@ export interface RenderDriveResult {
   h: number;
 }
 
+/** True when no *finite* animation is still running. Infinite animations (an
+ *  ambient backdrop drift) never settle, so they must not block a capture. */
+const animationsSettled = () =>
+  document.getAnimations().every((a) => {
+    if (a.playState !== "running") return true;
+    const end = a.effect?.getComputedTiming().endTime;
+    return typeof end === "number" && !Number.isFinite(end);
+  });
+
+/** Make the just-painted frame screenshot-worthy:
+ *  1. webfonts: `document.fonts.ready` re-pends while loads are in flight, so
+ *     awaiting it per frame is meaningful (a deck's fonts are only requested
+ *     once slide text mounts; an await before mount resolves vacuously);
+ *  2. entrance animations: wait until every finite animation finished (bounded,
+ *     a stuck animation degrades to the old fixed-settle behavior);
+ *  3. the configured settle as a small buffer for late paints and JS-driven
+ *     tweens that never register with the Web Animations API. */
+async function settleFrame(page: DriverPage, settleMs: number, timeoutMs: number): Promise<void> {
+  await page.evaluate(() => (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts?.ready);
+  try {
+    await page.waitForFunction(animationsSettled, undefined, Math.min(timeoutMs, 5000));
+  } catch {
+    // proceed with whatever is on screen rather than failing the build
+  }
+  if (settleMs > 0) await page.waitForTimeout(settleMs);
+}
+
 /**
- * The one headless drive loop ((internal ADR)): launch a browser, load a built deck in
- * capture mode, wait for fonts + the slide-count handshake, then step through the
+ * The one headless drive loop: launch a browser, load a built deck in
+ * capture mode, wait for the slide-count handshake, then step through the
  * requested slide indices, calling `onFrame(index, page)` once each slide has
- * painted and settled. Sink-agnostic: the callback decides what a frame becomes.
- * Both `captureThumbnails` and `exportDeck` ride on this. The deck must render
- * `Present`/`CaptureView`. **Loud**, throws if no Chromium / never enters capture.
+ * painted and settled (fonts live, finite animations finished). Sink-agnostic:
+ * the callback decides what a frame becomes. Both `captureThumbnails` and
+ * `exportDeck` ride on this. The deck must render `Present`/`CaptureView`.
+ * **Loud**, throws if no Chromium / never enters capture.
  */
 export async function renderDeckSlides(
   html: string,
@@ -365,8 +393,6 @@ export async function renderDeckSlides(
   try {
     const page = await browser.newPage({ width, height, deviceScaleFactor: scale });
     await page.setContent(injectCaptureFlag(html), timeout);
-    // fonts affect layout/metrics; wait once before stepping through slides
-    await page.evaluate(() => (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts?.ready);
     try {
       await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key as string] != null, SLIDE_COUNT, timeout);
     } catch {
@@ -394,7 +420,7 @@ export async function renderDeckSlides(
         [CAPTURE_READY, i] as const,
         timeout,
       );
-      if (settleMs > 0) await page.waitForTimeout(settleMs);
+      await settleFrame(page, settleMs, timeout);
       await onFrame(i, page);
     }
     return { count, w: Math.round(width * scale), h: Math.round(height * scale) };
@@ -466,7 +492,6 @@ export async function printDeckPdf(html: string, opts: PrintDriveOptions = {}): 
     // print with the deck's screen styling, not print-media CSS
     await page.emulateScreenMedia();
     await page.setContent(injectFlag(html, PRINT_FLAG, {}), timeout);
-    await page.evaluate(() => (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts?.ready);
     try {
       await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key as string] != null, SLIDE_COUNT, timeout);
     } catch {
@@ -488,7 +513,7 @@ export async function printDeckPdf(html: string, opts: PrintDriveOptions = {}): 
       [PRINT_READY, token] as const,
       timeout,
     );
-    if (settleMs > 0) await page.waitForTimeout(settleMs);
+    await settleFrame(page, settleMs, timeout);
 
     const pdf = await page.pdf({ widthPx: pageWidth, heightPx: pageHeight });
     return { pdf, count, pages: indices.length };

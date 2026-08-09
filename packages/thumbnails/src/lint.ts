@@ -171,9 +171,10 @@ export async function lintDeckHtml(html: string, opts: VisualLintOptions = {}): 
   const tolerance = opts.tolerancePx ?? 3;
   const max = opts.maxPerSlide ?? 20;
   const findings: VisualFinding[] = [];
-  // Native authoring canvas, real font metrics; entrance motion moves text for
-  // up to ~1s, so measure the settled layout.
-  const drive: RenderDriveOptions = { width: 1280, height: 720, scale: 1, settleMs: 1100, ...opts };
+  // Native authoring canvas, real font metrics. The drive loop waits out fonts
+  // and finite entrance animations per slide, so the settle is only a small
+  // buffer for late paints, not a guess at the longest animation.
+  const drive: RenderDriveOptions = { width: 1280, height: 720, scale: 1, settleMs: 250, ...opts };
   const { count } = await renderDeckSlides(html, drive, async (i, page) => {
     const raw = await page.evaluate(auditSlideDom, { tolerance, max });
     for (const f of raw) findings.push({ slide: i, ...f });

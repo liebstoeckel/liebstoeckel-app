@@ -7,7 +7,7 @@ import {
   stripThumbnails,
   type ThumbnailManifest,
 } from "@liebstoeckel/engine/build/thumbnails";
-import { captureThumbnails, resolveChromium, thumbnailsEnabled } from "./capture";
+import { captureThumbnails, renderDeckSlides, resolveChromium, thumbnailsEnabled } from "./capture";
 import { withThumbnails } from "./index";
 
 describe("thumbnails manifest (pure)", () => {
@@ -100,7 +100,47 @@ const STUB = `<!doctype html><html><head><meta charset=utf-8></head><body>
   }
 </script></body></html>`;
 
+// A stub whose slide content fades in via a delayed finite animation: the frame
+// is only correct once the animation finished (background flips to solid green
+// at animationend). A naive fixed settle screenshots the mid-fade state.
+const ANIMATED_STUB = `<!doctype html><html><head><meta charset=utf-8><style>
+  @keyframes reveal { from { opacity: 0 } to { opacity: 1 } }
+  #content { position: fixed; inset: 0; background: #22c55e; opacity: 0;
+             animation: reveal 400ms ease-out 300ms forwards }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  #drift { position: fixed; left: 0; top: 0; width: 8px; height: 8px;
+           background: #f59e0b; animation: spin 5s linear infinite }
+</style></head><body style="background:#0b1020">
+<div id=content></div><div id=drift></div>
+<script>
+  const cap = window.__LIEBSTOECKEL_CAPTURE__;
+  if (cap) {
+    window.__LIEBSTOECKEL_SLIDE_COUNT__ = 1;
+    function render(i){
+      window.__LIEBSTOECKEL_CAPTURE_READY__ = -1;
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.__LIEBSTOECKEL_CAPTURE_READY__ = i; }); });
+    }
+    window.addEventListener('liebstoeckel:capture', function(e){ render(e.detail); });
+    render(cap.index || 0);
+  }
+</script></body></html>`;
+
 describe.skipIf(!hasChromium)("captureThumbnails (headless)", () => {
+  test("waits out finite entrance animations, ignores infinite ones", async () => {
+    // settleMs 0: only the animation-quiescence wait can make the frame
+    // correct, and the infinite spinner must not stall it (bounded wait).
+    const start = Date.now();
+    let opacityAtFrame = "";
+    await renderDeckSlides(ANIMATED_STUB, { width: 160, scale: 1, settleMs: 0 }, async (_i, page) => {
+      opacityAtFrame = (await page.evaluate(
+        () => getComputedStyle(document.getElementById("content")!).opacity,
+      )) as string;
+    });
+    // the delayed 400ms fade finished before the frame callback ran
+    expect(opacityAtFrame).toBe("1");
+    expect(Date.now() - start).toBeLessThan(20_000);
+  }, 30_000);
+
   test("drives the capture protocol and returns WebP data-URIs (default)", async () => {
     const m = await captureThumbnails(STUB, { width: 160, quality: 70, scale: 1, settleMs: 0 });
     expect(Object.keys(m.thumbs).length).toBe(3);
