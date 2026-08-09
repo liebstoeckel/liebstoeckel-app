@@ -12,9 +12,12 @@ export const acme = defineTheme({
     accent: "#22d3ee",
     onPrimary: "#ffffff",
   },
+  // Bundled families only: a family without a bundled @font-face renders as
+  // whatever the viewer's system falls back to, so the same deck looks
+  // different per machine (and in build-time thumbnails).
   fonts: {
-    heading: '"Inter", system-ui, sans-serif',
-    body: '"Inter", system-ui, sans-serif',
-    mono: '"JetBrains Mono", ui-monospace, monospace',
+    heading: '"Schibsted Grotesk Variable", system-ui, sans-serif',
+    body: '"Schibsted Grotesk Variable", system-ui, sans-serif',
+    mono: '"JetBrains Mono Variable", ui-monospace, monospace',
   },
 });

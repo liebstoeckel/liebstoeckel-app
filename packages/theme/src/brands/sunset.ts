@@ -12,9 +12,10 @@ export const sunset = defineTheme({
     accent: "#f43f5e",
     onPrimary: "#1a1018",
   },
+  // Bundled families only (see acme.ts): unbundled fonts render per-machine.
   fonts: {
-    heading: '"Inter", system-ui, sans-serif',
-    body: '"Inter", system-ui, sans-serif',
-    mono: '"JetBrains Mono", ui-monospace, monospace',
+    heading: '"Hanken Grotesk Variable", system-ui, sans-serif',
+    body: '"Hanken Grotesk Variable", system-ui, sans-serif',
+    mono: '"JetBrains Mono Variable", ui-monospace, monospace',
   },
 });
