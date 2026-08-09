@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { MDXProvider } from "@mdx-js/react";
 import { mdxComponents } from "@liebstoeckel/components";
 import { ScaledStage, SlideFrame } from "./Stage";
+import { Backdrop } from "./backdrop";
 import { PersistentProvider } from "./PersistentLayer";
 
 /** A scaled, non-interactive thumbnail of a slide (overview + presenter).
@@ -27,7 +28,8 @@ export function DeckThumb({ Component, src, alt }: { Component?: ComponentType; 
       <MDXProvider components={mdxComponents}>
         <PersistentProvider>
           <ScaledStage className="absolute inset-0">
-            <SlideFrame still>{Component ? <Component /> : null}</SlideFrame>
+            <Backdrop still />
+            <SlideFrame>{Component ? <Component /> : null}</SlideFrame>
           </ScaledStage>
         </PersistentProvider>
       </MDXProvider>

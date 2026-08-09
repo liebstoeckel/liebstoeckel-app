@@ -5,6 +5,7 @@ import { mdxComponents } from "@liebstoeckel/components";
 import { useTheme } from "@liebstoeckel/plugin-ui";
 import type { PluginDef } from "@liebstoeckel/plugin-sdk";
 import { ScaledStage, SlideFrame } from "./Stage";
+import { Backdrop } from "./backdrop";
 import { PersistentProvider } from "./PersistentLayer";
 import { StepsProvider } from "./steps";
 import { LiveProvider, type LiveContextValue } from "./live/Plugin";
@@ -81,8 +82,9 @@ export function CaptureView({ slides, brands = ["default"], plugins = [] }: Deck
       <MDXProvider components={mdxComponents}>
         <PersistentProvider>
           <ScaledStage className="fixed inset-0">
-            <div data-capture-stage className="absolute inset-0">
-              <SlideFrame still>
+            <div data-capture-stage className="absolute inset-0 bg-bg">
+              <Backdrop still />
+              <SlideFrame>
                 <StepsProvider step={ALL_STEPS} slideIndex={index}>
                   <Current />
                 </StepsProvider>

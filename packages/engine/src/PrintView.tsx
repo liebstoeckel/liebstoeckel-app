@@ -5,6 +5,7 @@ import { mdxComponents } from "@liebstoeckel/components";
 import { useTheme } from "@liebstoeckel/plugin-ui";
 import type { PluginDef } from "@liebstoeckel/plugin-sdk";
 import { STAGE_H, STAGE_W, SlideFrame } from "./Stage";
+import { Backdrop } from "./backdrop";
 import { PersistentProvider } from "./PersistentLayer";
 import { StepsProvider } from "./steps";
 import { LiveProvider, type LiveContextValue } from "./live/Plugin";
@@ -115,10 +116,7 @@ export function PrintView({ slides, brands = ["default"], plugins = [] }: DeckPr
    clips to one viewport and only slide 1 prints. */
 html, body { height: auto !important; min-height: 0 !important; overflow: visible !important; margin: 0; padding: 0; background: #fff }
 #root { height: auto !important; overflow: visible !important; position: static !important }
-[data-print-page] { break-inside: avoid }
-/* The film-grain feTurbulence rasterizes to a ~20MB full-page bitmap per slide in
-   print, invisible noise, enormous cost. Drop it; charts/gradients stay vector. */
-[data-atmosphere-grain] { display: none !important }`}</style>
+[data-print-page] { break-inside: avoid }`}</style>
         <div data-print-root>
           {chosen.map((idx, n) => {
             const Current = norm[idx]?.Component ?? (() => null);
@@ -126,6 +124,7 @@ html, body { height: auto !important; min-height: 0 !important; overflow: visibl
               <div
                 key={idx}
                 data-print-page
+                className="bg-bg"
                 style={{
                   position: "relative",
                   width: STAGE_W,
@@ -135,7 +134,8 @@ html, body { height: auto !important; min-height: 0 !important; overflow: visibl
                 }}
               >
                 <PersistentProvider>
-                  <SlideFrame still>
+                  <Backdrop still />
+                  <SlideFrame>
                     <StepsProvider step={ALL_STEPS} slideIndex={idx}>
                       <Current />
                     </StepsProvider>

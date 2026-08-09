@@ -4,6 +4,7 @@ import { useTheme } from "@liebstoeckel/plugin-ui";
 import { themeToCss, type Theme } from "@liebstoeckel/theme";
 import { registerPluginInstance, type PluginDef } from "@liebstoeckel/plugin-sdk";
 import { Deck, type DeckProps } from "./Deck";
+import { BackdropProvider } from "./backdrop";
 import { PresenterView } from "./PresenterView";
 import { CaptureView } from "./CaptureView";
 import { PrintView } from "./PrintView";
@@ -87,18 +88,18 @@ export function Present(props: DeckProps) {
 
   if (capture)
     return (
-      <>
+      <BackdropProvider backdrop={props.backdrop}>
         {brandStyle}
         <CaptureView {...props} />
-      </>
+      </BackdropProvider>
     );
 
   if (print)
     return (
-      <>
+      <BackdropProvider backdrop={props.backdrop}>
         {brandStyle}
         <PrintView {...props} />
-      </>
+      </BackdropProvider>
     );
 
   // The confidence monitor (#presenter) works standalone (BroadcastChannel) and
@@ -106,8 +107,10 @@ export function Present(props: DeckProps) {
   const view = isPresenterWindow ? <PresenterView {...props} /> : <Deck {...props} />;
   return (
     <LiveProvider value={value}>
-      {brandStyle}
-      {view}
+      <BackdropProvider backdrop={props.backdrop}>
+        {brandStyle}
+        {view}
+      </BackdropProvider>
     </LiveProvider>
   );
 }

@@ -11,6 +11,7 @@ import { useLive } from "./live/Plugin";
 import { useLiveDeck } from "./live/deckIndex";
 import { PersistentProvider, PersistentLayer, type PersistentItem } from "./PersistentLayer";
 import { ScaledStage, SlideFrame } from "./Stage";
+import { Backdrop, BackdropProvider, type BackdropComponent } from "./backdrop";
 import { DeckThumb } from "./Thumb";
 import { readThumbnails } from "./thumbnails";
 import { hasEmbeddedSource } from "./source";
@@ -43,6 +44,12 @@ export type DeckProps = {
   /** Allow slide transitions on mobile (coarse-pointer) devices. Off by default, *  transitions are dropped there for snappier, jank-free navigation. Set true to
    *  opt back in. */
   mobileTransitions?: boolean;
+  /** Deck-wide decoration behind the slide transition stack, rendered once per
+   *  view. Omit for the default static Atmosphere, pass `null` for a flat
+   *  background, or pass a component; it receives `still` on non-interactive
+   *  surfaces (thumbnails, print, capture, presenter previews) and must render
+   *  motionless there. */
+  backdrop?: BackdropComponent | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   plugins?: PluginDef<any>[];
 };
@@ -60,7 +67,7 @@ function openPresenter() {
   }
 }
 
-export function Deck({ slides, persistent = [], brands = ["default"], transition: deckTransition, mobileTransitions }: DeckProps) {
+export function Deck({ slides, persistent = [], brands = ["default"], transition: deckTransition, mobileTransitions, backdrop }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   const count = norm.length;
   // Pre-rendered overview thumbnails (build-time), if the deck embedded them.
@@ -287,13 +294,18 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
 
   return (
     <MDXProvider components={mdxComponents}>
+     <BackdropProvider backdrop={backdrop}>
       <PersistentProvider>
        {/* 100dvh (dynamic viewport), NOT 100vh: on mobile the browser's address
            bar makes 100vh taller than the visible area, which would push the slide
            bottom + the viewport-pinned chrome below the fold. */}
        <div className="relative h-dvh w-screen overflow-hidden bg-bg">
         <ScaledStage className="absolute inset-0">
-          <div data-deck-root className="absolute inset-0">
+          <div data-deck-root className="absolute inset-0 bg-bg">
+            {/* One backdrop per view, behind the transition stack: a slide change
+                crossfades transparent content over it instead of mounting a
+                second decorated frame. */}
+            <Backdrop />
             <AnimatePresence
               custom={direction}
               onExitComplete={() => {
@@ -466,6 +478,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
         />
        </div>
       </PersistentProvider>
+     </BackdropProvider>
     </MDXProvider>
   );
 }

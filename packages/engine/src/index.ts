@@ -2,6 +2,7 @@ export { Present } from "./Present";
 export { Deck, type DeckProps } from "./Deck";
 export { PresenterView } from "./PresenterView";
 export { ScaledStage, SlideFrame, STAGE_W, STAGE_H } from "./Stage";
+export { Backdrop, BackdropProvider, type BackdropComponent } from "./backdrop";
 export { HelpOverlay } from "./HelpOverlay";
 export { useDeckSync } from "./useDeckSync";
 export { useDeckNav } from "./nav";

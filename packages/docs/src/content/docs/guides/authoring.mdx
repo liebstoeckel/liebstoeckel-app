@@ -22,7 +22,7 @@ Both compile to the same thing; pick per slide and mix them in one deck.
 
 Every slide is authored on a logical **1280×720** canvas (`STAGE_W × STAGE_H`). The engine's `ScaledStage` scales that canvas to fit any screen, centered and letterboxed, so a slide looks identical on a laptop, a projector, and a phone (just at a different scale). You never write responsive breakpoints for slide content. You design once at 1280×720.
 
-`SlideFrame` gives each slide a brand background, an animated atmosphere, and a padded content area. Break out with absolute positioning for full-bleed visuals.
+`SlideFrame` gives each slide a padded content area over the deck's backdrop (by default a static brand-colored atmosphere; configurable with the `backdrop` prop on `Present`). Break out with absolute positioning for full-bleed visuals.
 
 ## Themed MDX elements
 

@@ -1,6 +1,5 @@
 import { createContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "motion/react";
-import { Atmosphere } from "@liebstoeckel/components";
 
 // Logical canvas. Everything is authored at this size and scaled to fit, so the
 // audience view and presenter thumbnails are pixel-identical (just different scale).
@@ -61,21 +60,13 @@ export function ScaledStage({ children, className }: { children: ReactNode; clas
   );
 }
 
-/** The visual frame of a slide: brand background + atmosphere + a padded content
- *  area. Slides can break out with absolute positioning for full-bleed charts.
- *  `still` renders the motionless atmosphere (thumbnails / capture). */
-export function SlideFrame({
-  children,
-  atmosphere = true,
-  still = false,
-}: {
-  children: ReactNode;
-  atmosphere?: boolean;
-  still?: boolean;
-}) {
+/** The padded content frame of a slide. Slides can break out with absolute
+ *  positioning for full-bleed charts. Deliberately transparent: the deck's
+ *  backdrop renders once per view, behind the slide transition stack, so the
+ *  frame must not paint over it (the stage container owns the base color). */
+export function SlideFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="absolute inset-0 overflow-hidden bg-bg">
-      {atmosphere && <Atmosphere still={still} />}
+    <div className="absolute inset-0 overflow-hidden">
       <div className="absolute inset-0 flex flex-col justify-center px-24 py-20">{children}</div>
     </div>
   );

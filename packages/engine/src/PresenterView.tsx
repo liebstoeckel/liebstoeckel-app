@@ -11,6 +11,7 @@ import { useLiveDeck } from "./live/deckIndex";
 import { resolveStep, type StepPos } from "./delivery";
 import { StepsProvider } from "./steps";
 import { ScaledStage, SlideFrame } from "./Stage";
+import { Backdrop } from "./backdrop";
 import { PresenterShare } from "./QrOverlay";
 import { PersistentProvider } from "./PersistentLayer";
 import { useCoarsePointer } from "./useCoarsePointer";
@@ -143,7 +144,8 @@ function Thumb({
         <PersistentProvider>
           <BreakoutAllowedContext.Provider value={false}>
             <ScaledStage className="absolute inset-0">
-              <SlideFrame still>
+              <Backdrop still />
+              <SlideFrame>
                 {reveal ? (
                   <StepsProvider step={reveal.step} slideIndex={reveal.slideIndex} onTotal={reveal.onTotal}>
                     {body}
