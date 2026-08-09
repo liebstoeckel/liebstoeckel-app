@@ -44,6 +44,7 @@ class CdpConnection {
   private nextId = 1;
   private pending = new Map<number, { resolve(v: unknown): void; reject(e: Error): void }>();
   private eventListeners = new Map<string, Set<(params: unknown) => void>>();
+  private closed = false;
 
   private constructor(private ws: WebSocket) {
     ws.onmessage = (ev) => {
@@ -59,6 +60,7 @@ class CdpConnection {
       }
     };
     ws.onclose = () => {
+      this.closed = true;
       for (const { reject } of this.pending.values()) reject(new Error("CDP connection closed"));
       this.pending.clear();
     };
@@ -80,6 +82,12 @@ class CdpConnection {
   }
 
   send<T = unknown>(method: string, params?: unknown): Promise<T> {
+    // A send after the socket closed would register a pending entry that can
+    // never settle (Bun's WebSocket drops writes on a CLOSED socket silently),
+    // hanging the drive loop forever if Chrome crashes mid-capture.
+    if (this.closed || this.ws.readyState !== WebSocket.OPEN) {
+      return Promise.reject(new Error(`CDP connection closed (before ${method})`));
+    }
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
       this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
