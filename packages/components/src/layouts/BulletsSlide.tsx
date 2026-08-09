@@ -26,7 +26,9 @@ export function BulletsSlide({
   const load = items.reduce((n, b) => n + b.text.length + (b.detail?.length ?? 0), 0);
   const dense = items.length > 4 || items.some((b) => b.detail);
   // Past this volume a single column cannot fit 1280x720 at a legible size.
-  const heavy = load > 520 && items.length >= 4;
+  // Character load catches few-but-long bullets; the count arm catches
+  // many-short-bullet lists (agendas), which overflow on row count alone.
+  const heavy = (load > 520 && items.length >= 4) || items.length > 8;
 
   const item = (b: Bullet, i: number) => (
     <motion.li
