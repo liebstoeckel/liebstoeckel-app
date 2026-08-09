@@ -17,7 +17,7 @@ import { Aside, LinkCard } from "@astrojs/starlight/components";
 
 Slides are authored at **1280×720**. `ScaledStage` measures its parent and applies a single CSS `transform: scale(...)` so the canvas fits, centered + letterboxed. Because everything is one scaled layer, a slide is pixel-identical everywhere. Only the scale differs.
 
-`SlideFrame` wraps each slide in a padded content area. The deck's **backdrop** (by default the static `Atmosphere`: gradient blooms + vignette) renders once per view, behind the slide transition stack, so a slide change crossfades content over a stable background instead of swapping two decorated frames. Set it with the `backdrop` prop on `Present`: `null` for a flat background, or your own component (it receives `still` on capture/print/thumbnail surfaces and must render motionless there).
+`SlideFrame` wraps each slide in a padded content area. The deck's **backdrop** (by default the static `Atmosphere`: gradient blooms + vignette) renders once per view, behind the slide transition stack, so a slide change crossfades content over a stable background instead of swapping two decorated frames. Set it with the `backdrop` prop on `Present`: `null` for a flat background, or your own component (it receives `still` on capture/print/thumbnail surfaces and must render motionless there). A custom backdrop can animate at effectively zero cost by using CSS keyframes over transform and opacity only; the repository's `presentations/backdrop-demo` deck is a complete worked example (an animated aurora that records an empty performance trace).
 
 ## Steps & reveals
 

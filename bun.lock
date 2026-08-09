@@ -51,7 +51,7 @@
     },
     "packages/cli": {
       "name": "@liebstoeckel/cli",
-      "version": "0.3.9",
+      "version": "0.3.10",
       "bin": {
         "liebstoeckel": "./src/cli.ts",
         "lst": "./src/cli.ts",
@@ -284,7 +284,7 @@
     },
     "packages/engine": {
       "name": "@liebstoeckel/engine",
-      "version": "0.3.7",
+      "version": "0.3.8",
       "dependencies": {
         "@liebstoeckel/components": "workspace:^",
         "@liebstoeckel/plugin-sdk": "workspace:^",
@@ -325,7 +325,7 @@
     },
     "packages/live-server": {
       "name": "@liebstoeckel/live-server",
-      "version": "0.3.7",
+      "version": "0.3.8",
       "dependencies": {
         "@liebstoeckel/engine": "workspace:^",
         "@liebstoeckel/plugin-sdk": "workspace:^",
@@ -409,7 +409,7 @@
     },
     "packages/present-relay": {
       "name": "@liebstoeckel/present-relay",
-      "version": "0.3.7",
+      "version": "0.3.8",
       "bin": {
         "liebstoeckel-relay": "./src/cli.ts",
       },
@@ -448,7 +448,7 @@
     },
     "packages/thumbnails": {
       "name": "@liebstoeckel/thumbnails",
-      "version": "0.3.7",
+      "version": "0.3.8",
       "bin": {
         "liebstoeckel-thumbnails": "./src/cli.ts",
       },
@@ -463,6 +463,18 @@
       "version": "0.0.0",
       "bin": {
         "liebstoeckel-win-debug": "./src/cli.ts",
+      },
+    },
+    "presentations/backdrop-demo": {
+      "name": "@liebstoeckel/backdrop-demo",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liebstoeckel/components": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
+        "@liebstoeckel/theme": "workspace:*",
+      },
+      "devDependencies": {
+        "@liebstoeckel/thumbnails": "workspace:*",
       },
     },
     "presentations/demo": {
@@ -881,6 +893,8 @@
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
     "@levischuck/tiny-cbor": ["@levischuck/tiny-cbor@0.2.11", "", {}, "sha512-llBRm4dT4Z89aRsm6u2oEZ8tfwL/2l6BwpZ7JcyieouniDECM5AqNgr/y08zalEIvW3RSK4upYyybDcmjXqAow=="],
+
+    "@liebstoeckel/backdrop-demo": ["@liebstoeckel/backdrop-demo@workspace:presentations/backdrop-demo"],
 
     "@liebstoeckel/ci-poller": ["@liebstoeckel/ci-poller@workspace:packages/ci-poller"],
 

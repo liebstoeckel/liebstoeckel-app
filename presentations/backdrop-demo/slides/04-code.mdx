@@ -1,0 +1,17 @@
+export const notes = "The entire wiring: write a component that takes still, hand it to Present. Everything else is the engine's job.";
+
+## The entire integration
+
+```tsx
+import { Present } from "@liebstoeckel/engine";
+import { Aurora } from "./elements/Aurora";
+
+<Present
+  slides={[Title, How, Cheap, Code, Closing]}
+  backdrop={Aurora}
+/>
+```
+
+A backdrop is a component receiving `still?: boolean`. Render motionless when
+it is set, animate with CSS keyframes when it is not, and the engine handles
+every surface: live deck, thumbnails, print, capture, presenter.
