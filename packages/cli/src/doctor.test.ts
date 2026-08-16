@@ -3,21 +3,34 @@ import { playwrightCoreVersion } from "@liebstoeckel/thumbnails";
 import { buildReport, diagnosticExitCode, installChromiumArgs } from "./doctor";
 import { bunBin } from "./bun";
 
+const base = { bunVersion: "1.3.14", bunRange: ">=1.3", chromium: null, cliVersion: "0.3.0", latestKnown: null };
+
 describe("buildReport", () => {
   test("bun.ok reflects whether the version satisfies the range", () => {
-    expect(buildReport({ bunVersion: "1.3.14", bunRange: ">=1.3", chromium: null }).bun.ok).toBe(true);
-    expect(buildReport({ bunVersion: "1.2.12", bunRange: ">=1.3", chromium: null }).bun.ok).toBe(false);
+    expect(buildReport(base).bun.ok).toBe(true);
+    expect(buildReport({ ...base, bunVersion: "1.2.12" }).bun.ok).toBe(false);
   });
 
   test("chromium.ok is true only when a path resolved", () => {
-    expect(buildReport({ bunVersion: "1.3.0", bunRange: ">=1.3", chromium: "/usr/bin/chromium" }).chromium).toEqual({
+    expect(buildReport({ ...base, chromium: "/usr/bin/chromium" }).chromium).toEqual({
       path: "/usr/bin/chromium",
       ok: true,
     });
-    expect(buildReport({ bunVersion: "1.3.0", bunRange: ">=1.3", chromium: null }).chromium).toEqual({
-      path: null,
-      ok: false,
+    expect(buildReport(base).chromium).toEqual({ path: null, ok: false });
+  });
+
+  test("cli.updateAvailable only when the cached latest is strictly newer", () => {
+    expect(buildReport({ ...base, latestKnown: "0.4.0" }).cli).toEqual({
+      version: "0.3.0",
+      latestKnown: "0.4.0",
+      updateAvailable: true,
     });
+    expect(buildReport({ ...base, latestKnown: "0.3.0" }).cli.updateAvailable).toBe(false);
+    expect(buildReport({ ...base, latestKnown: "0.2.9" }).cli.updateAvailable).toBe(false);
+  });
+
+  test("no cache / failed check (latest null, e.g. offline) never claims an update", () => {
+    expect(buildReport(base).cli).toEqual({ version: "0.3.0", latestKnown: null, updateAvailable: false });
   });
 });
 
@@ -25,6 +38,7 @@ describe("diagnosticExitCode", () => {
   const report = (bunOk: boolean, chromiumOk: boolean): Parameters<typeof diagnosticExitCode>[0] => ({
     bun: { version: "1.3.14", required: ">=1.3", ok: bunOk },
     chromium: { path: chromiumOk ? "/usr/bin/chromium" : null, ok: chromiumOk },
+    cli: { version: "0.3.0", latestKnown: null, updateAvailable: false },
     configFile: "/tmp/config.json",
   });
 

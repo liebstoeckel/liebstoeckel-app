@@ -15,6 +15,12 @@ license: MPL-2.0
 
 - **Environment** — liebstoeckel is a framework written in Bun; it requires the **Bun
   runtime** (not Node). Drive everything through the `liebstoeckel` CLI via bash.
+- **Staying current** — `liebstoeckel doctor --json` reports
+  `cli: { version, latestKnown, updateAvailable }`. When `updateAvailable` is true,
+  tell the user and suggest running `liebstoeckel update` (it updates the deck's
+  `@liebstoeckel/*` packages and/or a global CLI install, then refreshes this skill).
+  Don't run it unprompted — it changes the deck's dependencies. A stale copy of this
+  skill needs no action: the CLI refreshes it automatically.
 - **Structure**
   - A deck is authored as an **npm package** (its own `package.json`) of MDX/TSX slide
     files.

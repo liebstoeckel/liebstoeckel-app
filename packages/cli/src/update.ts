@@ -3,23 +3,33 @@
 // so no command ever waits on the network. The check shells out to
 // `bun pm view`, so registry resolution (scoped .npmrc / bunfig) matches
 // installs exactly, Verdaccio today, public npm later, with zero config here.
-// The same module also compares a deck's installed agent skill (version-pinned
-// by `skill install`) against the running CLI and points at `skill update`.
+// The same module also self-heals a deck's installed agent skill (version-pinned
+// by `skill install`): the installed copy is a pure function of the CLI version,
+// so a stale one is rewritten in place instead of nagging about it.
 //
 // Reminders are stderr-only and OFF for agents/CI/pipes (`remindersEnabled`),
-// so the machine-readable contract ((internal ADR)) stays clean.
+// so the machine-readable contract ((internal ADR)) stays clean. The skill self-heal
+// deliberately runs in ALL modes: agents are exactly who can't read reminders,
+// and its one-line notice goes to stderr, never a --json stdout.
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bunBin } from "./bun";
 import { cliVersion, SKILL_DIR } from "./skill";
 
-const PKG = "@liebstoeckel/cli";
+export const PKG = "@liebstoeckel/cli";
 // Resolve the cache path lazily, honouring $HOME (homedir() is the Windows fallback);
 // it lives next to the CLI's config (mirrors creds' CONFIG_DIR).
 const stateFile = () => join(process.env.HOME || homedir(), ".config", "liebstoeckel", "update-check.json");
-const CHECK_EVERY_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_CHECK_MS = 60 * 60 * 1000;
+
+/** Background-check interval: 1h by default, overridable in seconds via
+ *  LIEBSTOECKEL_UPDATE_CHECK_INTERVAL (garbage or non-positive values fall back). */
+export function checkIntervalMs(env: Record<string, string | undefined> = process.env): number {
+  const s = Number(env.LIEBSTOECKEL_UPDATE_CHECK_INTERVAL);
+  return Number.isFinite(s) && s > 0 ? s * 1000 : DEFAULT_CHECK_MS;
+}
 
 export interface CheckState {
   checkedAt: number;
@@ -51,8 +61,8 @@ export const isNewer = (candidate: string | null | undefined, current: string): 
   !!candidate && compareVersions(candidate, current) > 0;
 
 /** Refresh when there is no cache, it expired, or the clock went backwards. */
-export function shouldRefresh(state: CheckState | null, now: number): boolean {
-  return !state || now - state.checkedAt > CHECK_EVERY_MS || now < state.checkedAt;
+export function shouldRefresh(state: CheckState | null, now: number, intervalMs: number = checkIntervalMs()): boolean {
+  return !state || now - state.checkedAt > intervalMs || now < state.checkedAt;
 }
 
 /** Reminders print only on an interactive terminal: never for `--json`, pipes
@@ -83,7 +93,7 @@ export async function updateReminder(argv: string[]): Promise<void> {
   const state = await readState();
   const current = await cliVersion();
   if (state && isNewer(state.latest, current)) {
-    console.error(`↑ ${PKG} ${state.latest} is available (you run ${current}), update: bun update --latest ${PKG}`);
+    console.error(`↑ ${PKG} ${state.latest} is available (you run ${current}), update: liebstoeckel update`);
   }
   if (shouldRefresh(state, Date.now())) {
     // Detached child re-runs THIS file (import.meta.main → refresh()). It inherits
@@ -112,25 +122,35 @@ export async function installedSkillVersion(deckDir: string): Promise<string | n
   return null;
 }
 
-/** Warn when the deck's installed agent skill is older than the running CLI. */
-export async function skillReminder(deckDir: string, argv: string[]): Promise<void> {
-  if (!remindersEnabled(argv)) return;
-  const installed = await installedSkillVersion(deckDir);
-  if (!installed) return;
+/** The latest cached registry answer, for surfaces that must stay network-free
+ *  (`doctor`). Null when there is no cache or the last check failed. */
+export async function cachedLatestVersion(): Promise<string | null> {
+  return (await readState())?.latest ?? null;
+}
+
+/** Self-heal a stale installed skill instead of nagging about it: the installed
+ *  copy is a pure function of the CLI version (stamped by `skill install`), so
+ *  rewriting it in place cannot express an opinion the user needs to approve.
+ *  Probes the deck AND the home dir (a `--scope user` install under e.g.
+ *  `~/.claude/skills/` would otherwise age silently forever). Runs in all
+ *  modes, agents/pipes included; one stderr line per healed root. */
+export async function healSkills(deckDir: string): Promise<void> {
   const current = await cliVersion();
-  if (isNewer(current, installed)) {
-    console.error(`↑ this deck's agent skill is v${installed}, the CLI is v${current}, refresh: liebstoeckel skill update`);
+  const home = process.env.HOME || homedir();
+  for (const root of new Set([resolve(deckDir), home])) {
+    const installed = await installedSkillVersion(root);
+    if (!installed || !isNewer(current, installed)) continue;
+    const { refreshInstalledSkill } = await import("./skill");
+    // A home-root heal never touches AGENTS.md (that is a project convention).
+    const written = await refreshInstalledSkill(root, { agents: root !== home });
+    if (written.length > 0) console.error(`↻ refreshed the agent skill v${installed} → v${current} in ${root}`);
   }
 }
 
-/** Background half: ask the registry for the latest version and cache the answer.
- *  A failed check caches `latest: null` so an offline machine retries at most
- *  once per interval instead of on every command. */
-async function refresh(): Promise<void> {
-  // Survive the parent's terminal session ending mid-check (best-effort; a
-  // missed refresh self-heals: the cache stays stale, so the next run retries).
-  process.on("SIGHUP", () => {});
-  let latest: string | null = null;
+/** Ask the registry for the latest published version, live. Blocks up to the
+ *  timeout, so callers are the detached background child and the explicit
+ *  `update` command (where the user asked and waiting is correct). */
+export function fetchLatestVersion(): string | null {
   try {
     const proc = Bun.spawnSync([bunBin, "pm", "view", PKG, "dist-tags.latest"], {
       stdout: "pipe",
@@ -138,12 +158,26 @@ async function refresh(): Promise<void> {
       timeout: 15_000,
     });
     const out = proc.stdout.toString().trim();
-    if (proc.success && parseVersion(out)) latest = out;
+    if (proc.success && parseVersion(out)) return out;
   } catch {
-    // offline / no project / no registry: cache the miss
+    // offline / no project / no registry
   }
+  return null;
+}
+
+/** Persist a check result. A failed check stores `latest: null` so an offline
+ *  machine retries at most once per interval instead of on every command. */
+export async function writeCheckState(latest: string | null): Promise<void> {
   mkdirSync(dirname(stateFile()), { recursive: true });
   await Bun.write(stateFile(), JSON.stringify({ checkedAt: Date.now(), latest } satisfies CheckState));
+}
+
+/** Background half: ask the registry for the latest version and cache the answer. */
+async function refresh(): Promise<void> {
+  // Survive the parent's terminal session ending mid-check (best-effort; a
+  // missed refresh self-heals: the cache stays stale, so the next run retries).
+  process.on("SIGHUP", () => {});
+  await writeCheckState(fetchLatestVersion());
 }
 
 if (import.meta.main) void refresh();

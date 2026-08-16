@@ -21,6 +21,7 @@ const rootCommand = defineCommand({
     thumbs: () => import("@liebstoeckel/thumbnails/cli").then((m) => m.thumbsCommand),
     export: () => import("@liebstoeckel/thumbnails/cli").then((m) => m.exportCommand),
     skill: () => import("./skill").then((m) => m.skillCommand),
+    update: () => import("./update-cmd").then((m) => m.updateCommand),
     doctor: () => import("./doctor").then((m) => m.doctorCommand),
     // cloud (coming soon, the hosted service is not generally available yet):
     login: () => import("./cloud").then((m) => m.loginCommand),
@@ -64,16 +65,18 @@ async function main() {
     // never block a command on config
   }
 
-  // Best-effort reminders (stderr-only; off for --json/pipes/CI, see update.ts):
-  // a cached "new CLI version" note and a "deck skill older than the CLI" note.
+  // Best-effort, stderr-only (see update.ts): a cached "new CLI version" note
+  // (off for --json/pipes/CI), and the skill self-heal, which rewrites a stale
+  // installed skill in place (all modes; the installed skill is a pure function
+  // of the CLI version, so refreshing it needs no consent).
   try {
-    const { updateReminder, skillReminder } = await import("./update");
+    const { updateReminder, healSkills } = await import("./update");
     const dirIdx = argv.indexOf("--dir");
     const deckDir = dirIdx >= 0 ? argv[dirIdx + 1] ?? "." : ".";
     await updateReminder(argv);
-    await skillReminder(deckDir, argv);
+    await healSkills(deckDir);
   } catch {
-    // reminders must never break a command
+    // neither may ever break a command
   }
 
   // Shorthand: `liebstoeckel <deck>` → `liebstoeckel live <deck>`. citty's subcommand

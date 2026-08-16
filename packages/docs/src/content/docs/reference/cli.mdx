@@ -378,8 +378,43 @@ the [Scaffolding guide](/guides/scaffolding/) for how an agent uses it.
 
 The installed skill is **version-pinned to the CLI** that wrote it. `skill update`
 rewrites the skill for the agent paths already present in the deck (plus the
-`AGENTS.md` block) without adding new ones; when a deck's skill is older than the CLI
-you run, commands print a one-line reminder to do exactly that.
+`AGENTS.md` block) without adding new ones. You rarely need to run it yourself: the
+installed skill is a pure function of the CLI version, so whenever an installed copy
+is older than the CLI you run, any command refreshes it in place and prints a
+one-line note on stderr. This covers project installs and a `user`-scope install
+under `~` alike.
+
+## `update`
+
+Bring everything current in one command: the deck's `@liebstoeckel/*` packages, a
+global CLI install, and every installed copy of the agent skill, whichever of those
+apply.
+
+```bash
+liebstoeckel update                # the deck in the current directory (and/or the global CLI)
+liebstoeckel update --dir <deck>   # a specific deck
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--dir <deck>` | the deck to update (default: current directory) |
+
+What it does, in order:
+
+1. **Checks the registry live** for the latest `@liebstoeckel/cli` (this command
+   never uses the reminder cache; it also refreshes that cache with the answer).
+2. **Deck-local install:** runs `bun update --latest` for exactly the
+   `@liebstoeckel/*` packages the deck declares, never your other dependencies.
+   Updating the whole scope together keeps the framework packages on one version,
+   which the build requires.
+3. **Global install** (the CLI was installed with `bun add -g`): runs
+   `bun add -g @liebstoeckel/cli@latest`. When both shapes apply, both update.
+4. **Refreshes the agent skill** wherever it is installed (the deck and your user
+   account), using the freshly installed CLI, so the skill version matches the new
+   CLI.
+
+Outside a deck and without a global install there is nothing to act on, and the
+command says so instead of guessing.
 
 ## `doctor`
 
@@ -398,22 +433,31 @@ liebstoeckel doctor --install-chromium  # download Playwright's Chromium, record
 
 `doctor` resolves Chromium the same way builds do (see [Chromium setup](/guides/chromium/#resolution-order)): an existing system Chrome is found automatically, so often nothing needs installing. Only `export`/`thumbs` require a browser; `build` skips thumbnails without one. When no browser is found, the human output lists every probed location, and `--json` adds them as `probedCandidates`.
 
+The report also includes CLI staleness from the cached registry check (never a live
+lookup, so `doctor` stays network-free): `--json` carries
+`cli: { version, latestKnown, updateAvailable }`. Agents can gate on
+`updateAvailable` and suggest [`liebstoeckel update`](#update); `latestKnown` is
+`null` when no check has completed yet (for example offline).
+
 ## Staying up to date
 
-The CLI checks its registry for a newer `@liebstoeckel/cli` at most **once a day**, in
-a detached background process, and prints a one-line note on a later run when an update
-exists. The check shells out to `bun pm view`, so it follows the same registry
+The CLI checks its registry for a newer `@liebstoeckel/cli` at most **once an hour**,
+in a detached background process, and prints a one-line note on a later run when an
+update exists. The check shells out to `bun pm view`, so it follows the same registry
 configuration as your installs (a scoped registry in `.npmrc`/`bunfig.toml`, or the
-public npm registry); no command ever waits on the network for it.
+public npm registry); no command ever waits on the network for it. Acting on the note
+is one command:
 
 ```bash
-bun update --latest @liebstoeckel/cli   # update the CLI itself
-liebstoeckel skill update               # then refresh a deck's agent skill
+liebstoeckel update   # CLI + the deck's @liebstoeckel/* packages + the agent skill
 ```
 
 Reminders appear only on an interactive terminal. They are suppressed with `--json`,
 when output is piped (agents), when `CI` is set, and entirely with
-`LIEBSTOECKEL_NO_UPDATE_CHECK=1`.
+`LIEBSTOECKEL_NO_UPDATE_CHECK=1`. The check interval can be tuned with
+`LIEBSTOECKEL_UPDATE_CHECK_INTERVAL=<seconds>`. The agent-skill refresh is separate
+from these reminders: a stale installed skill is refreshed automatically on any
+command, in every mode (see [`skill`](#skill)).
 
 ## Cloud commands (coming soon)
 

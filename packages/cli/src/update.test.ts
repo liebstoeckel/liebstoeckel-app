@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, test, expect, describe } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  checkIntervalMs,
   compareVersions,
   isNewer,
   shouldRefresh,
   remindersEnabled,
   parseSkillVersion,
   installedSkillVersion,
-  skillReminder,
+  healSkills,
   updateReminder,
   type CheckState,
 } from "./update";
@@ -75,21 +76,40 @@ describe("compareVersions / isNewer (pure)", () => {
 });
 
 describe("shouldRefresh (pure)", () => {
-  const DAY = 24 * 60 * 60 * 1000;
+  const HOUR = 60 * 60 * 1000;
   const state = (ago: number): CheckState => ({ checkedAt: 1_000_000_000_000 - ago, latest: "1.0.0" });
   const NOW = 1_000_000_000_000;
 
   test("no cache → refresh", () => {
     expect(shouldRefresh(null, NOW)).toBe(true);
   });
-  test("fresh cache → no refresh", () => {
-    expect(shouldRefresh(state(DAY / 2), NOW)).toBe(false);
+  test("fresh cache → no refresh (default interval is 1h)", () => {
+    expect(shouldRefresh(state(HOUR / 2), NOW)).toBe(false);
   });
   test("expired cache → refresh", () => {
-    expect(shouldRefresh(state(DAY + 1), NOW)).toBe(true);
+    expect(shouldRefresh(state(HOUR + 1), NOW)).toBe(true);
   });
   test("clock went backwards → refresh", () => {
-    expect(shouldRefresh({ checkedAt: NOW + DAY, latest: null }, NOW)).toBe(true);
+    expect(shouldRefresh({ checkedAt: NOW + HOUR, latest: null }, NOW)).toBe(true);
+  });
+  test("an explicit interval overrides the default", () => {
+    expect(shouldRefresh(state(HOUR + 1), NOW, 2 * HOUR)).toBe(false);
+    expect(shouldRefresh(state(HOUR / 2), NOW, HOUR / 4)).toBe(true);
+  });
+});
+
+describe("checkIntervalMs (pure)", () => {
+  const HOUR = 60 * 60 * 1000;
+  test("defaults to 1h", () => {
+    expect(checkIntervalMs({})).toBe(HOUR);
+  });
+  test("LIEBSTOECKEL_UPDATE_CHECK_INTERVAL is in seconds", () => {
+    expect(checkIntervalMs({ LIEBSTOECKEL_UPDATE_CHECK_INTERVAL: "120" })).toBe(120_000);
+  });
+  test("garbage or non-positive values fall back to the default", () => {
+    expect(checkIntervalMs({ LIEBSTOECKEL_UPDATE_CHECK_INTERVAL: "soon" })).toBe(HOUR);
+    expect(checkIntervalMs({ LIEBSTOECKEL_UPDATE_CHECK_INTERVAL: "0" })).toBe(HOUR);
+    expect(checkIntervalMs({ LIEBSTOECKEL_UPDATE_CHECK_INTERVAL: "-5" })).toBe(HOUR);
   });
 });
 
@@ -152,11 +172,11 @@ describe("updateReminder (real message, cache-driven)", () => {
     writeFileSync(f, JSON.stringify({ checkedAt: Date.now(), latest } satisfies CheckState));
   };
 
-  test("prints the update notice with the bun update --latest hint", async () => {
+  test("prints the update notice pointing at the update command", async () => {
     seed("99.0.0"); // newer than the CLI's real version
     const out = await captureReminder(() => updateReminder([]), { tty: true });
     expect(out).toContain("@liebstoeckel/cli 99.0.0 is available");
-    expect(out).toContain("bun update --latest @liebstoeckel/cli");
+    expect(out).toContain("liebstoeckel update");
   });
 
   test("silent when the cached latest is not newer", async () => {
@@ -172,37 +192,66 @@ describe("updateReminder (real message, cache-driven)", () => {
   });
 });
 
-describe("skillReminder (real message)", () => {
-  const withSkill = (version: string | null): string => {
-    const dir = mkdtempSync(join(tmpdir(), "lst-skillrem-"));
-    if (version) {
-      const sd = join(dir, ".claude", "skills", "liebstoeckel-deck");
-      mkdirSync(sd, { recursive: true });
-      writeFileSync(join(sd, "SKILL.md"), `---\nname: liebstoeckel-deck\nversion: ${version}\n---\n`);
-    }
-    return dir;
+describe("healSkills (self-heal, real writes)", () => {
+  // Point $HOME at a sandbox so the home-root probe is exercised hermetically.
+  let home = "";
+  let origHome: string | undefined;
+  beforeEach(() => {
+    origHome = process.env.HOME;
+    home = mkdtempSync(join(tmpdir(), "lst-heal-home-"));
+    process.env.HOME = home;
+  });
+  afterEach(() => {
+    if (origHome === undefined) delete process.env.HOME;
+    else process.env.HOME = origHome;
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  const withSkill = (root: string, version: string): string => {
+    const sd = join(root, ".claude", "skills", "liebstoeckel-deck");
+    mkdirSync(sd, { recursive: true });
+    writeFileSync(join(sd, "SKILL.md"), `---\nname: liebstoeckel-deck\nversion: ${version}\n---\n`);
+    return join(sd, "SKILL.md");
   };
 
-  test("warns when the installed skill is older than the running CLI", async () => {
-    const dir = withSkill("0.0.1");
+  test("rewrites a stale deck skill in place and announces it, even for a pipe", async () => {
+    const deck = mkdtempSync(join(tmpdir(), "lst-heal-deck-"));
+    const skillMd = withSkill(deck, "0.0.1");
     try {
-      const out = await captureReminder(() => skillReminder(dir, []), { tty: true });
-      expect(out).toContain("this deck's agent skill is v0.0.1");
-      expect(out).toContain("liebstoeckel skill update");
+      const out = await captureReminder(() => healSkills(deck), { tty: false });
+      expect(out).toContain("refreshed the agent skill v0.0.1");
+      const current = (await import("./skill")).cliVersion;
+      expect(await installedSkillVersion(deck)).toBe(await current());
+      expect(await Bun.file(skillMd).text()).toContain("Staying current");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      rmSync(deck, { recursive: true, force: true });
     }
   });
 
-  test("silent when no skill is installed, or for a pipe", async () => {
-    const empty = withSkill(null);
-    const stale = withSkill("0.0.1");
+  test("heals a user-scope install under the home dir too", async () => {
+    const deck = mkdtempSync(join(tmpdir(), "lst-heal-deck-"));
+    withSkill(home, "0.0.1");
     try {
-      expect(await captureReminder(() => skillReminder(empty, []), { tty: true })).toBe("");
-      expect(await captureReminder(() => skillReminder(stale, []), { tty: false })).toBe("");
+      const out = await captureReminder(() => healSkills(deck), { tty: true });
+      expect(out).toContain("refreshed the agent skill v0.0.1");
+      expect(await installedSkillVersion(home)).toBe(await (await import("./skill")).cliVersion());
+      // A home-root heal never writes AGENTS.md (project convention only).
+      expect(existsSync(join(home, "AGENTS.md"))).toBe(false);
     } finally {
-      rmSync(empty, { recursive: true, force: true });
-      rmSync(stale, { recursive: true, force: true });
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  test("no-op when the installed skill is current or absent", async () => {
+    const deck = mkdtempSync(join(tmpdir(), "lst-heal-deck-"));
+    try {
+      expect(await captureReminder(() => healSkills(deck), { tty: true })).toBe("");
+      const current = await (await import("./skill")).cliVersion();
+      withSkill(deck, current);
+      expect(await captureReminder(() => healSkills(deck), { tty: true })).toBe("");
+      expect(await installedSkillVersion(deck)).toBe(current);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
     }
   });
 });

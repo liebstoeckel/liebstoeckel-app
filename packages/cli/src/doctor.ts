@@ -2,6 +2,8 @@ import { defineCommand } from "citty";
 import { resolveChromium, systemChromiumCandidates, playwrightCoreVersion } from "@liebstoeckel/thumbnails";
 import { bunBin, bunVersionError, requiredBunRange } from "./bun";
 import { loadConfig, saveConfig, CONFIG_FILE } from "./config";
+import { cliVersion } from "./skill";
+import { cachedLatestVersion, isNewer } from "./update";
 
 /** Resolve a Chrome/Chromium path through the same order builds use, or null. */
 function findChromium(): string | null {
@@ -15,6 +17,10 @@ function findChromium(): string | null {
 export interface DoctorReport {
   bun: { version: string; required: string; ok: boolean };
   chromium: { path: string | null; ok: boolean };
+  /** CLI staleness from the CACHED registry check (never a live lookup here,
+   *  doctor stays network-free): `latestKnown` is null with no or a failed
+   *  cache. Agents gate on `updateAvailable` and suggest `liebstoeckel update`. */
+  cli: { version: string; latestKnown: string | null; updateAvailable: boolean };
   configFile: string;
 }
 
@@ -23,6 +29,8 @@ export function buildReport(parts: {
   bunVersion: string;
   bunRange: string;
   chromium: string | null;
+  cliVersion: string;
+  latestKnown: string | null;
 }): DoctorReport {
   return {
     bun: {
@@ -31,6 +39,11 @@ export function buildReport(parts: {
       ok: bunVersionError(parts.bunVersion, parts.bunRange, bunBin) === null,
     },
     chromium: { path: parts.chromium, ok: parts.chromium !== null },
+    cli: {
+      version: parts.cliVersion,
+      latestKnown: parts.latestKnown,
+      updateAvailable: isNewer(parts.latestKnown, parts.cliVersion),
+    },
     configFile: CONFIG_FILE,
   };
 }
@@ -98,6 +111,8 @@ export const doctorCommand = defineCommand({
       bunVersion: Bun.version,
       bunRange: await requiredBunRange(),
       chromium: findChromium(),
+      cliVersion: await cliVersion(),
+      latestKnown: await cachedLatestVersion(),
     });
     const stored = (await loadConfig()).chromium;
 
@@ -120,6 +135,11 @@ export const doctorCommand = defineCommand({
         console.error(`    looked in:`);
         for (const p of probed) console.error(`      ${p}`);
       }
+      console.error(
+        report.cli.updateAvailable
+          ? `↑ CLI ${report.cli.version} (${report.cli.latestKnown} is available, run \`liebstoeckel update\`)`
+          : `${ok(true)} CLI ${report.cli.version}${report.cli.latestKnown ? " (latest known)" : ""}`,
+      );
       console.error(`  config: ${CONFIG_FILE}`);
     }
 

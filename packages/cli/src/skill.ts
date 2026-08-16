@@ -98,6 +98,29 @@ async function writeSkill(destRoot: string, version: string): Promise<void> {
   }
 }
 
+/** Quiet in-place refresh of whatever skill copies exist under `root`, stamped
+ *  to the running CLI version. Only already-installed agent dirs are touched
+ *  (installing new paths stays `install`'s job); the AGENTS.md block is
+ *  re-merged only for project roots (`agents`) and only when the file exists.
+ *  Returns the refreshed relative paths, empty when nothing is installed. */
+export async function refreshInstalledSkill(root: string, opts: { agents: boolean }): Promise<string[]> {
+  const version = await cliVersion();
+  const written: string[] = [];
+  const seen = new Set<string>();
+  for (const t of ALL_TARGETS) {
+    const destRoot = join(root, SKILL_DIR[t]);
+    if (!existsSync(destRoot) || seen.has(destRoot)) continue;
+    await writeSkill(destRoot, version);
+    seen.add(destRoot);
+    written.push(SKILL_DIR[t]);
+  }
+  if (opts.agents && written.length > 0 && existsSync(join(root, "AGENTS.md"))) {
+    await writeAgentsBlock(root);
+    written.push("AGENTS.md");
+  }
+  return written;
+}
+
 const AGENTS_BLOCK_RE = /<!-- liebstoeckel:start -->[\s\S]*?<!-- liebstoeckel:end -->/;
 
 /** Merge the managed liebstoeckel block into an AGENTS.md body: replace it in place
