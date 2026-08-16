@@ -1,0 +1,76 @@
+---
+title: Dev mode
+description: "Annotate the running deck in your browser and let an AI agent apply the changes to your slide source, live, with hot reload."
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+`liebstoeckel dev` serves a deck with hot reload and adds a small **dev drawer**
+to the page. Its first tool is **annotations**: draw on a slide, drop comments,
+and send the batch to an AI agent that edits your slide source directly. The
+page hot-reloads with the result seconds later, and one click reverts a batch
+you don't like.
+
+Your deck files stay ordinary MDX/TSX throughout: the agent writes the same
+code you would, and nothing about dev mode appears in built decks.
+
+## The loop
+
+<Steps>
+
+1. Start the server from your deck:
+
+   ```bash
+   liebstoeckel dev
+   ```
+
+   Open the printed URL. A small **dev** pill appears bottom-right; the dot on
+   it shows whether an agent is currently listening.
+
+2. In a terminal, have your agent enter the loop (the bundled agent skill knows
+   this flow):
+
+   ```bash
+   liebstoeckel dev poll
+   ```
+
+3. In the browser: open the drawer, hit **Draw** or **Comment**, mark up the
+   slide, **Save annotation**, then **Send to agent →**.
+
+4. The agent receives the batch (comments, strokes, an annotated screenshot,
+   and the resolved slide source file), edits the slide, and replies. Hot
+   reload shows the change; the drawer shows what was applied.
+
+5. Not what you wanted? **Revert last batch** restores the files exactly as
+   they were before that batch was dispatched, and your annotations reopen for
+   another round.
+
+</Steps>
+
+<Aside type="tip" title="No agent running?">
+Sending with no agent listening simply stages the batch: the next
+`liebstoeckel dev poll` picks it up, even after a dev-server restart.
+</Aside>
+
+## What the agent receives
+
+Each annotation carries the slide index and its resolved source file, your
+comments with the element under each comment as a hint, your strokes, and a
+screenshot with the marks baked in. Comments read as design direction ("make
+this heading calmer"); strokes read by shape: a loop means *this thing*, an
+arrow means direction or movement, a cross means *remove*.
+
+## Housekeeping
+
+- Dev-mode state lives in `.liebstoeckel/dev/` inside the deck (annotations,
+  screenshots, revert snapshots, the session token). It is git-ignored.
+- The first `dev` run adds one inert loader `<script>` tag to `index.html`. It
+  only activates while `dev` is serving, and `build` strips it, so built decks
+  ship byte-identical to before.
+- The dev API binds `127.0.0.1` by default and every mutating request needs the
+  per-session token; pass `--host 0.0.0.0` only on networks you trust.
+
+<Aside type="note" title="Availability">
+Dev mode ships with the monorepo today and is not yet part of the published
+CLI.
+</Aside>

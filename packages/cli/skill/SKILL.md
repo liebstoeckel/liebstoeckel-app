@@ -173,6 +173,7 @@ plugin, see `references/build-plugins.md`.
 - `references/editing.md` — editing decks: add/replace slides, swap charts, re-theme, eject.
 - `references/plugins.md` — add live plugins (poll/qa/reactions): register, place, present live.
 - `references/build-plugins.md` — author a custom plugin (`definePlugin`, state, surfaces, server).
+- `references/dev-mode.md` — the `liebstoeckel dev` annotation live loop: poll for the user's in-browser annotations, apply them to slide source, reply.
 - `references/troubleshooting.md` — the `build --check` loop and common errors.
 
 Full reference docs: https://docs.liebstoeckel.app/llms.txt

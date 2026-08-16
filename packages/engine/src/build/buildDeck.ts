@@ -103,6 +103,16 @@ export function escapeInlineModuleScript(html: string): string {
   return html.slice(0, contentStart) + body + html.slice(close);
 }
 
+/** Remove dev-mode loader tags from the built HTML. A deck's index.html carries a
+ *  permanent inline `<script data-liebstoeckel-dev>` that probes the local dev server
+ *  and no-ops everywhere else; the built artifact must ship zero dev-mode bytes, so
+ *  any script tag carrying that attribute is stripped here. Inline tags pass through
+ *  Bun.build verbatim (an external src would fail resolution), so post-build is the
+ *  reliable place to cut them. */
+export function stripDevMode(html: string): string {
+  return html.replace(/[ \t]*<script[^>]*\bdata-liebstoeckel-dev\b[^>]*>[\s\S]*?<\/script>\r?\n?/gi, "");
+}
+
 /** Identifies the tool that drove the build (e.g. the CLI), stamped alongside the
  *  engine version so a built deck records what produced it. */
 export interface Generator {
@@ -205,7 +215,7 @@ export async function bundleDeck({
   // `outfile` (the deck slug for the user-facing build, (internal ADR)).
   const built = join(outdir, basename(entry));
   const outHtml = join(outdir, outfile);
-  let html = escapeInlineModuleScript(await Bun.file(built).text());
+  let html = stripDevMode(escapeInlineModuleScript(await Bun.file(built).text()));
   const manifest = await buildPluginManifest(pkgJson);
   if (manifest) html = embedManifest(html, manifest);
 

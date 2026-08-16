@@ -34,6 +34,8 @@
       "@liebstoeckel/plugin-reactions/*": ["./packages/plugin-reactions/src/*"],
       "@liebstoeckel/cli": ["./packages/cli/src/cli.ts"],
       "@liebstoeckel/cli/*": ["./packages/cli/src/*"],
+      "@liebstoeckel/dev-server": ["./packages/dev-server/src/index.ts"],
+      "@liebstoeckel/dev-server/*": ["./packages/dev-server/src/*"],
       "@liebstoeckel/present-relay": ["./packages/present-relay/src/index.ts"],
       "@liebstoeckel/present-relay/*": ["./packages/present-relay/src/*"],
       "@liebstoeckel/registry": ["./packages/registry/src/index.ts"],

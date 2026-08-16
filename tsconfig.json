@@ -22,7 +22,9 @@
       "@liebstoeckel/corporate-design": ["./packages/corporate-design/src/index.ts"],
       "@liebstoeckel/corporate-design/*": ["./packages/corporate-design/src/*"],
       "@liebstoeckel/components/*": ["./packages/components/src/*"],
-      "@liebstoeckel/cli/*": ["./packages/cli/src/*"]
+      "@liebstoeckel/cli/*": ["./packages/cli/src/*"],
+      "@liebstoeckel/dev-server": ["./packages/dev-server/src/index.ts"],
+      "@liebstoeckel/dev-server/*": ["./packages/dev-server/src/*"]
     }
   }
 }

@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { rehydrateServerBundle } from "@liebstoeckel/plugin-sdk/manifest";
-import { buildServerBundle, buildPluginManifest, escapeInlineModuleScript, stampGenerator } from "./buildDeck";
+import { buildServerBundle, buildPluginManifest, escapeInlineModuleScript, stampGenerator, stripDevMode } from "./buildDeck";
 
 describe("buildServerBundle", () => {
   // Real `Bun.build` (target:bun), isolated to a unique tmp dir. The build itself
@@ -77,5 +77,28 @@ describe("stampGenerator", () => {
   test("is deterministic, no timestamp, same input → same output", () => {
     const parts = { engine: "1.2.3", generator: { name: "cli", version: "4.5.6" } };
     expect(stampGenerator(html, parts)).toBe(stampGenerator(html, parts));
+  });
+});
+
+describe("stripDevMode", () => {
+  const tag = '<script data-liebstoeckel-dev>/* loader */(function(){})()</script>';
+
+  test("removes marked tags wherever they sit, leaves everything else byte-identical", () => {
+    const html = `<!doctype html>\n<html><head>\n    ${tag}\n<title>t</title></head>` +
+      `<body>${tag}<script type="module">app()</script></body></html>`;
+    const stripped = stripDevMode(html);
+    expect(stripped).not.toContain("data-liebstoeckel-dev");
+    expect(stripped).toContain("<title>t</title>");
+    expect(stripped).toContain('<script type="module">app()</script>');
+  });
+
+  test("no marked tag means no change at all", () => {
+    const html = '<html><head><script>keep()</script></head><body></body></html>';
+    expect(stripDevMode(html)).toBe(html);
+  });
+
+  test("attribute variants (quoted value, extra attributes) are still stripped", () => {
+    const html = '<p>a</p><script async data-liebstoeckel-dev="1" id="x">z()</script><p>b</p>';
+    expect(stripDevMode(html)).toBe("<p>a</p><p>b</p>");
   });
 });

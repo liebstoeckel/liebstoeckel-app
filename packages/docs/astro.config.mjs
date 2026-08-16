@@ -95,7 +95,7 @@ export default defineConfig({
         },
         {
           label: "Authoring",
-          items: ["guides/authoring", "guides/scaffolding", "guides/animated-code", "guides/theming", "guides/mobile"],
+          items: ["guides/authoring", "guides/scaffolding", "guides/animated-code", "guides/theming", "guides/mobile", "guides/dev-mode"],
         },
         {
           label: "Live & collaboration",

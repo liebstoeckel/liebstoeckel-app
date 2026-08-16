@@ -16,6 +16,19 @@ const rootCommand = defineCommand({
     eject: () => import("./build").then((m) => m.ejectCommand),
     pack: () => import("./build").then((m) => m.packCommand),
     licenses: () => import("./build").then((m) => m.licensesCommand),
+    // dev-server is workspace-private for now (not yet in the OSS/publish set), so
+    // the dep is soft: resolves in the monorepo, degrades to a notice on a
+    // registry install until the package ships.
+    dev: () =>
+      import("@liebstoeckel/dev-server/cli").then((m) => m.devCommand).catch(() =>
+        defineCommand({
+          meta: { name: "dev", description: "dev mode (coming soon in the published CLI)" },
+          run() {
+            console.error("`liebstoeckel dev` is not available in this install yet (the dev-server package is unpublished).");
+            process.exit(1);
+          },
+        }),
+      ),
     live: () => import("@liebstoeckel/live-server/cli").then((m) => m.liveCommand),
     relay: () => import("@liebstoeckel/present-relay/cli").then((m) => m.relayCommand),
     thumbs: () => import("@liebstoeckel/thumbnails/cli").then((m) => m.thumbsCommand),

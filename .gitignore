@@ -11,6 +11,9 @@ dist/
 # astro docs cache
 .astro/
 
+# dev-mode working state (annotations, screenshots, revert snapshots, session token)
+.liebstoeckel/
+
 # logs / scratch
 *.log
 _shot.png

@@ -261,6 +261,42 @@ only if you have another way to satisfy the attribution requirements.
 Useful for verifying your `"files"` allowlist before shipping. The `-o` tarball is standard gzip
 (`bun add ./deck.tgz`-installable); the in-HTML embed uses zstd internally.
 
+## `dev`
+
+Serve a deck for authoring: hot reload plus the in-browser dev drawer, whose
+first tool is [live annotations](/guides/dev-mode/) an AI agent can apply to
+your slide source while you watch.
+
+```bash
+liebstoeckel dev                     # the deck in the current directory
+liebstoeckel dev --dir <deck> --port 3000
+liebstoeckel dev --host 0.0.0.0      # expose beyond localhost (trusted networks only)
+liebstoeckel dev poll                # agent side: wait for an annotation batch
+liebstoeckel dev poll --reply <batchId> done --data '{"applied":["<id>"],"files":["slides/01-title.mdx"],"notes":[]}'
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--dir <deck>` | deck directory (default: current directory) |
+| `--port N` | port (default: 3000) |
+| `--host <addr>` | bind hostname (default `127.0.0.1`) |
+| `--json` | machine-readable startup info |
+
+`dev poll` blocks until the browser sends work (up to `--timeout` ms, default
+600000), prints one JSON event, and exits; every event carries an
+`_instructions` field telling the agent exactly what to do next. Replies are
+`done` with a JSON result or `error "reason"`.
+
+The first run adds a small inert loader tag to the deck's `index.html`; it only
+activates under `dev` and every `build` strips it, so built decks are unaffected.
+Dev-mode state (annotations, screenshots, revert snapshots) lives under
+`.liebstoeckel/dev/` in the deck and is git-ignored.
+
+<Aside type="note" title="Availability">
+`dev` ships with the monorepo today and is not yet in the published CLI; the
+published command prints a notice until the dev-server package is released.
+</Aside>
+
 ## `live`
 
 Present a deck to a room. Builds the deck if given a project dir, and captures
