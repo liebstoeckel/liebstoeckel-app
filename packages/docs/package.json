@@ -20,7 +20,6 @@
     "starlight-page-actions": "^0.7.0"
   },
   "devDependencies": {
-    "astro-agent-annotate": "^0.0.2",
     "elkjs": "^0.11.1"
   }
 }

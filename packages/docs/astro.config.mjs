@@ -1,7 +1,6 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import starlightPageActions from "starlight-page-actions";
-import astroAgentAnnotate from "astro-agent-annotate";
 import { unified } from "@astrojs/markdown-remark";
 import remarkGfm from "remark-gfm";
 
@@ -19,7 +18,6 @@ export default defineConfig({
   // explicitly and tables/strikethrough/autolinks render regardless.
   markdown: { processor: unified({ remarkPlugins: [remarkGfm] }) },
   integrations: [
-    astroAgentAnnotate(),
     starlight({
       title: "liebstoeckel",
       // the brand-book header lockup: mark beside the wordmark, mark color
