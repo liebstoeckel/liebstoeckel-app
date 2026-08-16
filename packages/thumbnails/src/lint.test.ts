@@ -4,7 +4,7 @@ import { hasChromium, resolveChromium } from "./capture";
 import { auditSlideDom } from "./lint";
 
 /** Same container-friendly flags the capture driver uses. */
-const ARGS = ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--single-process", "--no-zygote"];
+const ARGS = ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--in-process-gpu", "--renderer-process-limit=1"];
 
 const available = hasChromium();
 

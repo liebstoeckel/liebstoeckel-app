@@ -56,15 +56,29 @@ function encodeDataUri(png: Uint8Array, format: ThumbnailFormat, quality: number
 }
 
 // Container-friendly flags. The full Chromium (not chrome-headless-shell, which
-// SIGSEGVs in some sandboxes) plus --single-process/--no-zygote launches cleanly
-// without a GPU or a user namespace. Those two are Linux sandbox helpers only:
-// on Windows --single-process crashes Chrome outright, and there is no zygote.
+// SIGSEGVs in some sandboxes) launches cleanly without a GPU or a user
+// namespace. Process count is kept low for constrained environments with
+// --in-process-gpu and --renderer-process-limit=1 rather than --single-process:
+// modern Chrome (observed with 151 on GPU-less CI VMs, and reported for other
+// embedders from 143 on) dies with SIGTRAP at page creation under
+// --single-process, and that flag combination has no supported future. The two
+// replacement flags are Linux/mac only; Windows launches with the stock
+// process model, which is the configuration verified on that platform.
 const DEFAULT_ARGS = [
   "--no-sandbox",
   "--disable-gpu",
   "--disable-dev-shm-usage",
-  ...(process.platform === "win32" ? [] : ["--single-process", "--no-zygote"]),
+  ...(process.platform === "win32" ? [] : ["--in-process-gpu", "--renderer-process-limit=1"]),
 ];
+
+/** Parse the LIEBSTOECKEL_CHROMIUM_ARGS escape hatch: a whitespace-separated
+ *  flag list that REPLACES the default launch args entirely (an append could
+ *  never remove a default flag that breaks an environment). Returns null when
+ *  unset or blank, so callers fall through to the defaults. */
+export function parseChromiumArgs(value: string | undefined): string[] | null {
+  const args = (value ?? "").split(/\s+/).filter(Boolean);
+  return args.length > 0 ? args : null;
+}
 
 /** Case-insensitive env lookup. Windows env var names are case-insensitive and
  *  their canonical casing is mixed ("ProgramFiles(x86)", "LocalAppData"); a
@@ -247,7 +261,7 @@ function playwrightPage(page: Page): DriverPage {
  *  transport on any platform (useful to exercise that path in tests/CI). */
 async function launchDriverBrowser(opts: { executablePath?: string; launchArgs?: string[] }): Promise<DriverBrowser> {
   const executablePath = resolveChromium(opts);
-  const args = opts.launchArgs ?? DEFAULT_ARGS;
+  const args = opts.launchArgs ?? parseChromiumArgs(envLookup(process.env, "LIEBSTOECKEL_CHROMIUM_ARGS")) ?? DEFAULT_ARGS;
   if (process.platform === "win32" || process.env.LIEBSTOECKEL_CDP_DRIVER) {
     // Chrome >= 150 silently closes the --remote-debugging-port WebSocket when
     // the browser runs with --single-process (the pipe transport playwright

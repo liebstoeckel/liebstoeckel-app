@@ -66,6 +66,20 @@ When a feature needs a browser, liebstoeckel looks in this order and uses the fi
 
 The existence check matters: Playwright reports a computed path even when nothing is installed, so liebstoeckel verifies the file is really there before trusting it. This keeps the "no Chromium" path honest in CI. When nothing is found, `liebstoeckel doctor` lists every location it probed.
 
+### Launch flags
+
+On Linux and macOS the browser launches headless with container-friendly flags
+(`--no-sandbox --disable-gpu --disable-dev-shm-usage --in-process-gpu
+--renderer-process-limit=1`), chosen so capture works in sandboxes and CI
+without a GPU or user namespaces; Windows uses the stock process model. If a
+Chrome update or an unusual environment makes those defaults crash, the
+`LIEBSTOECKEL_CHROMIUM_ARGS` environment variable **replaces the whole list**
+(whitespace-separated), so you can also remove a default flag, not just add:
+
+```sh
+export LIEBSTOECKEL_CHROMIUM_ARGS="--no-sandbox --disable-gpu --disable-dev-shm-usage"
+```
+
 ## Containers and CI
 
 Capture launches Chromium with container-friendly flags so it runs without a GPU or user namespace:
