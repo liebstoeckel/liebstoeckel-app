@@ -5,7 +5,9 @@ import { join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bunBin } from "./bun";
 import { cliVersion } from "./skill";
-import { PKG, fetchLatestVersion, installedSkillVersion, isNewer, writeCheckState } from "./update";
+import { PKG, bunGlobalDir, fetchLatestVersion, installedSkillVersion, isNewer, writeCheckState } from "./update";
+
+export { bunGlobalDir };
 
 /**
  * `liebstoeckel update`, one command that leaves a user fully current: the
@@ -23,44 +25,81 @@ import { PKG, fetchLatestVersion, installedSkillVersion, isNewer, writeCheckStat
 
 const SCOPE = "@liebstoeckel/";
 
-// Where the running CLI's source lives (this file), for the global-install probe.
+// Where the running CLI's source lives (this file), for the install-shape probes.
 const CLI_SRC_PATH = fileURLToPath(import.meta.url);
+// The spawnable entrypoint next to it. Never spawn CLI_SRC_PATH itself: this
+// module has no import.meta.main dispatch, so `bun update-cmd.ts skill update`
+// would evaluate the module and exit 0 having done nothing.
+const CLI_ENTRY = fileURLToPath(new URL("./cli.ts", import.meta.url));
 
-/** Bun's global-install root: `bun add -g` lands packages under
- *  `$BUN_INSTALL/install/global/node_modules`. */
-export function bunGlobalDir(env: Record<string, string | undefined> = process.env): string {
-  return join(env.BUN_INSTALL || join(env.HOME || homedir(), ".bun"), "install", "global");
+
+/** Pure: the project root a node_modules-installed CLI belongs to, or null for
+ *  anything else (a repo checkout, a bunx cache). This is the scaffold shape:
+ *  `bun add @liebstoeckel/cli` at a project root with decks in subdirectories,
+ *  where the CLI is neither deck-declared nor global. */
+export function cliInstallRoot(cliSrcPath: string): string | null {
+  const marker = sep + join("node_modules", "@liebstoeckel", "cli") + sep;
+  const i = cliSrcPath.lastIndexOf(marker);
+  return i > 0 ? cliSrcPath.slice(0, i) : null;
 }
+
+type PkgJson = { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null;
+
+const scopeDeps = (pkg: PkgJson): string[] =>
+  pkg
+    ? [...new Set([...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})])]
+        .filter((d) => d.startsWith(SCOPE))
+        .sort()
+    : [];
 
 export interface UpdatePlan {
   /** The @liebstoeckel/* deps the deck declares (empty: no deck-local update). */
   deckDeps: string[];
   /** Whether the running CLI is a `bun add -g` install to update in place. */
   global: boolean;
+  /** The project root holding the running CLI when that is a separate,
+   *  package.json-declared install (the scaffold shape); null otherwise. */
+  hostRoot: string | null;
+  /** The @liebstoeckel/* deps that host root declares. */
+  hostDeps: string[];
+  /** Set when the running CLI's install cannot be updated by this command
+   *  (installed under a root that does not declare it): the honest warning
+   *  that replaces a false "✓ update complete". */
+  unmanagedCli: string | null;
 }
 
-/** Pure: decide what an `update` run touches, from the deck's package.json and
- *  where the running CLI's source lives. Both shapes can apply at once; neither
- *  is an actionable error. */
+/** Pure: decide what an `update` run touches, from the deck's package.json,
+ *  where the running CLI's source lives, and (when the CLI belongs to a
+ *  separate project root) that root's package.json. Shapes can combine; only
+ *  "nothing at all to act on" is an error. */
 export function planUpdate(opts: {
-  deckPkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> } | null;
+  deckPkg: PkgJson;
   cliSrcPath: string;
   globalDir: string;
+  deckRoot?: string;
+  hostRoot?: string | null;
+  hostPkg?: PkgJson;
 }): UpdatePlan | { error: string } {
-  const deckDeps = opts.deckPkg
-    ? [...new Set([...Object.keys(opts.deckPkg.dependencies ?? {}), ...Object.keys(opts.deckPkg.devDependencies ?? {})])]
-        .filter((d) => d.startsWith(SCOPE))
-        .sort()
-    : [];
+  const deckDeps = scopeDeps(opts.deckPkg);
   const global = opts.cliSrcPath.startsWith(opts.globalDir + sep);
-  if (deckDeps.length === 0 && !global) {
+  // The CLI's own install root matters only when it is a distinct project: a
+  // global install is handled by the global path, and a hostRoot equal to the
+  // deck is already covered by deckDeps.
+  const hostRoot = !global && opts.hostRoot && opts.hostRoot !== opts.deckRoot ? opts.hostRoot : null;
+  const hostDeps = hostRoot ? scopeDeps(opts.hostPkg ?? null) : [];
+  const cliManaged = global || deckDeps.includes(PKG) || hostDeps.includes(PKG);
+  const unmanagedCli = cliManaged
+    ? null
+    : `the running CLI (${opts.cliSrcPath}) is not managed by this command; update it yourself, e.g. \`bun add ${PKG}@latest\` where it is installed`;
+  if (deckDeps.length === 0 && hostDeps.length === 0 && !global) {
     return {
       error:
-        "nothing to update here: the current directory declares no @liebstoeckel/* dependencies " +
-        "and the running CLI is not a global install. Run inside a deck, or pass --dir <deck>.",
+        "nothing to update here: no @liebstoeckel/* dependencies declared at the target directory " +
+        "or the CLI's own install root, and the running CLI is not a global install. " +
+        "Run inside a deck, or pass --dir <deck>.",
     };
   }
-  return { deckDeps, global };
+  return { deckDeps, global, hostRoot, hostDeps, unmanagedCli };
 }
 
 /** Pure: which scope packages resolved to more than one version. `bun update`
@@ -117,8 +156,10 @@ async function run(cmd: string[], cwd?: string): Promise<boolean> {
 }
 
 /** Refresh installed skill copies via the freshly installed CLI (see module doc).
- *  `freshCli` is the new install's cli.ts; falls back to this process's own path
- *  for a global-only shape (same path, new bytes after `bun add -g`). */
+ *  `freshCli` is the new install's cli.ts; falls back to this process's own
+ *  entrypoint for a global-only shape (same path, new bytes after `bun add -g`).
+ *  A failed child is reported, not swallowed: a silent no-op here is exactly how
+ *  a skill quietly stays stale. */
 async function refreshSkills(freshCli: string, deckRoot: string): Promise<void> {
   // The child would race this parent's own reminder/heal hook; silence it.
   const env = { ...process.env, LIEBSTOECKEL_NO_UPDATE_CHECK: "1" };
@@ -129,7 +170,9 @@ async function refreshSkills(freshCli: string, deckRoot: string): Promise<void> 
       stdout: "inherit",
       stderr: "inherit",
     });
-    await proc.exited;
+    if ((await proc.exited) !== 0) {
+      console.error(`! skill refresh failed (${["skill", "update", ...args].join(" ")}); run it yourself with the updated CLI`);
+    }
   };
   if (await installedSkillVersion(deckRoot)) await spawnSkill(["--dir", deckRoot, "--scope", "project"]);
   const home = process.env.HOME || homedir();
@@ -146,10 +189,14 @@ export const updateCommand = defineCommand({
   },
   async run({ args }) {
     const deckRoot = resolve(args.dir ?? ".");
+    const hostRoot = cliInstallRoot(CLI_SRC_PATH);
     const plan = planUpdate({
       deckPkg: await readDeckPkg(deckRoot),
       cliSrcPath: CLI_SRC_PATH,
       globalDir: bunGlobalDir(),
+      deckRoot,
+      hostRoot,
+      hostPkg: hostRoot ? await readDeckPkg(hostRoot) : null,
     });
     if ("error" in plan) {
       console.error(`✕ ${plan.error}`);
@@ -179,6 +226,10 @@ export const updateCommand = defineCommand({
       console.error(`updating ${plan.deckDeps.length} @liebstoeckel/* package(s) in ${deckRoot}`);
       ok = (await run([bunBin, "update", "--latest", "--no-cache", ...plan.deckDeps], deckRoot)) && ok;
     }
+    if (plan.hostRoot && plan.hostDeps.length > 0) {
+      console.error(`updating ${plan.hostDeps.length} @liebstoeckel/* package(s) in ${plan.hostRoot} (the CLI's install root)`);
+      ok = (await run([bunBin, "update", "--latest", "--no-cache", ...plan.hostDeps], plan.hostRoot)) && ok;
+    }
     if (plan.global) {
       console.error(`updating the global CLI install`);
       ok = (await run([bunBin, "add", "-g", "--no-cache", `${PKG}@latest`])) && ok;
@@ -187,20 +238,31 @@ export const updateCommand = defineCommand({
       console.error(`✕ update failed, see the output above`);
       process.exit(1);
     }
+    if (plan.unmanagedCli) console.error(`! ${plan.unmanagedCli}`);
 
-    // Prefer the deck's freshly installed CLI; a global-only shape re-runs this
-    // same path, which `bun add -g` has just replaced on disk.
-    const deckCli = join(deckRoot, "node_modules", "@liebstoeckel", "cli", "src", "cli.ts");
-    await refreshSkills(plan.deckDeps.length > 0 && existsSync(deckCli) ? deckCli : CLI_SRC_PATH, deckRoot);
+    // Refresh from the freshest CLI available: the deck's, else the CLI's own
+    // just-updated install root, else this install's entrypoint (a global shape
+    // re-runs the same path, which `bun add -g` has just replaced on disk).
+    const cliAt = (root: string) => join(root, "node_modules", "@liebstoeckel", "cli", "src", "cli.ts");
+    const deckCli = cliAt(deckRoot);
+    const hostCli = plan.hostRoot ? cliAt(plan.hostRoot) : null;
+    const freshCli =
+      plan.deckDeps.includes(PKG) && existsSync(deckCli)
+        ? deckCli
+        : hostCli && plan.hostDeps.includes(PKG) && existsSync(hostCli)
+          ? hostCli
+          : CLI_ENTRY;
+    await refreshSkills(freshCli, deckRoot);
 
-    if (plan.deckDeps.length > 0) {
-      const dups = duplicateScopeVersions(await collectScopeCopies(deckRoot));
+    for (const root of new Set([plan.deckDeps.length > 0 ? deckRoot : null, plan.hostDeps.length > 0 ? plan.hostRoot : null])) {
+      if (!root) continue;
+      const dups = duplicateScopeVersions(await collectScopeCopies(root));
       if (dups.size > 0) {
         console.error(`! some @liebstoeckel/* packages resolved to more than one version:`);
         for (const [name, versions] of dups) console.error(`    ${name}: ${versions.join(", ")}`);
         console.error(
           `  a stale nested copy survives targeted updates; collapse to one version with:\n` +
-            `    cd ${deckRoot} && rm -rf node_modules bun.lock && bun install`,
+            `    cd ${root} && rm -rf node_modules bun.lock && bun install`,
         );
       }
     }

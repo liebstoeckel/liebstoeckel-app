@@ -147,22 +147,35 @@ export async function healSkills(deckDir: string): Promise<void> {
   }
 }
 
+/** Bun's global-install root: `bun add -g` lands packages under
+ *  `$BUN_INSTALL/install/global/node_modules`. */
+export function bunGlobalDir(env: Record<string, string | undefined> = process.env): string {
+  return join(env.BUN_INSTALL || join(env.HOME || homedir(), ".bun"), "install", "global");
+}
+
 /** Ask the registry for the latest published version, live. Blocks up to the
  *  timeout, so callers are the detached background child and the explicit
  *  `update` command (where the user asked and waiting is correct). */
 export function fetchLatestVersion(): string | null {
-  try {
-    // --no-cache: bun's manifest cache serves a stale dist-tag for minutes after
-    // a publish; a check that exists to detect new versions must not read it.
-    const proc = Bun.spawnSync([bunBin, "pm", "view", "--no-cache", PKG, "dist-tags.latest"], {
-      stdout: "pipe",
-      stderr: "ignore",
-      timeout: 15_000,
-    });
-    const out = proc.stdout.toString().trim();
-    if (proc.success && parseVersion(out)) return out;
-  } catch {
-    // offline / no project / no registry
+  // `bun pm view` refuses to run outside a project, which is exactly where a
+  // global-only user invokes `update`; the global install dir always has a
+  // package.json, and user-level (~/.npmrc) registry config still applies there.
+  for (const cwd of [undefined, bunGlobalDir()]) {
+    if (cwd && !existsSync(join(cwd, "package.json"))) continue;
+    try {
+      // --no-cache: bun's manifest cache serves a stale dist-tag for minutes after
+      // a publish; a check that exists to detect new versions must not read it.
+      const proc = Bun.spawnSync([bunBin, "pm", "view", "--no-cache", PKG, "dist-tags.latest"], {
+        cwd,
+        stdout: "pipe",
+        stderr: "ignore",
+        timeout: 15_000,
+      });
+      const out = proc.stdout.toString().trim();
+      if (proc.success && parseVersion(out)) return out;
+    } catch {
+      // offline / no project / no registry: try the next cwd
+    }
   }
   return null;
 }
