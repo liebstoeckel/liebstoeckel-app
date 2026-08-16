@@ -57,18 +57,19 @@ function encodeDataUri(png: Uint8Array, format: ThumbnailFormat, quality: number
 
 // Container-friendly flags. The full Chromium (not chrome-headless-shell, which
 // SIGSEGVs in some sandboxes) launches cleanly without a GPU or a user
-// namespace. Process count is kept low for constrained environments with
-// --in-process-gpu and --renderer-process-limit=1 rather than --single-process:
-// modern Chrome (observed with 151 on GPU-less CI VMs, and reported for other
-// embedders from 143 on) dies with SIGTRAP at page creation under
-// --single-process, and that flag combination has no supported future. The two
-// replacement flags are Linux/mac only; Windows launches with the stock
-// process model, which is the configuration verified on that platform.
+// namespace. The GPU thread must stay OUT of the browser process: when
+// software-GL (SwiftShader/Vulkan) fails to initialize, which it does on some
+// GPU-less VMs and kernels, an in-browser GPU thread turns that into a fatal
+// CHECK (SIGTRAP at page creation), while a separate GPU process degrades to
+// software compositing and rendering succeeds. That is why neither
+// --single-process nor --in-process-gpu is used. --renderer-process-limit=1
+// bounds the process count for constrained environments; Linux/mac only,
+// Windows launches with the stock model it was verified with.
 const DEFAULT_ARGS = [
   "--no-sandbox",
   "--disable-gpu",
   "--disable-dev-shm-usage",
-  ...(process.platform === "win32" ? [] : ["--in-process-gpu", "--renderer-process-limit=1"]),
+  ...(process.platform === "win32" ? [] : ["--renderer-process-limit=1"]),
 ];
 
 /** Parse the LIEBSTOECKEL_CHROMIUM_ARGS escape hatch: a whitespace-separated
@@ -265,10 +266,10 @@ async function launchDriverBrowser(opts: { executablePath?: string; launchArgs?:
   if (process.platform === "win32" || process.env.LIEBSTOECKEL_CDP_DRIVER) {
     // Chrome >= 150 silently closes the --remote-debugging-port WebSocket when
     // the browser runs with --single-process (the pipe transport playwright
-    // uses is unaffected). Those flags are Linux sandbox helpers with no role
-    // on this transport: in production raw CDP only runs on Windows, where
-    // they are already excluded.
-    const cdpArgs = args.filter((a) => a !== "--single-process" && a !== "--no-zygote");
+    // uses is unaffected), and an in-browser GPU thread crashes the browser
+    // outright where software GL cannot initialize. Neither flag is in the
+    // defaults anymore; strip them defensively from caller/env overrides.
+    const cdpArgs = args.filter((a) => a !== "--single-process" && a !== "--no-zygote" && a !== "--in-process-gpu");
     return launchCdpBrowser(executablePath, cdpArgs);
   }
   const browser = await chromium.launch({ headless: true, executablePath, args });

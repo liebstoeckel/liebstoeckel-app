@@ -69,9 +69,12 @@ The existence check matters: Playwright reports a computed path even when nothin
 ### Launch flags
 
 On Linux and macOS the browser launches headless with container-friendly flags
-(`--no-sandbox --disable-gpu --disable-dev-shm-usage --in-process-gpu
+(`--no-sandbox --disable-gpu --disable-dev-shm-usage
 --renderer-process-limit=1`), chosen so capture works in sandboxes and CI
-without a GPU or user namespaces; Windows uses the stock process model. If a
+without a GPU or user namespaces; Windows uses the stock process model. The GPU
+thread deliberately stays in its own process: on machines where software GL
+cannot initialize, an in-browser GPU thread would crash the browser, while a
+separate GPU process falls back to software compositing. If a
 Chrome update or an unusual environment makes those defaults crash, the
 `LIEBSTOECKEL_CHROMIUM_ARGS` environment variable **replaces the whole list**
 (whitespace-separated), so you can also remove a default flag, not just add:
@@ -82,13 +85,7 @@ export LIEBSTOECKEL_CHROMIUM_ARGS="--no-sandbox --disable-gpu --disable-dev-shm-
 
 ## Containers and CI
 
-Capture launches Chromium with container-friendly flags so it runs without a GPU or user namespace:
-
-```
---no-sandbox --disable-gpu --disable-dev-shm-usage --single-process --no-zygote
-```
-
-(`--single-process` and `--no-zygote` are Linux sandbox helpers and are not passed on Windows, where they would crash Chrome.)
+Capture launches Chromium with container-friendly flags so it runs without a GPU or user namespace (see [Launch flags](#launch-flags) above for the list and the `LIEBSTOECKEL_CHROMIUM_ARGS` override).
 
 In a container image, either run `bunx playwright install chromium` during the build, or install your distro's Chromium package and set `LIEBSTOECKEL_CHROMIUM` to it.
 
