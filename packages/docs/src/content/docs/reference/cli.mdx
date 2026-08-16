@@ -407,9 +407,15 @@ What it does, in order:
    `@liebstoeckel/*` packages the deck declares, never your other dependencies.
    Updating the whole scope together keeps the framework packages on one version,
    which the build requires.
-3. **Global install** (the CLI was installed with `bun add -g`): runs
-   `bun add -g @liebstoeckel/cli@latest`. When both shapes apply, both update.
-4. **Refreshes the agent skill** wherever it is installed (the deck and your user
+3. **The CLI's own install root**, when the running CLI lives in a different
+   project than the deck (for example a project root holding `@liebstoeckel/cli`
+   with decks in subdirectories): that root's declared `@liebstoeckel/*`
+   packages update too, so the CLI itself never stays behind. A CLI install the
+   command cannot manage (not declared where it is installed) is called out
+   explicitly instead of being skipped in silence.
+4. **Global install** (the CLI was installed with `bun add -g`): runs
+   `bun add -g @liebstoeckel/cli@latest`. Shapes combine when several apply.
+5. **Refreshes the agent skill** wherever it is installed (the deck and your user
    account), using the freshly installed CLI, so the skill version matches the new
    CLI.
 
