@@ -152,7 +152,9 @@ export async function healSkills(deckDir: string): Promise<void> {
  *  `update` command (where the user asked and waiting is correct). */
 export function fetchLatestVersion(): string | null {
   try {
-    const proc = Bun.spawnSync([bunBin, "pm", "view", PKG, "dist-tags.latest"], {
+    // --no-cache: bun's manifest cache serves a stale dist-tag for minutes after
+    // a publish; a check that exists to detect new versions must not read it.
+    const proc = Bun.spawnSync([bunBin, "pm", "view", "--no-cache", PKG, "dist-tags.latest"], {
       stdout: "pipe",
       stderr: "ignore",
       timeout: 15_000,

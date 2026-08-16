@@ -136,14 +136,17 @@ export const updateCommand = defineCommand({
       console.error(`! could not reach the registry for ${PKG}, attempting the update anyway`);
     }
 
+    // --no-cache on every bun spawn: right after a release, bun's manifest cache
+    // still serves the previous dist-tags for minutes, and an update the user
+    // explicitly asked for must see the registry's current truth.
     let ok = true;
     if (plan.deckDeps.length > 0) {
       console.error(`updating ${plan.deckDeps.length} @liebstoeckel/* package(s) in ${deckRoot}`);
-      ok = (await run([bunBin, "update", "--latest", ...plan.deckDeps], deckRoot)) && ok;
+      ok = (await run([bunBin, "update", "--latest", "--no-cache", ...plan.deckDeps], deckRoot)) && ok;
     }
     if (plan.global) {
       console.error(`updating the global CLI install`);
-      ok = (await run([bunBin, "add", "-g", `${PKG}@latest`])) && ok;
+      ok = (await run([bunBin, "add", "-g", "--no-cache", `${PKG}@latest`])) && ok;
     }
     if (!ok) {
       console.error(`✕ update failed, see the output above`);
