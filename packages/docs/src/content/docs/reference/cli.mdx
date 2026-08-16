@@ -416,6 +416,13 @@ What it does, in order:
 Outside a deck and without a global install there is nothing to act on, and the
 command says so instead of guessing.
 
+After a deck update the command verifies that every `@liebstoeckel/*` package
+resolved to a single version. Releases bump dependents together, so a split is
+rare, but a package published against an older sibling can keep a stale nested
+copy that targeted updates never re-resolve; when that happens the command
+prints the affected packages and the clean reinstall
+(`rm -rf node_modules bun.lock && bun install`) that collapses them.
+
 ## `doctor`
 
 Check the build environment — the Bun version (must satisfy the CLI's `engines.bun`) and whether a Chrome/Chromium was found for thumbnails and PNG/PDF export. Optionally install one.

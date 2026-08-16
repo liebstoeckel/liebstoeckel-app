@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -61,6 +61,41 @@ export function planUpdate(opts: {
     };
   }
   return { deckDeps, global };
+}
+
+/** Pure: which scope packages resolved to more than one version. `bun update`
+ *  only re-resolves the named targets, so a dependent published against an older
+ *  release can keep a stale nested copy that a fresh resolve would collapse;
+ *  releases normally bump dependents in lockstep with their dependency, so this
+ *  is rare, but when it happens the build can silently run the older copy. */
+export function duplicateScopeVersions(copies: Array<{ name: string; version: string }>): Map<string, string[]> {
+  const byName = new Map<string, Set<string>>();
+  for (const c of copies) (byName.get(c.name) ?? byName.set(c.name, new Set()).get(c.name)!).add(c.version);
+  const dups = new Map<string, string[]>();
+  for (const [name, versions] of byName) if (versions.size > 1) dups.set(name, [...versions].sort());
+  return dups;
+}
+
+/** Every resolved @liebstoeckel/* copy under the deck: top-level plus copies
+ *  nested one level under another scope package (where bun places a conflicting
+ *  resolution). Best-effort IO; unreadable entries are skipped. */
+async function collectScopeCopies(deckRoot: string): Promise<Array<{ name: string; version: string }>> {
+  const out: Array<{ name: string; version: string }> = [];
+  const scopeDir = (base: string) => join(base, "node_modules", "@liebstoeckel");
+  const read = async (dir: string, nestInto: boolean) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir)) {
+      try {
+        const pkg = (await Bun.file(join(dir, entry, "package.json")).json()) as { name?: string; version?: string };
+        if (pkg.name && pkg.version) out.push({ name: pkg.name, version: pkg.version });
+      } catch {
+        // not a readable package
+      }
+      if (nestInto) await read(scopeDir(join(dir, entry)), false);
+    }
+  };
+  await read(scopeDir(deckRoot), true);
+  return out;
 }
 
 type DeckPkg = Parameters<typeof planUpdate>[0]["deckPkg"];
@@ -157,6 +192,18 @@ export const updateCommand = defineCommand({
     // same path, which `bun add -g` has just replaced on disk.
     const deckCli = join(deckRoot, "node_modules", "@liebstoeckel", "cli", "src", "cli.ts");
     await refreshSkills(plan.deckDeps.length > 0 && existsSync(deckCli) ? deckCli : CLI_SRC_PATH, deckRoot);
+
+    if (plan.deckDeps.length > 0) {
+      const dups = duplicateScopeVersions(await collectScopeCopies(deckRoot));
+      if (dups.size > 0) {
+        console.error(`! some @liebstoeckel/* packages resolved to more than one version:`);
+        for (const [name, versions] of dups) console.error(`    ${name}: ${versions.join(", ")}`);
+        console.error(
+          `  a stale nested copy survives targeted updates; collapse to one version with:\n` +
+            `    cd ${deckRoot} && rm -rf node_modules bun.lock && bun install`,
+        );
+      }
+    }
 
     console.error(`✓ update complete`);
   },

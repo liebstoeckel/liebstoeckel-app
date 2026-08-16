@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { bunGlobalDir, planUpdate } from "./update-cmd";
+import { bunGlobalDir, duplicateScopeVersions, planUpdate } from "./update-cmd";
 
 const GLOBAL = "/home/u/.bun/install/global";
 const inGlobal = join(GLOBAL, "node_modules", "@liebstoeckel", "cli", "src", "update-cmd.ts");
@@ -52,6 +52,29 @@ describe("planUpdate (pure)", () => {
       globalDir: GLOBAL,
     });
     expect(plan).toHaveProperty("error");
+  });
+});
+
+describe("duplicateScopeVersions (pure)", () => {
+  test("flags a name resolved to two versions, ignores clean names", () => {
+    const dups = duplicateScopeVersions([
+      { name: "@liebstoeckel/engine", version: "0.3.10" },
+      { name: "@liebstoeckel/engine", version: "0.3.8" },
+      { name: "@liebstoeckel/theme", version: "0.3.3" },
+    ]);
+    expect([...dups.entries()]).toEqual([["@liebstoeckel/engine", ["0.3.10", "0.3.8"]]]);
+  });
+
+  test("the same version seen twice (hoisted + nested share) is not a duplicate", () => {
+    const dups = duplicateScopeVersions([
+      { name: "@liebstoeckel/engine", version: "0.3.10" },
+      { name: "@liebstoeckel/engine", version: "0.3.10" },
+    ]);
+    expect(dups.size).toBe(0);
+  });
+
+  test("empty input is clean", () => {
+    expect(duplicateScopeVersions([]).size).toBe(0);
   });
 });
 
