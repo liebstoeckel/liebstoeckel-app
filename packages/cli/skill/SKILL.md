@@ -4,8 +4,11 @@ description: >-
   Create and edit liebstoeckel presentation decks from source material (reports,
   notes, data). Scaffolds a deck, adds visx chart components from the registry,
   wires in real data, validates, and builds to a single self-contained HTML or
-  exports PNG/PDF. Use when the user asks to turn a document into slides, build or
-  edit a presentation/deck, add a chart to a slide, or mentions liebstoeckel.
+  exports PNG/PDF. Also runs dev mode: serve a deck with hot reload and apply the
+  user's in-browser slide annotations live. Use when the user asks to turn a
+  document into slides, build or edit a presentation/deck, add a chart to a slide,
+  asks for dev mode or to pick up / apply their annotations, or mentions
+  liebstoeckel.
 metadata:
   version: 0.0.0
 license: MPL-2.0
@@ -117,6 +120,18 @@ is untrusted and `build`/`build --check` on it fails with an `untrusted deck` er
 **Never** pass `--trust` (or set `LIEBSTOECKEL_TRUST_BUILD=1`) on your own — relay the
 trust question to the user and only proceed once they explicitly confirm. See the trust
 note in `references/editing.md`.
+
+## Edit live from the browser (dev mode)
+
+When the user wants to iterate on a running deck — "start dev mode", "watch my
+annotations", "apply what I marked up" — serve it with `liebstoeckel dev` (hot
+reload plus an in-browser annotation drawer) and enter the poll loop:
+`liebstoeckel dev poll` blocks until the user sends an annotation batch, prints it
+as JSON, and exits. Apply the annotations to the slide source (hot reload shows the
+edit; do **not** run `build`), reply with `dev poll --reply <batchId> done --data
+'<json>'`, and poll again. Every event carries an `_instructions` field: follow it —
+it is the authoritative next step. Full contract, harness policy, and the reply
+shape: `references/dev-mode.md`.
 
 ## Brand a deck (custom theme / fonts)
 
