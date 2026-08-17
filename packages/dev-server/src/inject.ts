@@ -1,31 +1,5 @@
-// The dev-mode loader tag. Permanently present in a deck's index.html: it
-// probes the co-served /__dev/ping endpoint and injects the drawer script only
-// when a dev server answers, so a static open, `live`, or a hosted viewer all
-// no-op (the fetch fails or 404s). The build strips any tag carrying this
-// attribute, so built decks ship zero dev-mode bytes. Kept as an inline classic
-// script deliberately: an external `src` would be resolved (and rejected) by
-// the bundler, an inline script passes through both the dev server and
-// `Bun.build` verbatim.
-
-export const DEV_ATTR = "data-liebstoeckel-dev";
-
-export const DEV_LOADER_TAG =
-  `<script ${DEV_ATTR}>` +
-  "/* liebstoeckel dev-mode loader; stripped from builds */" +
-  '(function(){try{if(!/^https?:$/.test(location.protocol))return;' +
-  'fetch("/__dev/ping",{cache:"no-store"}).then(function(r){if(r.ok){' +
-  'var s=document.createElement("script");s.src="/__dev/drawer.js";document.head.appendChild(s)}})' +
-  ".catch(function(){})}catch(e){}})()" +
-  "</script>";
-
-export function hasDevLoaderTag(html: string): boolean {
-  return html.includes(DEV_ATTR);
-}
-
-/** Add the loader tag before </head> (or <body as a fallback). Idempotent. */
-export function addDevLoaderTag(html: string): string {
-  if (hasDevLoaderTag(html)) return html;
-  if (html.includes("</head>")) return html.replace("</head>", `    ${DEV_LOADER_TAG}\n  </head>`);
-  if (html.includes("<body")) return html.replace("<body", `${DEV_LOADER_TAG}<body`);
-  return DEV_LOADER_TAG + html;
-}
+// The loader tag definition moved to the CLI so the scaffold template and the
+// scaffold-migration registry (which auto-adds it to older decks) share one
+// source of truth; re-exported here for the server/drawer code and existing
+// importers.
+export { DEV_ATTR, DEV_LOADER_TAG, addDevLoaderTag, hasDevLoaderTag } from "@liebstoeckel/cli/dev-loader";

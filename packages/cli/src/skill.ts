@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { existsSync, readdirSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 
 /**
  * `liebstoeckel skill install`, materialize the bundled `liebstoeckel-deck` Skill
@@ -79,11 +79,16 @@ export async function cliVersion(): Promise<string> {
   }
 }
 
-/** The skill's payload files (everything under skill/ except the AGENTS.md template). */
+/** The skill's payload files (everything under skill/ except the AGENTS.md
+ *  template). Recursive: references/ has subdirectories (migrations/). */
 function skillFiles(): string[] {
   const out = ["SKILL.md"];
   const refs = join(SKILL_SRC, "references");
-  if (existsSync(refs)) for (const f of readdirSync(refs)) out.push(join("references", f));
+  if (existsSync(refs)) {
+    for (const e of readdirSync(refs, { recursive: true, withFileTypes: true })) {
+      if (e.isFile()) out.push(join("references", relative(refs, join(e.parentPath, e.name))));
+    }
+  }
   return out;
 }
 

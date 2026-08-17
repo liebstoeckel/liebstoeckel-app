@@ -66,9 +66,13 @@ arrow means direction or movement, a cross means *remove*.
 
 - Dev-mode state lives in `.liebstoeckel/dev/` inside the deck (annotations,
   screenshots, revert snapshots, the session token). It is git-ignored.
-- The first `dev` run adds one inert loader `<script>` tag to `index.html`. It
-  only activates while `dev` is serving, and `build` strips it, so built decks
-  ship byte-identical to before.
+- On start, `dev` applies any pending
+  [scaffold migrations](/reference/cli/#scaffold-migrations) for decks created
+  under older conventions, one notice per patched file. The first run on an
+  older deck adds the inert loader `<script>` tag to `index.html` (it only
+  activates while `dev` is serving, and `build` strips it, so built decks ship
+  byte-identical to before) and, for pre-dev-mode decks, upgrades the entry to
+  the state-preserving hot-reload pattern.
 - The dev API binds `127.0.0.1` by default and every mutating request needs the
   per-session token; pass `--host 0.0.0.0` only on networks you trust.
 

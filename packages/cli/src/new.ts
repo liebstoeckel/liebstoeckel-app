@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEV_LOADER_TAG } from "./dev-loader";
 
 export const VALID_NAME = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -103,7 +104,7 @@ dist/
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23121212'/%3E%3Crect x='7' y='9' width='18' height='13' rx='2' fill='none' stroke='%23c8a96a' stroke-width='2'/%3E%3C/svg%3E"
     />
     <title>${title}</title>
-    <script data-liebstoeckel-dev>/* liebstoeckel dev-mode loader; stripped from builds */(function(){try{if(!/^https?:$/.test(location.protocol))return;fetch("/__dev/ping",{cache:"no-store"}).then(function(r){if(r.ok){var s=document.createElement("script");s.src="/__dev/drawer.js";document.head.appendChild(s)}}).catch(function(){})}catch(e){}})()</script>
+    ${DEV_LOADER_TAG}
   </head>
   <body data-brand="${brandId}">
     <div id="root"></div>

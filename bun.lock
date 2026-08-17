@@ -247,6 +247,7 @@
       "name": "@liebstoeckel/dev-server",
       "version": "0.1.0",
       "dependencies": {
+        "@liebstoeckel/cli": "workspace:^",
         "citty": "^0.2.2",
         "modern-screenshot": "^4.6.5",
       },

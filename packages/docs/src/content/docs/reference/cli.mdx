@@ -479,6 +479,7 @@ liebstoeckel doctor --install-chromium  # download Playwright's Chromium, record
 | --- | --- |
 | `--install-chromium` | Install Playwright's Chromium if none resolves, then record its path in `~/.config/liebstoeckel/config.json` so every later build/export reuses it |
 | `--json` | Machine-readable output (default when piped) |
+| `--dir <deck>` | Deck to check for scaffold migrations (default: the current directory) |
 
 `doctor` resolves Chromium the same way builds do (see [Chromium setup](/guides/chromium/#resolution-order)): an existing system Chrome is found automatically, so often nothing needs installing. Only `export`/`thumbs` require a browser; `build` skips thumbnails without one. When no browser is found, the human output lists every probed location, and `--json` adds them as `probedCandidates`.
 
@@ -487,6 +488,53 @@ lookup, so `doctor` stays network-free): `--json` carries
 `cli: { version, latestKnown, updateAvailable }`. Agents can gate on
 `updateAvailable` and suggest [`liebstoeckel update`](#update); `latestKnown` is
 `null` when no check has completed yet (for example offline).
+
+### Scaffold migrations
+
+Scaffolded deck source is yours, and the conventions it starts from keep
+improving. When a convention changes after a deck was created, `doctor` detects
+the gap instead of leaving the deck to drift: run it inside a deck (or pass
+`--dir <deck>`) and `--json` carries a `migrations` array with one entry per
+known migration:
+
+```json
+"migrations": [
+  {
+    "id": "0001-hmr-entry-boundary",
+    "needed": true,
+    "since": "0.4.0",
+    "reference": "references/migrations/0001-hmr-entry-boundary.md",
+    "reason": "slide edits in dev mode reset the deck to slide 1 ...",
+    "autoPatchable": true
+  }
+]
+```
+
+`needed` says the deck predates the convention; `reference` names the guide
+(shipped inside the installed agent skill) with the why and the manual edit;
+`autoPatchable` says [`liebstoeckel dev`](#dev) would apply it automatically.
+`doctor` itself never modifies anything.
+
+When `dev` starts, it applies every needed migration whose file still matches
+the scaffolded shape, printing one notice per patched file
+(`↻ migrated main.tsx (0001-hmr-entry-boundary): <reason>`); the patch always
+includes a comment explaining itself. A file that diverged from the scaffold
+is never rewritten, only hinted about.
+
+A deck that deliberately diverges can opt out per migration in its
+`package.json`, with a mandatory reason:
+
+```json
+"liebstoeckel": {
+  "migrationOptOut": {
+    "0001-hmr-entry-boundary": "custom HMR via our own dispose handler"
+  }
+}
+```
+
+A suppressed migration is never detected, hinted, or patched; `doctor --json`
+still lists it with `suppressed: true` and the reason, and warns about opt-out
+entries that suppress nothing (an empty reason, or an unknown id).
 
 ## Staying up to date
 

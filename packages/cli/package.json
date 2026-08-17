@@ -44,7 +44,9 @@
     ".": "./src/cli.ts",
     "./new": "./src/new.ts",
     "./add": "./src/add.ts",
-    "./trust": "./src/trust.ts"
+    "./trust": "./src/trust.ts",
+    "./migrations": "./src/migrations.ts",
+    "./dev-loader": "./src/dev-loader.ts"
   },
   "dependencies": {
     "@liebstoeckel/engine": "workspace:^",

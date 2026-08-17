@@ -4,6 +4,9 @@ import { bunBin, bunVersionError, requiredBunRange } from "./bun";
 import { loadConfig, saveConfig, CONFIG_FILE } from "./config";
 import { cliVersion } from "./skill";
 import { cachedLatestVersion, isNewer } from "./update";
+import { neededMigrations, type MigrationStatus } from "./migrations";
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 /** Resolve a Chrome/Chromium path through the same order builds use, or null. */
 function findChromium(): string | null {
@@ -83,6 +86,7 @@ export const doctorCommand = defineCommand({
       description: "download Playwright's Chromium and record it for future builds",
     },
     json: { type: "boolean", description: "machine-readable JSON output (default when piped)" },
+    dir: { type: "string", description: "deck directory to check for scaffold migrations (default: cwd)" },
   },
   async run({ args }) {
     const json = !!args.json || !process.stdout.isTTY;
@@ -116,12 +120,20 @@ export const doctorCommand = defineCommand({
     });
     const stored = (await loadConfig()).chromium;
 
+    // Scaffold migrations for the targeted deck (cwd or --dir, ADR-0050-style).
+    // Read-only here: doctor diagnoses, `liebstoeckel dev` is what auto-patches.
+    const deckDir = resolve(args.dir ?? ".");
+    const inDeck = existsSync(join(deckDir, "index.html"));
+    const { migrations, warnings: migrationWarnings } = inDeck
+      ? neededMigrations(deckDir)
+      : { migrations: [] as MigrationStatus[], warnings: [] as string[] };
+
     // On a miss, show where we actually looked: turns "not found" from a dead
     // end into something a user (or agent) can act on.
     const probed = report.chromium.ok ? undefined : systemChromiumCandidates();
 
     if (json) {
-      console.log(JSON.stringify({ ...report, storedChromium: stored ?? null, ...(probed ? { probedCandidates: probed } : {}) }));
+      console.log(JSON.stringify({ ...report, migrations, migrationWarnings, storedChromium: stored ?? null, ...(probed ? { probedCandidates: probed } : {}) }));
     } else {
       const ok = (b: boolean) => (b ? "✓" : "✗");
       console.error(`${ok(report.bun.ok)} Bun ${report.bun.version} (needs ${report.bun.required})`);
@@ -140,6 +152,14 @@ export const doctorCommand = defineCommand({
           ? `↑ CLI ${report.cli.version} (${report.cli.latestKnown} is available, run \`liebstoeckel update\`)`
           : `${ok(true)} CLI ${report.cli.version}${report.cli.latestKnown ? " (latest known)" : ""}`,
       );
+      for (const w of migrationWarnings) console.error(`⚠ ${w}`);
+      for (const m of migrations) {
+        if (!m.needed) continue;
+        const how = m.autoPatchable
+          ? "`liebstoeckel dev` applies it automatically"
+          : `apply it per the skill guide ${m.reference}`;
+        console.error(`↻ migration needed (${m.id}): ${m.reason}; ${how}, or opt out via package.json liebstoeckel.migrationOptOut`);
+      }
       console.error(`  config: ${CONFIG_FILE}`);
     }
 

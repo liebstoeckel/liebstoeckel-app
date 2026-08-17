@@ -24,6 +24,15 @@ license: MPL-2.0
   `@liebstoeckel/*` packages and/or a global CLI install, then refreshes this skill).
   Don't run it unprompted — it changes the deck's dependencies. A stale copy of this
   skill needs no action: the CLI refreshes it automatically.
+- **Scaffold migrations** — `liebstoeckel doctor --json` (run in the deck, or with
+  `--dir <deck>`) also reports `migrations: [...]`. For an entry with `needed: true`,
+  read the skill file named by its `reference` (e.g.
+  `references/migrations/0001-hmr-entry-boundary.md`) and apply the change it
+  describes; entries with `autoPatchable: true` are applied automatically by
+  `liebstoeckel dev`, so prefer just running dev mode when that is where you are
+  headed anyway. If the deck diverges from a convention deliberately, record an
+  opt-out with a reason under `liebstoeckel.migrationOptOut` in the deck's
+  `package.json` (the guide shows the shape) instead of leaving the hint to repeat.
 - **Structure**
   - A deck is authored as an **npm package** (its own `package.json`) of MDX/TSX slide
     files.
@@ -190,5 +199,6 @@ plugin, see `references/build-plugins.md`.
 - `references/build-plugins.md` — author a custom plugin (`definePlugin`, state, surfaces, server).
 - `references/dev-mode.md` — the `liebstoeckel dev` annotation live loop: poll for the user's in-browser annotations, apply them to slide source, reply.
 - `references/troubleshooting.md` — the `build --check` loop and common errors.
+- `references/migrations/` — one guide per scaffold migration `doctor` can report (why, the manual edit, the opt-out).
 
 Full reference docs: https://docs.liebstoeckel.app/llms.txt

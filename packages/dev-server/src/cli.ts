@@ -3,8 +3,8 @@ import { defineCommand, runMain } from "citty";
 import { resolve } from "node:path";
 import { bootInstructions } from "./instructions";
 import { readServerInfo, startDevServer } from "./server";
-import { addDevLoaderTag, hasDevLoaderTag } from "./inject";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { runAutoPatches } from "@liebstoeckel/cli/migrations";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 // Agent-facing poll client: one-shot long poll or a reply. Each HTTP request
@@ -129,12 +129,14 @@ export const devCommand = defineCommand({
       });
       process.exit(await child.exited);
     }
-    // The loader tag is permanent deck source (stripped from builds); add it
-    // once for decks that predate dev mode.
-    const html = readFileSync(indexPath, "utf-8");
-    if (!hasDevLoaderTag(html)) {
-      writeFileSync(indexPath, addDevLoaderTag(html), "utf-8");
-      console.error("✚ added the dev-mode loader tag to index.html (inert outside `dev`; stripped from builds)");
+    // Scaffold migrations for the surfaces dev serves: decks scaffolded before
+    // a convention change get patched here when the file still matches the
+    // scaffolded shape, and a hint (never a rewrite) when it diverged.
+    const { applied, hinted, warnings } = runAutoPatches(deckDir, ["entry", "index.html"]);
+    for (const w of warnings) console.error(`⚠ ${w}`);
+    for (const a of applied) console.error(`↻ migrated ${a.file} (${a.id}): ${a.reason}`);
+    for (const h of hinted) {
+      console.error(`⚠ migration needed (${h.id}): ${h.reason}; apply it per the skill guide ${h.reference}, or opt out via package.json liebstoeckel.migrationOptOut`);
     }
     const server = await startDevServer({
       deckDir,

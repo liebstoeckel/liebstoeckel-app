@@ -1,5 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
+import { findEntryFile } from "@liebstoeckel/cli/migrations";
+
+// Entry resolution lives with the scaffold-migration registry (its detectors
+// need it too); re-exported here for existing importers.
+export { findEntryFile };
 
 // Slide → source-file attribution. The deck entry is the structured IR (it
 // imports slide components and passes an ordered `slides={[...]}` array), so a
@@ -75,18 +80,6 @@ function resolveSpecifier(deckDir: string, entryRel: string, spec: string): stri
     if (existsSync(join(deckDir, candidate))) return candidate.split("\\").join("/");
   }
   return null;
-}
-
-/** The deck's entry script, from index.html's module script tag. */
-export function findEntryFile(deckDir: string, indexHtml = "index.html"): string | null {
-  const htmlPath = join(deckDir, indexHtml);
-  if (!existsSync(htmlPath)) return null;
-  const html = readFileSync(htmlPath, "utf-8");
-  const match = html.match(/<script[^>]*type=["']module["'][^>]*src=["']\.\/?([^"']+)["']/i)
-    ?? html.match(/<script[^>]*src=["']\.\/?([^"']+)["'][^>]*type=["']module["']/i);
-  if (!match) return null;
-  const rel = normalize(match[1]!);
-  return existsSync(join(deckDir, rel)) ? rel.split("\\").join("/") : null;
 }
 
 /** Ordered slide source files for the deck, null holes where attribution
