@@ -16,15 +16,16 @@ const rootCommand = defineCommand({
     eject: () => import("./build").then((m) => m.ejectCommand),
     pack: () => import("./build").then((m) => m.packCommand),
     licenses: () => import("./build").then((m) => m.licensesCommand),
-    // dev-server is workspace-private for now (not yet in the OSS/publish set), so
-    // the dep is soft: resolves in the monorepo, degrades to a notice on a
-    // registry install until the package ships.
+    // dev-server is a declared dependency, but keep the import dynamic and
+    // soft: the packages depend on each other (dev-server uses the CLI's
+    // migration registry), and the catch turns a broken or partial install
+    // into a clear notice instead of taking every other command down with it.
     dev: () =>
       import("@liebstoeckel/dev-server/cli").then((m) => m.devCommand).catch(() =>
         defineCommand({
-          meta: { name: "dev", description: "dev mode (coming soon in the published CLI)" },
+          meta: { name: "dev", description: "dev mode (hot reload + the annotation drawer)" },
           run() {
-            console.error("`liebstoeckel dev` is not available in this install yet (the dev-server package is unpublished).");
+            console.error("`liebstoeckel dev` could not load @liebstoeckel/dev-server; the install looks incomplete. Try reinstalling (`bun install`).");
             process.exit(1);
           },
         }),

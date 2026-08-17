@@ -57,6 +57,7 @@
         "lst": "./src/cli.ts",
       },
       "dependencies": {
+        "@liebstoeckel/dev-server": "workspace:^",
         "@liebstoeckel/engine": "workspace:^",
         "@liebstoeckel/live-server": "workspace:^",
         "@liebstoeckel/present-relay": "workspace:^",

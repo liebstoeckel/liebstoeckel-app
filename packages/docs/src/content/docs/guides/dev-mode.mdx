@@ -14,6 +14,12 @@ you don't like.
 Your deck files stay ordinary MDX/TSX throughout: the agent writes the same
 code you would, and nothing about dev mode appears in built decks.
 
+Dev mode ships with the CLI. `liebstoeckel dev` works in any install of
+`@liebstoeckel/cli`; the machinery is its own package,
+`@liebstoeckel/dev-server`, which the CLI depends on, so there is nothing
+extra to install. You only reach for the package directly when you want to
+embed the dev server in your own tooling (it exports `startDevServer`).
+
 ## The loop
 
 <Steps>
@@ -51,7 +57,10 @@ code you would, and nothing about dev mode appears in built decks.
 
 <Aside type="tip" title="No agent running?">
 Sending with no agent listening simply stages the batch: the next
-`liebstoeckel dev poll` picks it up, even after a dev-server restart.
+`liebstoeckel dev poll` picks it up, even after a dev-server restart. The same
+applies when an agent takes a batch and never replies (a crash, a killed
+terminal): its claim expires after ten minutes and the next poll receives the
+batch again.
 </Aside>
 
 ## What the agent receives
@@ -75,8 +84,3 @@ arrow means direction or movement, a cross means *remove*.
   the state-preserving hot-reload pattern.
 - The dev API binds `127.0.0.1` by default and every mutating request needs the
   per-session token; pass `--host 0.0.0.0` only on networks you trust.
-
-<Aside type="note" title="Availability">
-Dev mode ships with the monorepo today and is not yet part of the published
-CLI.
-</Aside>
