@@ -13,7 +13,12 @@ import * as qaSlide from "./slides/04-qa";
 import * as reactionsSlide from "./slides/05-reactions";
 import * as outro from "./slides/03-outro";
 
-createRoot(document.getElementById("root")!).render(
+// Hot-module boundary: a slide edit re-runs this entry into the SAME React root,
+// so the deck keeps its state (current slide, step) across dev-server hot
+// reloads instead of jumping back to slide 1. `bun build` compiles the hot.data
+// access to a plain createRoot and erases accept() in built decks.
+const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));
+root.render(
   <StrictMode>
     <Present
       title="Live Poll Demo"
@@ -23,3 +28,4 @@ createRoot(document.getElementById("root")!).render(
     />
   </StrictMode>,
 );
+import.meta.hot.accept();

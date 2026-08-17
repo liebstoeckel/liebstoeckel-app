@@ -11,7 +11,12 @@ import StaticCode from "./slides/05-static-code.mdx";
 import Closing from "./slides/03-closing";
 import Travel from "./slides/06-travel";
 
-createRoot(document.getElementById("root")!).render(
+// Hot-module boundary: a slide edit re-runs this entry into the SAME React root,
+// so the deck keeps its state (current slide, step) across dev-server hot
+// reloads instead of jumping back to slide 1. `bun build` compiles the hot.data
+// access to a plain createRoot and erases accept() in built decks.
+const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));
+root.render(
   <StrictMode>
     <Present
       brands={["acme", "sunset"]}
@@ -20,3 +25,4 @@ createRoot(document.getElementById("root")!).render(
     />
   </StrictMode>,
 );
+import.meta.hot.accept();

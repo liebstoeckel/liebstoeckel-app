@@ -39,7 +39,9 @@ code you would, and nothing about dev mode appears in built decks.
 
 4. The agent receives the batch (comments, strokes, an annotated screenshot,
    and the resolved slide source file), edits the slide, and replies. Hot
-   reload shows the change; the drawer shows what was applied.
+   reload shows the change; the drawer shows what was applied. Decks scaffolded
+   with the current `main.tsx` shape keep their position: only the edited
+   slide re-renders, and the current slide and step survive the edit.
 
 5. Not what you wanted? **Revert last batch** restores the files exactly as
    they were before that batch was dispatched, and your annotations reopen for

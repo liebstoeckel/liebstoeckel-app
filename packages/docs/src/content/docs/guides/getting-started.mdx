@@ -71,11 +71,15 @@ import "@liebstoeckel/theme/styles.css";
 
 import Intro from "./slides/01-intro";
 
-createRoot(document.getElementById("root")!).render(
+// Hot-module boundary: slide edits re-render into the same root during dev,
+// so the deck keeps its position. Builds compile this down to a plain createRoot.
+const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));
+root.render(
   <StrictMode>
     <Present title="My Talk" brands={["liebstoeckel"]} slides={[Intro]} />
   </StrictMode>,
 );
+import.meta.hot.accept();
 ```
 
 <Aside type="tip">

@@ -49,11 +49,15 @@ as a namespace; for component-only, a default import is fine:
 import * as intro from "./slides/01-intro";
 import * as growth from "./slides/02-growth";   // namespace → carries `notes`
 
-createRoot(document.getElementById("root")!).render(
+// Keep the scaffolded hot-module pattern intact (hot.data root + accept()):
+// it lets dev-mode slide edits apply without resetting the deck to slide 1.
+const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));
+root.render(
   <StrictMode>
     <Present title="Q4 Review" brands={["nocturne"]} slides={[intro, growth]} />
   </StrictMode>,
 );
+import.meta.hot.accept();
 ```
 
 ## Steps (progressive reveal)

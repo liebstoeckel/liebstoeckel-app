@@ -13,7 +13,12 @@ import * as scatter from "./slides/06-scatter";
 import * as dx from "./slides/07-dx.mdx";
 import * as closing from "./slides/08-closing";
 
-createRoot(document.getElementById("root")!).render(
+// Hot-module boundary: a slide edit re-runs this entry into the SAME React root,
+// so the deck keeps its state (current slide, step) across dev-server hot
+// reloads instead of jumping back to slide 1. `bun build` compiles the hot.data
+// access to a plain createRoot and erases accept() in built decks.
+const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));
+root.render(
   <StrictMode>
     <Present
       title="Data, in motion"
@@ -22,3 +27,4 @@ createRoot(document.getElementById("root")!).render(
     />
   </StrictMode>,
 );
+import.meta.hot.accept();
