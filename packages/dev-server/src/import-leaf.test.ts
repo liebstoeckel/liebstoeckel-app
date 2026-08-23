@@ -9,7 +9,7 @@ import { dirname, join, resolve } from "node:path";
 // would break that host at build time, silently, the next time someone adds
 // a convenient import. This test walks both graphs and refuses.
 
-const ENTRIES = ["src/protocol.ts", "src/bridge.ts"];
+const ENTRIES = ["src/protocol.ts", "src/bridge.ts", "src/ui.ts"];
 const ROOT = resolve(import.meta.dir, "..");
 
 const NODE_BUILTINS = new Set([
@@ -42,7 +42,6 @@ function resolveRelative(from: string, specifier: string): string | null {
 
 /** Walk relative imports from `entry`; returns `{file, specifier}` pairs that hit the forbidden list. */
 export function forbiddenImports(entry: string): Array<{ file: string; specifier: string }> {
-  const transpiler = new Bun.Transpiler({ loader: "ts" });
   const seen = new Set<string>();
   const queue = [resolve(entry)];
   const hits: Array<{ file: string; specifier: string }> = [];
@@ -50,8 +49,11 @@ export function forbiddenImports(entry: string): Array<{ file: string; specifier
     const file = queue.pop()!;
     if (seen.has(file)) continue;
     seen.add(file);
+    // Only script modules have imports; a CSS import is a leaf by definition.
+    if (!/\.(ts|tsx|js|jsx|mjs)$/.test(file)) continue;
     const code = readFileSync(file, "utf-8");
-    for (const { path: specifier } of transpiler.scanImports(code)) {
+    const loader = file.endsWith("x") ? "tsx" : "ts";
+    for (const { path: specifier } of new Bun.Transpiler({ loader }).scanImports(code)) {
       if (isForbidden(specifier)) hits.push({ file, specifier });
       const next = resolveRelative(file, specifier);
       if (next) queue.push(next);

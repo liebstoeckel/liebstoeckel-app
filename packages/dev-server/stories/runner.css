@@ -1,0 +1,198 @@
+:root {
+  color-scheme: dark;
+  --r-bg: #0c0c0e;
+  --r-panel: #151518;
+  --r-fg: #e8e4da;
+  --r-muted: #8d887c;
+  --r-line: rgba(255, 255, 255, 0.1);
+  --r-accent: #d4af37;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--r-bg);
+  color: var(--r-fg);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.runner {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: 44px 1fr;
+  height: 100%;
+}
+
+.runner-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--r-line);
+  background: var(--r-panel);
+}
+
+.runner-bar b {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--r-accent);
+}
+
+.runner-bar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--r-muted);
+  font-size: 12px;
+}
+
+.runner-bar input[type="range"] {
+  width: 180px;
+  accent-color: var(--r-accent);
+}
+
+.runner-bar .val {
+  font-variant-numeric: tabular-nums;
+  color: var(--r-fg);
+  min-width: 5ch;
+}
+
+.runner-bar button,
+.runner-bar select {
+  font: inherit;
+  font-size: 12px;
+  color: var(--r-fg);
+  background: transparent;
+  border: 1px solid var(--r-line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+
+.runner-bar button[data-on="true"] {
+  border-color: var(--r-accent);
+  color: var(--r-accent);
+}
+
+.runner-nav {
+  overflow: auto;
+  padding: 10px 8px;
+  border-right: 1px solid var(--r-line);
+  background: var(--r-panel);
+}
+
+.runner-nav h4 {
+  margin: 10px 8px 4px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--r-muted);
+  font-weight: 600;
+}
+
+.runner-nav a {
+  display: block;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: var(--r-fg);
+  text-decoration: none;
+  font-size: 12.5px;
+}
+
+.runner-nav a:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.runner-nav a[data-active="true"] {
+  background: rgba(212, 175, 55, 0.16);
+  color: var(--r-accent);
+}
+
+.runner-canvas {
+  overflow: auto;
+  padding: 24px;
+  display: grid;
+  place-items: start center;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.06) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--r-bg);
+}
+
+.runner-story {
+  border: 1px solid var(--r-line);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  background: #000;
+}
+
+.runner-note {
+  grid-column: 2;
+  padding: 0 24px 24px;
+  color: var(--r-muted);
+  font-size: 12px;
+  max-width: 70ch;
+}
+
+/* A stand-in for the deck frame: a 16:9 stage fitted into the available box. */
+.stage-ph {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #000;
+}
+
+.stage-ph .stage {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  max-height: 100%;
+  max-width: 100%;
+  background: linear-gradient(135deg, #1d1d22, #0f0f12);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  place-items: center;
+  color: #f5f2ea;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.stage-ph .stage h1 {
+  margin: 0;
+  font-size: 6cqw;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.stage-ph .stage p {
+  margin: 0.6em 0 0;
+  font-size: 2.4cqw;
+  color: #9a958a;
+}
+
+.stage-ph .stage .dims {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  font: 11px ui-monospace, monospace;
+  color: #6b675f;
+}
+
+.stage-ph .stroke {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}

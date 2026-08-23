@@ -28,6 +28,8 @@
   "files": [
     "src",
     "drawer",
+    "ui",
+    "!stories",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
     "LICENSE"
@@ -40,11 +42,25 @@
     ".": "./src/index.ts",
     "./cli": "./src/cli.ts",
     "./protocol": "./src/protocol.ts",
-    "./bridge": "./src/bridge.ts"
+    "./bridge": "./src/bridge.ts",
+    "./ui": "./src/ui.ts"
   },
   "dependencies": {
     "@liebstoeckel/cli": "workspace:^",
     "citty": "^0.2.2",
     "modern-screenshot": "^4.6.5"
+  },
+  "scripts": {
+    "stories": "bun run stories/serve.ts"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   }
 }
