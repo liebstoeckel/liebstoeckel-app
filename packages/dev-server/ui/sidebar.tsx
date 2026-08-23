@@ -55,7 +55,7 @@ function Icon({ d, label }: { d: string; label?: string }) {
 const ICONS = {
   pen: "M11.5 2.5l2 2L5 13H3v-2l8.5-8.5zM10 4l2 2",
   comment: "M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z",
-  send: "M2.5 8h11M9.5 4l4 4-4 4",
+  send: "M14 2L2 6.5l5.5 2L9.5 14 14 2zM14 2L7.5 8.5",
   undo: "M6 4L2.5 7.5 6 11M2.5 7.5H10a3 3 0 010 6H8",
   close: "M4 4l8 8M12 4l-8 8",
   chevronLeft: "M10 3L5 8l5 5",
