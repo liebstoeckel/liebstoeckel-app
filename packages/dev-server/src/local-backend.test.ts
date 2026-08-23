@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createLocalBackend, loadStore, readServerInfo, removeServerInfo, saveStore, writeServerInfo } from "./local-backend";
@@ -56,3 +56,22 @@ describe("backend", () => {
     expect(backend.restoreSnapshot("missing")).toBeNull();
   });
 });
+
+describe("recordCreated", () => {
+  test("files absent from the snapshot become created; revert deletes them and restores the rest", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-dev-created-"));
+    mkdirSync(join(dir, "slides"), { recursive: true });
+    writeFileSync(join(dir, "main.tsx"), "slides={[A]}\n");
+    const backend = createLocalBackend({ deckDir: dir, token: "t" });
+    backend.takeSnapshot("b1", ["main.tsx"]);
+    // The "agent" creates a slide and edits the entry.
+    writeFileSync(join(dir, "slides", "02-new.mdx"), "# new\n");
+    writeFileSync(join(dir, "main.tsx"), "slides={[A, B]}\n");
+    backend.recordCreated("b1", ["slides/02-new.mdx", "main.tsx", "../outside.txt"]);
+    const result = backend.restoreSnapshot("b1")!;
+    expect(result.restored.sort()).toEqual(["main.tsx", "slides/02-new.mdx"]);
+    expect(existsSync(join(dir, "slides", "02-new.mdx"))).toBe(false);
+    expect(readFileSync(join(dir, "main.tsx"), "utf-8")).toBe("slides={[A]}\n");
+  });
+});
+

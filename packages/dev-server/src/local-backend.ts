@@ -2,8 +2,8 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { dirname, join } from "node:path";
 import { devDir, screenshotsDir, serverInfoPath, storePath } from "./paths";
 import type { DevBackend } from "./protocol";
-import { loadBatchSnapshot, removeBatchSnapshot, restoreSnapshot, saveBatchSnapshot, snapshotFiles } from "./snapshot";
-import { resolveSlideFiles } from "./slides";
+import { loadBatchSnapshot, removeBatchSnapshot, restoreSnapshot, saveBatchSnapshot, snapshotFiles, withinRoot } from "./snapshot";
+import { findEntryFile, resolveSlideFiles } from "./slides";
 import { type AnnotationStore, emptyStore, parseStore, serializeStore } from "./store";
 
 // The filesystem backend behind the local `liebstoeckel dev` protocol: a JSON
@@ -41,6 +41,7 @@ export function createLocalBackend(opts: LocalBackendOptions): DevBackend {
     loadStore: () => loadStore(deckDir),
     saveStore: (store) => saveStore(deckDir, store),
     resolveSlides: () => resolveSlideFiles(deckDir),
+    entryFile: () => findEntryFile(deckDir),
     writeScreenshot: (id, bytes) => {
       const dir = screenshotsDir(deckDir);
       mkdirSync(dir, { recursive: true });
@@ -50,6 +51,20 @@ export function createLocalBackend(opts: LocalBackendOptions): DevBackend {
     },
     screenshotRef: (name) => join(screenshotsDir(deckDir), name),
     takeSnapshot: (batchId, files) => saveBatchSnapshot(deckDir, batchId, snapshotFiles(deckDir, files)),
+    recordCreated: (batchId, files) => {
+      const snapshot = loadBatchSnapshot(deckDir, batchId);
+      if (!snapshot) return;
+      let changed = false;
+      for (const file of files) {
+        const rel = withinRoot(deckDir, file);
+        if (!rel || rel in snapshot) continue;
+        // Not in the snapshot = not referenced at dispatch; the agent reports
+        // only files it touched, so treat it as created (revert deletes it).
+        snapshot[rel] = { exists: false, content: "" };
+        changed = true;
+      }
+      if (changed) saveBatchSnapshot(deckDir, batchId, snapshot);
+    },
     restoreSnapshot: (batchId) => {
       const snapshot = loadBatchSnapshot(deckDir, batchId);
       return snapshot ? restoreSnapshot(deckDir, snapshot) : null;

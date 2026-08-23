@@ -54,6 +54,7 @@ function Icon({ d, label }: { d: string; label?: string }) {
 
 const ICONS = {
   pen: "M11.5 2.5l2 2L5 13H3v-2l8.5-8.5zM10 4l2 2",
+  plus: "M8 3v10M3 8h10",
   comment: "M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z",
   send: "M14 2L2 6.5l5.5 2L9.5 14 14 2zM14 2L7.5 8.5",
   undo: "M6 4L2.5 7.5 6 11M2.5 7.5H10a3 3 0 010 6H8",
@@ -180,9 +181,15 @@ export function DevSidebar(props: DevSidebarProps) {
     [dev.entries],
   );
   const openCount = entries.filter((e) => e.status === "open").length;
+  // Slide requests still waiting: ghost rows in the list at the index they will take.
+  const requests = useMemo(
+    () => entries.filter((e) => e.kind === "add-slide" && (e.status === "open" || e.status === "dispatched")),
+    [entries],
+  );
   const perSlide = useMemo(() => {
     const map = new Map<number, { open: number; applied: number }>();
     for (const e of entries) {
+      if (e.kind === "add-slide") continue;
       const cur = map.get(e.slide.index) ?? { open: 0, applied: 0 };
       if (e.status === "open" || e.status === "dispatched") cur.open += 1;
       if (e.status === "applied") cur.applied += 1;
@@ -196,6 +203,31 @@ export function DevSidebar(props: DevSidebarProps) {
   }, [entries]);
 
   const draftCount = frame.draft.strokes.length + frame.draft.comments.length;
+
+  // When a slide request turns applied, land the user on the new slide.
+  const seenApplied = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const e of entries) {
+      if (e.kind !== "add-slide" || e.status !== "applied" || seenApplied.current.has(e.id)) continue;
+      seenApplied.current.add(e.id);
+      bridge.goto(e.slide.index);
+    }
+  }, [entries, bridge]);
+
+  // Insert affordance state: the `after` index being described, or null.
+  const [insertAfter, setInsertAfter] = useState<number | null>(null);
+  async function addSlide(after: number, description: string): Promise<void> {
+    const text = description.trim();
+    if (!text) return;
+    try {
+      await transport.saveAnnotation({ kind: "add-slide", request: { after, description: text }, slideIndex: after + 1, comments: [], strokes: [] });
+      setInsertAfter(null);
+      toast("Slide request saved: send it to the agent");
+      void dev.refresh();
+    } catch (err) {
+      toast(`Could not save: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 
   const setMode = (next: OverlayMode) => bridge.setMode(frame.mode === next ? "off" : next);
 
@@ -277,7 +309,16 @@ export function DevSidebar(props: DevSidebarProps) {
             <span>Slides</span>
             <span className="lst-count">{slides.length}</span>
           </h2>
-          <SlideList slides={slides} current={frame.slide} perSlide={perSlide} onGoto={(i) => bridge.goto(i)} />
+          <SlideList
+            slides={slides}
+            current={frame.slide}
+            perSlide={perSlide}
+            requests={requests}
+            insertAfter={insertAfter}
+            onInsert={setInsertAfter}
+            onAdd={addSlide}
+            onGoto={(i) => bridge.goto(i)}
+          />
         </section>
 
         <section className="lst-section" aria-labelledby="lst-h-annotate">
@@ -347,33 +388,117 @@ function SlideList({
   slides,
   current,
   perSlide,
+  requests,
+  insertAfter,
+  onInsert,
+  onAdd,
   onGoto,
 }: {
   slides: SlideInfo[];
   current: number;
   perSlide: Map<number, { open: number; applied: number }>;
+  requests: AnnotationEntry[];
+  insertAfter: number | null;
+  onInsert: (after: number | null) => void;
+  onAdd: (after: number, description: string) => Promise<void>;
   onGoto: (index: number) => void;
 }) {
+  // Rows in display order: for each position, the insert affordance for
+  // "after the previous slide", any pending requests that will take this
+  // index, then the slide itself; one more affordance after the last slide.
+  const rows: ReactNode[] = [];
+  const ghostsAt = (index: number) =>
+    requests
+      .filter((r) => r.slide.index === index)
+      .map((r) => (
+        <li key={`ghost-${r.id}`}>
+          <div className="lst-slide lst-ghost" aria-label={`pending new slide: ${r.request?.description ?? ""}`}>
+            <span className="lst-slide-num">{index + 1}</span>
+            <span className="lst-slide-name">{r.request?.description}</span>
+            <span className="lst-chip" data-s={r.status}>
+              {r.status === "dispatched" ? "working" : "new"}
+            </span>
+          </div>
+        </li>
+      ));
+  const insert = (after: number) => (
+    <li key={`insert-${after}`} className="lst-insert-row">
+      {insertAfter === after ? (
+        <InsertForm after={after} onCancel={() => onInsert(null)} onAdd={onAdd} />
+      ) : (
+        <button type="button" className="lst-insert" title={after < 0 ? "Add a slide first" : `Add a slide after slide ${after + 1}`} aria-label={after < 0 ? "Add a slide first" : `Add a slide after slide ${after + 1}`} onClick={() => onInsert(after)}>
+          <span className="lst-insert-line" />
+          <span className="lst-insert-plus">
+            <Icon d={ICONS.plus} />
+          </span>
+          <span className="lst-insert-line" />
+        </button>
+      )}
+    </li>
+  );
+  for (const slide of slides) {
+    rows.push(insert(slide.index - 1));
+    rows.push(...ghostsAt(slide.index));
+    const counts = perSlide.get(slide.index);
+    const name = slide.sourceFile ? slide.sourceFile.split("/").pop()! : "";
+    const isCurrent = slide.index === current;
+    rows.push(
+      <li key={slide.index}>
+        <button type="button" className="lst-slide" aria-current={isCurrent ? "true" : undefined} onClick={() => onGoto(slide.index)}>
+          <span className="lst-slide-num">{slide.index + 1}</span>
+          <span className="lst-slide-name">{name || <i>unresolved</i>}</span>
+          <span className="lst-row">
+            {counts?.open ? <span className="lst-badge" title={`${counts.open} open`}>{counts.open}</span> : null}
+            {counts?.applied ? <span className="lst-badge" data-kind="applied" title={`${counts.applied} applied`}>{counts.applied}</span> : null}
+          </span>
+        </button>
+      </li>,
+    );
+  }
+  rows.push(insert(slides.length - 1));
+  rows.push(...ghostsAt(slides.length));
+  return <ol className="lst-slides">{rows}</ol>;
+}
+
+function InsertForm({ after, onCancel, onAdd }: { after: number; onCancel: () => void; onAdd: (after: number, description: string) => Promise<void> }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => ref.current?.focus(), []);
+  const submit = async () => {
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    await onAdd(after, text);
+    setBusy(false);
+  };
   return (
-    <ol className="lst-slides">
-      {slides.map((slide) => {
-        const counts = perSlide.get(slide.index);
-        const name = slide.sourceFile ? slide.sourceFile.split("/").pop()! : "";
-        const isCurrent = slide.index === current;
-        return (
-          <li key={slide.index}>
-            <button type="button" className="lst-slide" aria-current={isCurrent ? "true" : undefined} onClick={() => onGoto(slide.index)}>
-              <span className="lst-slide-num">{slide.index + 1}</span>
-              <span className="lst-slide-name">{name || <i>unresolved</i>}</span>
-              <span className="lst-row">
-                {counts?.open ? <span className="lst-badge" title={`${counts.open} open`}>{counts.open}</span> : null}
-                {counts?.applied ? <span className="lst-badge" data-kind="applied" title={`${counts.applied} applied`}>{counts.applied}</span> : null}
-              </span>
-            </button>
-          </li>
-        );
-      })}
-    </ol>
+    <form
+      className="lst-insert-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
+      }}
+    >
+      <input
+        ref={ref}
+        className="lst-input"
+        value={text}
+        placeholder={after < 0 ? "New first slide: what should it show?" : `New slide after ${after + 1}: what should it show?`}
+        aria-label="Describe the new slide"
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+        }}
+      />
+      <span className="lst-row">
+        <button type="button" className="lst-btn" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="submit" className="lst-btn" data-primary="true" disabled={!text.trim() || busy}>
+          Add
+        </button>
+      </span>
+    </form>
   );
 }
 
@@ -384,8 +509,11 @@ function EntryList({ entries, onDismiss }: { entries: AnnotationEntry[]; onDismi
         <li key={entry.id} className="lst-entry" data-status={entry.status}>
           <div className="lst-meta">
             <span>
-              slide {entry.slide.index + 1}
-              {entry.slide.sourceFile ? `, ${entry.slide.sourceFile.split("/").pop()}` : ""}
+              {entry.kind === "add-slide"
+                ? entry.request && entry.request.after < 0
+                  ? "new slide, first"
+                  : `new slide after ${(entry.request?.after ?? entry.slide.index - 1) + 1}`
+                : `slide ${entry.slide.index + 1}${entry.slide.sourceFile ? `, ${entry.slide.sourceFile.split("/").pop()}` : ""}`}
             </span>
             <span className="lst-chip" data-s={entry.status}>
               {entry.status}
@@ -394,7 +522,11 @@ function EntryList({ entries, onDismiss }: { entries: AnnotationEntry[]; onDismi
               <Icon d={ICONS.close} />
             </button>
           </div>
-          {entry.comments.length > 0 && <div className="lst-txt">{entry.comments.map((c) => c.text).join("\n")}</div>}
+          {entry.kind === "add-slide" && entry.request ? (
+            <div className="lst-txt">{entry.request.description}</div>
+          ) : (
+            entry.comments.length > 0 && <div className="lst-txt">{entry.comments.map((c) => c.text).join("\n")}</div>
+          )}
         </li>
       ))}
     </ul>

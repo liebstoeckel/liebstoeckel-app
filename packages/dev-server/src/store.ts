@@ -7,6 +7,18 @@
 
 export type AnnotationStatus = "open" | "dispatched" | "applied" | "dismissed";
 
+/** What an entry asks for. Absent means `annotate` (marks on an existing
+ *  slide). `add-slide` asks the agent to create and register a slide;
+ *  `remove-slide` and `move-slide` are reserved names, refused until built. */
+export type AnnotationKind = "annotate" | "add-slide" | "remove-slide" | "move-slide";
+export const ANNOTATION_KINDS: readonly AnnotationKind[] = ["annotate", "add-slide", "remove-slide", "move-slide"];
+
+export interface SlideRequest {
+  /** Index of the slide the new one goes after; -1 inserts first. */
+  after: number;
+  description: string;
+}
+
 export interface AnnotationTargetHint {
   tag?: string;
   classes?: string[];
@@ -29,6 +41,10 @@ export interface AnnotationStroke {
 
 export interface AnnotationEntry {
   id: string;
+  kind?: AnnotationKind;
+  /** Present for slide requests; `slide.index` is then the index the new
+   *  slide will occupy and `slide.sourceFile` is null. */
+  request?: SlideRequest;
   slide: {
     index: number;
     /** Deck-relative source file, resolved at annotation time; null when the
@@ -120,8 +136,15 @@ export function parseStore(text: string): AnnotationStore {
     if (typeof entry.id !== "string" || entry.id !== id) continue;
     if (!entry.slide || typeof entry.slide.index !== "number") continue;
     if (!["open", "dispatched", "applied", "dismissed"].includes(entry.status as string)) continue;
+    if (entry.kind !== undefined && !ANNOTATION_KINDS.includes(entry.kind)) continue;
+    const request =
+      entry.request && typeof entry.request === "object" && typeof entry.request.after === "number" && typeof entry.request.description === "string"
+        ? { after: entry.request.after, description: entry.request.description }
+        : undefined;
     entries[id] = {
       id,
+      ...(entry.kind && entry.kind !== "annotate" ? { kind: entry.kind } : {}),
+      ...(request ? { request } : {}),
       slide: { index: entry.slide.index, sourceFile: entry.slide.sourceFile ?? null },
       comments: Array.isArray(entry.comments) ? entry.comments : [],
       strokes: Array.isArray(entry.strokes) ? entry.strokes : [],

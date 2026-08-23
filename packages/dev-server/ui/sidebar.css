@@ -315,6 +315,107 @@
   border: 1px solid color-mix(in oklab, var(--lst-ok) 50%, transparent);
 }
 
+/* Insert affordance between rows: a hairline with a "+" that shows on hover
+   or focus (always on touch, where there is no hover). Ghost rows are the
+   pending slide requests at the index they will take. */
+
+.lst-insert-row {
+  list-style: none;
+}
+
+.lst-insert {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  height: 0.875rem;
+  margin: -0.3125rem 0;
+  padding: 0 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--lst-accent);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.lst-insert:hover,
+.lst-insert:focus-visible,
+.lst-insert-row:hover .lst-insert {
+  opacity: 1;
+}
+
+.lst-insert-line {
+  flex: 1;
+  height: 1px;
+  background: color-mix(in oklab, var(--lst-accent) 55%, transparent);
+}
+
+.lst-insert-plus {
+  display: inline-grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 1px solid color-mix(in oklab, var(--lst-accent) 55%, transparent);
+  background: var(--lst-bg);
+  font-size: 0.625rem;
+}
+
+.lst-insert-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0.125rem 0;
+  padding: 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--lst-accent) 55%, transparent);
+  border-radius: var(--lst-radius);
+  background: var(--lst-bg-raised);
+}
+
+.lst-insert-form .lst-row {
+  justify-content: flex-end;
+}
+
+.lst-input {
+  width: 100%;
+  height: var(--lst-control-h);
+  padding: 0 0.5rem;
+  border: 1px solid var(--lst-line);
+  border-radius: var(--lst-radius-sm);
+  background: var(--lst-bg);
+  color: var(--lst-fg);
+  font: inherit;
+  font-size: var(--lst-text-sm);
+}
+
+.lst-input::placeholder {
+  color: var(--lst-fg-muted);
+}
+
+.lst-ghost {
+  cursor: default;
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--lst-accent) 45%, transparent);
+  color: var(--lst-fg-muted);
+}
+
+.lst-ghost .lst-slide-name {
+  font-family: var(--lst-font);
+  font-style: italic;
+}
+
+.lst-ghost .lst-slide-num {
+  color: var(--lst-accent);
+}
+
+@media (pointer: coarse) {
+  .lst-insert {
+    opacity: 1;
+    height: 1.5rem;
+    margin: 0;
+  }
+}
+
 /* --------------------------------------------------------------- annotate */
 
 .lst-tools {

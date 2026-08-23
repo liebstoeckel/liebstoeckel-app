@@ -3,7 +3,9 @@ import { type ApplyEventShape, instructionsForEvent } from "./instructions";
 import { validateReply } from "./reply";
 import type { RestoreResult } from "./snapshot";
 import {
+  ANNOTATION_KINDS,
   type AnnotationEntry,
+  type AnnotationKind,
   type AnnotationStore,
   entriesByStatus,
   entriesInBatch,
@@ -38,11 +40,16 @@ export interface DevBackend {
   /** Deck-relative slide source files in slide order (null per slide when the
    *  entry parser could not attribute it), or null when the list is unknown. */
   resolveSlides(): Array<string | null> | null;
+  /** Deck-relative entry file (the one with the `slides` array), or null. */
+  entryFile(): string | null;
   /** Persist a screenshot; returns the name stored on the entry. */
   writeScreenshot(id: string, bytes: Uint8Array): string;
   /** Where the agent finds a stored screenshot (absolute path locally). */
   screenshotRef(name: string): string;
   takeSnapshot(batchId: string, files: string[]): void;
+  /** After a done reply: files the agent touched that the snapshot does not
+   *  know are recorded as created, so revert removes them. */
+  recordCreated(batchId: string, files: string[]): void;
   /** Restore a batch snapshot; null when no snapshot exists for the id. */
   restoreSnapshot(batchId: string): RestoreResult | null;
   removeSnapshot(batchId: string): void;
@@ -170,6 +177,8 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       deckDir: backend.deckDir,
       annotations: entries.map((entry) => ({
         id: entry.id,
+        ...(entry.kind ? { kind: entry.kind } : {}),
+        ...(entry.request ? { request: entry.request } : {}),
         slide: entry.slide,
         comments: entry.comments,
         strokes: entry.strokes,
@@ -249,10 +258,31 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
 
     if (p === "/__dev/annotations" && req.method === "POST") {
       const body = (await req.json().catch(() => null)) as
-        | { token?: string; id?: string; slideIndex?: number; comments?: unknown; strokes?: unknown; space?: unknown }
+        | {
+            token?: string;
+            id?: string;
+            slideIndex?: number;
+            comments?: unknown;
+            strokes?: unknown;
+            space?: unknown;
+            kind?: unknown;
+            request?: { after?: unknown; description?: unknown };
+          }
         | null;
       if (!body) return json(400, { error: "invalid_json" });
       if (!authorized(body)) return json(401, { error: "unauthorized" });
+      const kind: AnnotationKind = body.kind === undefined ? "annotate" : (body.kind as AnnotationKind);
+      if (!ANNOTATION_KINDS.includes(kind)) return json(400, { error: "unknown_kind" });
+      if (kind === "remove-slide" || kind === "move-slide") return json(400, { error: "kind_not_implemented", kind });
+      let request: AnnotationEntry["request"];
+      if (kind === "add-slide") {
+        const after = body.request?.after;
+        const description = typeof body.request?.description === "string" ? body.request.description.trim() : "";
+        if (typeof after !== "number" || !Number.isInteger(after) || after < -1) return json(400, { error: "request_after_invalid" });
+        if (!description) return json(400, { error: "request_description_required" });
+        request = { after, description };
+        body.slideIndex = after + 1;
+      }
       if (typeof body.slideIndex !== "number") return json(400, { error: "slideIndex_required" });
       const id = typeof body.id === "string" && ID_RE.test(body.id) ? body.id : shortId();
       const slides = backend.resolveSlides();
@@ -260,7 +290,9 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       const existing = store.entries[id];
       const entry: AnnotationEntry = {
         id,
-        slide: { index: body.slideIndex, sourceFile: slides?.[body.slideIndex] ?? null },
+        ...(kind !== "annotate" ? { kind } : {}),
+        ...(request ? { request } : {}),
+        slide: { index: body.slideIndex, sourceFile: request ? null : (slides?.[body.slideIndex] ?? null) },
         comments: Array.isArray(body.comments) ? (body.comments as AnnotationEntry["comments"]) : [],
         strokes: Array.isArray(body.strokes) ? (body.strokes as AnnotationEntry["strokes"]) : [],
         ...(body.space === "stage" ? { space: "stage" as const } : {}),
@@ -316,6 +348,9 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       if (open.length === 0) return json(400, { error: "nothing_to_dispatch" });
       const batchId = shortId();
       const files = [...new Set(open.map((e) => e.slide.sourceFile).filter(Boolean))] as string[];
+      // A slide request edits the deck entry; snapshot it so revert can unregister.
+      const entryFile = open.some((e) => e.kind === "add-slide") ? backend.entryFile() : null;
+      if (entryFile && !files.includes(entryFile)) files.push(entryFile);
       backend.takeSnapshot(batchId, files);
       store = setStatus(store, open.map((e) => e.id), "dispatched", { batchId });
       save();
@@ -397,6 +432,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         // Entries the agent did not apply return to open so the user can retry.
         store = setStatus(store, backToOpen, "open");
         save();
+        if (validation.data.files.length > 0) backend.recordCreated(body.id, validation.data.files);
         broadcast({
           type: "batch_resolved",
           batchId: body.id,
@@ -445,6 +481,7 @@ export { acknowledge, claim, nextLeaseExpiry, selectAvailable, type PendingEvent
 export { applyInstructions, bootInstructions, instructionsForEvent, type ApplyEventShape } from "./instructions";
 export { validateReply, type ApplyReplyData } from "./reply";
 export {
+  ANNOTATION_KINDS,
   emptyStore,
   entriesByStatus,
   entriesInBatch,
@@ -454,7 +491,9 @@ export {
   upsertEntry,
   type AnnotationComment,
   type AnnotationEntry,
+  type AnnotationKind,
   type AnnotationStatus,
+  type SlideRequest,
   type AnnotationStore,
   type AnnotationStroke,
   type AnnotationTargetHint,

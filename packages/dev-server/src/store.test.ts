@@ -90,3 +90,25 @@ describe("parse tolerance", () => {
     expect(parseStore(serializeStore(store))).toEqual(store);
   });
 });
+
+describe("kinds", () => {
+  test("absent kind is annotate; add-slide keeps its request; unknown kinds are dropped", () => {
+    const parsed = parseStore(
+      JSON.stringify({
+        version: 1,
+        entries: {
+          a: entry("a"),
+          q: { ...entry("q"), kind: "add-slide", request: { after: 1, description: "a chart" }, slide: { index: 2, sourceFile: null } },
+          r: { ...entry("r"), kind: "move-slide", request: { after: 0, description: "" } },
+          x: { ...entry("x"), kind: "explode" },
+        },
+      }),
+    );
+    expect("kind" in parsed.entries.a!).toBe(false);
+    expect(parsed.entries.q!.kind).toBe("add-slide");
+    expect(parsed.entries.q!.request).toEqual({ after: 1, description: "a chart" });
+    expect(parsed.entries.r!.kind).toBe("move-slide");
+    expect(parsed.entries.x).toBeUndefined();
+    expect(parseStore(serializeStore(parsed))).toEqual(parsed);
+  });
+});

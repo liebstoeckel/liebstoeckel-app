@@ -52,6 +52,24 @@ liebstoeckel dev poll --reply <batchId> done \
 List only entry ids you fully applied; entries you omit return to the user's
 open list. On failure: `liebstoeckel dev poll --reply <batchId> error "reason"`.
 
+## Handling a slide request
+
+An `apply` event may contain entries with `kind: "add-slide"`: the user pressed
+"+" in the sidebar's slide list and described a new slide. Such an entry has
+`request: { after, description }` (`after` is the index of the slide it goes
+after, `-1` for first) and `slide.index`, the index the new slide takes.
+`_instructions` spell out the position. Do this:
+
+- Create a new slide file under `slides/` with the next numeric prefix, in the
+  deck's existing style (MDX or TSX), implementing the description with the
+  authoring rules from `authoring.md` and the registry where a component fits.
+- Register it in the deck entry's `slides` array at exactly that index (add the
+  import, keep the hot-reload boundary as it is).
+- In the reply, list the new file and the entry file in `files`; they are what
+  Revert removes and restores. List only files you touched.
+
+`remove-slide` and `move-slide` are reserved and never sent yet.
+
 ## Recovery
 
 Delivered events are leased: if you crash or never reply, the same batch is

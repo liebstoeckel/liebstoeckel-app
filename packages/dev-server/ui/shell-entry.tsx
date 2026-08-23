@@ -42,7 +42,7 @@ function Shell({ token }: { token: string }) {
     void loadSlides();
     // Slide files come and go under hot reload; re-read the list on every change pushed by the server.
     const unsubscribe = transport.subscribe((msg) => {
-      if (msg.type === "annotation_updated" || msg.type === "connected") void loadSlides();
+      if (msg.type === "annotation_updated" || msg.type === "connected" || msg.type === "batch_resolved" || msg.type === "batch_reverted") void loadSlides();
     });
     const poll = setInterval(() => void loadSlides(), 5000);
     return () => {

@@ -40,3 +40,27 @@ describe("instructionsForEvent", () => {
     expect(instructionsForEvent({ type: "mystery" })).toBeUndefined();
   });
 });
+
+describe("slide requests", () => {
+  test("a request yields the create-and-register step; marks-only batches keep the edit step", async () => {
+    const { applyInstructions } = await import("./instructions");
+    const base = { id: "b1", type: "apply" as const, deckDir: "/deck" };
+    const withRequest = applyInstructions({
+      ...base,
+      annotations: [
+        { id: "q", kind: "add-slide", request: { after: -1, description: "an agenda" }, slide: { index: 0, sourceFile: null }, comments: [], strokes: [], screenshotPath: null },
+      ],
+    });
+    expect(withRequest).toContain("as the first slide");
+    expect(withRequest).toContain("an agenda");
+    expect(withRequest).toContain("index 0");
+    expect(withRequest).not.toContain("Edit the slide source directly");
+    const marksOnly = applyInstructions({
+      ...base,
+      annotations: [{ id: "a", slide: { index: 1, sourceFile: "slides/02.mdx" }, comments: [{ x: 0, y: 0, text: "t" }], strokes: [], screenshotPath: null }],
+    });
+    expect(marksOnly).toContain("Edit the slide source directly: slides/02.mdx");
+    expect(marksOnly).not.toContain("Slide request");
+  });
+});
+

@@ -33,11 +33,14 @@ export interface MemoryTransport extends DevTransport {
   emit(msg: Record<string, unknown>): void;
   entries(): Record<string, AnnotationEntry>;
   setAgentPolling(on: boolean): void;
+  /** The fixture's slide list; the scripted agent inserts into it. */
+  slides(): SlideInfo[];
 }
 
 export function memoryTransport(seed: AnnotationEntry[] = [], opts: { agentPolling?: boolean; latencyMs?: number } = {}): MemoryTransport {
   let entries: Record<string, AnnotationEntry> = Object.fromEntries(seed.map((e) => [e.id, e]));
   let agentPolling = opts.agentPolling ?? false;
+  let slides: Array<string | null> = FIXTURE_SLIDES.map((s) => s.sourceFile);
   const listeners = new Set<(msg: Record<string, unknown>) => void>();
   const wait = () => new Promise<void>((r) => setTimeout(r, opts.latencyMs ?? 120));
   const emit = (msg: Record<string, unknown>) => listeners.forEach((l) => l(msg));
@@ -51,16 +54,19 @@ export function memoryTransport(seed: AnnotationEntry[] = [], opts: { agentPolli
       agentPolling = on;
       emit({ type: "agent_polling", connected: on });
     },
+    slides: () => slides.map((sourceFile, index) => ({ index, sourceFile })),
     async getState() {
       await wait();
-      return { annotations: entries, agentPolling };
+      return { annotations: entries, agentPolling, slides };
     },
     async saveAnnotation(input) {
       await wait();
       const now = Date.now();
       const entry: AnnotationEntry = {
         id: shortId(),
-        slide: { index: input.slideIndex, sourceFile: FIXTURE_SLIDES[input.slideIndex]?.sourceFile ?? null },
+        ...(input.kind ? { kind: input.kind } : {}),
+        ...(input.request ? { request: input.request } : {}),
+        slide: { index: input.slideIndex, sourceFile: input.kind === "add-slide" ? null : (slides[input.slideIndex] ?? null) },
         comments: input.comments,
         strokes: input.strokes,
         screenshot: null,
@@ -94,6 +100,10 @@ export function memoryTransport(seed: AnnotationEntry[] = [], opts: { agentPolli
         // Scripted agent: takes the batch (busy), applies it after a beat, polls again.
         emit({ type: "agent_polling", connected: false, busy: true });
         setTimeout(() => {
+          // Slide requests: the "agent" creates and registers the slide.
+          for (const e of open.filter((x) => x.kind === "add-slide").sort((a, b) => b.slide.index - a.slide.index)) {
+            slides = [...slides.slice(0, e.slide.index), `slides/${String(slides.length + 1).padStart(2, "0")}-new.mdx`, ...slides.slice(e.slide.index)];
+          }
           for (const e of open) entries = { ...entries, [e.id]: { ...entries[e.id]!, status: "applied", updatedAt: Date.now() } };
           emit({ type: "batch_resolved", batchId, applied: open.map((e) => e.id), reopened: [], files: ["slides/01-title.mdx"], notes: ["made the title bolder"] });
           emit({ type: "agent_polling", connected: true, busy: false });

@@ -10,6 +10,7 @@ import { type AnnotationStore, emptyStore } from "./store";
 interface MemoryBackend extends DevBackend {
   store: AnnotationStore;
   snapshots: Map<string, string[]>;
+  created: Map<string, string[]>;
   restored: string[];
   stopped: boolean;
 }
@@ -19,6 +20,7 @@ function memoryBackend(initial: AnnotationStore = emptyStore()): MemoryBackend {
     deckDir: "/deck",
     store: initial,
     snapshots: new Map(),
+    created: new Map(),
     restored: [],
     stopped: false,
     authorize: (url, body) => (body?.token ?? url.searchParams.get("token")) === "tok",
@@ -27,10 +29,15 @@ function memoryBackend(initial: AnnotationStore = emptyStore()): MemoryBackend {
       backend.store = s;
     },
     resolveSlides: () => ["slides/01.mdx", "slides/02.mdx"],
+    entryFile: () => "main.tsx",
     writeScreenshot: (id) => `${id}.png`,
     screenshotRef: (name) => `/deck/.liebstoeckel/dev/screenshots/${name}`,
     takeSnapshot: (batchId, files) => {
       backend.snapshots.set(batchId, files);
+    },
+    recordCreated: (batchId, files) => {
+      const known = backend.snapshots.get(batchId) ?? [];
+      backend.created.set(batchId, files.filter((f) => !known.includes(f)));
     },
     restoreSnapshot: (batchId): RestoreResult | null => {
       const files = backend.snapshots.get(batchId);
@@ -196,3 +203,39 @@ describe("lifecycle", () => {
     expect(backend.stopped).toBe(true);
   });
 });
+
+describe("slide requests", () => {
+  test("validation, entry-file snapshot, created files recorded on reply, event fields", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend);
+    expect((await p.handleDevRequest(post("/__dev/annotations", { kind: "add-slide", request: { after: 0 } })))!.status).toBe(400);
+    expect((await p.handleDevRequest(post("/__dev/annotations", { kind: "add-slide", request: { after: -2, description: "x" } })))!.status).toBe(400);
+    expect((await p.handleDevRequest(post("/__dev/annotations", { kind: "explode", slideIndex: 0 })))!.status).toBe(400);
+    const reserved = await p.handleDevRequest(post("/__dev/annotations", { kind: "move-slide", slideIndex: 0 }));
+    expect((await body<{ error: string }>(reserved)).error).toBe("kind_not_implemented");
+
+    const saved = await body<{ entry: { id: string; kind: string; slide: { index: number; sourceFile: null }; request: { after: number; description: string } } }>(
+      await p.handleDevRequest(post("/__dev/annotations", { kind: "add-slide", request: { after: 0, description: "  a pie chart  " } })),
+    );
+    expect(saved.entry.kind).toBe("add-slide");
+    expect(saved.entry.slide).toEqual({ index: 1, sourceFile: null });
+    expect(saved.entry.request).toEqual({ after: 0, description: "a pie chart" });
+
+    const dispatched = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    expect(backend.snapshots.get(dispatched.batchId)).toEqual(["main.tsx"]);
+
+    const event = await body<{ annotations: Array<{ kind?: string; request?: unknown }>; _instructions: string }>(
+      await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=500")),
+    );
+    expect(event.annotations[0]!.kind).toBe("add-slide");
+    expect(event.annotations[0]!.request).toEqual({ after: 0, description: "a pie chart" });
+    expect(event._instructions).toContain("create a NEW slide right after slide 1");
+    expect(event._instructions).toContain("index 1");
+
+    await p.handleDevRequest(post("/__dev/poll", { id: dispatched.batchId, type: "done", data: { applied: [saved.entry.id], files: ["slides/03-pie.mdx", "main.tsx"], notes: [] } }));
+    expect(backend.created.get(dispatched.batchId)).toEqual(["slides/03-pie.mdx"]);
+    expect(backend.store.entries[saved.entry.id]!.status).toBe("applied");
+    p.stop();
+  });
+});
+

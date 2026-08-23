@@ -36,6 +36,8 @@ export interface AnnotationEntry {
   /** "stage": fractions of the fitted slide box. Absent on entries written by
    *  the v1 drawer, which measured the window. */
   space?: "stage";
+  kind?: "annotate" | "add-slide" | "remove-slide" | "move-slide";
+  request?: { after: number; description: string };
   screenshot: string | null;
   status: "open" | "dispatched" | "applied" | "dismissed";
   batchId: string | null;
@@ -51,7 +53,15 @@ export interface AnnotationEntry {
 
 export interface DevTransport {
   getState(): Promise<{ annotations: Record<string, AnnotationEntry>; agentPolling: boolean; agentBusy?: boolean; slides?: Array<string | null> | null }>;
-  saveAnnotation(input: { slideIndex: number; comments: CommentDraft[]; strokes: StrokeDraft[]; space?: "stage" }): Promise<AnnotationEntry>;
+  saveAnnotation(input: {
+    slideIndex: number;
+    comments: CommentDraft[];
+    strokes: StrokeDraft[];
+    space?: "stage";
+    /** Slide requests: `kind: "add-slide"` with `request`; omit for marks. */
+    kind?: "add-slide";
+    request?: { after: number; description: string };
+  }): Promise<AnnotationEntry>;
   uploadScreenshot(id: string, png: Blob): Promise<void>;
   setStatus(id: string, status: "dismissed" | "open"): Promise<void>;
   dispatch(): Promise<{ batchId: string; agentPolling: boolean }>;

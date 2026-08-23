@@ -52,7 +52,11 @@ function Scenario({ seed = [], agentPolling = false, initialSlide = 0, collapsed
   const transport = useMemo(() => memoryTransport(seed, { agentPolling }), [seed, agentPolling]);
   const frame = useMemo(() => memoryFrame(transport, initialSlide), [transport, initialSlide]);
   const [slide, setSlide] = useState(initialSlide);
+  const [slides, setSlides] = useState(() => transport.slides());
   useEffect(() => frame.onFrame((e) => typeof e.slide === "number" && setSlide(e.slide)), [frame]);
+  useEffect(() => transport.subscribe((msg) => {
+    if (msg.type === "batch_resolved" || msg.type === "annotation_updated") setSlides(transport.slides());
+  }), [transport]);
   useEffect(() => {
     script?.(frame);
   }, [frame, script]);
@@ -63,7 +67,7 @@ function Scenario({ seed = [], agentPolling = false, initialSlide = 0, collapsed
           transport={transport}
           bridge={frame.bridge}
           onFrame={frame.onFrame}
-          slides={FIXTURE_SLIDES}
+          slides={slides}
           initialSlide={initialSlide}
           collapsed={collapsed}
           onCollapsedChange={setCollapsed}
@@ -120,6 +124,15 @@ export const ManyAnnotations = (ctx: StoryContext) => (
   />
 );
 ManyAnnotations.note = "Thirty entries: the list scrolls inside the sidebar; per-slide badges count open (gold) and applied (green).";
+
+export const AddSlide = (ctx: StoryContext) => (
+  <Scenario
+    {...ctx}
+    seed={[fixtureEntry("q1", { kind: "add-slide", request: { after: 1, description: "a pie chart of cat breeds with one takeaway" }, slide: { index: 2, sourceFile: null }, comments: [], strokes: [], screenshot: null })]}
+    agentPolling
+  />
+);
+AddSlide.note = "A pending slide request shows as a ghost row after slide 2. Hover between rows for the + affordance; Send: the scripted agent inserts the slide and the list re-reads.";
 
 export const Collapsed = (ctx: StoryContext) => <Scenario {...ctx} seed={SEED_MIXED} collapsed />;
 Collapsed.note = "Rail mode: the stage gets nearly the full width. The chevron expands it again.";
