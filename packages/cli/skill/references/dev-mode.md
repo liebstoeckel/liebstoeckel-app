@@ -1,6 +1,6 @@
 # Dev mode: the annotation live loop
 
-`liebstoeckel dev` serves a deck with hot reload and a dev shell at `/__dev/`:
+`liebstoeckel dev` serves a deck with hot reload inside a dev shell:
 a sidebar (slide list, annotation tools, agent presence) beside the deck in a
 frame. The user draws strokes and drops comments on slides, then presses
 **Send to agent**. You receive that batch through a long-poll CLI, edit the slide source
@@ -9,8 +9,9 @@ directly, and the dev server hot-reloads the page. No build step is involved.
 ## The loop
 
 1. If asked to start dev mode: run `liebstoeckel dev` from the deck directory
-   (or `--dir <deck>`). It prints the `/__dev/` URL; the user opens it (the
-   plain deck stays at `/`). Add `--json` for machine-readable startup info.
+   (or `--dir <deck>`). It prints the URL; the user opens it (the plain deck
+   without the sidebar is at `/deck`). Add `--json` for machine-readable
+   startup info.
 2. Poll: `liebstoeckel dev poll` (long-poll, blocks up to 10 minutes, prints
    one JSON event, exits). Run it again immediately after every event or reply.
    - Claude Code: run the poll as a background task; you are notified when it

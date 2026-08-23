@@ -56,7 +56,7 @@ describe("auth", () => {
   });
 
   test("the shell document carries the session token; the bridge does not", async () => {
-    const html = await (await fetch(`${base}/__dev/`)).text();
+    const html = await (await fetch(`${base}/`)).text();
     expect(html).toContain(server.token);
     expect(html).toContain("/__dev/shell.js");
     expect((await fetch(`${base}/__dev/shell.js`)).status).toBe(200);

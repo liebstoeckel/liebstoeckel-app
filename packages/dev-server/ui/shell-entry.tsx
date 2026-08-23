@@ -5,8 +5,8 @@ import { createFrameHost } from "./frame-host";
 import { DevShell, DevSidebar } from "./sidebar";
 import type { FrameEvents, SlideInfo } from "./types";
 
-// The dev shell document served at /__dev/: the sidebar on the left, the deck
-// (served at /) in an iframe on the right, the two joined by the frame host.
+// The dev shell document served at /: the sidebar on the left, the deck
+// (served at /deck) in an iframe on the right, the two joined by the frame host.
 // The token arrives in a prelude exactly as it did for the v1 drawer.
 
 declare global {
@@ -59,7 +59,7 @@ function Shell({ token }: { token: string }) {
   );
 
   // The deck keeps its own URL hash (e.g. #presenter) through the shell.
-  const src = `/${location.hash}`;
+  const src = `/deck${location.hash}`;
 
   return (
     <DevShell

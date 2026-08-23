@@ -4,8 +4,8 @@ import { bootInstructions } from "./instructions";
 import { createLocalBackend, ensureDevGitignore, readServerInfo, removeServerInfo, writeServerInfo } from "./local-backend";
 import { createDevProtocol } from "./protocol";
 
-// The dev-mode server: serves the deck at / through Bun's dev pipeline (HMR,
-// Fast Refresh), the dev shell (sidebar + the deck in a frame) at /__dev/,
+// The dev-mode server: serves the dev shell (sidebar + the deck in a frame) at
+// /, the deck itself at /deck through Bun's dev pipeline (HMR, Fast Refresh),
 // the in-frame bridge the deck's loader tag pulls in, and the /__dev/* protocol
 // over the local filesystem backend. One origin for everything so the drawer
 // needs no CORS. Security model: a per-boot random token required on every
@@ -54,7 +54,7 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     const indexPath = join(deckDir, "index.html");
     if (!existsSync(indexPath)) throw new Error(`No index.html in ${deckDir}`);
     const mod = await import(indexPath);
-    routes["/"] = mod.default;
+    routes["/deck"] = mod.default;
   }
 
   const server = Bun.serve({
@@ -75,7 +75,7 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
         bridgeJs ??= await bridgeBundle();
         return new Response(bridgeJs, { headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" } });
       }
-      if (p === "/__dev" || p === "/__dev/" || p === "/__dev/index.html") {
+      if (p === "/" || p === "/index.html" || p === "/__dev" || p === "/__dev/") {
         shell ??= await shellBundle();
         return new Response(shellHtml(shell, token), { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
       }

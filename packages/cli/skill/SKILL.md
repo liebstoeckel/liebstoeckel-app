@@ -134,7 +134,7 @@ note in `references/editing.md`.
 
 When the user wants to iterate on a running deck — "start dev mode", "watch my
 annotations", "apply what I marked up" — serve it with `liebstoeckel dev` (hot
-reload plus the dev shell with the annotation sidebar at `/__dev/`) and enter the poll loop:
+reload plus the dev shell with the annotation sidebar) and enter the poll loop:
 `liebstoeckel dev poll` blocks until the user sends an annotation batch, prints it
 as JSON, and exits. Apply the annotations to the slide source (hot reload shows the
 edit; do **not** run `build`), reply with `dev poll --reply <batchId> done --data
