@@ -21,11 +21,13 @@
   --lst-font: system-ui, -apple-system, "Segoe UI", sans-serif;
   --lst-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
   width: 100%;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
   background: var(--lst-bg);
   color: var(--lst-fg);
   font: 12.5px/1.45 var(--lst-font);
