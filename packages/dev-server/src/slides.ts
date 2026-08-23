@@ -13,15 +13,20 @@ export { findEntryFile };
 // and the agent falls back to reading the entry itself (it gets the deck dir
 // and slide index either way).
 
-/** Map of imported identifier → import specifier, covering default and named
- *  imports. Namespace imports are skipped (a slide is a component, and decks
- *  in practice import them directly). */
+/** Map of imported identifier → import specifier, covering default, named,
+ *  and namespace imports (`import * as slide from "./slides/02"` is the
+ *  documented way to carry a slide's `notes`, so it must resolve). */
 export function parseImports(source: string): Map<string, string> {
   const map = new Map<string, string>();
   const importRe = /import\s+([^'"]+?)\s+from\s+["']([^"']+)["']/g;
   for (const match of source.matchAll(importRe)) {
     const clause = match[1]!.trim();
     const spec = match[2]!;
+    const namespace = clause.match(/^\*\s+as\s+([A-Za-z_$][\w$]*)$/);
+    if (namespace) {
+      map.set(namespace[1]!, spec);
+      continue;
+    }
     // Default import (possibly followed by named): `X` or `X, { ... }`
     const defaultMatch = clause.match(/^([A-Za-z_$][\w$]*)\s*(?:,|$)/);
     if (defaultMatch) map.set(defaultMatch[1]!, spec);

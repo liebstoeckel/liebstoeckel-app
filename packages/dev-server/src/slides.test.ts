@@ -68,3 +68,12 @@ describe("resolveSlideFiles against a real deck layout", () => {
     expect(resolveSlideFiles(dir)).toBeNull();
   });
 });
+
+describe("namespace imports", () => {
+  test("import * as x resolves like a default import", () => {
+    const map = parseImports('import Intro from "./slides/01-intro";\nimport * as catBreeds from "./slides/02-cat-breeds";\n');
+    expect(map.get("Intro")).toBe("./slides/01-intro");
+    expect(map.get("catBreeds")).toBe("./slides/02-cat-breeds");
+  });
+});
+
