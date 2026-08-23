@@ -146,7 +146,7 @@ export const devCommand = defineCommand({
     if (args.json) {
       console.log(JSON.stringify({ ok: true, url: server.url, port: server.port, _instructions: bootInstructions() }));
     } else {
-      console.log(`▶  ${server.url}  (dev mode: open in a browser, annotate via the drawer)`);
+      console.log(`▶  ${server.url}/__dev/  (dev mode: sidebar + your deck; the plain deck stays at ${server.url}/)`);
       console.log(`   agent loop: liebstoeckel dev poll${args.dir ? ` --dir ${args.dir}` : ""}`);
     }
   },

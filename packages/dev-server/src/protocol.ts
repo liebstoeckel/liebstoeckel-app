@@ -159,6 +159,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         slide: entry.slide,
         comments: entry.comments,
         strokes: entry.strokes,
+        space: entry.space,
         screenshotPath: entry.screenshot ? backend.screenshotRef(entry.screenshot) : null,
       })),
     };
@@ -233,7 +234,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
 
     if (p === "/__dev/annotations" && req.method === "POST") {
       const body = (await req.json().catch(() => null)) as
-        | { token?: string; id?: string; slideIndex?: number; comments?: unknown; strokes?: unknown }
+        | { token?: string; id?: string; slideIndex?: number; comments?: unknown; strokes?: unknown; space?: unknown }
         | null;
       if (!body) return json(400, { error: "invalid_json" });
       if (!authorized(body)) return json(401, { error: "unauthorized" });
@@ -247,6 +248,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         slide: { index: body.slideIndex, sourceFile: slides?.[body.slideIndex] ?? null },
         comments: Array.isArray(body.comments) ? (body.comments as AnnotationEntry["comments"]) : [],
         strokes: Array.isArray(body.strokes) ? (body.strokes as AnnotationEntry["strokes"]) : [],
+        ...(body.space === "stage" ? { space: "stage" as const } : {}),
         screenshot: existing?.screenshot ?? null,
         status: "open",
         batchId: null,

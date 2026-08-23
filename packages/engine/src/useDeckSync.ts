@@ -13,7 +13,8 @@ import {
 // window share { index, step, total, totalFor, startedAt }; either can drive. On
 // open, a new window broadcasts a "request" and the others reply so it snaps to
 // the live state. `step` may be the STEP_ALL sentinel: it is resolved by whoever
-// reads it, never written back.
+// reads it, never written back. A third message, "goto", lets tooling outside the
+// deck (the dev-mode sidebar) ask for a slide; it is clamped like any jump.
 export type DeckState = {
   index: number;
   step: StepPos;
@@ -26,7 +27,7 @@ export type DeckState = {
   ended: boolean;
   startedAt: number;
 };
-type Msg = ({ type: "state" } & DeckState) | { type: "request" };
+type Msg = ({ type: "state" } & DeckState) | { type: "request" } | { type: "goto"; index: number };
 
 const CHANNEL = "liebstoeckel";
 
@@ -43,6 +44,8 @@ export function useDeckSync(count: number) {
   ref.current = state;
   const chan = useRef<BroadcastChannel | null>(null);
   const clamp = (n: number) => Math.min(Math.max(n, 0), Math.max(count - 1, 0));
+  // The channel handler is installed once; "goto" reaches the current setIndex through a ref.
+  const setIndexRef = useRef<(n: number) => void>(() => {});
 
   useEffect(() => {
     const ch = new BroadcastChannel(CHANNEL);
@@ -69,6 +72,8 @@ export function useDeckSync(count: number) {
         );
       } else if (m.type === "request") {
         ch.postMessage({ type: "state", ...ref.current });
+      } else if (m.type === "goto" && typeof m.index === "number" && Number.isInteger(m.index)) {
+        setIndexRef.current(m.index);
       }
     };
     ch.postMessage({ type: "request" });
@@ -95,6 +100,7 @@ export function useDeckSync(count: number) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [commit, count],
   );
+  setIndexRef.current = setIndex;
   const setStep = useCallback((step: StepPos) => commit({ step }), [commit]);
   const setTotal = useCallback(
     (total: number, forIndex: number) => {

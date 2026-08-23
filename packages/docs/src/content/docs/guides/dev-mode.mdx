@@ -5,11 +5,12 @@ description: "Annotate the running deck in your browser and let an AI agent appl
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-`liebstoeckel dev` serves a deck with hot reload and adds a small **dev drawer**
-to the page. Its first tool is **annotations**: draw on a slide, drop comments,
-and send the batch to an AI agent that edits your slide source directly. The
-page hot-reloads with the result seconds later, and one click reverts a batch
-you don't like.
+`liebstoeckel dev` serves a deck with hot reload and a **dev shell**: your deck
+on the right, a **sidebar** on the left with the slide list, the annotation
+tools, and the agent's status. Its first tool is **annotations**: draw on a
+slide, drop comments, and send the batch to an AI agent that edits your slide
+source directly. The deck hot-reloads with the result seconds later, and one
+click reverts a batch you don't like.
 
 Your deck files stay ordinary MDX/TSX throughout: the agent writes the same
 code you would, and nothing about dev mode appears in built decks.
@@ -30,8 +31,11 @@ embed the dev server in your own tooling (it exports `startDevServer`).
    liebstoeckel dev
    ```
 
-   Open the printed URL. A small **dev** pill appears bottom-right; the dot on
-   it shows whether an agent is currently listening.
+   Open the printed URL (it ends in `/__dev/`; the plain deck is still served
+   at `/`). The sidebar lists your slides, and the dot in its header shows
+   whether an agent is currently listening. Click a slide to jump to it; the
+   chevron collapses the sidebar to a thin rail so the deck gets the full
+   width, and on narrow windows it floats over the deck instead of pushing it.
 
 2. In a terminal, have your agent enter the loop (the bundled agent skill knows
    this flow):
@@ -40,18 +44,18 @@ embed the dev server in your own tooling (it exports `startDevServer`).
    liebstoeckel dev poll
    ```
 
-3. In the browser: open the drawer, hit **Draw** or **Comment**, mark up the
-   slide, **Save annotation**, then **Send to agent →**.
+3. In the browser: hit **Draw** or **Comment** in the sidebar, mark up the
+   slide (Escape leaves the mode), **Save**, then **Send to agent**.
 
 4. The agent receives the batch (comments, strokes, an annotated screenshot,
    and the resolved slide source file), edits the slide, and replies. Hot
-   reload shows the change; the drawer shows what was applied. Decks scaffolded
+   reload shows the change; the sidebar shows what was applied. Decks scaffolded
    with the current `main.tsx` shape keep their position: only the edited
    slide re-renders, and the current slide and step survive the edit.
 
-5. Not what you wanted? **Revert last batch** restores the files exactly as
-   they were before that batch was dispatched, and your annotations reopen for
-   another round.
+5. Not what you wanted? **Revert** restores the files exactly as they were
+   before that batch was dispatched, and your annotations reopen for another
+   round.
 
 </Steps>
 
@@ -67,7 +71,9 @@ batch again.
 
 Each annotation carries the slide index and its resolved source file, your
 comments with the element under each comment as a hint, your strokes, and a
-screenshot with the marks baked in. Comments read as design direction ("make
+screenshot of the slide with the marks baked in. Positions are fractions of
+the slide itself, so they mean the same thing whatever the window size or
+sidebar state. Comments read as design direction ("make
 this heading calmer"); strokes read by shape: a loop means *this thing*, an
 arrow means direction or movement, a cross means *remove*.
 

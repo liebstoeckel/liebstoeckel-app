@@ -5,3 +5,4 @@ export { createLocalBackend, type LocalBackendOptions } from "./local-backend";
 export type { AnnotationEntry, AnnotationStore, AnnotationStatus } from "./store";
 export type { ApplyEventShape } from "./instructions";
 export type { ApplyReplyData } from "./reply";
+export { decodeFrameMessage, decodeHostMessage, type FrameMessage, type HostMessage } from "./frame-protocol";

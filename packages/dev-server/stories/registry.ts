@@ -9,6 +9,7 @@ export interface StoryModule {
   [name: string]: unknown | ((ctx: StoryContext) => ReactNode);
 }
 
+import * as frameHost from "./frame-host.stories";
 import * as sidebar from "./sidebar.stories";
 
-export const STORY_MODULES: StoryModule[] = [sidebar];
+export const STORY_MODULES: StoryModule[] = [sidebar, frameHost];

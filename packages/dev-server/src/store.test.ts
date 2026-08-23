@@ -77,6 +77,14 @@ describe("parse tolerance", () => {
     expect(Object.keys(mixed.entries)).toEqual(["good"]);
   });
 
+  test("coordinate space: absent means viewport (v1 entries), stage is kept", () => {
+    const mixed = parseStore(JSON.stringify({ version: 1, entries: { v1: entry("v1"), v2: { ...entry("v2"), space: "stage" }, bad: { ...entry("bad"), space: "window" } } }));
+    expect("space" in mixed.entries.v1!).toBe(false);
+    expect(mixed.entries.v2!.space).toBe("stage");
+    expect("space" in mixed.entries.bad!).toBe(false);
+    expect(parseStore(serializeStore(mixed))).toEqual(mixed);
+  });
+
   test("round-trip preserves entries", () => {
     const store = upsertEntry(emptyStore(), entry("a", { screenshot: "a.png" }));
     expect(parseStore(serializeStore(store))).toEqual(store);

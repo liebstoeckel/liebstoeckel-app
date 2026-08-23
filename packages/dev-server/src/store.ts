@@ -14,7 +14,7 @@ export interface AnnotationTargetHint {
 }
 
 export interface AnnotationComment {
-  /** Viewport-relative position (0..1 of window width/height at capture time). */
+  /** 0..1 of the slide box (entries with `space: "stage"`), else of the window. */
   x: number;
   y: number;
   text: string;
@@ -23,7 +23,7 @@ export interface AnnotationComment {
 }
 
 export interface AnnotationStroke {
-  /** Polyline of viewport-relative points. */
+  /** Polyline of 0..1 points in the entry's coordinate space. */
   points: Array<[number, number]>;
 }
 
@@ -38,6 +38,10 @@ export interface AnnotationEntry {
   };
   comments: AnnotationComment[];
   strokes: AnnotationStroke[];
+  /** Coordinate space of comments and strokes: "stage" = fractions of the
+   *  fitted slide box. Absent on entries the v1 drawer wrote (window
+   *  fractions); readers treat absence as viewport space. */
+  space?: "stage";
   /** Screenshot file name under the dev screenshots dir, when captured. */
   screenshot: string | null;
   status: AnnotationStatus;
@@ -121,6 +125,7 @@ export function parseStore(text: string): AnnotationStore {
       slide: { index: entry.slide.index, sourceFile: entry.slide.sourceFile ?? null },
       comments: Array.isArray(entry.comments) ? entry.comments : [],
       strokes: Array.isArray(entry.strokes) ? entry.strokes : [],
+      ...(entry.space === "stage" ? { space: "stage" as const } : {}),
       screenshot: typeof entry.screenshot === "string" ? entry.screenshot : null,
       status: entry.status as AnnotationStatus,
       batchId: typeof entry.batchId === "string" ? entry.batchId : null,

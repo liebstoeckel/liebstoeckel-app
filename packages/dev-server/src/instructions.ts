@@ -11,7 +11,7 @@ export interface ApplyEventShape {
   type: "apply";
   deckDir: string;
   annotations: Array<
-    Pick<AnnotationEntry, "id" | "slide" | "comments" | "strokes"> & { screenshotPath: string | null }
+    Pick<AnnotationEntry, "id" | "slide" | "comments" | "strokes" | "space"> & { screenshotPath: string | null }
   >;
 }
 
@@ -26,7 +26,7 @@ export function applyInstructions(event: ApplyEventShape): string {
   );
   if (screenshots > 0) {
     steps.push(
-      "Read each annotation's screenshotPath first (PNG with the user's strokes and comments baked in). A comment's {x,y} is viewport-relative and binds the text to the element hinted under it; strokes read by shape (loop = this thing, arrow = direction or movement, cross or scribble = remove).",
+      "Read each annotation's screenshotPath first (PNG with the user's strokes and comments baked in). A comment's {x,y} is slide-relative (0..1 of the slide's own box; entries without space: 'stage' are older and window-relative) and binds the text to the element hinted under it; strokes read by shape (loop = this thing, arrow = direction or movement, cross or scribble = remove).",
     );
   }
   steps.push(

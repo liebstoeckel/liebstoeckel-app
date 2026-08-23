@@ -1,15 +1,16 @@
 # Dev mode: the annotation live loop
 
-`liebstoeckel dev` serves a deck with hot reload plus an in-browser tool drawer.
-The user draws strokes and drops comments on slides, then presses **Send to
-agent**. You receive that batch through a long-poll CLI, edit the slide source
+`liebstoeckel dev` serves a deck with hot reload and a dev shell at `/__dev/`:
+a sidebar (slide list, annotation tools, agent presence) beside the deck in a
+frame. The user draws strokes and drops comments on slides, then presses
+**Send to agent**. You receive that batch through a long-poll CLI, edit the slide source
 directly, and the dev server hot-reloads the page. No build step is involved.
 
 ## The loop
 
 1. If asked to start dev mode: run `liebstoeckel dev` from the deck directory
-   (or `--dir <deck>`). It prints the URL; the user opens it. Add `--json` for
-   machine-readable startup info.
+   (or `--dir <deck>`). It prints the `/__dev/` URL; the user opens it (the
+   plain deck stays at `/`). Add `--json` for machine-readable startup info.
 2. Poll: `liebstoeckel dev poll` (long-poll, blocks up to 10 minutes, prints
    one JSON event, exits). Run it again immediately after every event or reply.
    - Claude Code: run the poll as a background task; you are notified when it
@@ -28,8 +29,10 @@ directly, and the dev server hot-reloads the page. No build step is involved.
 The event carries `id` (the batch id), `deckDir`, and `annotations[]`, each
 with `slide.index`, `slide.sourceFile` (deck-relative, may be null), `comments`
 (`{x, y, text, target?}` where `target` hints the element under the point),
-`strokes`, and `screenshotPath` (a PNG with the user's marks baked in, present
-only when they annotated visually).
+`strokes`, `space` (`"stage"`: `x`/`y` and stroke points are fractions 0..1 of
+the slide's own box; absent on entries from older clients, which measured the
+window), and `screenshotPath` (a PNG of the slide with the user's marks baked
+in, present only when they annotated visually).
 
 - Read each screenshot first when present. Strokes read by shape: a closed loop
   means "this thing", an arrow means direction or movement, a cross or scribble

@@ -55,9 +55,15 @@ describe("auth", () => {
     expect((await post("/__dev/annotations", { slideIndex: 0 }, "wrong")).status).toBe(401);
   });
 
-  test("drawer.js carries the session token", async () => {
-    const js = await (await fetch(`${base}/__dev/drawer.js`)).text();
-    expect(js).toContain(server.token);
+  test("the shell document carries the session token; the bridge does not", async () => {
+    const html = await (await fetch(`${base}/__dev/`)).text();
+    expect(html).toContain(server.token);
+    expect(html).toContain("/__dev/shell.js");
+    expect((await fetch(`${base}/__dev/shell.js`)).status).toBe(200);
+    const bridge = await (await fetch(`${base}/__dev/bridge.js`)).text();
+    expect(bridge).not.toContain(server.token);
+    expect(bridge).toContain("lst:hello");
+    expect((await fetch(`${base}/__dev/drawer.js`)).status).toBe(200);
   });
 });
 

@@ -33,6 +33,9 @@ export interface AnnotationEntry {
   slide: { index: number; sourceFile: string | null };
   comments: CommentDraft[];
   strokes: StrokeDraft[];
+  /** "stage": fractions of the fitted slide box. Absent on entries written by
+   *  the v1 drawer, which measured the window. */
+  space?: "stage";
   screenshot: string | null;
   status: "open" | "dispatched" | "applied" | "dismissed";
   batchId: string | null;
@@ -47,8 +50,8 @@ export interface AnnotationEntry {
 // ---------------------------------------------------------------------------
 
 export interface DevTransport {
-  getState(): Promise<{ annotations: Record<string, AnnotationEntry>; agentPolling: boolean }>;
-  saveAnnotation(input: { slideIndex: number; comments: CommentDraft[]; strokes: StrokeDraft[] }): Promise<AnnotationEntry>;
+  getState(): Promise<{ annotations: Record<string, AnnotationEntry>; agentPolling: boolean; slides?: Array<string | null> | null }>;
+  saveAnnotation(input: { slideIndex: number; comments: CommentDraft[]; strokes: StrokeDraft[]; space?: "stage" }): Promise<AnnotationEntry>;
   uploadScreenshot(id: string, png: Blob): Promise<void>;
   setStatus(id: string, status: "dismissed" | "open"): Promise<void>;
   dispatch(): Promise<{ batchId: string; agentPolling: boolean }>;
@@ -113,8 +116,32 @@ export function watchCurrentSlide(onChange: (index: number) => void = () => {}):
 }
 
 // ---------------------------------------------------------------------------
-// Rendering strokes and comments (viewport-relative 0..1 coordinates) onto any
-// canvas, and capturing the page with them baked in.
+// The stage: the engine's fitted 16:9 box. Annotations are fractions of this
+// rect, so they mean the same thing beside a sidebar, in a hosted frame, or
+// on a different window size.
+// ---------------------------------------------------------------------------
+
+export const STAGE_SELECTOR = "[data-deck-root]";
+
+export function stageRect(): DOMRect | null {
+  const el = document.querySelector(STAGE_SELECTOR);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 ? r : null;
+}
+
+/** Client coordinates -> stage fractions (may fall outside 0..1 when off-stage). */
+export function toStage(clientX: number, clientY: number, rect: DOMRect): Point {
+  return [(clientX - rect.left) / rect.width, (clientY - rect.top) / rect.height];
+}
+
+export function onStage(p: Point): boolean {
+  return p[0] >= 0 && p[0] <= 1 && p[1] >= 0 && p[1] <= 1;
+}
+
+// ---------------------------------------------------------------------------
+// Rendering strokes and comments (stage fractions 0..1) onto any canvas, and
+// capturing the stage with them baked in.
 // ---------------------------------------------------------------------------
 
 export function drawAnnotations(
@@ -153,12 +180,12 @@ export function drawAnnotations(
   }
 }
 
-/** Light snapshot of the element under a viewport-relative point, a hint for
- *  the agent. `mute` is a node to ignore while sampling (the overlay). */
-export function elementHintAt(x: number, y: number, mute?: HTMLElement): CommentDraft["target"] {
+/** Light snapshot of the element under a stage-relative point, a hint for the
+ *  agent. `mute` is a node to ignore while sampling (the overlay). */
+export function elementHintAt(x: number, y: number, rect: DOMRect, mute?: HTMLElement): CommentDraft["target"] {
   const prev = mute?.style.pointerEvents;
   if (mute) mute.style.pointerEvents = "none";
-  const el = document.elementFromPoint(x * window.innerWidth, y * window.innerHeight) as HTMLElement | null;
+  const el = document.elementFromPoint(rect.left + x * rect.width, rect.top + y * rect.height) as HTMLElement | null;
   if (mute) mute.style.pointerEvents = prev ?? "";
   return el
     ? {
@@ -169,18 +196,20 @@ export function elementHintAt(x: number, y: number, mute?: HTMLElement): Comment
     : undefined;
 }
 
-/** Annotated screenshot: page pixels with the draft composited on top. Captured
- *  only because annotations exist; an unannotated screenshot would anchor the
- *  agent on the current design. `excludeId` drops the host element (the drawer)
- *  from the capture. */
+/** Annotated screenshot: the stage's pixels with the draft composited on top,
+ *  cropped to the stage rect. Captured only because annotations exist; an
+ *  unannotated screenshot would anchor the agent on the current design.
+ *  `excludeId` drops the host element (overlay chrome) from the capture. */
 export async function captureAnnotated(
   strokes: StrokeDraft[],
   comments: CommentDraft[],
-  opts: { excludeId?: string } = {},
+  opts: { excludeId?: string; rect?: DOMRect | null } = {},
 ): Promise<Blob | null> {
+  const rect = opts.rect ?? stageRect();
+  const scale = Math.min(1, 1600 / window.innerWidth);
   const dataUrl = await domToPng(document.body, {
     filter: (node) => !(opts.excludeId && node instanceof Element && node.id === opts.excludeId),
-    scale: Math.min(1, 1600 / window.innerWidth),
+    scale,
   });
   const img = new Image();
   await new Promise((resolveLoad, rejectLoad) => {
@@ -189,10 +218,14 @@ export async function captureAnnotated(
     img.src = dataUrl;
   });
   const canvas = document.createElement("canvas");
-  canvas.width = img.naturalWidth;
-  canvas.height = img.naturalHeight;
+  const sx = rect ? rect.left * scale : 0;
+  const sy = rect ? rect.top * scale : 0;
+  const sw = rect ? rect.width * scale : img.naturalWidth;
+  const sh = rect ? rect.height * scale : img.naturalHeight;
+  canvas.width = Math.round(sw);
+  canvas.height = Math.round(sh);
   const cctx = canvas.getContext("2d")!;
-  cctx.drawImage(img, 0, 0);
+  cctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
   drawAnnotations(cctx, canvas.width, canvas.height, strokes, comments);
   return await new Promise((resolveBlob) => canvas.toBlob(resolveBlob, "image/png"));
 }
