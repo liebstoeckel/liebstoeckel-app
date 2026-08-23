@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { snapshotsDir } from "./store";
+import { snapshotsDir } from "./paths";
 
 // Pre-dispatch source snapshots back the drawer's one-click Revert: before an
 // apply batch is delivered, the referenced slide sources are copied here; revert

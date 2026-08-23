@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type DevServer, startDevServer } from "./server";
-import { loadStore } from "./store";
+import { loadStore } from "./local-backend";
 
 // Integration against a real Bun.serve in apiOnly mode: the /__dev surface end
 // to end (token auth, stash -> dispatch -> poll -> lease -> reply -> statuses,

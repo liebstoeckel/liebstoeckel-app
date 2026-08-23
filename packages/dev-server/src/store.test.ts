@@ -1,15 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import {
   type AnnotationEntry,
   emptyStore,
   entriesByStatus,
   entriesInBatch,
-  loadStore,
   parseStore,
-  saveStore,
   serializeStore,
   setStatus,
   upsertEntry,
@@ -85,15 +80,5 @@ describe("parse tolerance", () => {
   test("round-trip preserves entries", () => {
     const store = upsertEntry(emptyStore(), entry("a", { screenshot: "a.png" }));
     expect(parseStore(serializeStore(store))).toEqual(store);
-  });
-});
-
-describe("io", () => {
-  test("load missing file yields empty store; save/load round-trips", () => {
-    const dir = mkdtempSync(join(tmpdir(), "lst-dev-store-"));
-    expect(loadStore(dir).entries).toEqual({});
-    const store = upsertEntry(emptyStore(), entry("a"));
-    saveStore(dir, store);
-    expect(loadStore(dir)).toEqual(store);
   });
 });

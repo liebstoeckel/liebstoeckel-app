@@ -1,11 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-
-// The annotation store: one JSON file under the deck, a keyed map of independent,
-// self-contained entries. The shape is deliberately map-of-values rather than an
-// ordered array so a hosted variant can drop the same entries into a CRDT map
-// without a schema change. All transitions are pure functions over the store
-// value; only load/save touch the filesystem.
+// The annotation store: a keyed map of independent, self-contained entries.
+// The shape is deliberately map-of-values rather than an ordered array so a
+// hosted variant can drop the same entries into a CRDT map without a schema
+// change. Everything here is a pure function over the store value; where it
+// is persisted (a JSON file locally) is the backend's business, so this module
+// stays importable from any host.
 
 export type AnnotationStatus = "open" | "dispatched" | "applied" | "dismissed";
 
@@ -135,43 +133,4 @@ export function parseStore(text: string): AnnotationStore {
 
 export function serializeStore(store: AnnotationStore): string {
   return JSON.stringify(store, null, 2) + "\n";
-}
-
-// ---------------------------------------------------------------------------
-// Filesystem layout + thin IO
-// ---------------------------------------------------------------------------
-
-/** All dev-mode state lives under `.liebstoeckel/dev/` in the deck. */
-export function devDir(deckDir: string): string {
-  return join(deckDir, ".liebstoeckel", "dev");
-}
-
-export function storePath(deckDir: string): string {
-  return join(devDir(deckDir), "annotations.json");
-}
-
-export function screenshotsDir(deckDir: string): string {
-  return join(devDir(deckDir), "screenshots");
-}
-
-export function snapshotsDir(deckDir: string): string {
-  return join(devDir(deckDir), "snapshots");
-}
-
-export function serverInfoPath(deckDir: string): string {
-  return join(devDir(deckDir), "server.json");
-}
-
-export function loadStore(deckDir: string): AnnotationStore {
-  const file = storePath(deckDir);
-  if (!existsSync(file)) return emptyStore();
-  return parseStore(readFileSync(file, "utf-8"));
-}
-
-export function saveStore(deckDir: string, store: AnnotationStore): void {
-  const file = storePath(deckDir);
-  mkdirSync(dirname(file), { recursive: true });
-  // Write-then-rename so a crash mid-write never leaves a truncated store.
-  writeFileSync(file + ".tmp", serializeStore(store), "utf-8");
-  renameSync(file + ".tmp", file);
 }

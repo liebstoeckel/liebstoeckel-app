@@ -38,7 +38,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./cli": "./src/cli.ts"
+    "./cli": "./src/cli.ts",
+    "./protocol": "./src/protocol.ts",
+    "./bridge": "./src/bridge.ts"
   },
   "dependencies": {
     "@liebstoeckel/cli": "workspace:^",
