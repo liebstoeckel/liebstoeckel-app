@@ -47,7 +47,7 @@ interface ScenarioProps extends StoryContext {
   script?: (frame: MemoryFrame) => void;
 }
 
-function Scenario({ seed = [], agentPolling = false, initialSlide = 0, collapsed: initialCollapsed = false, theme, script }: ScenarioProps) {
+function Scenario({ seed = [], agentPolling = false, initialSlide = 0, collapsed: initialCollapsed = false, script }: ScenarioProps) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const transport = useMemo(() => memoryTransport(seed, { agentPolling }), [seed, agentPolling]);
   const frame = useMemo(() => memoryFrame(transport, initialSlide), [transport, initialSlide]);
@@ -58,7 +58,6 @@ function Scenario({ seed = [], agentPolling = false, initialSlide = 0, collapsed
   }, [frame, script]);
   return (
     <DevShell
-      theme={theme}
       sidebar={
         <DevSidebar
           transport={transport}
@@ -127,6 +126,3 @@ Collapsed.note = "Rail mode: the stage gets nearly the full width. The chevron e
 
 export const Narrow = (ctx: StoryContext) => <Scenario {...ctx} width={640} seed={SEED_MIXED} />;
 Narrow.note = "Set the runner width below 860px: the sidebar overlays the stage instead of pushing it.";
-
-export const Light = (ctx: StoryContext) => <Scenario {...ctx} theme="light" seed={SEED_MIXED} />;
-Light.note = "Token override check: the same component on the light palette a hosted dashboard might use.";

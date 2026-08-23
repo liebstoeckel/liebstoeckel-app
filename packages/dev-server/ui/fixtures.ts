@@ -109,6 +109,7 @@ export function memoryTransport(seed: AnnotationEntry[] = [], opts: { agentPolli
     subscribe(onMessage) {
       listeners.add(onMessage);
       queueMicrotask(() => onMessage({ type: "connected", agentPolling }));
+      return () => listeners.delete(onMessage);
     },
   };
 }

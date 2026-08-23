@@ -51,6 +51,7 @@ export function httpTransport(token: string): DevTransport {
           // ignore malformed frames
         }
       };
+      return () => source.close();
     },
   };
 }

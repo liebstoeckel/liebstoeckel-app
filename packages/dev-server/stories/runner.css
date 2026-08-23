@@ -1,11 +1,11 @@
 :root {
   color-scheme: dark;
-  --r-bg: #0c0c0e;
-  --r-panel: #151518;
-  --r-fg: #e8e4da;
-  --r-muted: #8d887c;
-  --r-line: rgba(255, 255, 255, 0.1);
-  --r-accent: #d4af37;
+  --r-bg: #0b0e09;
+  --r-panel: #10140e;
+  --r-fg: #e9e6d7;
+  --r-muted: #9da28c;
+  --r-line: #2c3326;
+  --r-accent: #c9a24b;
 }
 
 * {
@@ -22,7 +22,7 @@ body,
 body {
   background: var(--r-bg);
   color: var(--r-fg);
-  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 13px/1.4 "Schibsted Grotesk Variable", system-ui, sans-serif;
 }
 
 .runner {
@@ -180,15 +180,15 @@ body {
 .stage-ph .stage p {
   margin: 0.6em 0 0;
   font-size: 2.4cqw;
-  color: #9a958a;
+  color: #b5b3a4;
 }
 
 .stage-ph .stage .dims {
   position: absolute;
   right: 10px;
   bottom: 8px;
-  font: 11px ui-monospace, monospace;
-  color: #6b675f;
+  font: 11px "JetBrains Mono Variable", ui-monospace, monospace;
+  color: #8f9483;
 }
 
 .stage-ph .stroke {

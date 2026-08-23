@@ -4,7 +4,7 @@ import { STORY_MODULES, type StoryModule } from "./registry";
 
 // The runner: a nav of CSF stories, a canvas whose width you can drag (the
 // question this exists to answer is how the sidebar behaves as the viewport
-// shrinks), and a theme toggle. No args panel; variants are named exports.
+// shrinks). No args panel; variants are named exports.
 
 interface StoryRef {
   group: string;
@@ -16,7 +16,6 @@ interface StoryRef {
 export interface StoryContext {
   width: number;
   height: number;
-  theme: "dark" | "light";
 }
 
 function collect(): StoryRef[] {
@@ -50,7 +49,6 @@ function Runner() {
   const active = stories.find((s) => `${s.group}/${s.name}` === hash) ?? stories[0]!;
   const [width, setWidth] = useState(1280);
   const [height, setHeight] = useState(720);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   const groups = [...new Set(stories.map((s) => s.group))];
 
@@ -75,9 +73,6 @@ function Runner() {
           <input type="range" min={400} max={1000} step={10} value={height} onChange={(e) => setHeight(Number(e.target.value))} />
           <span className="val">{height}px</span>
         </label>
-        <button type="button" data-on={String(theme === "light")} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-          {theme === "dark" ? "dark" : "light"}
-        </button>
       </div>
       <nav className="runner-nav">
         {groups.map((group) => (
@@ -103,7 +98,7 @@ function Runner() {
       </nav>
       <div className="runner-canvas">
         <div className="runner-story" style={{ width, height }} key={`${active.group}/${active.name}`}>
-          {active.render({ width, height, theme })}
+          {active.render({ width, height })}
         </div>
         {active.note && <p className="runner-note">{active.note}</p>}
       </div>

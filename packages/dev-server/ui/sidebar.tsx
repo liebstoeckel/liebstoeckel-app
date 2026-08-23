@@ -1,26 +1,27 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import "@fontsource-variable/schibsted-grotesk";
+import "@fontsource-variable/jetbrains-mono";
 import type { AnnotationEntry, DevTransport } from "../drawer/bridge";
 import type { DevSidebarProps, FrameEvents, OverlayMode, SlideInfo } from "./types";
 import "./sidebar.css";
 
 // The authoring sidebar: a left column beside the deck frame, the way slide
-// decks have always put their slide list. It is plain React on plain CSS so
-// the same component renders in the CLI's local shell page and inside the
-// hosted dashboard; it never touches the deck's DOM (that is the in-frame
-// bridge's job) and only speaks the transport and the frame-bridge contracts.
+// decks have always put their slide list. Plain React on plain CSS so the
+// same component renders in the CLI's local shell page and inside the hosted
+// dashboard; it never touches the deck's DOM (that is the in-frame bridge's
+// job) and only speaks the transport and the frame-bridge contracts.
 
 // ---------------------------------------------------------------- shell
 
 export interface DevShellProps {
   sidebar: ReactNode;
   children: ReactNode;
-  theme?: "dark" | "light";
   /** Below this width the sidebar overlays the frame instead of pushing it. */
   narrowBelow?: number;
   className?: string;
 }
 
-export function DevShell({ sidebar, children, theme = "dark", narrowBelow = 860, className }: DevShellProps) {
+export function DevShell({ sidebar, children, narrowBelow = 860, className }: DevShellProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
@@ -31,12 +32,35 @@ export function DevShell({ sidebar, children, theme = "dark", narrowBelow = 860,
     return () => ro.disconnect();
   }, [narrowBelow]);
   return (
-    <div ref={ref} className={`lst-shell ${className ?? ""}`} data-theme={theme} data-narrow={String(narrow)}>
+    <div ref={ref} className={`lst-shell ${className ?? ""}`} data-narrow={String(narrow)}>
       {sidebar}
       <div className="lst-frame">{children}</div>
     </div>
   );
 }
+
+// ---------------------------------------------------------------- icons
+
+// One stroke vocabulary (16px grid, 1.5px stroke) so the panel reads as a
+// single tool; emoji render differently per OS and get read aloud.
+function Icon({ d, label }: { d: string; label?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden={label ? undefined : true} role={label ? "img" : undefined}>
+      {label && <title>{label}</title>}
+      <path d={d} />
+    </svg>
+  );
+}
+
+const ICONS = {
+  pen: "M11.5 2.5l2 2L5 13H3v-2l8.5-8.5zM10 4l2 2",
+  comment: "M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z",
+  send: "M2.5 8h11M9.5 4l4 4-4 4",
+  undo: "M6 4L2.5 7.5 6 11M2.5 7.5H10a3 3 0 010 6H8",
+  close: "M4 4l8 8M12 4l-8 8",
+  chevronLeft: "M10 3L5 8l5 5",
+  chevronRight: "M6 3l5 5-5 5",
+} as const;
 
 // ---------------------------------------------------------------- state
 
@@ -59,7 +83,7 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
 
   useEffect(() => {
     void refresh();
-    transport.subscribe((msg) => {
+    return transport.subscribe((msg) => {
       switch (msg.type) {
         case "connected":
         case "agent_polling":
@@ -93,9 +117,7 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
           break;
       }
     });
-    // subscribe once per transport; the transport owns the connection lifetime
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transport]);
+  }, [transport, refresh, toast]);
 
   return { ...state, refresh };
 }
@@ -108,6 +130,7 @@ function useToast(): [string | null, (text: string) => void] {
     clearTimeout(timer.current);
     timer.current = setTimeout(() => setText(null), 3200);
   }, []);
+  useEffect(() => () => clearTimeout(timer.current), []);
   return [text, toast];
 }
 
@@ -130,6 +153,18 @@ export function DevSidebar(props: DevSidebarProps) {
     draft: { strokes: [], comments: [] },
   });
   useEffect(() => onFrame((event) => setFrame((f) => ({ ...f, ...event }))), [onFrame]);
+
+  // Escape leaves draw/comment mode from anywhere in the sidebar.
+  const asideRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = asideRef.current;
+    if (!el) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && frame.mode !== "off") bridge.setMode("off");
+    };
+    el.addEventListener("keydown", onKey);
+    return () => el.removeEventListener("keydown", onKey);
+  }, [bridge, frame.mode]);
 
   const entries = useMemo(
     () =>
@@ -189,47 +224,65 @@ export function DevSidebar(props: DevSidebarProps) {
     void dev.refresh();
   }
 
+  const presence = dev.agentPolling ? "agent polling" : "agent offline";
+
   return (
-    <aside className="lst-sidebar" data-collapsed={String(collapsed)} aria-label="liebstoeckel dev">
+    <aside ref={asideRef} className="lst-sidebar" data-collapsed={String(collapsed)} aria-label="liebstoeckel dev">
       <header className="lst-hdr">
         <button
           type="button"
           className="lst-icon-btn"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={!collapsed}
           onClick={() => setCollapsed(!collapsed)}
         >
-          {collapsed ? "›" : "‹"}
+          <Icon d={collapsed ? ICONS.chevronRight : ICONS.chevronLeft} />
         </button>
         <div className="lst-hdr-text">
           <b>liebstoeckel dev</b>
           <span className="lst-agent">
             <span className="lst-dot" data-on={String(dev.agentPolling)} />
-            {dev.agentPolling ? "agent polling" : "agent offline"}
+            {presence}
           </span>
         </div>
       </header>
 
+      <div className="lst-rail" aria-hidden={!collapsed}>
+        <span className="lst-dot" data-on={String(dev.agentPolling)} title={presence} />
+        {openCount > 0 && <span className="lst-badge" title={`${openCount} open annotation(s)`}>{openCount}</span>}
+        <button
+          type="button"
+          className="lst-icon-btn"
+          title="Send to agent"
+          aria-label="Send to agent"
+          disabled={openCount === 0}
+          onClick={() => void send()}
+        >
+          <Icon d={ICONS.send} />
+        </button>
+      </div>
+
       <div className="lst-body">
-        <section className="lst-section">
-          <div className="lst-section-hdr">
+        <section className="lst-section" aria-labelledby="lst-h-slides">
+          <h2 className="lst-section-hdr" id="lst-h-slides">
             <span>Slides</span>
             <span className="lst-count">{slides.length}</span>
-          </div>
+          </h2>
           <SlideList slides={slides} current={frame.slide} perSlide={perSlide} onGoto={(i) => bridge.goto(i)} />
         </section>
 
-        <section className="lst-section">
-          <div className="lst-section-hdr">
+        <section className="lst-section" aria-labelledby="lst-h-annotate">
+          <h2 className="lst-section-hdr" id="lst-h-annotate">
             <span>Annotate slide {frame.slide + 1}</span>
-          </div>
+          </h2>
           <div className="lst-tools">
-            <div className="lst-row">
-              <button type="button" className="lst-btn" data-active={String(frame.mode === "draw")} onClick={() => setMode("draw")}>
-                {"✏"} Draw
+            <div className="lst-row" role="group" aria-label="Overlay mode">
+              <button type="button" className="lst-btn" aria-pressed={frame.mode === "draw"} data-active={String(frame.mode === "draw")} onClick={() => setMode("draw")}>
+                <Icon d={ICONS.pen} /> Draw
               </button>
-              <button type="button" className="lst-btn" data-active={String(frame.mode === "comment")} onClick={() => setMode("comment")}>
-                {"💬"} Comment
+              <button type="button" className="lst-btn" aria-pressed={frame.mode === "comment"} data-active={String(frame.mode === "comment")} onClick={() => setMode("comment")}>
+                <Icon d={ICONS.comment} /> Comment
               </button>
             </div>
             <div className="lst-draft" data-empty={String(draftCount === 0)}>
@@ -247,19 +300,17 @@ export function DevSidebar(props: DevSidebarProps) {
                 </button>
               </span>
             </div>
-            <p className="lst-hint">
-              Mark the slide, save, then send. The agent edits the source; hot reload shows it.
-            </p>
+            <p className="lst-hint">Mark the slide, save, then send. The agent edits the source; hot reload shows it.</p>
           </div>
         </section>
 
-        <section className="lst-section">
-          <div className="lst-section-hdr">
+        <section className="lst-section" aria-labelledby="lst-h-entries">
+          <h2 className="lst-section-hdr" id="lst-h-entries">
             <span>Annotations</span>
             <span className="lst-count">{openCount} open</span>
-          </div>
+          </h2>
           {entries.length === 0 ? (
-            <div className="lst-empty">{dev.loaded ? "Nothing saved yet." : "Loading"}</div>
+            <div className="lst-empty">{dev.loaded ? "Nothing saved yet. Mark a slide above to start." : "Loading"}</div>
           ) : (
             <EntryList entries={entries.slice(0, 30)} onDismiss={(id) => transport.setStatus(id, "dismissed").then(() => dev.refresh())} />
           )}
@@ -268,14 +319,14 @@ export function DevSidebar(props: DevSidebarProps) {
 
       <footer className="lst-footer">
         <button type="button" className="lst-btn" data-primary="true" disabled={openCount === 0} onClick={() => void send()}>
-          Send to agent {"→"}
+          Send to agent <Icon d={ICONS.send} />
         </button>
         <button type="button" className="lst-btn" disabled={!lastAppliedBatch} title="Revert the last applied batch" onClick={() => void revert()}>
-          Revert
+          <Icon d={ICONS.undo} /> Revert
         </button>
       </footer>
 
-      <div className="lst-toast" data-on={String(toastText !== null)} role="status">
+      <div className="lst-toast" data-on={String(toastText !== null)} role="status" aria-live="polite">
         {toastText}
       </div>
     </aside>
@@ -300,14 +351,15 @@ function SlideList({
       {slides.map((slide) => {
         const counts = perSlide.get(slide.index);
         const name = slide.sourceFile ? slide.sourceFile.split("/").pop()! : "";
+        const isCurrent = slide.index === current;
         return (
           <li key={slide.index}>
-            <button type="button" className="lst-slide" data-current={String(slide.index === current)} onClick={() => onGoto(slide.index)}>
+            <button type="button" className="lst-slide" aria-current={isCurrent ? "true" : undefined} onClick={() => onGoto(slide.index)}>
               <span className="lst-slide-num">{slide.index + 1}</span>
               <span className="lst-slide-name">{name || <i>unresolved</i>}</span>
               <span className="lst-row">
-                {counts?.open ? <span className="lst-badge">{counts.open}</span> : null}
-                {counts?.applied ? <span className="lst-badge" data-kind="applied">{counts.applied}</span> : null}
+                {counts?.open ? <span className="lst-badge" title={`${counts.open} open`}>{counts.open}</span> : null}
+                {counts?.applied ? <span className="lst-badge" data-kind="applied" title={`${counts.applied} applied`}>{counts.applied}</span> : null}
               </span>
             </button>
           </li>
@@ -330,8 +382,8 @@ function EntryList({ entries, onDismiss }: { entries: AnnotationEntry[]; onDismi
             <span className="lst-chip" data-s={entry.status}>
               {entry.status}
             </span>
-            <button type="button" className="lst-x" title="Dismiss" onClick={() => onDismiss(entry.id)}>
-              {"✕"}
+            <button type="button" className="lst-x" title="Dismiss" aria-label="Dismiss annotation" onClick={() => onDismiss(entry.id)}>
+              <Icon d={ICONS.close} />
             </button>
           </div>
           {entry.comments.length > 0 && <div className="lst-txt">{entry.comments.map((c) => c.text).join("\n")}</div>}
