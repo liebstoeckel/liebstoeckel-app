@@ -91,10 +91,12 @@ export function memoryTransport(seed: AnnotationEntry[] = [], opts: { agentPolli
       for (const e of open) entries = { ...entries, [e.id]: { ...e, status: "dispatched", batchId, updatedAt: Date.now() } };
       emit({ type: "batch_dispatched", batchId, entryIds: open.map((e) => e.id), agentPolling });
       if (agentPolling) {
-        // Scripted agent: applies the batch after a beat.
+        // Scripted agent: takes the batch (busy), applies it after a beat, polls again.
+        emit({ type: "agent_polling", connected: false, busy: true });
         setTimeout(() => {
           for (const e of open) entries = { ...entries, [e.id]: { ...entries[e.id]!, status: "applied", updatedAt: Date.now() } };
           emit({ type: "batch_resolved", batchId, applied: open.map((e) => e.id), reopened: [], files: ["slides/01-title.mdx"], notes: ["made the title bolder"] });
+          emit({ type: "agent_polling", connected: true, busy: false });
         }, 1400);
       }
       return { batchId, agentPolling };

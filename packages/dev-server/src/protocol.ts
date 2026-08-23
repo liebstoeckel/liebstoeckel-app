@@ -55,6 +55,8 @@ export interface DevProtocol {
   handleDevRequest(req: Request): Promise<Response | null>;
   /** Whether an agent is parked on the poll right now. */
   agentPolling(): boolean;
+  /** Whether an agent holds a leased batch it has not replied to yet. */
+  agentBusy(): boolean;
   stop(): void;
 }
 
@@ -83,7 +85,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
   const sseClients = new Set<ReadableStreamDefaultController<Uint8Array>>();
   let seq = 1;
   let leaseTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastAgentPolling: boolean | null = null;
+  let lastAgentPolling: string | null = null;
   let stopped = false;
 
   const save = () => backend.saveStore(store);
@@ -106,11 +108,23 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
     return polls.length > 0;
   }
 
+  function agentBusy(): boolean {
+    // A leased, unacknowledged event: an agent took a batch and has not replied.
+    // Not "polling" (it is working, not waiting), not "offline" either.
+    const now = Date.now();
+    return pending.some((entry) => entry.leaseUntil > now);
+  }
+
+  function presence(): { connected: boolean; busy: boolean } {
+    return { connected: agentPolling(), busy: agentBusy() };
+  }
+
   function broadcastAgentPollingIfChanged(): void {
-    const connected = agentPolling();
-    if (lastAgentPolling === connected) return;
-    lastAgentPolling = connected;
-    broadcast({ type: "agent_polling", connected });
+    const p = presence();
+    const key = `${p.connected}:${p.busy}`;
+    if (lastAgentPolling === key) return;
+    lastAgentPolling = key;
+    broadcast({ type: "agent_polling", ...p });
   }
 
   function scheduleLeaseFlush(): void {
@@ -197,6 +211,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       return json(200, {
         annotations: store.entries,
         agentPolling: agentPolling(),
+        agentBusy: agentBusy(),
         slides: backend.resolveSlides(),
       });
     }
@@ -211,7 +226,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
           sseClients.add(controller);
           controller.enqueue(
             new TextEncoder().encode(
-              `data: ${JSON.stringify({ type: "connected", agentPolling: agentPolling() })}\n\n`,
+              `data: ${JSON.stringify({ type: "connected", agentPolling: agentPolling(), agentBusy: agentBusy() })}\n\n`,
             ),
           );
           heartbeat = setInterval(() => {
@@ -328,6 +343,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       // The batch is undone; a still-queued apply event for it must not reach an agent.
       acknowledge(pending, body.batchId);
       backend.removeSnapshot(body.batchId);
+      broadcastAgentPollingIfChanged();
       broadcast({ type: "batch_reverted", batchId: body.batchId, ...result });
       return json(200, { ok: true, ...result });
     }
@@ -342,6 +358,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       if (available) {
         const event = withInstructions(claim(available, leaseMs, Date.now()));
         scheduleLeaseFlush();
+        broadcastAgentPollingIfChanged();
         return json(200, event);
       }
       return await new Promise<Response>((resolvePromise) => {
@@ -420,7 +437,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
     backend.onStop?.();
   }
 
-  return { handleDevRequest, agentPolling, stop };
+  return { handleDevRequest, agentPolling, agentBusy, stop };
 }
 
 // The protocol entry re-exports the pure cores a host needs beside the handler.

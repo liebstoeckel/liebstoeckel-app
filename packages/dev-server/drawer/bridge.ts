@@ -50,7 +50,7 @@ export interface AnnotationEntry {
 // ---------------------------------------------------------------------------
 
 export interface DevTransport {
-  getState(): Promise<{ annotations: Record<string, AnnotationEntry>; agentPolling: boolean; slides?: Array<string | null> | null }>;
+  getState(): Promise<{ annotations: Record<string, AnnotationEntry>; agentPolling: boolean; agentBusy?: boolean; slides?: Array<string | null> | null }>;
   saveAnnotation(input: { slideIndex: number; comments: CommentDraft[]; strokes: StrokeDraft[]; space?: "stage" }): Promise<AnnotationEntry>;
   uploadScreenshot(id: string, png: Blob): Promise<void>;
   setStatus(id: string, status: "dismissed" | "open"): Promise<void>;

@@ -113,6 +113,9 @@ describe("lifecycle", () => {
     expect(event.type).toBe("apply");
     expect(event.id).toBe(dispatched.batchId);
     expect(event.deckDir).toBe("/deck");
+    // Leased and unacknowledged: the agent is working, not polling.
+    expect(p.agentBusy()).toBe(true);
+    expect((await body<{ agentBusy: boolean }>(await p.handleDevRequest(get("/__dev/state?token=tok")))).agentBusy).toBe(true);
     expect(event.annotations[0]!.screenshotPath).toBe(`/deck/.liebstoeckel/dev/screenshots/${id}.png`);
     expect(event._instructions).toContain(`--reply ${dispatched.batchId} done`);
 
@@ -130,6 +133,7 @@ describe("lifecycle", () => {
     const done = await p.handleDevRequest(post("/__dev/poll", { id: dispatched.batchId, type: "done", data: { applied: [id], files: ["slides/02.mdx"], notes: [] } }));
     expect(done!.status).toBe(200);
     expect(backend.store.entries[id]!.status).toBe("applied");
+    expect(p.agentBusy()).toBe(false);
 
     expect((await p.handleDevRequest(post("/__dev/revert", { batchId: "missing" })))!.status).toBe(404);
     const reverted = await body<{ restored: string[] }>(await p.handleDevRequest(post("/__dev/revert", { batchId: dispatched.batchId })));

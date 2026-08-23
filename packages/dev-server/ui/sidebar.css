@@ -140,9 +140,21 @@
   flex: none;
 }
 
-.lst-dot[data-on="true"] {
+.lst-dot[data-state="on"] {
   background: var(--lst-ok);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--lst-ok) 25%, transparent);
+}
+
+.lst-dot[data-state="busy"] {
+  background: var(--lst-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--lst-accent) 25%, transparent);
+  animation: lst-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes lst-pulse {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--lst-accent) 10%, transparent);
+  }
 }
 
 .lst-icon-btn {
@@ -552,5 +564,9 @@
   .lst-toast {
     transition: none;
     transform: none;
+  }
+
+  .lst-dot[data-state="busy"] {
+    animation: none;
   }
 }

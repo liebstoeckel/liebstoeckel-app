@@ -67,15 +67,17 @@ const ICONS = {
 interface DevState {
   entries: Record<string, AnnotationEntry>;
   agentPolling: boolean;
+  /** An agent holds a batch and is working on it. */
+  agentBusy: boolean;
   loaded: boolean;
 }
 
 function useDevState(transport: DevTransport, toast: (text: string) => void) {
-  const [state, setState] = useState<DevState>({ entries: {}, agentPolling: false, loaded: false });
+  const [state, setState] = useState<DevState>({ entries: {}, agentPolling: false, agentBusy: false, loaded: false });
   const refresh = useCallback(async () => {
     try {
       const s = await transport.getState();
-      setState({ entries: s.annotations, agentPolling: s.agentPolling, loaded: true });
+      setState({ entries: s.annotations, agentPolling: s.agentPolling, agentBusy: Boolean(s.agentBusy), loaded: true });
     } catch {
       // transient; the next event refreshes
     }
@@ -87,7 +89,11 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
       switch (msg.type) {
         case "connected":
         case "agent_polling":
-          setState((s) => ({ ...s, agentPolling: Boolean(msg.agentPolling ?? msg.connected ?? false) }));
+          setState((s) => ({
+            ...s,
+            agentPolling: Boolean(msg.agentPolling ?? msg.connected ?? false),
+            agentBusy: Boolean(msg.agentBusy ?? msg.busy ?? false),
+          }));
           break;
         case "batch_dispatched":
           toast(msg.agentPolling ? "Sent to agent" : "Staged for the next agent session");
@@ -113,7 +119,7 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
           break;
         case "exit":
           toast("Dev server stopped");
-          setState((s) => ({ ...s, agentPolling: false }));
+          setState((s) => ({ ...s, agentPolling: false, agentBusy: false }));
           break;
       }
     });
@@ -224,7 +230,9 @@ export function DevSidebar(props: DevSidebarProps) {
     void dev.refresh();
   }
 
-  const presence = dev.agentPolling ? "agent polling" : "agent offline";
+  // Three states, in priority: working on a batch, waiting for one, nobody there.
+  const presence = dev.agentBusy ? "agent working" : dev.agentPolling ? "agent polling" : "agent offline";
+  const dotState = dev.agentBusy ? "busy" : dev.agentPolling ? "on" : "off";
 
   return (
     <aside ref={asideRef} className="lst-sidebar" data-collapsed={String(collapsed)} aria-label="liebstoeckel dev">
@@ -242,14 +250,14 @@ export function DevSidebar(props: DevSidebarProps) {
         <div className="lst-hdr-text">
           <b>liebstoeckel dev</b>
           <span className="lst-agent">
-            <span className="lst-dot" data-on={String(dev.agentPolling)} />
+            <span className="lst-dot" data-state={dotState} />
             {presence}
           </span>
         </div>
       </header>
 
       <div className="lst-rail" aria-hidden={!collapsed}>
-        <span className="lst-dot" data-on={String(dev.agentPolling)} title={presence} />
+        <span className="lst-dot" data-state={dotState} title={presence} />
         {openCount > 0 && <span className="lst-badge" title={`${openCount} open annotation(s)`}>{openCount}</span>}
         <button
           type="button"

@@ -19,7 +19,7 @@ export function httpTransport(token: string): DevTransport {
     async getState() {
       const res = await fetch(authed("/__dev/state"));
       if (!res.ok) throw new Error("state fetch failed");
-      return (await res.json()) as { annotations: Record<string, AnnotationEntry>; agentPolling: boolean };
+      return (await res.json()) as { annotations: Record<string, AnnotationEntry>; agentPolling: boolean; agentBusy?: boolean };
     },
     async saveAnnotation(input) {
       const data = await post("/__dev/annotations", input as unknown as Record<string, unknown>);
