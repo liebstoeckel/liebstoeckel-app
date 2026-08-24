@@ -51,6 +51,8 @@ liebstoeckel dev poll --reply <batchId> done \
 
 List only entry ids you fully applied; entries you omit return to the user's
 open list. On failure: `liebstoeckel dev poll --reply <batchId> error "reason"`.
+A second reply for a batch that is already resolved is refused with
+`batch_already_resolved`; treat that as success, do not retry.
 
 ## Handling a slide request
 
@@ -65,6 +67,9 @@ after, `-1` for first) and `slide.index`, the index the new slide takes.
   authoring rules from `authoring.md` and the registry where a component fits.
 - Register it in the deck entry's `slides` array at exactly that index (add the
   import, keep the hot-reload boundary as it is).
+- Several requests in one batch arrive in target order (two requests "after
+  slide 3" take indices 4 and 5). Create and register them one at a time in
+  that order; each index assumes the earlier ones are already registered.
 - In the reply, list the new file and the entry file in `files`; they are what
   Revert removes and restores. List only files you touched.
 

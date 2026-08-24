@@ -310,7 +310,8 @@ export const newCommand = defineCommand({
       for (const f of files) console.log(`   ${f}`);
       console.log(`\n   next:`);
       console.log(`     bun install`);
-      console.log(`     liebstoeckel live ${dir}      # or: bun --cwd ${dir} run dev\n`);
+      console.log(`     liebstoeckel dev --dir ${dir}    # dev mode: hot reload + the annotation sidebar`);
+      console.log(`     liebstoeckel live ${dir}         # or: bun --cwd ${dir} run dev\n`);
     } catch (e) {
       console.error(`✕ ${(e as Error).message}`);
       process.exit(1);

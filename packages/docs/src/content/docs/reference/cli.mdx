@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: "The umbrella liebstoeckel command: new, add, registry, build, eject, pack, licenses, live, relay, thumbs, export, skill, login, push, orgs, decks, brand."
+description: "The umbrella liebstoeckel command: new, add, registry, build, eject, pack, licenses, dev, live, relay, thumbs, export, skill, update, doctor, login, push, orgs, decks, brand."
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -282,15 +282,32 @@ liebstoeckel dev poll --reply <batchId> done --data '{"applied":["<id>"],"files"
 | `--host <addr>` | bind hostname (default `127.0.0.1`) |
 | `--json` | machine-readable startup info |
 
-`dev poll` blocks until the browser sends work (up to `--timeout` ms, default
-600000), prints one JSON event, and exits; every event carries an
-`_instructions` field telling the agent exactly what to do next. Replies are
-`done` with a JSON result or `error "reason"`.
+### `dev poll`
 
-The first run adds a small inert loader tag to the deck's `index.html`; it only
-activates under `dev` and every `build` strips it, so built decks are unaffected.
+`dev poll` is the agent side. It blocks until the browser sends work (up to
+`--timeout` ms, default 600000), prints one JSON event, and exits; every event
+carries an `_instructions` field telling the agent exactly what to do next.
+Replies are `done` with a JSON result or `error "reason"`.
+
+| Flag | Meaning |
+| --- | --- |
+| `--dir <deck>` | deck directory (default: current directory); the running server is found through its `.liebstoeckel/dev/server.json` |
+| `--timeout <ms>` | how long to wait for an event before printing a `timeout` event and exiting (default 600000) |
+| `--reply <id>` | reply to the event with this id instead of waiting; pair with a positional `done` or `error "reason"` |
+| `--data <json>` | the JSON result for a `done` reply: `{"applied": [annotationIds], "files": [paths], "notes": [strings]}` |
+
+Without a running dev server it prints `{"error":"no_dev_server"}` and exits 1.
+
+The first run adds a small inert loader tag to the deck's `index.html`. It
+only activates under `dev`, where it loads the bridge script that connects the
+framed deck to the sidebar, and every `build` strips it, so built decks are
+unaffected.
 Dev-mode state (annotations, screenshots, revert snapshots) lives under
 `.liebstoeckel/dev/` in the deck and is git-ignored.
+
+If `liebstoeckel dev` reports that it could not load `@liebstoeckel/dev-server`,
+the message names the underlying error; set `LIEBSTOECKEL_DEBUG=1` to also
+print its stack trace.
 
 ## `live`
 
@@ -497,7 +514,7 @@ known migration:
   {
     "id": "0001-hmr-entry-boundary",
     "needed": true,
-    "since": "0.4.0",
+    "since": "0.3.11",
     "reference": "references/migrations/0001-hmr-entry-boundary.md",
     "reason": "slide edits in dev mode reset the deck to slide 1 ...",
     "autoPatchable": true

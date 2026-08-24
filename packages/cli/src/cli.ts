@@ -20,12 +20,17 @@ const rootCommand = defineCommand({
     // soft: the packages depend on each other (dev-server uses the CLI's
     // migration registry), and the catch turns a broken or partial install
     // into a clear notice instead of taking every other command down with it.
+    // The real error is kept and printed by the fallback (never swallowed):
+    // only a genuine module-not-found gets the "install looks incomplete"
+    // hint; anything else (a syntax error, a throwing top-level import) is
+    // shown as-is, with the stack under LIEBSTOECKEL_DEBUG.
     dev: () =>
-      import("@liebstoeckel/dev-server/cli").then((m) => m.devCommand).catch(() =>
+      import("@liebstoeckel/dev-server/cli").then((m) => m.devCommand).catch((err: unknown) =>
         defineCommand({
-          meta: { name: "dev", description: "dev mode (hot reload + the annotation drawer)" },
+          meta: { name: "dev", description: "dev mode (hot reload + the annotation sidebar beside the deck)" },
           run() {
-            console.error("`liebstoeckel dev` could not load @liebstoeckel/dev-server; the install looks incomplete. Try reinstalling (`bun install`).");
+            console.error(devLoadFailureMessage(err));
+            if (process.env.LIEBSTOECKEL_DEBUG && err instanceof Error && err.stack) console.error(err.stack);
             process.exit(1);
           },
         }),
@@ -45,6 +50,26 @@ const rootCommand = defineCommand({
     brand: () => import("./cloud").then((m) => m.brandCommand),
   },
 });
+
+/** Is this load failure a missing module (vs. a module that loaded and threw)?
+ *  Bun reports unresolvable imports as a ResolveMessage (name "ResolveMessage",
+ *  no `code`); Node-style errors carry ERR_MODULE_NOT_FOUND / MODULE_NOT_FOUND. */
+export function isModuleNotFound(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const { code, name, message } = err as { code?: unknown; name?: unknown; message?: unknown };
+  if (code === "ERR_MODULE_NOT_FOUND" || code === "MODULE_NOT_FOUND") return true;
+  if (name === "ResolveMessage") return true;
+  return typeof message === "string" && /cannot (find|resolve) (module|package)/i.test(message);
+}
+
+/** What the `dev` fallback command prints when @liebstoeckel/dev-server failed to load. */
+export function devLoadFailureMessage(err: unknown): string {
+  const detail = err instanceof Error ? err.message : String(err);
+  const hint = isModuleNotFound(err)
+    ? "the install looks incomplete. Try reinstalling (`bun install`)."
+    : "it loaded but failed. Set LIEBSTOECKEL_DEBUG=1 for the stack.";
+  return `\`liebstoeckel dev\` could not load @liebstoeckel/dev-server; ${hint}\n  ${detail}`;
+}
 
 /** Root meta with the live CLI version, so `liebstoeckel --version` and the usage
  *  header report it. A function so the version (read from package.json) is resolved

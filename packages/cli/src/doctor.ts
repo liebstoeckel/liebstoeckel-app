@@ -120,7 +120,8 @@ export const doctorCommand = defineCommand({
     });
     const stored = (await loadConfig()).chromium;
 
-    // Scaffold migrations for the targeted deck (cwd or --dir, ADR-0050-style).
+    // Scaffold migrations for the targeted deck (cwd or --dir, the uniform
+    // deck-targeting convention every command follows).
     // Read-only here: doctor diagnoses, `liebstoeckel dev` is what auto-patches.
     const deckDir = resolve(args.dir ?? ".");
     const inDeck = existsSync(join(deckDir, "index.html"));

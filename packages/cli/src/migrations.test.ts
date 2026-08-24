@@ -55,6 +55,24 @@ describe("findEntryFile", () => {
     expect(findEntryFile(d)).toBe("main.tsx");
   });
 
+  test("accepts bare and root-relative local specifiers", () => {
+    for (const src of ["main.tsx", "/main.tsx", "./main.tsx"]) {
+      const d = deck({ "index.html": INDEX_HTML.replace("./main.tsx", src), "main.tsx": plainEntry() });
+      expect(findEntryFile(d)).toBe("main.tsx");
+      rmSync(d, { recursive: true, force: true });
+      dir = null;
+    }
+  });
+
+  test("rejects URL specifiers and paths escaping the deck", () => {
+    for (const src of ["https://cdn.example/main.js", "http://x/main.tsx", "//cdn.example/main.js", "../main.tsx"]) {
+      const d = deck({ "index.html": INDEX_HTML.replace("./main.tsx", src), "main.tsx": plainEntry() });
+      expect(findEntryFile(d)).toBeNull();
+      rmSync(d, { recursive: true, force: true });
+      dir = null;
+    }
+  });
+
   test("null without an index.html or when the file is missing", () => {
     const d = deck({ "index.html": INDEX_HTML });
     expect(findEntryFile(d)).toBeNull();
@@ -73,6 +91,15 @@ describe("0001-hmr-entry-boundary", () => {
       `const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));\nroot.render(<A />);\nimport.meta.hot.accept();\n`,
     );
     expect(m.detect(d)).toBe(false);
+  });
+
+  test("an optional-chained import.meta.hot?.accept() counts as migrated", () => {
+    const d = deck({
+      "index.html": INDEX_HTML,
+      "main.tsx": `const root = (import.meta.hot?.data.root ??= createRoot(document.getElementById("root")!));\nroot.render(<A />);\nimport.meta.hot?.accept();\n`,
+    });
+    expect(m.detect(d)).toBe(false);
+    expect(runAutoPatches(d, ["entry"])).toEqual({ applied: [], hinted: [], warnings: [] });
   });
 
   test("no entry resolvable means nothing to detect", () => {
@@ -221,7 +248,7 @@ describe("neededMigrations", () => {
     expect(first).toEqual({
       id: "0001-hmr-entry-boundary",
       needed: false,
-      since: "0.4.0",
+      since: "0.3.11",
       reference: "references/migrations/0001-hmr-entry-boundary.md",
       reason: expect.any(String),
       autoPatchable: false,

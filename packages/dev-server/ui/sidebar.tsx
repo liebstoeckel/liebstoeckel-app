@@ -75,6 +75,7 @@ interface DevState {
 
 function useDevState(transport: DevTransport, toast: (text: string) => void) {
   const [state, setState] = useState<DevState>({ entries: {}, agentPolling: false, agentBusy: false, loaded: false });
+  const [failedBatch, setFailedBatch] = useState<string | null>(null);
   const refresh = useCallback(async () => {
     try {
       const s = await transport.getState();
@@ -97,10 +98,15 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
           }));
           break;
         case "batch_dispatched":
+          // A newer batch supersedes a failed one as the revert target; keeping
+          // the stale id would make Revert restore the older snapshot and wipe
+          // this batch's work with it.
+          setFailedBatch(null);
           toast(msg.agentPolling ? "Sent to agent" : "Staged for the next agent session");
           void refresh();
           break;
         case "batch_resolved": {
+          setFailedBatch(null);
           const applied = (msg.applied as string[])?.length ?? 0;
           const notes = (msg.notes as string[]) ?? [];
           toast(`Agent applied ${applied} annotation(s)${notes.length ? `: ${notes[0]}` : ""}`);
@@ -108,11 +114,13 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
           break;
         }
         case "batch_failed":
-          toast(`Agent error: ${String(msg.message ?? "unknown")}`);
+          toast(`Agent error: ${String(msg.message ?? "unknown")}${msg.revertable ? " (Revert puts the deck back)" : ""}`);
+          if (msg.revertable && typeof msg.batchId === "string") setFailedBatch(msg.batchId);
           void refresh();
           break;
         case "batch_reverted":
           toast("Batch reverted");
+          setFailedBatch(null);
           void refresh();
           break;
         case "annotation_updated":
@@ -126,7 +134,7 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
     });
   }, [transport, refresh, toast]);
 
-  return { ...state, refresh };
+  return { ...state, failedBatch, refresh };
 }
 
 function useToast(): [string | null, (text: string) => void] {
@@ -199,20 +207,30 @@ export function DevSidebar(props: DevSidebarProps) {
   }, [entries]);
   const lastAppliedBatch = useMemo(() => {
     const applied = entries.filter((e) => e.status === "applied" && e.batchId).sort((a, b) => b.updatedAt - a.updatedAt);
-    return applied[0]?.batchId ?? null;
-  }, [entries]);
+    // A batch the agent gave up on keeps its snapshot; its entries are open
+    // again, so it is tracked from the failure event rather than the store.
+    return dev.failedBatch ?? applied[0]?.batchId ?? null;
+  }, [entries, dev.failedBatch]);
 
   const draftCount = frame.draft.strokes.length + frame.draft.comments.length;
 
-  // When a slide request turns applied, land the user on the new slide.
-  const seenApplied = useRef<Set<string>>(new Set());
+  // When a slide request turns applied, land the user on the new slide. The
+  // first load seeds the set silently: requests applied in an earlier session
+  // must not yank the deck to their slides on every page open.
+  const seenApplied = useRef<Set<string> | null>(null);
   useEffect(() => {
-    for (const e of entries) {
-      if (e.kind !== "add-slide" || e.status !== "applied" || seenApplied.current.has(e.id)) continue;
+    if (!dev.loaded) return;
+    const appliedRequests = entries.filter((e) => e.kind === "add-slide" && e.status === "applied");
+    if (!seenApplied.current) {
+      seenApplied.current = new Set(appliedRequests.map((e) => e.id));
+      return;
+    }
+    for (const e of appliedRequests) {
+      if (seenApplied.current.has(e.id)) continue;
       seenApplied.current.add(e.id);
       bridge.goto(e.slide.index);
     }
-  }, [entries, bridge]);
+  }, [entries, dev.loaded, bridge]);
 
   // Insert affordance state: the `after` index being described, or null.
   const [insertAfter, setInsertAfter] = useState<number | null>(null);
@@ -258,8 +276,21 @@ export function DevSidebar(props: DevSidebarProps) {
 
   async function revert(): Promise<void> {
     if (!lastAppliedBatch) return;
-    await transport.revert(lastAppliedBatch);
-    void dev.refresh();
+    try {
+      await transport.revert(lastAppliedBatch);
+      void dev.refresh();
+    } catch (err) {
+      toast(`Revert failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async function dismiss(id: string): Promise<void> {
+    try {
+      await transport.setStatus(id, "dismissed");
+      void dev.refresh();
+    } catch (err) {
+      toast(`Dismiss failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   // Three states, in priority: working on a batch, waiting for one, nobody there.
@@ -361,7 +392,7 @@ export function DevSidebar(props: DevSidebarProps) {
           {entries.length === 0 ? (
             <div className="lst-empty">{dev.loaded ? "Nothing saved yet. Mark a slide above to start." : "Loading"}</div>
           ) : (
-            <EntryList entries={entries.slice(0, 30)} onDismiss={(id) => transport.setStatus(id, "dismissed").then(() => dev.refresh())} />
+            <EntryList entries={entries.slice(0, 30)} onDismiss={(id) => void dismiss(id)} />
           )}
         </section>
       </div>
@@ -370,7 +401,13 @@ export function DevSidebar(props: DevSidebarProps) {
         <button type="button" className="lst-btn" data-primary="true" disabled={openCount === 0} onClick={() => void send()}>
           Send to agent <Icon d={ICONS.send} />
         </button>
-        <button type="button" className="lst-btn" disabled={!lastAppliedBatch} title="Revert the last applied batch" onClick={() => void revert()}>
+        <button
+          type="button"
+          className="lst-btn"
+          disabled={!lastAppliedBatch || dev.agentBusy}
+          title={dev.agentBusy ? "An agent is applying a batch; revert once it replies" : "Revert the last applied batch"}
+          onClick={() => void revert()}
+        >
           <Icon d={ICONS.undo} /> Revert
         </button>
       </footer>
@@ -403,17 +440,20 @@ function SlideList({
   onAdd: (after: number, description: string) => Promise<void>;
   onGoto: (index: number) => void;
 }) {
-  // Rows in display order: for each position, the insert affordance for
-  // "after the previous slide", any pending requests that will take this
-  // index, then the slide itself; one more affordance after the last slide.
+  // Rows in display order: for each position, the pending requests queued
+  // after the previous slide (in creation order, so adding "at the end" twice
+  // chains them), then the insert affordance, then the slide itself; one more
+  // ghost group and affordance after the last slide. The "+" always means
+  // "here, below everything above it".
   const rows: ReactNode[] = [];
-  const ghostsAt = (index: number) =>
+  const ghostsAfter = (after: number) =>
     requests
-      .filter((r) => r.slide.index === index)
-      .map((r) => (
+      .filter((r) => (r.request?.after ?? r.slide.index - 1) === after)
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .map((r, k) => (
         <li key={`ghost-${r.id}`}>
           <div className="lst-slide lst-ghost" aria-label={`pending new slide: ${r.request?.description ?? ""}`}>
-            <span className="lst-slide-num">{index + 1}</span>
+            <span className="lst-slide-num">{after + 2 + k}</span>
             <span className="lst-slide-name">{r.request?.description}</span>
             <span className="lst-chip" data-s={r.status}>
               {r.status === "dispatched" ? "working" : "new"}
@@ -437,8 +477,8 @@ function SlideList({
     </li>
   );
   for (const slide of slides) {
+    rows.push(...ghostsAfter(slide.index - 1));
     rows.push(insert(slide.index - 1));
-    rows.push(...ghostsAt(slide.index));
     const counts = perSlide.get(slide.index);
     const name = slide.sourceFile ? slide.sourceFile.split("/").pop()! : "";
     const isCurrent = slide.index === current;
@@ -455,8 +495,8 @@ function SlideList({
       </li>,
     );
   }
+  rows.push(...ghostsAfter(slides.length - 1));
   rows.push(insert(slides.length - 1));
-  rows.push(...ghostsAt(slides.length));
   return <ol className="lst-slides">{rows}</ol>;
 }
 
@@ -510,9 +550,7 @@ function EntryList({ entries, onDismiss }: { entries: AnnotationEntry[]; onDismi
           <div className="lst-meta">
             <span>
               {entry.kind === "add-slide"
-                ? entry.request && entry.request.after < 0
-                  ? "new slide, first"
-                  : `new slide after ${(entry.request?.after ?? entry.slide.index - 1) + 1}`
+                ? `new slide ${entry.slide.index + 1}${entry.request && entry.request.after >= 0 ? `, after ${entry.request.after + 1}` : ", first"}`
                 : `slide ${entry.slide.index + 1}${entry.slide.sourceFile ? `, ${entry.slide.sourceFile.split("/").pop()}` : ""}`}
             </span>
             <span className="lst-chip" data-s={entry.status}>

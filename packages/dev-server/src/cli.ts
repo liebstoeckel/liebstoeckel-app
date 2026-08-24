@@ -20,6 +20,7 @@ async function pollOnce(base: string, token: string, totalTimeoutMs: number): Pr
     const slice = Math.min(Math.max(remaining, 1_000), PER_REQUEST_TIMEOUT_MS);
     const res = await fetch(`${base}/__dev/poll?token=${token}&timeout=${slice}`);
     if (res.status === 401) throw new Error("unauthorized: the dev server token changed; restart `liebstoeckel dev`");
+    if (res.status === 403) throw new Error("forbidden: the dev server rejected the Host header; dial it by localhost or the --host it was bound to");
     if (!res.ok) throw new Error(`poll failed: ${res.status} ${res.statusText}`);
     const event = (await res.json()) as { type?: string };
     if (event?.type === "timeout" && Date.now() < deadline) continue;
@@ -42,7 +43,10 @@ export const devPollCommand = defineCommand({
       console.error(JSON.stringify({ error: "no_dev_server", hint: "start one with: liebstoeckel dev" }));
       process.exit(1);
     }
-    const base = `http://127.0.0.1:${info.port}`;
+    // Dial what the server bound: loopback by default, or the interface named
+    // by --host (a server bound to a LAN address is not reachable on 127.0.0.1).
+    const dialHost = !info.hostname || info.hostname === "0.0.0.0" ? "127.0.0.1" : info.hostname;
+    const base = `http://${dialHost.includes(":") ? `[${dialHost}]` : dialHost}:${info.port}`;
 
     if (args.reply) {
       const raw = (args as { _?: unknown })._;
@@ -80,7 +84,17 @@ export const devPollCommand = defineCommand({
     try {
       console.log(JSON.stringify(await pollOnce(base, info.token, totalTimeout)));
     } catch (err) {
-      console.error(JSON.stringify({ error: "poll_failed", message: err instanceof Error ? err.message : String(err) }));
+      const message = err instanceof Error ? err.message : String(err);
+      // A connection refusal means the server.json is stale (the server was
+      // killed without cleaning up), not that the token changed.
+      const refused = /ECONNREFUSED|Unable to connect|ConnectionRefused/i.test(message);
+      console.error(
+        JSON.stringify(
+          refused
+            ? { error: "no_dev_server", hint: "the recorded dev server is not running; start one with: liebstoeckel dev" }
+            : { error: "poll_failed", message },
+        ),
+      );
       process.exit(1);
     }
   },
@@ -89,7 +103,7 @@ export const devPollCommand = defineCommand({
 export const devCommand = defineCommand({
   meta: {
     name: "dev",
-    description: "serve a deck with HMR plus the dev-mode drawer (annotations); `dev poll` is the agent loop",
+    description: "serve a deck with HMR beside the dev-mode sidebar (annotations, slide requests); `dev poll` is the agent loop",
   },
   args: {
     dir: { type: "string", description: "deck directory (default: cwd)" },
@@ -114,7 +128,9 @@ export const devCommand = defineCommand({
     // from the process cwd at startup, so serving a --dir deck from elsewhere
     // would silently lose the HTML pipeline's plugins. Re-exec with cwd set.
     if (deckDir !== process.cwd()) {
-      const self = new URL(import.meta.url).pathname;
+      // A filesystem path, not URL.pathname: that would percent-encode spaces
+      // and keep the leading slash before a Windows drive letter.
+      const self = import.meta.path;
       const child = Bun.spawn({
         cmd: [
           process.execPath,
@@ -138,11 +154,35 @@ export const devCommand = defineCommand({
     for (const h of hinted) {
       console.error(`⚠ migration needed (${h.id}): ${h.reason}; apply it per the skill guide ${h.reference}, or opt out via package.json liebstoeckel.migrationOptOut`);
     }
-    const server = await startDevServer({
-      deckDir,
-      port: Number(args.port ?? 3000) || 3000,
-      hostname: args.host ?? "127.0.0.1",
-    });
+    const port = args.port === undefined ? 3000 : Number(args.port);
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      console.error(`Invalid --port ${args.port}`);
+      process.exit(1);
+    }
+    let server;
+    try {
+      server = await startDevServer({
+        deckDir,
+        port,
+        hostname: args.host ?? "127.0.0.1",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const code = (err as { code?: unknown })?.code;
+      if (code === "EADDRINUSE" || /EADDRINUSE|in use/i.test(message)) {
+        console.error(`Port ${port} is already in use (another dev server?). Pick another with --port, or stop the other process.`);
+        process.exit(1);
+      }
+      throw err;
+    }
+    // Ctrl-C or a tmux teardown must not leave a server.json pointing at a
+    // dead process (which `dev poll` would otherwise try to dial).
+    const shutdown = () => {
+      server.stop();
+      setTimeout(() => process.exit(0), 300);
+    };
+    process.once("SIGINT", shutdown);
+    process.once("SIGTERM", shutdown);
     if (args.json) {
       console.log(JSON.stringify({ ok: true, url: server.url, port: server.port, _instructions: bootInstructions() }));
     } else {

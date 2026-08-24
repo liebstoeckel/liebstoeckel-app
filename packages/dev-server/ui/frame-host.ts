@@ -83,9 +83,14 @@ export function createFrameHost(iframe: HTMLIFrameElement, opts: FrameHostOption
       });
       if (!captured) throw new Error("the deck frame did not answer");
       const { draft, screenshot } = captured;
-      if (draft.strokes.length === 0 && draft.comments.length === 0) return null;
+      if (draft.strokes.length === 0 && draft.comments.length === 0) {
+        send({ type: "lst:draftSaved", id });
+        return null;
+      }
       const entry = await opts.transport.saveAnnotation({
-        slideIndex: opts.currentSlide(),
+        // The slide pinned at the first mark, not the one visible now: the
+        // deck can be navigated between drawing and saving.
+        slideIndex: draft.slideIndex ?? opts.currentSlide(),
         comments: draft.comments,
         strokes: draft.strokes,
         space: "stage",
@@ -97,6 +102,9 @@ export function createFrameHost(iframe: HTMLIFrameElement, opts: FrameHostOption
           // the screenshot is a hint, never a blocker
         }
       }
+      // Only now is the draft spent; the frame keeps it until this arrives,
+      // so a failed saveAnnotation leaves the marks in place to retry.
+      send({ type: "lst:draftSaved", id });
       return entry.id;
     },
   };

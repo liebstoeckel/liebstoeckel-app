@@ -58,7 +58,7 @@ describe("backend", () => {
 });
 
 describe("recordCreated", () => {
-  test("files absent from the snapshot become created; revert deletes them and restores the rest", () => {
+  test("files that did not exist at dispatch become created; revert deletes them and restores the rest", () => {
     const dir = mkdtempSync(join(tmpdir(), "lst-dev-created-"));
     mkdirSync(join(dir, "slides"), { recursive: true });
     writeFileSync(join(dir, "main.tsx"), "slides={[A]}\n");
@@ -72,6 +72,24 @@ describe("recordCreated", () => {
     expect(result.restored.sort()).toEqual(["main.tsx", "slides/02-new.mdx"]);
     expect(existsSync(join(dir, "slides", "02-new.mdx"))).toBe(false);
     expect(readFileSync(join(dir, "main.tsx"), "utf-8")).toBe("slides={[A]}\n");
+  });
+
+  test("a pre-existing file the agent edited is restored, never deleted, even when attribution found nothing", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-dev-edited-"));
+    mkdirSync(join(dir, "slides"), { recursive: true });
+    writeFileSync(join(dir, "slides", "03.mdx"), "ORIGINAL\n");
+    writeFileSync(join(dir, "logo.png"), Buffer.from([0x89, 0x50]));
+    const backend = createLocalBackend({ deckDir: dir, token: "t" });
+    // Empty reference list: every annotation had sourceFile null.
+    backend.takeSnapshot("b1", []);
+    writeFileSync(join(dir, "slides", "03.mdx"), "EDITED\n");
+    writeFileSync(join(dir, "logo.png"), Buffer.from([0x00]));
+    backend.recordCreated("b1", ["slides/03.mdx", "logo.png"]);
+    const result = backend.restoreSnapshot("b1")!;
+    expect(result.restored).toEqual(["slides/03.mdx"]);
+    expect(readFileSync(join(dir, "slides", "03.mdx"), "utf-8")).toBe("ORIGINAL\n");
+    // Binary files are not snapshotted, but they existed, so revert leaves them alone.
+    expect(existsSync(join(dir, "logo.png"))).toBe(true);
   });
 });
 

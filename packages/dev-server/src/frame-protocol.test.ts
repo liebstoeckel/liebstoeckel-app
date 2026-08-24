@@ -40,13 +40,50 @@ describe("handshake", () => {
   test("waits for init, then trusts only that origin", () => {
     let h = initialHandshake();
     expect(trusts(h, "http://a")).toBe(false);
-    h = acceptInit(h, "http://a", { type: "lst:setMode", mode: "draw" });
+    h = acceptInit(h, "http://a", { type: "lst:setMode", mode: "draw" }, ["http://a"]);
     expect(h.state).toBe("waiting");
-    h = acceptInit(h, "http://a", { type: "lst:init" });
+    h = acceptInit(h, "http://a", { type: "lst:init" }, ["http://a"]);
     expect(h).toEqual({ state: "ready", origin: "http://a" });
     expect(trusts(h, "http://a")).toBe(true);
     expect(trusts(h, "http://b")).toBe(false);
     // A second init from elsewhere cannot re-home the frame.
-    expect(acceptInit(h, "http://b", { type: "lst:init" })).toEqual(h);
+    expect(acceptInit(h, "http://b", { type: "lst:init" }, ["http://a", "http://b"])).toEqual(h);
+  });
+
+  test("init from an origin outside the allowlist is ignored", () => {
+    const h = initialHandshake();
+    expect(acceptInit(h, "http://evil", { type: "lst:init" }, ["http://a"])).toEqual(h);
+    expect(acceptInit(h, "http://a", { type: "lst:init" }, [])).toEqual(h);
+    expect(trusts(acceptInit(h, "http://evil", { type: "lst:init" }, ["http://a"]), "http://evil")).toBe(false);
+    // The allowlist only gates init; a listed origin still has to send init.
+    expect(acceptInit(h, "http://a", { type: "lst:goto", index: 1 }, ["http://a"])).toEqual(h);
+  });
+});
+
+describe("draft ack and slide binding", () => {
+  test("lst:draftSaved decodes; junk shapes do not", () => {
+    expect(decodeHostMessage({ type: "lst:draftSaved", id: "abc" })).toEqual({ type: "lst:draftSaved", id: "abc" });
+    expect(decodeHostMessage({ type: "lst:draftSaved" })).toBeNull();
+  });
+
+  test("slideIndex is accepted absent, null, or a non-negative integer only", () => {
+    const base = { strokes: [], comments: [], space: "stage" as const };
+    expect(isDraftPayload(base)).toBe(true);
+    expect(isDraftPayload({ ...base, slideIndex: null })).toBe(true);
+    expect(isDraftPayload({ ...base, slideIndex: 3 })).toBe(true);
+    expect(isDraftPayload({ ...base, slideIndex: -1 })).toBe(false);
+    expect(isDraftPayload({ ...base, slideIndex: 1.5 })).toBe(false);
+    expect(isDraftPayload({ ...base, slideIndex: "2" })).toBe(false);
+  });
+
+  test("comment target hints are bounded and shape-checked", () => {
+    const base = { strokes: [], comments: [], space: "stage" as const };
+    const withTarget = (target: unknown) => ({ ...base, comments: [{ x: 0, y: 0, text: "t", target }] });
+    expect(isDraftPayload(withTarget(undefined))).toBe(true);
+    expect(isDraftPayload(withTarget({ tag: "h1", classes: ["a"], text: "hi" }))).toBe(true);
+    expect(isDraftPayload(withTarget({ tag: "h1", extra: 1 }))).toBe(false);
+    expect(isDraftPayload(withTarget({ tag: "x".repeat(600) }))).toBe(false);
+    expect(isDraftPayload(withTarget({ classes: "not-an-array" }))).toBe(false);
+    expect(isDraftPayload(withTarget([1, 2]))).toBe(false);
   });
 });

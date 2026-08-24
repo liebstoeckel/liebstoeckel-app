@@ -3,6 +3,69 @@ import type { AnnotationEntry, DevTransport } from "./bridge";
 // The local wire: same-origin HTTP against /__dev/* with the per-boot token,
 // and SSE for server-pushed updates.
 
+/** The subset of EventSource the fan-out needs, so tests can hand in a fake. */
+export interface EventStream {
+  onmessage: ((event: MessageEvent) => void) | null;
+  close(): void;
+}
+
+export type EventListener = (msg: Record<string, unknown>) => void;
+
+/** One server stream shared by every subscriber. The stream opens with the
+ *  first listener, closes with the last, and closes for good when the server
+ *  announces `exit`: EventSource would otherwise reconnect forever against a
+ *  process that is gone. Returns a `subscribe` with the DevTransport shape. */
+export function sharedEvents(open: () => EventStream): (onMessage: EventListener) => () => void {
+  const listeners = new Set<EventListener>();
+  let source: EventStream | null = null;
+  let exited = false;
+
+  const closeSource = () => {
+    source?.close();
+    source = null;
+  };
+
+  const ensureOpen = () => {
+    if (source || exited) return;
+    const s = open();
+    source = s;
+    s.onmessage = (event) => {
+      let msg: Record<string, unknown>;
+      try {
+        msg = JSON.parse(String(event.data)) as Record<string, unknown>;
+      } catch {
+        return; // ignore malformed frames
+      }
+      if (!msg || typeof msg !== "object") return;
+      for (const l of [...listeners]) {
+        try {
+          l(msg);
+        } catch (err) {
+          // One throwing listener must not starve the rest, and above all must
+          // not skip the exit handling below (which stops the reconnect loop).
+          console.error("dev-mode event listener failed", err);
+        }
+      }
+      if (msg.type === "exit" && source === s) {
+        exited = true;
+        closeSource();
+      }
+    };
+  };
+
+  return (onMessage) => {
+    listeners.add(onMessage);
+    ensureOpen();
+    let active = true;
+    return () => {
+      if (!active) return;
+      active = false;
+      listeners.delete(onMessage);
+      if (listeners.size === 0) closeSource();
+    };
+  };
+}
+
 export function httpTransport(token: string): DevTransport {
   const authed = (path: string) => `${path}${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`;
   async function post(path: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -15,6 +78,7 @@ export function httpTransport(token: string): DevTransport {
     if (!res.ok) throw new Error(String(data.error ?? res.statusText));
     return data;
   }
+  const subscribe = sharedEvents(() => new EventSource(authed("/__dev/events")));
   return {
     async getState() {
       const res = await fetch(authed("/__dev/state"));
@@ -42,16 +106,6 @@ export function httpTransport(token: string): DevTransport {
     async revert(batchId) {
       await post("/__dev/revert", { batchId });
     },
-    subscribe(onMessage) {
-      const source = new EventSource(authed("/__dev/events"));
-      source.onmessage = (event) => {
-        try {
-          onMessage(JSON.parse(event.data));
-        } catch {
-          // ignore malformed frames
-        }
-      };
-      return () => source.close();
-    },
+    subscribe,
   };
 }

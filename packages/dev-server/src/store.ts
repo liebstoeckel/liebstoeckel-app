@@ -110,6 +110,54 @@ export function entriesByStatus(store: AnnotationStore, status: AnnotationStatus
     .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
 }
 
+function pendingRequests(store: AnnotationStore): AnnotationEntry[] {
+  return Object.values(store.entries).filter(
+    (entry) => entry.kind === "add-slide" && entry.request && (entry.status === "open" || entry.status === "dispatched"),
+  );
+}
+
+/** Give pending slide requests their target indices. `after` names a slide of
+ *  the deck as it is now; the index is where the new slide sits once every
+ *  pending request is inserted, applied in ascending position (the order the
+ *  apply event lists them). Each earlier insert shifts the deck by one, so the
+ *  i-th request in (after, createdAt) order lands at after + 1 + i: two
+ *  requests after slide N take N + 1 and N + 2, and a request after slide 1
+ *  followed by one after slide 3 take 2 and 5 (the original slide 3 is at 4 by
+ *  then). Applied and dismissed requests drop out of the chain. Returns a new
+ *  store when anything moved. */
+export function assignRequestIndices(store: AnnotationStore): AnnotationStore {
+  const pending = pendingRequests(store).sort(
+    (a, b) => a.request!.after - b.request!.after || a.createdAt - b.createdAt || a.id.localeCompare(b.id),
+  );
+  let next: AnnotationStore | null = null;
+  pending.forEach((entry, i) => {
+    const index = entry.request!.after + 1 + i;
+    if (entry.slide.index === index) return;
+    next ??= { ...store, entries: { ...store.entries } };
+    next.entries[entry.id] = { ...entry, slide: { ...entry.slide, index } };
+  });
+  return next ?? store;
+}
+
+/** After slides were inserted, `after` values that named a slide at or past an
+ *  insertion point are stale by one per insert before them. Re-base the still
+ *  pending requests so they keep naming the same slide; call with the indices
+ *  the applied requests took, before `assignRequestIndices`. */
+export function rebaseRequestsAfterInsert(store: AnnotationStore, insertedIndices: number[]): AnnotationStore {
+  if (insertedIndices.length === 0) return store;
+  const inserted = [...insertedIndices].sort((a, b) => a - b);
+  let next: AnnotationStore | null = null;
+  for (const entry of pendingRequests(store)) {
+    let after = entry.request!.after;
+    // Ascending: each insert is at its final position given the ones before it.
+    for (const index of inserted) if (after >= index) after += 1;
+    if (after === entry.request!.after) continue;
+    next ??= { ...store, entries: { ...store.entries } };
+    next.entries[entry.id] = { ...entry, request: { ...entry.request!, after } };
+  }
+  return next ?? store;
+}
+
 export function entriesInBatch(store: AnnotationStore, batchId: string): AnnotationEntry[] {
   return Object.values(store.entries)
     .filter((entry) => entry.batchId === batchId)

@@ -6,12 +6,12 @@ import { DevShell, DevSidebar } from "./sidebar";
 import type { FrameEvents, SlideInfo } from "./types";
 
 // The dev shell document served at /: the sidebar on the left, the deck
-// (served at /deck) in an iframe on the right, the two joined by the frame host.
+// (reached via /deck) in an iframe on the right, the two joined by the frame host.
 // The token arrives in a prelude exactly as it did for the v1 drawer.
 
 declare global {
   interface Window {
-    __LIEBSTOECKEL_DEV__?: { token: string };
+    __LIEBSTOECKEL_DEV__?: { token: string; deckRoute?: string };
   }
 }
 
@@ -39,6 +39,17 @@ function Shell({ token }: { token: string }) {
       if (typeof e.slide === "number") slideRef.current = e.slide;
     });
     setHost(h);
+    // A click on a sidebar button moves focus into the shell document, and the
+    // deck's keyboard navigation (arrows, space) listens on the frame's own
+    // window. Hand focus back to the frame after clicks that did not land on a
+    // text field, so the keys keep working without a click on the deck first.
+    const refocusFrame = (event: MouseEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest(".lst-sidebar")) return;
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || (active instanceof HTMLElement && active.isContentEditable)) return;
+      iframe.contentWindow?.focus();
+    };
+    document.addEventListener("click", refocusFrame);
     void loadSlides();
     // Slide files come and go under hot reload; re-read the list on every change pushed by the server.
     const unsubscribe = transport.subscribe((msg) => {
@@ -46,6 +57,7 @@ function Shell({ token }: { token: string }) {
     });
     const poll = setInterval(() => void loadSlides(), 5000);
     return () => {
+      document.removeEventListener("click", refocusFrame);
       off();
       unsubscribe();
       clearInterval(poll);
@@ -58,8 +70,9 @@ function Shell({ token }: { token: string }) {
     [host],
   );
 
-  // The deck keeps its own URL hash (e.g. #presenter) through the shell.
-  const src = `/deck${location.hash}`;
+  // The deck keeps its own URL hash (e.g. #presenter) through the shell. The
+  // bundle is mounted under a token path (/deck only redirects there).
+  const src = `${window.__LIEBSTOECKEL_DEV__?.deckRoute ?? "/deck"}${location.hash}`;
 
   return (
     <DevShell

@@ -61,10 +61,15 @@ export function findEntryFile(deckDir: string, indexHtml = "index.html"): string
   const htmlPath = join(deckDir, indexHtml);
   if (!existsSync(htmlPath)) return null;
   const html = readFileSync(htmlPath, "utf-8");
-  const match = html.match(/<script[^>]*type=["']module["'][^>]*src=["']\.\/?([^"']+)["']/i)
-    ?? html.match(/<script[^>]*src=["']\.\/?([^"']+)["'][^>]*type=["']module["']/i);
+  // Local specifiers only: `./main.tsx`, `main.tsx`, `/main.tsx`. A URL
+  // (`http://`, `//cdn`) is never a deck file.
+  const match = html.match(/<script[^>]*type=["']module["'][^>]*src=["']([^"']+)["']/i)
+    ?? html.match(/<script[^>]*src=["']([^"']+)["'][^>]*type=["']module["']/i);
   if (!match) return null;
-  const rel = normalize(match[1]!);
+  const src = match[1]!;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith("//")) return null;
+  const rel = normalize(src.replace(/^(\.\/|\/)/, ""));
+  if (!rel || rel === "." || rel.startsWith("..")) return null;
   return existsSync(join(deckDir, rel)) ? rel.split("\\").join("/") : null;
 }
 
@@ -83,6 +88,10 @@ const HMR_COMMENT = `// Hot-module boundary: a slide edit re-runs this entry int
 // reloads instead of jumping back to slide 1. \`bun build\` compiles the
 // hot.data access to a plain createRoot and erases accept() in built decks.`;
 
+/** Both `import.meta.hot.accept()` and the optional-chained `import.meta.hot?.accept()`
+ *  make the entry a self-accepting boundary; either counts as migrated. */
+const HOT_ACCEPT_RE = /import\.meta\.hot\??\.accept\s*\(/;
+
 function readEntry(deckDir: string): { rel: string; source: string } | null {
   const rel = findEntryFile(deckDir);
   if (!rel) return null;
@@ -91,13 +100,13 @@ function readEntry(deckDir: string): { rel: string; source: string } | null {
 
 const hmrEntryBoundary: Migration = {
   id: "0001-hmr-entry-boundary",
-  since: "0.4.0",
+  since: "0.3.11",
   surfaces: ["entry"],
   reference: "references/migrations/0001-hmr-entry-boundary.md",
   reason: "slide edits in dev mode reset the deck to slide 1 unless the entry is an import.meta.hot boundary with a persisted root",
   detect(deckDir) {
     const entry = readEntry(deckDir);
-    return entry !== null && !entry.source.includes("import.meta.hot.accept");
+    return entry !== null && !HOT_ACCEPT_RE.test(entry.source);
   },
   autoPatch: {
     canApply(deckDir) {
@@ -109,14 +118,16 @@ const hmrEntryBoundary: Migration = {
     apply(deckDir) {
       const entry = readEntry(deckDir);
       if (!entry) throw new Error("entry file disappeared between canApply and apply");
+      // Match the file's own line endings so a CRLF deck does not end up mixed.
+      const eol = entry.source.includes("\r\n") ? "\r\n" : "\n";
       const patched = entry.source.replace(
         ENTRY_CHAIN_RE,
         (_m, indent: string) =>
-          `${indent}${HMR_COMMENT.split("\n").join(`\n${indent}`)}\n` +
-          `${indent}const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));\n` +
+          `${indent}${HMR_COMMENT.split("\n").join(`${eol}${indent}`)}${eol}` +
+          `${indent}const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));${eol}` +
           `${indent}root.render(`,
       );
-      const withAccept = `${patched.replace(/\s*$/, "\n")}import.meta.hot.accept();\n`;
+      const withAccept = `${patched.replace(/\s*$/, eol)}import.meta.hot.accept();${eol}`;
       writeFileSync(join(deckDir, entry.rel), withAccept, "utf-8");
       return entry.rel;
     },
@@ -130,10 +141,10 @@ const hmrEntryBoundary: Migration = {
 
 const devLoaderTag: Migration = {
   id: "0002-dev-loader-tag",
-  since: "0.4.0",
+  since: "0.3.11",
   surfaces: ["index.html"],
   reference: "references/migrations/0002-dev-loader-tag.md",
-  reason: "the in-browser dev drawer only loads when index.html carries the dev-mode loader tag (inert outside dev, stripped from builds)",
+  reason: "the dev-mode bridge (the shell's sidebar talks to the framed deck through it) only loads when index.html carries the dev-mode loader tag (inert outside dev, stripped from builds)",
   detect(deckDir) {
     const htmlPath = join(deckDir, "index.html");
     return existsSync(htmlPath) && !hasDevLoaderTag(readFileSync(htmlPath, "utf-8"));

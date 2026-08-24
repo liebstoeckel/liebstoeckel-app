@@ -7,8 +7,10 @@ import {
   type AnnotationEntry,
   type AnnotationKind,
   type AnnotationStore,
+  assignRequestIndices,
   entriesByStatus,
   entriesInBatch,
+  rebaseRequestsAfterInsert,
   setStatus,
   upsertEntry,
 } from "./store";
@@ -26,6 +28,7 @@ const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
 const DEFAULT_POLL_TIMEOUT_MS = 240_000;
 const DEFAULT_LEASE_MS = 600_000;
 const SSE_HEARTBEAT_MS = 30_000;
+const STOP_FLUSH_MS = 100;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** What the protocol needs from its host. Internal for now: the shape follows
@@ -151,8 +154,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
     while (polls.length > 0) {
       const entry = selectAvailable(pending, Date.now());
       if (!entry) break;
-      const poll = polls.shift()!;
-      clearTimeout(poll.timer);
+      const poll = polls[0]!;
       poll.resolve(withInstructions(claim(entry, leaseMs, Date.now())));
     }
     scheduleLeaseFlush();
@@ -175,7 +177,9 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       id: batchId,
       type: "apply",
       deckDir: backend.deckDir,
-      annotations: entries.map((entry) => ({
+      // Slide requests in target order: chained requests at one position must
+      // be registered in sequence for their indices to hold.
+      annotations: [...entries].sort((a, b) => a.slide.index - b.slide.index || a.createdAt - b.createdAt).map((entry) => ({
         id: entry.id,
         ...(entry.kind ? { kind: entry.kind } : {}),
         ...(entry.request ? { request: entry.request } : {}),
@@ -288,6 +292,9 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       const slides = backend.resolveSlides();
       const now = Date.now();
       const existing = store.entries[id];
+      // An entry an agent is working on keeps its batch; rewriting it would
+      // detach it and make the agent's otherwise correct reply fail.
+      if (existing?.status === "dispatched") return json(409, { error: "entry_dispatched", batchId: existing.batchId });
       const entry: AnnotationEntry = {
         id,
         ...(kind !== "annotate" ? { kind } : {}),
@@ -302,10 +309,11 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
       };
-      store = upsertEntry(store, entry);
+      store = assignRequestIndices(upsertEntry(store, entry));
       save();
-      broadcast({ type: "annotation_updated", entry });
-      return json(200, { ok: true, entry });
+      const stored = store.entries[id]!;
+      broadcast({ type: "annotation_updated", entry: stored });
+      return json(200, { ok: true, entry: stored });
     }
 
     if (p === "/__dev/annotation-status" && req.method === "POST") {
@@ -317,7 +325,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       if (typeof body.id !== "string" || !store.entries[body.id]) return json(404, { error: "unknown_annotation" });
       // The drawer only dismisses or reopens; dispatch/applied are server-driven.
       if (body.status !== "dismissed" && body.status !== "open") return json(400, { error: "invalid_status" });
-      store = setStatus(store, [body.id], body.status);
+      store = assignRequestIndices(setStatus(store, [body.id], body.status));
       save();
       broadcast({ type: "annotation_updated", entry: store.entries[body.id] });
       return json(200, { ok: true });
@@ -344,6 +352,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         | null;
       if (!body) return json(400, { error: "invalid_json" });
       if (!authorized(body)) return json(401, { error: "unauthorized" });
+      store = assignRequestIndices(store);
       const open = entriesByStatus(store, "open", body.slideIndex);
       if (open.length === 0) return json(400, { error: "nothing_to_dispatch" });
       const batchId = shortId();
@@ -370,6 +379,10 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       if (!body) return json(400, { error: "invalid_json" });
       if (!authorized(body)) return json(401, { error: "unauthorized" });
       if (typeof body.batchId !== "string") return json(400, { error: "batchId_required" });
+      // Snapshots cover the whole source tree, so a restore while an agent
+      // holds a lease would silently wipe its in-progress edits (even for a
+      // different batch). Refuse until the agent replies or the lease expires.
+      if (agentBusy()) return json(409, { error: "agent_busy", hint: "an agent holds a batch; revert after it replies or its claim expires" });
       const result = backend.restoreSnapshot(body.batchId);
       if (!result) return json(404, { error: "unknown_batch" });
       const ids = entriesInBatch(store, body.batchId).map((e) => e.id);
@@ -385,9 +398,9 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
 
     if (p === "/__dev/poll" && req.method === "GET") {
       if (!authorized()) return json(401, { error: "unauthorized" });
-      const timeoutMs = Math.min(
-        Number(url.searchParams.get("timeout") ?? pollTimeoutMs) || pollTimeoutMs,
-        pollTimeoutMs,
+      const timeoutMs = Math.max(
+        0,
+        Math.min(Number(url.searchParams.get("timeout") ?? pollTimeoutMs) || pollTimeoutMs, pollTimeoutMs),
       );
       const available = selectAvailable(pending, Date.now());
       if (available) {
@@ -397,15 +410,31 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         return json(200, event);
       }
       return await new Promise<Response>((resolvePromise) => {
+        const unpark = () => {
+          const idx = polls.indexOf(poll);
+          if (idx !== -1) polls.splice(idx, 1);
+          clearTimeout(poll.timer);
+          req.signal.removeEventListener("abort", onAbort);
+        };
+        // A killed `dev poll` process must stop counting as a present agent
+        // at once; otherwise Send would hand the next batch to a dead socket
+        // and lease it to nobody until the lease expires.
+        const onAbort = () => {
+          unpark();
+          broadcastAgentPollingIfChanged();
+        };
         const poll: Poll = {
-          resolve: (event: unknown) => resolvePromise(json(200, event)),
+          resolve: (event: unknown) => {
+            unpark();
+            resolvePromise(json(200, event));
+          },
           timer: setTimeout(() => {
-            const idx = polls.indexOf(poll);
-            if (idx !== -1) polls.splice(idx, 1);
+            unpark();
             broadcastAgentPollingIfChanged();
             resolvePromise(json(200, withInstructions({ type: "timeout" })));
           }, timeoutMs),
         };
+        req.signal.addEventListener("abort", onAbort, { once: true });
         polls.push(poll);
         broadcastAgentPollingIfChanged();
       });
@@ -419,8 +448,15 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       if (!authorized(body)) return json(401, { error: "unauthorized" });
       if (typeof body.id !== "string") return json(400, { error: "missing_reply_id" });
       const batchEntries = entriesInBatch(store, body.id);
-      if (batchEntries.length === 0 && !pending.some((e) => e.event.id === body.id)) {
+      const isPending = pending.some((e) => e.event.id === body.id);
+      if (batchEntries.length === 0 && !isPending) {
         return json(404, { error: "unknown_reply_id", id: body.id });
+      }
+      // Applied entries keep their batchId (revert needs it), so a batch that
+      // was already resolved still matches here. A duplicate `done` from a
+      // retrying agent must not flip applied entries back to open.
+      if (!isPending && !batchEntries.some((e) => e.status === "dispatched")) {
+        return json(409, { error: "batch_already_resolved", id: body.id });
       }
       const validation = validateReply(body, batchEntries.map((e) => e.id));
       if (!validation.ok) return json(400, { error: validation.error, hint: validation.hint });
@@ -431,6 +467,10 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         store = setStatus(store, [...applied], "applied");
         // Entries the agent did not apply return to open so the user can retry.
         store = setStatus(store, backToOpen, "open");
+        // Slides were inserted: requests still pending named slides of the
+        // deck before those inserts, so shift their `after` past them first.
+        const inserted = batchEntries.filter((e) => applied.has(e.id) && e.kind === "add-slide").map((e) => e.slide.index);
+        store = assignRequestIndices(rebaseRequestsAfterInsert(store, inserted));
         save();
         if (validation.data.files.length > 0) backend.recordCreated(body.id, validation.data.files);
         broadcast({
@@ -444,8 +484,9 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       } else {
         store = setStatus(store, batchEntries.map((e) => e.id), "open");
         save();
-        backend.removeSnapshot(body.id);
-        broadcast({ type: "batch_failed", batchId: body.id, message: validation.message });
+        // The snapshot stays: the agent may have half-applied the batch before
+        // giving up, and /__dev/revert with this batch id puts the deck back.
+        broadcast({ type: "batch_failed", batchId: body.id, message: validation.message, revertable: true });
       }
       flushPolls();
       return json(200, { ok: true });
@@ -463,14 +504,14 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
   function stop(): void {
     if (stopped) return;
     stopped = true;
-    for (const poll of polls) {
-      clearTimeout(poll.timer);
-      poll.resolve(withInstructions({ type: "exit" }));
-    }
+    for (const poll of [...polls]) poll.resolve(withInstructions({ type: "exit" }));
     polls = [];
     broadcast({ type: "exit" });
     if (leaseTimer) clearTimeout(leaseTimer);
-    backend.onStop?.();
+    // The exit responses above are only queued; tearing the host down in the
+    // same tick would close those sockets before the bytes leave. Give the
+    // event loop a moment to flush them first.
+    setTimeout(() => backend.onStop?.(), STOP_FLUSH_MS);
   }
 
   return { handleDevRequest, agentPolling, agentBusy, stop };
@@ -482,10 +523,12 @@ export { applyInstructions, bootInstructions, instructionsForEvent, type ApplyEv
 export { validateReply, type ApplyReplyData } from "./reply";
 export {
   ANNOTATION_KINDS,
+  assignRequestIndices,
   emptyStore,
   entriesByStatus,
   entriesInBatch,
   parseStore,
+  rebaseRequestsAfterInsert,
   serializeStore,
   setStatus,
   upsertEntry,
@@ -498,4 +541,4 @@ export {
   type AnnotationStroke,
   type AnnotationTargetHint,
 } from "./store";
-export type { BatchSnapshot, FileSnapshot, RestoreResult } from "./snapshot";
+export type { BatchRecord, BatchSnapshot, FileSnapshot, RestoreResult } from "./snapshot";

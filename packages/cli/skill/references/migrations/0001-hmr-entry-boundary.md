@@ -1,7 +1,7 @@
 ---
 id: 0001-hmr-entry-boundary
 title: HMR-preserving deck entry boundary
-since: 0.4.0
+since: 0.3.11
 surface: entry
 reason: slide edits in dev mode reset the deck to slide 1 unless the entry is an import.meta.hot boundary with a persisted root
 ---

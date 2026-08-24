@@ -1,7 +1,8 @@
 // The dev-mode loader tag. Permanently present in a deck's index.html: it
-// probes the co-served /__dev/ping endpoint and injects the drawer script only
-// when a dev server answers, so a static open, `live`, or a hosted viewer all
-// no-op (the fetch fails or 404s). The build strips any tag carrying this
+// probes the co-served /__dev/ping endpoint and injects the bridge script
+// (the in-frame half of dev mode: it relays the shell page's sidebar to the
+// framed deck) only when a dev server answers, so a static open, `live`, or a
+// hosted viewer all no-op (the fetch fails or 404s). The build strips any tag carrying this
 // attribute, so built decks ship zero dev-mode bytes. Kept as an inline classic
 // script deliberately: an external `src` would be resolved (and rejected) by
 // the bundler, an inline script passes through both the dev server and
@@ -20,10 +21,13 @@ export const DEV_LOADER_TAG =
   "/* liebstoeckel dev-mode loader; stripped from builds */" +
   '(function(){try{if(!/^https?:$/.test(location.protocol))return;' +
   'fetch("/__dev/ping",{cache:"no-store"}).then(function(r){if(r.ok){' +
-  'var s=document.createElement("script");s.src="/__dev/drawer.js";document.head.appendChild(s)}})' +
+  'var s=document.createElement("script");s.src="/__dev/bridge.js";document.head.appendChild(s)}})' +
   ".catch(function(){})}catch(e){}})()" +
   "</script>";
 
+/** Presence is the attribute alone, not the exact script body: a tag from an
+ *  older CLI (e.g. one loading the former `/__dev/drawer.js` route, which the
+ *  server keeps serving as an alias) still counts and is never re-patched. */
 export function hasDevLoaderTag(html: string): boolean {
   return html.includes(DEV_ATTR);
 }

@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
   type AnnotationEntry,
+  assignRequestIndices,
   emptyStore,
   entriesByStatus,
   entriesInBatch,
   parseStore,
+  rebaseRequestsAfterInsert,
   serializeStore,
   setStatus,
   upsertEntry,
@@ -110,5 +112,48 @@ describe("kinds", () => {
     expect(parsed.entries.r!.kind).toBe("move-slide");
     expect(parsed.entries.x).toBeUndefined();
     expect(parseStore(serializeStore(parsed))).toEqual(parsed);
+  });
+});
+
+describe("slide request indices", () => {
+  const request = (id: string, after: number, overrides: Partial<AnnotationEntry> = {}) =>
+    entry(id, { kind: "add-slide", request: { after, description: id }, slide: { index: -1, sourceFile: null }, comments: [], ...overrides });
+  const indices = (store: ReturnType<typeof emptyStore>) =>
+    Object.fromEntries(Object.values(store.entries).map((e) => [e.id, e.slide.index]));
+
+  test("same position: consecutive in creation order; different positions: each counts the inserts before it", () => {
+    let store = emptyStore();
+    store = upsertEntry(store, request("a", 1, { createdAt: 1 }));
+    store = upsertEntry(store, request("b", 1, { createdAt: 2 }));
+    store = upsertEntry(store, request("c", 3, { createdAt: 0 }));
+    store = upsertEntry(store, request("d", -1, { createdAt: 3 }));
+    // d first (0), then a, b after original slide 1 (now at 2): 3, 4; c after original 3 (now at 6): 7.
+    expect(indices(assignRequestIndices(store))).toEqual({ d: 0, a: 3, b: 4, c: 7 });
+  });
+
+  test("applied and dismissed requests leave the chain; a store with nothing to move is returned as is", () => {
+    let store = emptyStore();
+    store = upsertEntry(store, request("a", 1, { createdAt: 1, status: "applied", slide: { index: 2, sourceFile: null } }));
+    store = upsertEntry(store, request("b", 1, { createdAt: 2, status: "dismissed" }));
+    store = upsertEntry(store, request("c", 1, { createdAt: 3 }));
+    const next = assignRequestIndices(store);
+    expect(next.entries.c!.slide.index).toBe(2);
+    expect(next.entries.a!.slide.index).toBe(2);
+    expect(assignRequestIndices(next)).toBe(next);
+  });
+
+  test("rebase shifts pending `after` values at or past each insert, ascending", () => {
+    let store = emptyStore();
+    store = upsertEntry(store, request("keep", 0, { createdAt: 1 }));
+    store = upsertEntry(store, request("at", 2, { createdAt: 2 }));
+    store = upsertEntry(store, request("past", 5, { createdAt: 3 }));
+    store = upsertEntry(store, request("done", 1, { createdAt: 0, status: "applied", slide: { index: 2, sourceFile: null } }));
+    // Inserts landed at 2 and 4: "after 2" names a slide that moved to 3, "after 5" one that moved twice.
+    const next = rebaseRequestsAfterInsert(store, [4, 2]);
+    expect(next.entries.keep!.request!.after).toBe(0);
+    expect(next.entries.at!.request!.after).toBe(3);
+    expect(next.entries.past!.request!.after).toBe(7);
+    expect(next.entries.done!.request!.after).toBe(1);
+    expect(rebaseRequestsAfterInsert(store, [])).toBe(store);
   });
 });

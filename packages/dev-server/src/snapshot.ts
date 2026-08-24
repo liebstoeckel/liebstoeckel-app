@@ -1,11 +1,16 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { type Dirent, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { snapshotsDir } from "./paths";
 
 // Pre-dispatch source snapshots back the drawer's one-click Revert: before an
-// apply batch is delivered, the referenced slide sources are copied here; revert
-// restores them byte-for-byte and HMR shows the rollback. Snapshots persist to
-// disk so revert survives a dev-server restart. Git backstops anything older.
+// apply batch is delivered, the deck's text sources are copied here (slide
+// attribution is best-effort and the agent may touch shared components or the
+// entry, so the whole source tree is the only safe unit); revert restores them
+// byte-for-byte and HMR shows the rollback. A batch also records which files
+// existed at dispatch, so a file the agent reports that was not snapshotted is
+// only ever deleted on revert when it provably did not exist before. Snapshots
+// persist to disk so revert survives a dev-server restart. Git backstops
+// anything older.
 
 export interface FileSnapshot {
   exists: boolean;
@@ -13,6 +18,65 @@ export interface FileSnapshot {
 }
 
 export type BatchSnapshot = Record<string, FileSnapshot>;
+
+/** What a batch persists: file contents to restore plus the deck-relative
+ *  paths of every file that existed at dispatch (`existed` is null for batches
+ *  written before it was recorded; those never delete on revert). */
+export interface BatchRecord {
+  files: BatchSnapshot;
+  existed: string[] | null;
+}
+
+const SKIP_DIRS = new Set(["node_modules", ".git", ".liebstoeckel", "dist", "build", "out", ".cache"]);
+const SOURCE_EXTS = new Set([".mdx", ".md", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".css", ".json", ".html", ".svg", ".toml", ".yaml", ".yml", ".txt"]);
+const MAX_SOURCE_BYTES = 512 * 1024;
+const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
+
+/** Every file under the deck (deck-relative, forward slashes), skipping
+ *  dependency, build, VCS, and dev-state directories. */
+export function listDeckFiles(root: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string, rel: string) => {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const childRel = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (!SKIP_DIRS.has(entry.name)) walk(join(dir, entry.name), childRel);
+      } else if (entry.isFile()) {
+        out.push(childRel);
+      }
+    }
+  };
+  walk(resolve(root), "");
+  return out.sort();
+}
+
+/** The text sources worth snapshotting for revert: known authoring extensions
+ *  under a per-file and total size cap, so a deck with large assets still
+ *  snapshots quickly. */
+export function listDeckSources(root: string, all: string[] = listDeckFiles(root)): string[] {
+  const picked: string[] = [];
+  let total = 0;
+  for (const rel of all) {
+    const ext = rel.slice(rel.lastIndexOf(".")).toLowerCase();
+    if (!SOURCE_EXTS.has(ext)) continue;
+    let size: number;
+    try {
+      size = statSync(join(root, rel)).size;
+    } catch {
+      continue;
+    }
+    if (size > MAX_SOURCE_BYTES || total + size > MAX_TOTAL_BYTES) continue;
+    total += size;
+    picked.push(rel);
+  }
+  return picked;
+}
 
 /** Deck-relative and inside the deck root, or null. The traversal guard for
  *  everything file-shaped that crosses the dev protocol. */
@@ -42,6 +106,7 @@ export function snapshotFiles(root: string, files: string[]): BatchSnapshot {
 }
 
 export interface RestoreResult {
+  /** Files written or removed; files already at their snapshot content are left untouched. */
   restored: string[];
   failures: Array<{ file: string; message: string }>;
 }
@@ -55,10 +120,15 @@ export function restoreSnapshot(root: string, snapshot: BatchSnapshot): RestoreR
     const abs = join(root, rel);
     try {
       if (before.exists) {
+        // Whole-tree snapshots mean most files are unchanged; skip those so
+        // revert does not rewrite (and hot-reload) the entire deck.
+        if (existsSync(abs) && readFileSync(abs, "utf-8") === before.content) continue;
         mkdirSync(dirname(abs), { recursive: true });
         writeFileSync(abs, before.content, "utf-8");
       } else if (existsSync(abs)) {
         rmSync(abs);
+      } else {
+        continue;
       }
       restored.push(rel);
     } catch (err) {
@@ -77,21 +147,54 @@ function batchPath(deckDir: string, batchId: string): string | null {
   return join(snapshotsDir(deckDir), `${batchId}.json`);
 }
 
-export function saveBatchSnapshot(deckDir: string, batchId: string, snapshot: BatchSnapshot): void {
+export function saveBatchSnapshot(deckDir: string, batchId: string, record: BatchRecord): void {
   const file = batchPath(deckDir, batchId);
   if (!file) return;
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify(snapshot, null, 2) + "\n", "utf-8");
+  writeFileSync(file, JSON.stringify({ version: 2, ...record }, null, 2) + "\n", "utf-8");
 }
 
-export function loadBatchSnapshot(deckDir: string, batchId: string): BatchSnapshot | null {
+export function loadBatchSnapshot(deckDir: string, batchId: string): BatchRecord | null {
   const file = batchPath(deckDir, batchId);
   if (!file || !existsSync(file)) return null;
   try {
     const raw = JSON.parse(readFileSync(file, "utf-8"));
-    return raw && typeof raw === "object" ? (raw as BatchSnapshot) : null;
+    if (!raw || typeof raw !== "object") return null;
+    if (raw.version === 2 && raw.files && typeof raw.files === "object") {
+      return { files: raw.files as BatchSnapshot, existed: Array.isArray(raw.existed) ? (raw.existed as string[]) : null };
+    }
+    // Pre-manifest format: a flat file map. No existence record, so revert
+    // restores but never deletes for these.
+    return { files: raw as BatchSnapshot, existed: null };
   } catch {
     return null;
+  }
+}
+
+/** Cap the snapshot store: whole-tree snapshots are written on every dispatch
+ *  and only revert removes one, so an unpruned long session grows without
+ *  bound. Keeps the `keep` newest records (by mtime); a pruned batch simply
+ *  loses its Revert (git backstops anything older). */
+export function pruneBatchSnapshots(deckDir: string, keep: number): void {
+  const dir = snapshotsDir(deckDir);
+  let entries: Array<{ path: string; mtime: number }>;
+  try {
+    entries = readdirSync(dir)
+      .filter((name) => name.endsWith(".json"))
+      .map((name) => {
+        const path = join(dir, name);
+        return { path, mtime: statSync(path).mtimeMs };
+      });
+  } catch {
+    return;
+  }
+  entries.sort((a, b) => b.mtime - a.mtime);
+  for (const entry of entries.slice(Math.max(0, keep))) {
+    try {
+      rmSync(entry.path);
+    } catch {
+      // best-effort
+    }
   }
 }
 

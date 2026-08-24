@@ -12,7 +12,10 @@ import { createDevProtocol } from "./protocol";
 // route except what a browser needs before it can know a token (/__dev/ping,
 // the bridge script, the shell document, which carries the token to its own
 // page, the reason the server binds loopback by default and exposing it is an
-// explicit flag).
+// explicit flag). Loopback alone does not stop a hostile web page from
+// rebinding its own DNS name to 127.0.0.1 and reading the shell (and its
+// token) as if same-origin, so every request must also carry a Host header
+// naming this machine: localhost, a loopback literal, or the bound hostname.
 
 export interface DevServerOptions {
   deckDir: string;
@@ -27,6 +30,28 @@ export interface DevServer {
   token: string;
   url: string;
   stop: () => void;
+}
+
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1", "0.0.0.0"]);
+
+/** Whether a request's Host header names this machine. Binding a wildcard
+ *  address is the explicit "expose me" flag: the machine is then reached by
+ *  whatever LAN address or name the user typed, so any Host passes. Exported
+ *  for tests. */
+export function hostAllowed(hostHeader: string | null, boundHostname: string): boolean {
+  if (boundHostname === "0.0.0.0" || boundHostname === "::" || boundHostname === "[::]") return true;
+  if (!hostHeader) return false;
+  // Strip the port: "host:port", "[v6]:port", or bare.
+  const host = hostHeader.startsWith("[")
+    ? hostHeader.slice(0, hostHeader.indexOf("]") + 1)
+    : hostHeader.replace(/:\d+$/, "");
+  const lower = host.toLowerCase();
+  return LOCAL_HOSTS.has(lower) || lower === boundHostname.toLowerCase() || lower === `[${boundHostname.toLowerCase()}]`;
+}
+
+/** Where the deck bundle is actually mounted; `/deck` redirects here. */
+export function deckRoute(token: string): string {
+  return `/deck/${token}`;
 }
 
 export async function startDevServer(opts: DevServerOptions): Promise<DevServer> {
@@ -54,7 +79,13 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     const indexPath = join(deckDir, "index.html");
     if (!existsSync(indexPath)) throw new Error(`No index.html in ${deckDir}`);
     const mod = await import(indexPath);
-    routes["/deck"] = mod.default;
+    // Bun answers `routes` before `fetch`, so the Host check below never sees
+    // a route. Keying the bundle by the session token keeps a rebinding page
+    // out: it cannot know the token without first reading the shell, which
+    // the check refuses. `/deck` stays the public name and redirects here.
+    routes[deckRoute(token)] = mod.default;
+    // A hand-typed trailing slash should not 404 the deck.
+    routes[`${deckRoute(token)}/`] = mod.default;
   }
 
   const server = Bun.serve({
@@ -67,21 +98,30 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     development: { hmr: true, console: true },
     ...(Object.keys(routes).length > 0 ? { routes: routes as never } : {}),
     fetch: async (req) => {
+      if (!hostAllowed(req.headers.get("host"), hostname)) {
+        return new Response("Forbidden: unexpected Host header", { status: 403 });
+      }
       const url = new URL(req.url);
       const p = url.pathname;
-      // The in-frame bridge. /__dev/drawer.js stays answered for one release so a
-      // deck tab opened before the upgrade reloads cleanly.
+      // The in-frame bridge. /__dev/drawer.js is a permanent alias: decks
+      // scaffolded with the earlier loader tag request it, and the scaffold
+      // migration never rewrites a tag that is already present.
       if (p === "/__dev/bridge.js" || p === "/__dev/drawer.js") {
         bridgeJs ??= await bridgeBundle();
         return new Response(bridgeJs, { headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" } });
+      }
+      if (p === "/deck" || p === "/deck/") {
+        // Host-checked above; the fragment (deck position) survives a redirect.
+        return Response.redirect(`${deckRoute(token)}/${url.search}`, 302);
       }
       if (p === "/" || p === "/index.html" || p === "/__dev" || p === "/__dev/") {
         shell ??= await shellBundle();
         return new Response(shellHtml(shell, token), { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
       }
-      if (p.startsWith("/__dev/") && shell?.assets.has(p.slice("/__dev/".length))) {
-        const asset = shell.assets.get(p.slice("/__dev/".length))!;
-        return new Response(asset.bytes, { headers: { "Content-Type": asset.type, "Cache-Control": "no-store" } });
+      if (p.startsWith("/__dev/") && /\.(js|css|woff2?|png|svg)$/.test(p)) {
+        shell ??= await shellBundle();
+        const asset = shell.assets.get(p.slice("/__dev/".length));
+        if (asset) return new Response(asset.bytes, { headers: { "Content-Type": asset.type, "Cache-Control": "no-store" } });
       }
       const handled = await protocol.handleDevRequest(req);
       if (handled) return handled;
@@ -89,7 +129,7 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     },
   });
 
-  writeServerInfo(deckDir, { port: server.port!, token });
+  writeServerInfo(deckDir, { port: server.port!, token, hostname });
   ensureDevGitignore(deckDir);
 
   return {
@@ -160,7 +200,8 @@ function shellHtml(bundle: ShellBundle, token: string): string {
     (bundle.css ? '<link rel="stylesheet" href="/__dev/shell.css">' : "") +
     "<style>html,body,#root{margin:0;height:100%;background:#10140e}</style>" +
     '</head><body><div id="root"></div>' +
-    `<script>window.__LIEBSTOECKEL_DEV__=${JSON.stringify({ token })}</script>` +
+    // The frame mounts the deck at its token path directly, no bounce through /deck.
+    `<script>window.__LIEBSTOECKEL_DEV__=${JSON.stringify({ token, deckRoute: deckRoute(token) })}</script>` +
     '<script type="module" src="/__dev/shell.js"></script></body></html>'
   );
 }

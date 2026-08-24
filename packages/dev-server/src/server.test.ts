@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type DevServer, startDevServer } from "./server";
+import { type DevServer, deckRoute, hostAllowed, startDevServer } from "./server";
 import { loadStore } from "./local-backend";
 
 // Integration against a real Bun.serve in apiOnly mode: the /__dev surface end
@@ -45,6 +45,44 @@ function post(path: string, body: Record<string, unknown>, token = server.token)
     body: JSON.stringify({ token, ...body }),
   });
 }
+
+describe("host check", () => {
+  test("only localhost, loopback literals, and the bound hostname pass", () => {
+    expect(hostAllowed("localhost:3000", "127.0.0.1")).toBe(true);
+    expect(hostAllowed("127.0.0.1:3000", "127.0.0.1")).toBe(true);
+    expect(hostAllowed("[::1]:3000", "127.0.0.1")).toBe(true);
+    expect(hostAllowed("192.168.1.20:3000", "192.168.1.20")).toBe(true);
+    expect(hostAllowed("192.168.1.20:3000", "127.0.0.1")).toBe(false);
+    // Exposed on purpose: reached by whatever address the user typed.
+    expect(hostAllowed("192.168.1.20:3000", "0.0.0.0")).toBe(true);
+    expect(hostAllowed("evil.example:3000", "127.0.0.1")).toBe(false);
+    expect(hostAllowed(null, "127.0.0.1")).toBe(false);
+  });
+
+  test("a rebinding Host header is refused on every route, including the token-bearing shell", async () => {
+    const res = await fetch(`${base}/`, { headers: { Host: "evil.example" } });
+    expect(res.status).toBe(403);
+    expect(await res.text()).not.toContain(server.token);
+    expect((await fetch(`${base}/__dev/ping`, { headers: { Host: "evil.example" } })).status).toBe(403);
+    // Bun serves `routes` before `fetch`, so the deck bundle sits under a token
+    // path; the public /deck name is a checked redirect that never leaks it.
+    expect((await fetch(`${base}/deck`, { headers: { Host: "evil.example" }, redirect: "manual" })).status).toBe(403);
+    expect((await fetch(`${base}/deck/`, { headers: { Host: "evil.example" }, redirect: "manual" })).status).toBe(403);
+  });
+
+  test("/deck redirects to the token-keyed deck route, keeping the query", async () => {
+    const res = await fetch(`${base}/deck?x=1`, { redirect: "manual" });
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(`${deckRoute(server.token)}/?x=1`);
+    const html = await (await fetch(`${base}/`)).text();
+    expect(html).toContain(JSON.stringify(deckRoute(server.token)));
+  });
+
+  test("server.json records the bound hostname", () => {
+    const info = JSON.parse(readFileSync(join(deckDir, ".liebstoeckel", "dev", "server.json"), "utf-8"));
+    expect(info.hostname).toBe("127.0.0.1");
+  });
+});
 
 describe("auth", () => {
   test("ping is public; state, poll, and mutations require the token", async () => {
@@ -186,5 +224,26 @@ describe("restart requeue", () => {
     expect(event.type).toBe("apply");
     expect(event.id).toBe(pendingBatch);
     second.stop();
+  });
+});
+
+describe("deck bundle", () => {
+  test("the HTML pipeline serves the deck only at the token route; a foreign Host cannot guess it", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-dev-bundle-"));
+    writeFileSync(join(dir, "index.html"), '<!doctype html><html><head><script type="module" src="./main.ts"></script></head><body><div id="root">plain deck</div></body></html>');
+    writeFileSync(join(dir, "main.ts"), 'document.title = "deck";\n');
+    const full = await startDevServer({ deckDir: dir });
+    const fullBase = `http://127.0.0.1:${full.port}`;
+    try {
+      const deck = await fetch(`${fullBase}${deckRoute(full.token)}`);
+      expect(deck.status).toBe(200);
+      expect(await deck.text()).toContain("plain deck");
+      expect((await fetch(`${fullBase}${deckRoute(full.token)}/`)).status).toBe(200);
+      expect((await fetch(`${fullBase}/deck`, { redirect: "manual" })).status).toBe(302);
+      expect((await fetch(`${fullBase}/deck`, { headers: { Host: "evil.example" }, redirect: "manual" })).status).toBe(403);
+      expect((await fetch(`${fullBase}/deck/${crypto.randomUUID()}`, { headers: { Host: "evil.example" } })).status).toBe(403);
+    } finally {
+      full.stop();
+    }
   });
 });

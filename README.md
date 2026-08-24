@@ -75,6 +75,7 @@ Every command targets a deck by a leading path, `--dir <deck>`, or the current d
 | Build one self-contained `.html`, thumbnails embedded | `liebstoeckel build` | [build](https://docs.liebstoeckel.app/reference/cli/#build) |
 | Validate a deck without writing an artifact | `liebstoeckel build --check` | [build](https://docs.liebstoeckel.app/reference/cli/#build) |
 | Recover a built deck's editable source | `liebstoeckel eject <deck.html>` | [eject](https://docs.liebstoeckel.app/reference/cli/#eject) |
+| Dev mode: hot reload plus an annotation sidebar an agent applies | `liebstoeckel dev` | [dev](https://docs.liebstoeckel.app/reference/cli/#dev) |
 | Present live over a LAN, or `--relay <url>` | `liebstoeckel live` | [live](https://docs.liebstoeckel.app/reference/cli/#live) |
 | Run a public relay for WAN sessions | `liebstoeckel relay` | [relay](https://docs.liebstoeckel.app/reference/cli/#relay) |
 | Export slides to PNG or PDF | `liebstoeckel export` | [export](https://docs.liebstoeckel.app/reference/cli/#export) |
@@ -87,7 +88,7 @@ Cloud commands (`login`, `push`, `orgs`, `decks`, `brand`) upload a deck to the 
 
 ## Architecture
 
-liebstoeckel is a Bun monorepo built around `engine`, which compiles a deck with `Bun.build` (inlining the JS, CSS, and fonts) and runs it: a fixed-canvas `ScaledStage`, Motion transitions, keyboard and touch navigation, the presenter view, and the live client. `theme` holds the typed token model and the pipeline from brand tokens to CSS variables, so a deck re-skins by switching `data-brand`. `components` provides the themed MDX primitives and Magic Move. `plugin-sdk` and `plugin-ui` build the Yjs-synced plugins from typed CRDT state, and `live-server` and `present-relay` host that shared document for a LAN room or the public internet. `thumbnails` captures slide previews at build time, and `cli` is the single command over all of it. Each package has its own README; the [architecture](https://docs.liebstoeckel.app/concepts/architecture/) and [state model](https://docs.liebstoeckel.app/concepts/state-model/) pages go deeper.
+liebstoeckel is a Bun monorepo built around `engine`, which compiles a deck with `Bun.build` (inlining the JS, CSS, and fonts) and runs it: a fixed-canvas `ScaledStage`, Motion transitions, keyboard and touch navigation, the presenter view, and the live client. `theme` holds the typed token model and the pipeline from brand tokens to CSS variables, so a deck re-skins by switching `data-brand`. `components` provides the themed MDX primitives and Magic Move. `plugin-sdk` and `plugin-ui` build the Yjs-synced plugins from typed CRDT state, and `live-server` and `present-relay` host that shared document for a LAN room or the public internet. `thumbnails` captures slide previews at build time, `dev-server` serves a deck with hot reload behind a shell page whose annotation sidebar an agent picks up through a poll loop, and `cli` is the single command over all of it. Each package has its own README; the [architecture](https://docs.liebstoeckel.app/concepts/architecture/) and [state model](https://docs.liebstoeckel.app/concepts/state-model/) pages go deeper.
 
 ## Documentation
 

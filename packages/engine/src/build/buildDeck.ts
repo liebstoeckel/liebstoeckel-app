@@ -215,7 +215,11 @@ export async function bundleDeck({
   // `outfile` (the deck slug for the user-facing build, (internal ADR)).
   const built = join(outdir, basename(entry));
   const outHtml = join(outdir, outfile);
-  let html = stripDevMode(escapeInlineModuleScript(await Bun.file(built).text()));
+  // Strip BEFORE escaping: escapeInlineModuleScript treats everything up to
+  // the LAST </script> as the module body, so a dev loader tag sitting after
+  // the module (hand-placed at the end of <body>) must be gone first or the
+  // module's own closer gets escaped away and the page ships unterminated.
+  let html = escapeInlineModuleScript(stripDevMode(await Bun.file(built).text()));
   const manifest = await buildPluginManifest(pkgJson);
   if (manifest) html = embedManifest(html, manifest);
 

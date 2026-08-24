@@ -26,8 +26,13 @@ export function applyInstructions(event: ApplyEventShape): string {
   steps.push(
     `The user sent ${event.annotations.length} item(s) from the running deck (${marks.length} annotation(s), ${requests.length} slide request(s)) and pressed Send to agent. Apply all of them to the deck source now; do not ask what to do with them.`,
   );
+  if (requests.length > 1) {
+    steps.push(
+      "Several slide requests: create and register them in the order listed, one at a time. Each array index below is final and already counts the inserts listed before it; the slide numbers name slides of the deck as it is before this batch.",
+    );
+  }
   for (const r of requests) {
-    const where = r.request!.after < 0 ? "as the first slide" : `right after slide ${r.request!.after + 1} (index ${r.request!.after})`;
+    const where = r.request!.after < 0 ? "as the first slide" : `right after slide ${r.request!.after + 1} (index ${r.request!.after} before this batch)`;
     steps.push(
       `Slide request ${r.id}: create a NEW slide ${where} implementing: "${r.request!.description}". Write it as a new file under slides/ with the next numeric prefix (MDX or TSX, the deck's existing style), then register it in the deck entry's slides array at index ${r.slide.index} (deck root: ${event.deckDir}; keep the entry's hot-reload boundary intact). Include both the new file and the entry file in the reply's files.`,
     );

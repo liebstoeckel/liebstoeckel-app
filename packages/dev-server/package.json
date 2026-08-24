@@ -1,7 +1,7 @@
 {
   "name": "@liebstoeckel/dev-server",
   "version": "0.1.0",
-  "description": "Local dev mode for liebstoeckel decks: HMR serving plus an injected tool drawer (annotations first) and an agent poll loop.",
+  "description": "Local dev mode for liebstoeckel decks: HMR serving plus a shell page with an annotation sidebar beside the framed deck, and an agent poll loop.",
   "keywords": [
     "liebstoeckel",
     "slides",

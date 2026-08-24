@@ -2,7 +2,11 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { dirname, join } from "node:path";
 import { devDir, screenshotsDir, serverInfoPath, storePath } from "./paths";
 import type { DevBackend } from "./protocol";
-import { loadBatchSnapshot, removeBatchSnapshot, restoreSnapshot, saveBatchSnapshot, snapshotFiles, withinRoot } from "./snapshot";
+import { listDeckFiles, listDeckSources, loadBatchSnapshot, pruneBatchSnapshots, removeBatchSnapshot, restoreSnapshot, saveBatchSnapshot, snapshotFiles, withinRoot } from "./snapshot";
+
+/** Whole-tree revert snapshots kept on disk; older ones are pruned on each
+ *  dispatch (their Revert falls back to git). */
+const MAX_KEPT_SNAPSHOTS = 10;
 import { findEntryFile, resolveSlideFiles } from "./slides";
 import { type AnnotationStore, emptyStore, parseStore, serializeStore } from "./store";
 
@@ -50,24 +54,37 @@ export function createLocalBackend(opts: LocalBackendOptions): DevBackend {
       return name;
     },
     screenshotRef: (name) => join(screenshotsDir(deckDir), name),
-    takeSnapshot: (batchId, files) => saveBatchSnapshot(deckDir, batchId, snapshotFiles(deckDir, files)),
+    takeSnapshot: (batchId, files) => {
+      // The referenced files plus every text source in the deck: attribution
+      // is best-effort and the agent may edit shared code, so only the whole
+      // source tree makes revert safe. The file list doubles as the existence
+      // record that decides what revert may delete.
+      const existed = listDeckFiles(deckDir);
+      const snapshot = snapshotFiles(deckDir, [...files, ...listDeckSources(deckDir, existed)]);
+      saveBatchSnapshot(deckDir, batchId, { files: snapshot, existed });
+      pruneBatchSnapshots(deckDir, MAX_KEPT_SNAPSHOTS);
+    },
     recordCreated: (batchId, files) => {
-      const snapshot = loadBatchSnapshot(deckDir, batchId);
-      if (!snapshot) return;
+      const record = loadBatchSnapshot(deckDir, batchId);
+      if (!record) return;
+      const existed = record.existed ? new Set(record.existed) : null;
       let changed = false;
       for (const file of files) {
         const rel = withinRoot(deckDir, file);
-        if (!rel || rel in snapshot) continue;
-        // Not in the snapshot = not referenced at dispatch; the agent reports
-        // only files it touched, so treat it as created (revert deletes it).
-        snapshot[rel] = { exists: false, content: "" };
+        if (!rel || rel in record.files) continue;
+        // Only a file that provably did not exist at dispatch is "created"
+        // (revert deletes it). One that existed but was not snapshotted (binary,
+        // oversized, or a batch without an existence record) is left alone
+        // rather than destroyed.
+        if (!existed || existed.has(rel)) continue;
+        record.files[rel] = { exists: false, content: "" };
         changed = true;
       }
-      if (changed) saveBatchSnapshot(deckDir, batchId, snapshot);
+      if (changed) saveBatchSnapshot(deckDir, batchId, record);
     },
     restoreSnapshot: (batchId) => {
-      const snapshot = loadBatchSnapshot(deckDir, batchId);
-      return snapshot ? restoreSnapshot(deckDir, snapshot) : null;
+      const record = loadBatchSnapshot(deckDir, batchId);
+      return record ? restoreSnapshot(deckDir, record.files) : null;
     },
     removeSnapshot: (batchId) => removeBatchSnapshot(deckDir, batchId),
     onStop: opts.onStop,
@@ -78,7 +95,14 @@ export function createLocalBackend(opts: LocalBackendOptions): DevBackend {
 // server.json: how `dev poll` and the loader find a running server
 // ---------------------------------------------------------------------------
 
-export function writeServerInfo(deckDir: string, info: { port: number; token: string }): void {
+export interface ServerInfo {
+  port: number;
+  token: string;
+  /** The interface the server bound; `dev poll` dials it (loopback when absent). */
+  hostname?: string;
+}
+
+export function writeServerInfo(deckDir: string, info: ServerInfo): void {
   mkdirSync(devDir(deckDir), { recursive: true });
   const full = { ...info, pid: process.pid, startedAt: new Date().toISOString() };
   writeFileSync(serverInfoPath(deckDir), JSON.stringify(full, null, 2) + "\n", "utf-8");
@@ -92,12 +116,14 @@ export function removeServerInfo(deckDir: string): void {
   }
 }
 
-export function readServerInfo(deckDir: string): { port: number; token: string } | null {
+export function readServerInfo(deckDir: string): ServerInfo | null {
   const file = serverInfoPath(deckDir);
   if (!existsSync(file)) return null;
   try {
     const raw = JSON.parse(readFileSync(file, "utf-8"));
-    if (typeof raw?.port === "number" && typeof raw?.token === "string") return { port: raw.port, token: raw.token };
+    if (typeof raw?.port === "number" && typeof raw?.token === "string") {
+      return { port: raw.port, token: raw.token, ...(typeof raw.hostname === "string" ? { hostname: raw.hostname } : {}) };
+    }
   } catch {
     // fall through
   }
@@ -108,9 +134,19 @@ export function readServerInfo(deckDir: string): { port: number; token: string }
  *  the session token and screenshots/snapshots are working state. */
 export function ensureDevGitignore(deckDir: string): void {
   const file = join(devDir(deckDir), ".gitignore");
+  const wanted = ["server.json", "annotations.json", "screenshots/", "snapshots/"];
   try {
     mkdirSync(dirname(file), { recursive: true });
-    if (!existsSync(file)) writeFileSync(file, "server.json\nscreenshots/\nsnapshots/\n", "utf-8");
+    if (!existsSync(file)) {
+      writeFileSync(file, wanted.join("\n") + "\n", "utf-8");
+      return;
+    }
+    // A file from an earlier version may miss entries added since (e.g.
+    // annotations.json); append what is missing, never rewrite user edits.
+    const current = readFileSync(file, "utf-8");
+    const lines = new Set(current.split("\n").map((l) => l.trim()));
+    const missing = wanted.filter((w) => !lines.has(w));
+    if (missing.length > 0) writeFileSync(file, current.replace(/\n?$/, "\n") + missing.join("\n") + "\n", "utf-8");
   } catch {
     // best-effort
   }

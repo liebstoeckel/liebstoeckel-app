@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  listDeckFiles,
+  listDeckSources,
   loadBatchSnapshot,
   removeBatchSnapshot,
   restoreSnapshot,
@@ -60,11 +62,60 @@ describe("batch persistence", () => {
   test("save/load/remove; malformed ids refused", () => {
     const dir = deck();
     const snap = snapshotFiles(dir, ["slides/a.mdx"]);
-    saveBatchSnapshot(dir, "batch1", snap);
-    expect(loadBatchSnapshot(dir, "batch1")).toEqual(snap);
+    saveBatchSnapshot(dir, "batch1", { files: snap, existed: ["slides/a.mdx"] });
+    expect(loadBatchSnapshot(dir, "batch1")).toEqual({ files: snap, existed: ["slides/a.mdx"] });
     expect(loadBatchSnapshot(dir, "missing")).toBeNull();
     expect(loadBatchSnapshot(dir, "../../etc")).toBeNull();
     removeBatchSnapshot(dir, "batch1");
     expect(loadBatchSnapshot(dir, "batch1")).toBeNull();
+  });
+
+  test("a flat pre-manifest snapshot file loads with no existence record", () => {
+    const dir = deck();
+    mkdirSync(join(dir, ".liebstoeckel", "dev", "snapshots"), { recursive: true });
+    writeFileSync(
+      join(dir, ".liebstoeckel", "dev", "snapshots", "old.json"),
+      JSON.stringify({ "slides/a.mdx": { exists: true, content: "x" } }),
+    );
+    expect(loadBatchSnapshot(dir, "old")).toEqual({ files: { "slides/a.mdx": { exists: true, content: "x" } }, existed: null });
+  });
+});
+
+describe("deck file listing", () => {
+  test("lists every file except dependency, build, and dev-state dirs; sources filter by extension and size", () => {
+    const dir = deck();
+    mkdirSync(join(dir, "node_modules", "x"), { recursive: true });
+    writeFileSync(join(dir, "node_modules", "x", "index.js"), "");
+    mkdirSync(join(dir, ".liebstoeckel", "dev"), { recursive: true });
+    writeFileSync(join(dir, ".liebstoeckel", "dev", "annotations.json"), "{}");
+    mkdirSync(join(dir, "dist"), { recursive: true });
+    writeFileSync(join(dir, "dist", "deck.html"), "");
+    writeFileSync(join(dir, "main.tsx"), "");
+    writeFileSync(join(dir, "logo.png"), "");
+    writeFileSync(join(dir, "big.mdx"), "x".repeat(600 * 1024));
+    const all = listDeckFiles(dir);
+    expect(all).toEqual(["big.mdx", "logo.png", "main.tsx", "slides/a.mdx"]);
+    expect(listDeckSources(dir, all)).toEqual(["main.tsx", "slides/a.mdx"]);
+  });
+});
+
+describe("pruneBatchSnapshots", () => {
+  test("keeps the newest records and removes the rest", async () => {
+    const deck = mkdtempSync(join(tmpdir(), "lst-prune-"));
+    const { pruneBatchSnapshots } = await import("./snapshot");
+    const { utimesSync } = await import("node:fs");
+    for (let i = 0; i < 5; i++) {
+      saveBatchSnapshot(deck, `b${i}`, { files: {}, existed: [] });
+      // Deterministic mtimes; b4 is newest.
+      const t = new Date(2026, 0, 1 + i);
+      utimesSync(join(deck, ".liebstoeckel", "dev", "snapshots", `b${i}.json`), t, t);
+    }
+    pruneBatchSnapshots(deck, 2);
+    expect(loadBatchSnapshot(deck, "b4")).not.toBeNull();
+    expect(loadBatchSnapshot(deck, "b3")).not.toBeNull();
+    expect(loadBatchSnapshot(deck, "b2")).toBeNull();
+    expect(loadBatchSnapshot(deck, "b0")).toBeNull();
+    // No snapshots dir at all: a no-op, not a crash.
+    pruneBatchSnapshots(mkdtempSync(join(tmpdir(), "lst-prune-empty-")), 2);
   });
 });

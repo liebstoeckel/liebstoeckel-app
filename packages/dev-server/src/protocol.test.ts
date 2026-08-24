@@ -165,7 +165,10 @@ describe("lifecycle", () => {
     const id = Object.keys(backend.store.entries)[0]!;
     await p.handleDevRequest(post("/__dev/poll", { id: dispatched.batchId, type: "error", message: "could not parse" }));
     expect(backend.store.entries[id]!.status).toBe("open");
-    expect(backend.snapshots.has(dispatched.batchId)).toBe(false);
+    // The snapshot stays so a half-applied failure can still be reverted.
+    expect(backend.snapshots.has(dispatched.batchId)).toBe(true);
+    expect((await p.handleDevRequest(post("/__dev/revert", { batchId: dispatched.batchId })))!.status).toBe(200);
+    expect(backend.restored).toEqual([dispatched.batchId]);
     p.stop();
   });
 
@@ -200,11 +203,108 @@ describe("lifecycle", () => {
     p.stop();
     p.stop();
     expect((await body<{ type: string }>(await waiting)).type).toBe("exit");
+    // The host teardown is deferred so the exit responses can leave first.
+    expect(backend.stopped).toBe(false);
+    await Bun.sleep(150);
     expect(backend.stopped).toBe(true);
+  });
+
+  test("a poll whose client went away stops counting as a present agent", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend);
+    const ctrl = new AbortController();
+    const waiting = p.handleDevRequest(new Request(`${BASE}/__dev/poll?token=tok&timeout=5000`, { signal: ctrl.signal }));
+    await Promise.resolve();
+    expect(p.agentPolling()).toBe(true);
+    ctrl.abort();
+    expect(p.agentPolling()).toBe(false);
+    await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 0, comments: [{ x: 0.1, y: 0.1, text: "hi" }] }));
+    const dispatched = await body<{ agentPolling: boolean }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    expect(dispatched.agentPolling).toBe(false);
+    // The batch was not leased to the dead socket: a fresh poll gets it at once.
+    const event = await body<{ type: string }>(await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=500")));
+    expect(event.type).toBe("apply");
+    p.stop();
+    void waiting;
+  });
+
+  test("re-saving an entry an agent is working on is refused", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend);
+    const saved = await body<{ entry: { id: string } }>(
+      await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 0, comments: [{ x: 0.1, y: 0.1, text: "hi" }] })),
+    );
+    const dispatched = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    const res = await p.handleDevRequest(post("/__dev/annotations", { id: saved.entry.id, slideIndex: 0, comments: [] }));
+    expect(res!.status).toBe(409);
+    expect((await body<{ batchId: string }>(res)).batchId).toBe(dispatched.batchId);
+    expect(backend.store.entries[saved.entry.id]!.status).toBe("dispatched");
+    p.stop();
   });
 });
 
 describe("slide requests", () => {
+  test("requests chained at the same position take consecutive indices and arrive in order", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend);
+    const add = async (description: string) =>
+      (await body<{ entry: { id: string; slide: { index: number } } }>(
+        await p.handleDevRequest(post("/__dev/annotations", { kind: "add-slide", request: { after: 1, description } })),
+      )).entry;
+    const first = await add("first");
+    await Bun.sleep(2);
+    const second = await add("second");
+    await Bun.sleep(2);
+    const third = await add("third");
+    expect([first.slide.index, second.slide.index, third.slide.index]).toEqual([2, 3, 4]);
+
+    // Dismissing the middle one closes the gap.
+    await p.handleDevRequest(post("/__dev/annotation-status", { id: second.id, status: "dismissed" }));
+    expect(backend.store.entries[third.id]!.slide.index).toBe(3);
+
+    const dispatched = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    const event = await body<{ annotations: Array<{ id: string; slide: { index: number } }>; _instructions: string }>(
+      await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=500")),
+    );
+    expect(event.annotations.map((a) => [a.id, a.slide.index])).toEqual([[first.id, 2], [third.id, 3]]);
+    expect(event._instructions).toContain("in the order listed");
+    void dispatched;
+    p.stop();
+  });
+
+  test("requests at different positions count the inserts before them; applying re-bases the rest", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend);
+    const add = async (after: number, description: string) =>
+      (await body<{ entry: { id: string; slide: { index: number } } }>(
+        await p.handleDevRequest(post("/__dev/annotations", { kind: "add-slide", request: { after, description } })),
+      )).entry;
+    // Created later but positioned earlier: the chain orders by position, not creation.
+    const late = await add(3, "after slide 4");
+    await Bun.sleep(2);
+    const early = await add(1, "after slide 2");
+    // Inserting at 2 first moves the original slide 3 to 4, so "after 3" is index 5, not 4.
+    expect(backend.store.entries[early.id]!.slide.index).toBe(2);
+    expect(backend.store.entries[late.id]!.slide.index).toBe(5);
+
+    const dispatched = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    const event = await body<{ annotations: Array<{ id: string; slide: { index: number } }>; _instructions: string }>(
+      await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=500")),
+    );
+    expect(event.annotations.map((a) => [a.id, a.slide.index])).toEqual([[early.id, 2], [late.id, 5]]);
+    expect(event._instructions).toContain("at index 2");
+    expect(event._instructions).toContain("at index 5");
+
+    // Only the first one applied: the second still names the original slide 3,
+    // which now sits at 4, so its `after` moves and its index stays 5.
+    await p.handleDevRequest(post("/__dev/poll", { id: dispatched.batchId, type: "done", data: { applied: [early.id], files: ["main.tsx"], notes: [] } }));
+    const remaining = backend.store.entries[late.id]!;
+    expect(remaining.status).toBe("open");
+    expect(remaining.request).toEqual({ after: 4, description: "after slide 4" });
+    expect(remaining.slide.index).toBe(5);
+    p.stop();
+  });
+
   test("validation, entry-file snapshot, created files recorded on reply, event fields", async () => {
     const backend = memoryBackend();
     const p = createDevProtocol(backend);
@@ -239,3 +339,50 @@ describe("slide requests", () => {
   });
 });
 
+
+describe("hardening", () => {
+  test("a duplicate done reply is refused instead of reopening applied entries", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend, { leaseMs: 60_000 });
+    const saved = await body<{ entry: { id: string } }>(
+      await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 1, comments: [{ x: 0, y: 0, text: "t" }] })),
+    );
+    const id = saved.entry.id;
+    const dispatched = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=1000"));
+    const done = { id: dispatched.batchId, type: "done", data: { applied: [id], files: [], notes: [] } };
+    expect((await p.handleDevRequest(post("/__dev/poll", done)))!.status).toBe(200);
+    expect(backend.store.entries[id]!.status).toBe("applied");
+    // The agent retries the reply: refused, and the entry stays applied.
+    const dup = await p.handleDevRequest(post("/__dev/poll", { ...done, data: { applied: [], files: [], notes: [] } }));
+    expect(dup!.status).toBe(409);
+    expect((await body<{ error: string }>(dup)).error).toBe("batch_already_resolved");
+    expect(backend.store.entries[id]!.status).toBe("applied");
+    p.stop();
+  });
+
+  test("revert is refused while an agent holds a lease (whole-tree restore would wipe its work)", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend, { leaseMs: 60_000 });
+    const a = await body<{ entry: { id: string } }>(
+      await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 1, comments: [{ x: 0, y: 0, text: "a" }] })),
+    );
+    const b1 = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=1000"));
+    await p.handleDevRequest(post("/__dev/poll", { id: b1.batchId, type: "done", data: { applied: [a.entry.id], files: [], notes: [] } }));
+    // A second batch is now with the agent.
+    await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 0, comments: [{ x: 0, y: 0, text: "b" }] }));
+    const b2 = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=1000"));
+    expect(p.agentBusy()).toBe(true);
+    const refused = await p.handleDevRequest(post("/__dev/revert", { batchId: b1.batchId }));
+    expect(refused!.status).toBe(409);
+    expect((await body<{ error: string }>(refused)).error).toBe("agent_busy");
+    expect(backend.restored).toEqual([]);
+    // After the agent replies, revert works again.
+    const bId = Object.values(backend.store.entries).find((e) => e.batchId === b2.batchId)!.id;
+    await p.handleDevRequest(post("/__dev/poll", { id: b2.batchId, type: "done", data: { applied: [bId], files: [], notes: [] } }));
+    expect((await p.handleDevRequest(post("/__dev/revert", { batchId: b1.batchId })))!.status).toBe(200);
+    p.stop();
+  });
+});

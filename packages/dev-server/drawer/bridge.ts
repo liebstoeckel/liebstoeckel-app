@@ -11,7 +11,7 @@ import { domToPng } from "modern-screenshot";
 
 declare global {
   interface Window {
-    __LIEBSTOECKEL_DEV__?: { token: string };
+    __LIEBSTOECKEL_DEV__?: { token: string; deckRoute?: string };
   }
 }
 

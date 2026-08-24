@@ -102,3 +102,12 @@ describe("stripDevMode", () => {
     expect(stripDevMode(html)).toBe("<p>a</p><p>b</p>");
   });
 });
+
+describe("stripDevMode before escapeInlineModuleScript", () => {
+  test("a dev tag after the module script does not break the module's own closer", () => {
+    const html = '<body><script type="module">app("x")</script>\n<script data-liebstoeckel-dev>probe()</script>\n</body>';
+    // The bundle pipeline's order: strip first, then escape.
+    const out = escapeInlineModuleScript(stripDevMode(html));
+    expect(out).toBe('<body><script type="module">app("x")</script>\n</body>');
+  });
+});

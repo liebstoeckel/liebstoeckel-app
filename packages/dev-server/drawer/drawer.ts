@@ -44,17 +44,29 @@ const CSS = `
 function boot(): void {
   if (window.parent === window || document.getElementById(HOST_ID)) return;
   const parent = window.parent;
+  // The dev server serves the shell and the deck from one origin, so the only
+  // parent allowed to initialise this frame, and the only one greeted before
+  // the handshake, is our own origin. A hosted variant would pass its own list.
+  const home = location.origin;
+  const allowedOrigins: readonly string[] = [home];
   let handshake = initialHandshake();
-  const post = (msg: FrameMessage, targetOrigin = handshake.origin ?? "*") => parent.postMessage(msg, targetOrigin);
+  const post = (msg: FrameMessage, targetOrigin = handshake.origin ?? home) => parent.postMessage(msg, targetOrigin);
 
   // Draft state in stage fractions.
   let strokes: StrokeDraft[] = [];
   let comments: CommentDraft[] = [];
   let mode: OverlayMode = "off";
   let mounted = false;
+  // The slide the draft belongs to, pinned at the first mark: arrow keys still
+  // navigate the deck while annotating, so the slide visible at save time is
+  // not necessarily the one the marks were made on.
+  let draftSlide: number | null = null;
 
-  const draft = (): DraftPayload => ({ strokes, comments, space: "stage" });
+  const draft = (): DraftPayload => ({ strokes, comments, space: "stage", slideIndex: draftSlide });
   const emitDraft = () => post({ type: "lst:draft", draft: draft() });
+  const pinDraftSlide = () => {
+    draftSlide ??= currentSlide();
+  };
 
   // Slide sync, reported to the parent as it changes.
   const currentSlide = watchCurrentSlide((index) => post({ type: "lst:slide", index }));
@@ -73,6 +85,9 @@ function boot(): void {
   let cbox: HTMLDivElement;
   let cinput: HTMLInputElement;
   let rect: DOMRect | null = null;
+
+  // The overlay tracks the fitted stage box, not the window. A no-op until mount.
+  let fit: () => void = () => {};
 
   function mount(): void {
     if (mounted) return;
@@ -95,8 +110,7 @@ function boot(): void {
     cbox.appendChild(cinput);
     root.appendChild(cbox);
 
-    // The overlay tracks the fitted stage box, not the window.
-    const fit = () => {
+    fit = () => {
       rect = stageRect();
       if (!rect) return;
       overlay.style.left = `${rect.left}px`;
@@ -107,13 +121,39 @@ function boot(): void {
       overlay.height = Math.round(rect.height * devicePixelRatio);
       redraw();
     };
-    window.addEventListener("resize", fit);
-    const stage = document.querySelector("[data-deck-root]");
-    if (stage && "ResizeObserver" in window) new ResizeObserver(fit).observe(stage);
+    // The engine re-fits the stage on its own ResizeObserver, then commits the
+    // new scale through React and Motion, so the stage rect measured in the
+    // same resize tick is still the old one. Fit now for the cheap cases and
+    // again on the next two frames, by which time the engine's commit has
+    // landed.
+    const refit = () => {
+      fit();
+      requestAnimationFrame(() => {
+        fit();
+        requestAnimationFrame(fit);
+      });
+    };
+    window.addEventListener("resize", refit);
+    // [data-deck-root] is the logical 1280x720 canvas; its box never changes,
+    // it is scaled by a transform. The box that does change is the engine's
+    // fitting container two levels up (and the document itself), so observe
+    // those once the stage exists.
+    let observed = false;
+    const observeStage = () => {
+      if (observed || !("ResizeObserver" in window)) return;
+      const stage = document.querySelector("[data-deck-root]");
+      if (!stage) return;
+      observed = true;
+      const ro = new ResizeObserver(refit);
+      const container = stage.parentElement?.parentElement;
+      if (container) ro.observe(container);
+      ro.observe(document.documentElement);
+    };
     // The stage mounts after React hydrates; poll briefly until it exists.
     let tries = 0;
     const untilStage = setInterval(() => {
       fit();
+      observeStage();
       if (rect || ++tries > 50) clearInterval(untilStage);
     }, 100);
 
@@ -123,6 +163,7 @@ function boot(): void {
       const p = toStage(event.clientX, event.clientY, rect);
       if (!onStage(p)) return;
       if (mode === "draw") {
+        pinDraftSlide();
         active = [p];
         strokes = [...strokes, { points: active }];
         overlay.setPointerCapture(event.pointerId);
@@ -135,10 +176,14 @@ function boot(): void {
       active.push(toStage(event.clientX, event.clientY, rect));
       redraw();
     });
-    overlay.addEventListener("pointerup", () => {
+    // pointercancel (the browser took the pointer: a touch gesture, a lost
+    // capture) ends the stroke the same way a release does.
+    const endStroke = () => {
       if (active) emitDraft();
       active = null;
-    });
+    };
+    overlay.addEventListener("pointerup", endStroke);
+    overlay.addEventListener("pointercancel", endStroke);
 
     let pending: Point | null = null;
     function openCommentBox(clientX: number, clientY: number, p: Point): void {
@@ -156,6 +201,7 @@ function boot(): void {
         pending = null;
       }
       if (event.key === "Enter" && cinput.value.trim() && pending && rect) {
+        pinDraftSlide();
         comments = [...comments, { x: pending[0], y: pending[1], text: cinput.value.trim(), target: elementHintAt(pending[0], pending[1], rect, overlay) }];
         cbox.style.display = "none";
         pending = null;
@@ -184,6 +230,7 @@ function boot(): void {
   function clearDraft(): void {
     strokes = [];
     comments = [];
+    draftSlide = null;
     redraw();
     emitDraft();
   }
@@ -192,6 +239,9 @@ function boot(): void {
     const snapshot = draft();
     let screenshot: Blob | null = null;
     if (snapshot.strokes.length || snapshot.comments.length) {
+      // Re-measure so the crop follows the stage as it is now, not as it was
+      // at the last resize notification.
+      fit();
       try {
         screenshot = await captureAnnotated(snapshot.strokes, snapshot.comments, { excludeId: HOST_ID, rect });
       } catch {
@@ -199,12 +249,9 @@ function boot(): void {
       }
     }
     post({ type: "lst:captured", id, draft: snapshot, screenshot });
-    // The parent owns the saved entry now; the draft is spent.
-    strokes = [];
-    comments = [];
-    redraw();
-    setMode("off");
-    emitDraft();
+    // The draft is NOT cleared here: the parent still has to persist it, and a
+    // failed save (network, 409, timeout) must leave the marks to retry with.
+    // lst:draftSaved is the acknowledgement that spends it.
   }
 
   // ---------------------------------------------------------------- messages
@@ -212,7 +259,7 @@ function boot(): void {
   window.addEventListener("message", (event) => {
     if (event.source !== parent) return;
     if (handshake.state === "waiting") {
-      handshake = acceptInit(handshake, event.origin, event.data);
+      handshake = acceptInit(handshake, event.origin, event.data, allowedOrigins);
       if (handshake.state === "ready") {
         mount();
         post({ type: "lst:slide", index: currentSlide() });
@@ -237,10 +284,25 @@ function boot(): void {
       case "lst:capture":
         void capture(msg.id);
         break;
+      case "lst:draftSaved":
+        clearDraft();
+        setMode("off");
+        break;
     }
   });
 
-  post({ type: "lst:hello" }, "*");
+  post({ type: "lst:hello" }, home);
+  // The shell may mount its message listener after this frame loaded (React
+  // effects run post-paint; a fast deck can beat them). Re-greet until init
+  // arrives so a missed hello cannot leave the bridge permanently deaf.
+  const regreet = setInterval(() => {
+    if (handshake.state === "ready") {
+      clearInterval(regreet);
+      return;
+    }
+    post({ type: "lst:hello" }, home);
+  }, 500);
+  setTimeout(() => clearInterval(regreet), 20_000);
 }
 
 boot();
