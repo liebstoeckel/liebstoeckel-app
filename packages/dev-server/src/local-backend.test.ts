@@ -38,6 +38,31 @@ describe("server info", () => {
     removeServerInfo(dir);
     expect(readServerInfo(dir)).toBeNull();
   });
+
+  test("remove with a pid leaves another process's server.json alone", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-dev-info-"));
+    writeServerInfo(dir, { port: 4321, token: "t" });
+    removeServerInfo(dir, process.pid + 1);
+    expect(readServerInfo(dir)).toEqual({ port: 4321, token: "t" });
+    removeServerInfo(dir, process.pid);
+    expect(readServerInfo(dir)).toBeNull();
+  });
+});
+
+describe("batch order", () => {
+  test("batchesAfter lists later dispatches, oldest first; unknown or undated batches yield nothing", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-dev-order-"));
+    writeFileSync(join(dir, "main.tsx"), "x\n");
+    const backend = createLocalBackend({ deckDir: dir, token: "t" });
+    backend.takeSnapshot("b1", ["main.tsx"]);
+    await Bun.sleep(2);
+    backend.takeSnapshot("b2", ["main.tsx"]);
+    await Bun.sleep(2);
+    backend.takeSnapshot("b3", ["main.tsx"]);
+    expect(backend.batchesAfter("b1")).toEqual(["b2", "b3"]);
+    expect(backend.batchesAfter("b3")).toEqual([]);
+    expect(backend.batchesAfter("nope")).toEqual([]);
+  });
 });
 
 describe("backend", () => {
@@ -72,6 +97,21 @@ describe("recordCreated", () => {
     expect(result.restored.sort()).toEqual(["main.tsx", "slides/02-new.mdx"]);
     expect(existsSync(join(dir, "slides", "02-new.mdx"))).toBe(false);
     expect(readFileSync(join(dir, "main.tsx"), "utf-8")).toBe("slides={[A]}\n");
+  });
+
+  test("a reported path under a skipped dir (dev state, deps, VCS) is never recorded as created", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-dev-created-"));
+    writeFileSync(join(dir, "main.tsx"), "x\n");
+    mkdirSync(join(dir, "node_modules"), { recursive: true });
+    writeFileSync(join(dir, "node_modules", "dep.js"), "dep\n");
+    const backend = createLocalBackend({ deckDir: dir, token: "t" });
+    backend.takeSnapshot("b1", ["main.tsx"]);
+    // server.json lives under .liebstoeckel/dev, outside the existence record.
+    writeServerInfo(dir, { port: 1, token: "t" });
+    backend.recordCreated("b1", [".liebstoeckel/dev/server.json", "node_modules/dep.js"]);
+    backend.restoreSnapshot("b1");
+    expect(readServerInfo(dir)).not.toBeNull();
+    expect(existsSync(join(dir, "node_modules", "dep.js"))).toBe(true);
   });
 
   test("a pre-existing file the agent edited is restored, never deleted, even when attribution found nothing", () => {

@@ -41,6 +41,21 @@ describe("parseSlideIdentifiers", () => {
   test("nested brackets inside the array do not truncate the scan", () => {
     expect(parseSlideIdentifiers("slides={[A, B]} other={[1,2]}")).toEqual(["A", "B"]);
   });
+
+  test("a comma inside an inline element's props is one hole, not two", () => {
+    expect(parseSlideIdentifiers('slides={[Intro, <Section title="a, b" />, Body, End]}')).toEqual(["Intro", "", "Body", "End"]);
+    expect(parseSlideIdentifiers("slides={[Intro, <Foo a={[1,2]} />, End]}")).toEqual(["Intro", "", "End"]);
+    expect(parseSlideIdentifiers("slides={[A, () => <X a={1} b={2} />, B]}")).toEqual(["A", "", "B"]);
+  });
+
+  test("comments inside the array add no holes", () => {
+    expect(parseSlideIdentifiers("slides={[Intro, // remove Old, later\n Body, End]}")).toEqual(["Intro", "Body", "End"]);
+    expect(parseSlideIdentifiers("slides={[Intro, /* Old, Older */ Body]}")).toEqual(["Intro", "Body"]);
+  });
+
+  test("brackets and commas inside string literals are ignored", () => {
+    expect(parseSlideIdentifiers(`slides={[A, wrap("x,]"), B]}`)).toEqual(["A", "", "B"]);
+  });
 });
 
 describe("resolveSlideFiles against a real deck layout", () => {

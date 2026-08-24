@@ -123,14 +123,19 @@ function pendingRequests(store: AnnotationStore): AnnotationEntry[] {
  *  i-th request in (after, createdAt) order lands at after + 1 + i: two
  *  requests after slide N take N + 1 and N + 2, and a request after slide 1
  *  followed by one after slide 3 take 2 and 5 (the original slide 3 is at 4 by
- *  then). Applied and dismissed requests drop out of the chain. Returns a new
- *  store when anything moved. */
+ *  then). Applied and dismissed requests drop out of the chain; dispatched
+ *  ones keep their index but still count. Returns a new store when anything
+ *  moved. */
 export function assignRequestIndices(store: AnnotationStore): AnnotationStore {
   const pending = pendingRequests(store).sort(
     (a, b) => a.request!.after - b.request!.after || a.createdAt - b.createdAt || a.id.localeCompare(b.id),
   );
   let next: AnnotationStore | null = null;
   pending.forEach((entry, i) => {
+    // A dispatched request keeps the index the agent was told (it is inserting
+    // there right now); it still occupies its slot in the chain so open
+    // requests positioned after it are offset by it.
+    if (entry.status === "dispatched") return;
     const index = entry.request!.after + 1 + i;
     if (entry.slide.index === index) return;
     next ??= { ...store, entries: { ...store.entries } };
@@ -148,6 +153,9 @@ export function rebaseRequestsAfterInsert(store: AnnotationStore, insertedIndice
   const inserted = [...insertedIndices].sort((a, b) => a - b);
   let next: AnnotationStore | null = null;
   for (const entry of pendingRequests(store)) {
+    // An in-flight request was handed to the agent with its `after` fixed;
+    // moving it under the agent would desync the reply.
+    if (entry.status === "dispatched") continue;
     let after = entry.request!.after;
     // Ascending: each insert is at its final position given the ones before it.
     for (const index of inserted) if (after >= index) after += 1;

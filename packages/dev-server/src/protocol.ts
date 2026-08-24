@@ -26,7 +26,10 @@ import {
 
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
 const DEFAULT_POLL_TIMEOUT_MS = 240_000;
-const DEFAULT_LEASE_MS = 600_000;
+// A batch under an agent routinely takes longer than a few minutes; a lease
+// that expires under a working agent reopens Revert (whole-tree restore) on
+// top of its edits, so it errs long.
+const DEFAULT_LEASE_MS = 1_800_000;
 const SSE_HEARTBEAT_MS = 30_000;
 const STOP_FLUSH_MS = 100;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -56,6 +59,10 @@ export interface DevBackend {
   /** Restore a batch snapshot; null when no snapshot exists for the id. */
   restoreSnapshot(batchId: string): RestoreResult | null;
   removeSnapshot(batchId: string): void;
+  /** Ids of batches dispatched after `batchId` that still have a snapshot.
+   *  Restoring a batch puts the tree back to before it, which undoes those
+   *  too, so revert reopens them. Empty when the order is unknown. */
+  batchesAfter(batchId: string): string[];
   /** Called once when the protocol stops (after polls and SSE clients were told). */
   onStop?(): void;
 }
@@ -278,18 +285,21 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       const kind: AnnotationKind = body.kind === undefined ? "annotate" : (body.kind as AnnotationKind);
       if (!ANNOTATION_KINDS.includes(kind)) return json(400, { error: "unknown_kind" });
       if (kind === "remove-slide" || kind === "move-slide") return json(400, { error: "kind_not_implemented", kind });
+      const slides = backend.resolveSlides();
       let request: AnnotationEntry["request"];
       if (kind === "add-slide") {
         const after = body.request?.after;
         const description = typeof body.request?.description === "string" ? body.request.description.trim() : "";
         if (typeof after !== "number" || !Number.isInteger(after) || after < -1) return json(400, { error: "request_after_invalid" });
+        // `after` names a slide of the deck as it is now; past the last one is a typo, not a position.
+        if (slides && after > slides.length - 1) return json(400, { error: "request_after_out_of_range", slides: slides.length });
         if (!description) return json(400, { error: "request_description_required" });
         request = { after, description };
         body.slideIndex = after + 1;
       }
       if (typeof body.slideIndex !== "number") return json(400, { error: "slideIndex_required" });
+      if (!Number.isInteger(body.slideIndex) || body.slideIndex < 0) return json(400, { error: "slideIndex_invalid" });
       const id = typeof body.id === "string" && ID_RE.test(body.id) ? body.id : shortId();
-      const slides = backend.resolveSlides();
       const now = Date.now();
       const existing = store.entries[id];
       // An entry an agent is working on keeps its batch; rewriting it would
@@ -325,6 +335,10 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       if (typeof body.id !== "string" || !store.entries[body.id]) return json(404, { error: "unknown_annotation" });
       // The drawer only dismisses or reopens; dispatch/applied are server-driven.
       if (body.status !== "dismissed" && body.status !== "open") return json(400, { error: "invalid_status" });
+      // Locked while with the agent: reopening would detach it from its batch
+      // (the reply then fails) and dismissing would be undone by that reply.
+      const current = store.entries[body.id]!;
+      if (current.status === "dispatched") return json(409, { error: "entry_dispatched", batchId: current.batchId });
       store = assignRequestIndices(setStatus(store, [body.id], body.status));
       save();
       broadcast({ type: "annotation_updated", entry: store.entries[body.id] });
@@ -352,6 +366,10 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         | null;
       if (!body) return json(400, { error: "invalid_json" });
       if (!authorized(body)) return json(401, { error: "unauthorized" });
+      // The snapshot is taken from the live tree: with an agent mid-edit it
+      // would capture half-applied work as this batch's "before", and the
+      // agent's own batch could no longer be reverted cleanly.
+      if (agentBusy()) return json(409, { error: "agent_busy", hint: "an agent holds a batch; send again after it replies or its claim expires" });
       store = assignRequestIndices(store);
       const open = entriesByStatus(store, "open", body.slideIndex);
       if (open.length === 0) return json(400, { error: "nothing_to_dispatch" });
@@ -385,23 +403,30 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       if (agentBusy()) return json(409, { error: "agent_busy", hint: "an agent holds a batch; revert after it replies or its claim expires" });
       const result = backend.restoreSnapshot(body.batchId);
       if (!result) return json(404, { error: "unknown_batch" });
-      const ids = entriesInBatch(store, body.batchId).map((e) => e.id);
-      store = setStatus(store, ids, "open");
+      // The tree is now as it was before this batch, so every batch applied
+      // after it is gone from the deck as well: reopen those too, rather than
+      // leaving entries marked applied for edits that no longer exist.
+      const reopenedBatches = backend.batchesAfter(body.batchId).filter((id) => id !== body.batchId);
+      const batches = [body.batchId, ...reopenedBatches];
+      const ids = batches.flatMap((batchId) => entriesInBatch(store, batchId).map((e) => e.id));
+      store = assignRequestIndices(setStatus(store, ids, "open"));
       save();
-      // The batch is undone; a still-queued apply event for it must not reach an agent.
-      acknowledge(pending, body.batchId);
-      backend.removeSnapshot(body.batchId);
+      // The batches are undone; a still-queued apply event for them must not reach an agent.
+      for (const batchId of batches) {
+        acknowledge(pending, batchId);
+        backend.removeSnapshot(batchId);
+      }
       broadcastAgentPollingIfChanged();
-      broadcast({ type: "batch_reverted", batchId: body.batchId, ...result });
-      return json(200, { ok: true, ...result });
+      broadcast({ type: "batch_reverted", batchId: body.batchId, reopenedBatches, ...result });
+      return json(200, { ok: true, reopenedBatches, ...result });
     }
 
     if (p === "/__dev/poll" && req.method === "GET") {
       if (!authorized()) return json(401, { error: "unauthorized" });
-      const timeoutMs = Math.max(
-        0,
-        Math.min(Number(url.searchParams.get("timeout") ?? pollTimeoutMs) || pollTimeoutMs, pollTimeoutMs),
-      );
+      // An explicit 0 is a probe (return at once); absent or junk means the maximum.
+      const rawTimeout = url.searchParams.get("timeout");
+      const requested = rawTimeout === null ? Number.NaN : Number(rawTimeout);
+      const timeoutMs = Number.isFinite(requested) ? Math.max(0, Math.min(requested, pollTimeoutMs)) : pollTimeoutMs;
       const available = selectAvailable(pending, Date.now());
       if (available) {
         const event = withInstructions(claim(available, leaseMs, Date.now()));
@@ -460,6 +485,11 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       }
       const validation = validateReply(body, batchEntries.map((e) => e.id));
       if (!validation.ok) return json(400, { error: validation.error, hint: validation.hint });
+      // The indices the agent actually inserted at are the ones it was handed
+      // in the event, so read them from the delivered event, not the store.
+      const delivered = pending.find((e) => e.event.id === body.id)?.event as
+        | { annotations?: Array<{ id: string; kind?: string; slide: { index: number } }> }
+        | undefined;
       acknowledge(pending, body.id);
       if (validation.kind === "done") {
         const applied = new Set(validation.data.applied);
@@ -469,7 +499,9 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         store = setStatus(store, backToOpen, "open");
         // Slides were inserted: requests still pending named slides of the
         // deck before those inserts, so shift their `after` past them first.
-        const inserted = batchEntries.filter((e) => applied.has(e.id) && e.kind === "add-slide").map((e) => e.slide.index);
+        const inserted = (delivered?.annotations ?? batchEntries)
+          .filter((e) => applied.has(e.id) && e.kind === "add-slide")
+          .map((e) => e.slide.index);
         store = assignRequestIndices(rebaseRequestsAfterInsert(store, inserted));
         save();
         if (validation.data.files.length > 0) backend.recordCreated(body.id, validation.data.files);

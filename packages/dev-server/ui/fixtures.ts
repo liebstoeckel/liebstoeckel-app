@@ -116,7 +116,7 @@ export function memoryTransport(seed: AnnotationEntry[] = [], opts: { agentPolli
       for (const e of Object.values(entries)) {
         if (e.batchId === batchId) entries = { ...entries, [e.id]: { ...e, status: "open", batchId: null, updatedAt: Date.now() } };
       }
-      emit({ type: "batch_reverted", batchId, restored: ["slides/01-title.mdx"], failures: [] });
+      emit({ type: "batch_reverted", batchId, restored: ["slides/01-title.mdx"], failures: [], reopenedBatches: [batchId] });
     },
     subscribe(onMessage) {
       listeners.add(onMessage);

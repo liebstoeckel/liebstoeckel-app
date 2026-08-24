@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { bootInstructions } from "./instructions";
 import { readServerInfo, startDevServer } from "./server";
 import { runAutoPatches } from "@liebstoeckel/cli/migrations";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 
 // Agent-facing poll client: one-shot long poll or a reply. Each HTTP request
@@ -127,7 +127,8 @@ export const devCommand = defineCommand({
     // Bun reads the deck's bunfig.toml ([serve.static] plugins: Tailwind, MDX)
     // from the process cwd at startup, so serving a --dir deck from elsewhere
     // would silently lose the HTML pipeline's plugins. Re-exec with cwd set.
-    if (deckDir !== process.cwd()) {
+    // Compared by real path so a symlinked deck dir does not re-exec forever.
+    if (realpathSync(deckDir) !== realpathSync(process.cwd())) {
       // A filesystem path, not URL.pathname: that would percent-encode spaces
       // and keep the leading slash before a Windows drive letter.
       const self = import.meta.path;
@@ -135,6 +136,9 @@ export const devCommand = defineCommand({
         cmd: [
           process.execPath,
           self,
+          // Absolute, so the child's printed `dev poll --dir` hint works from any cwd.
+          "--dir",
+          deckDir,
           ...(args.port ? ["--port", String(args.port)] : []),
           ...(args.host ? ["--host", String(args.host)] : []),
           ...(args.json ? ["--json"] : []),

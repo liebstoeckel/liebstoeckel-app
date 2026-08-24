@@ -2,7 +2,19 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { dirname, join } from "node:path";
 import { devDir, screenshotsDir, serverInfoPath, storePath } from "./paths";
 import type { DevBackend } from "./protocol";
-import { listDeckFiles, listDeckSources, loadBatchSnapshot, pruneBatchSnapshots, removeBatchSnapshot, restoreSnapshot, saveBatchSnapshot, snapshotFiles, withinRoot } from "./snapshot";
+import {
+  SKIP_DIRS,
+  batchesDispatchedAfter,
+  listDeckFiles,
+  listDeckSources,
+  loadBatchSnapshot,
+  pruneBatchSnapshots,
+  removeBatchSnapshot,
+  restoreSnapshot,
+  saveBatchSnapshot,
+  snapshotFiles,
+  withinRoot,
+} from "./snapshot";
 
 /** Whole-tree revert snapshots kept on disk; older ones are pruned on each
  *  dispatch (their Revert falls back to git). */
@@ -61,9 +73,10 @@ export function createLocalBackend(opts: LocalBackendOptions): DevBackend {
       // record that decides what revert may delete.
       const existed = listDeckFiles(deckDir);
       const snapshot = snapshotFiles(deckDir, [...files, ...listDeckSources(deckDir, existed)]);
-      saveBatchSnapshot(deckDir, batchId, { files: snapshot, existed });
+      saveBatchSnapshot(deckDir, batchId, { files: snapshot, existed, dispatchedAt: Date.now() });
       pruneBatchSnapshots(deckDir, MAX_KEPT_SNAPSHOTS);
     },
+    batchesAfter: (batchId) => batchesDispatchedAfter(deckDir, batchId),
     recordCreated: (batchId, files) => {
       const record = loadBatchSnapshot(deckDir, batchId);
       if (!record) return;
@@ -72,6 +85,9 @@ export function createLocalBackend(opts: LocalBackendOptions): DevBackend {
       for (const file of files) {
         const rel = withinRoot(deckDir, file);
         if (!rel || rel in record.files) continue;
+        // Dependency, VCS, and dev-state dirs are outside the existence record,
+        // so a reported path there would always look "created": never delete.
+        if (SKIP_DIRS.has(rel.split(/[\\/]/)[0]!)) continue;
         // Only a file that provably did not exist at dispatch is "created"
         // (revert deletes it). One that existed but was not snapshotted (binary,
         // oversized, or a batch without an existence record) is left alone
@@ -108,11 +124,19 @@ export function writeServerInfo(deckDir: string, info: ServerInfo): void {
   writeFileSync(serverInfoPath(deckDir), JSON.stringify(full, null, 2) + "\n", "utf-8");
 }
 
-export function removeServerInfo(deckDir: string): void {
+/** Remove server.json. With `pid`, only when the file is this process's own:
+ *  a second server on the deck (or a fast restart) has since overwritten it,
+ *  and deleting theirs would strand their `dev poll`. */
+export function removeServerInfo(deckDir: string, pid?: number): void {
+  const file = serverInfoPath(deckDir);
   try {
-    rmSync(serverInfoPath(deckDir));
+    if (pid !== undefined) {
+      const raw = JSON.parse(readFileSync(file, "utf-8"));
+      if (typeof raw?.pid === "number" && raw.pid !== pid) return;
+    }
+    rmSync(file);
   } catch {
-    // already gone
+    // already gone or unreadable
   }
 }
 

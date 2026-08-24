@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  batchesDispatchedAfter,
   listDeckFiles,
   listDeckSources,
   loadBatchSnapshot,
@@ -68,6 +69,20 @@ describe("batch persistence", () => {
     expect(loadBatchSnapshot(dir, "../../etc")).toBeNull();
     removeBatchSnapshot(dir, "batch1");
     expect(loadBatchSnapshot(dir, "batch1")).toBeNull();
+  });
+
+  test("dispatch time round-trips and orders batches", () => {
+    const dir = deck();
+    const snap = snapshotFiles(dir, ["slides/a.mdx"]);
+    saveBatchSnapshot(dir, "old", { files: snap, existed: [], dispatchedAt: 100 });
+    saveBatchSnapshot(dir, "mid", { files: snap, existed: [], dispatchedAt: 200 });
+    saveBatchSnapshot(dir, "new", { files: snap, existed: [], dispatchedAt: 300 });
+    saveBatchSnapshot(dir, "undated", { files: snap, existed: [] });
+    expect(loadBatchSnapshot(dir, "mid")!.dispatchedAt).toBe(200);
+    expect(loadBatchSnapshot(dir, "undated")!.dispatchedAt).toBeUndefined();
+    expect(batchesDispatchedAfter(dir, "old")).toEqual(["mid", "new"]);
+    expect(batchesDispatchedAfter(dir, "new")).toEqual([]);
+    expect(batchesDispatchedAfter(dir, "undated")).toEqual([]);
   });
 
   test("a flat pre-manifest snapshot file loads with no existence record", () => {

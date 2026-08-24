@@ -44,6 +44,10 @@ function Shell({ token }: { token: string }) {
     // window. Hand focus back to the frame after clicks that did not land on a
     // text field, so the keys keep working without a click on the deck first.
     const refocusFrame = (event: MouseEvent) => {
+      // Only a pointer click: a keyboard activation (Enter, Space) also fires
+      // click, with detail 0, and a keyboard user must keep their place in
+      // the sidebar rather than land in the frame after every button.
+      if (event.detail === 0) return;
       if (!(event.target instanceof Element) || !event.target.closest(".lst-sidebar")) return;
       const active = document.activeElement;
       if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || (active instanceof HTMLElement && active.isContentEditable)) return;

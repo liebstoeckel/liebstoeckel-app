@@ -149,13 +149,30 @@ function boot(): void {
       if (container) ro.observe(container);
       ro.observe(document.documentElement);
     };
-    // The stage mounts after React hydrates; poll briefly until it exists.
-    let tries = 0;
-    const untilStage = setInterval(() => {
+    // The stage mounts after React hydrates, which on a cold bundler cache can
+    // take longer than any fixed wait. Fit now if it is there; otherwise watch
+    // the document until it appears, then fit and observe it.
+    const discover = () => {
       fit();
       observeStage();
-      if (rect || ++tries > 50) clearInterval(untilStage);
-    }, 100);
+      return observed || rect !== null;
+    };
+    if (!discover()) {
+      const untilStage = new MutationObserver(() => {
+        if (discover()) untilStage.disconnect();
+      });
+      untilStage.observe(document.documentElement, { childList: true, subtree: true });
+    }
+
+    // The engine's swipe and edge-tap navigation listens for touch events on
+    // the frame's window; a stroke or a comment tap on the overlay would
+    // bubble out of the shadow root and flip the slide mid-mark. While a mode
+    // is on, touches on the overlay end here.
+    for (const type of ["touchstart", "touchmove", "touchend", "touchcancel"] as const) {
+      overlay.addEventListener(type, (event) => {
+        if (mode !== "off") event.stopPropagation();
+      }, { passive: true });
+    }
 
     let active: Point[] | null = null;
     overlay.addEventListener("pointerdown", (event) => {
@@ -210,7 +227,11 @@ function boot(): void {
       }
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && mode !== "off") setMode("off");
+      if (event.key !== "Escape" || mode === "off") return;
+      // Leaving a mode is the whole meaning of this Escape; the deck's own
+      // window handler (close the overview, help, QR) must not also run.
+      event.stopPropagation();
+      setMode("off");
     });
   }
 
@@ -235,8 +256,27 @@ function boot(): void {
     emitDraft();
   }
 
+  // What each in-flight capture took, so the save acknowledgement spends only
+  // those marks: anything drawn while the parent was persisting stays.
+  const captured = new Map<string, { strokes: number; comments: number }>();
+
+  function spendCaptured(id: string): void {
+    const taken = captured.get(id);
+    captured.delete(id);
+    if (!taken) {
+      clearDraft();
+      return;
+    }
+    strokes = strokes.slice(taken.strokes);
+    comments = comments.slice(taken.comments);
+    if (strokes.length === 0 && comments.length === 0) draftSlide = null;
+    redraw();
+    emitDraft();
+  }
+
   async function capture(id: string): Promise<void> {
     const snapshot = draft();
+    captured.set(id, { strokes: snapshot.strokes.length, comments: snapshot.comments.length });
     let screenshot: Blob | null = null;
     if (snapshot.strokes.length || snapshot.comments.length) {
       // Re-measure so the crop follows the stage as it is now, not as it was
@@ -285,8 +325,8 @@ function boot(): void {
         void capture(msg.id);
         break;
       case "lst:draftSaved":
-        clearDraft();
-        setMode("off");
+        spendCaptured(msg.id);
+        if (strokes.length === 0 && comments.length === 0) setMode("off");
         break;
     }
   });

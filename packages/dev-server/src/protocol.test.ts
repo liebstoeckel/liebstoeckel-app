@@ -9,6 +9,7 @@ import { type AnnotationStore, emptyStore } from "./store";
 
 interface MemoryBackend extends DevBackend {
   store: AnnotationStore;
+  /** Insertion order doubles as dispatch order. */
   snapshots: Map<string, string[]>;
   created: Map<string, string[]>;
   restored: string[];
@@ -28,12 +29,17 @@ function memoryBackend(initial: AnnotationStore = emptyStore()): MemoryBackend {
     saveStore: (s) => {
       backend.store = s;
     },
-    resolveSlides: () => ["slides/01.mdx", "slides/02.mdx"],
+    resolveSlides: () => ["slides/01.mdx", "slides/02.mdx", "slides/03.mdx", "slides/04.mdx", "slides/05.mdx"],
     entryFile: () => "main.tsx",
     writeScreenshot: (id) => `${id}.png`,
     screenshotRef: (name) => `/deck/.liebstoeckel/dev/screenshots/${name}`,
     takeSnapshot: (batchId, files) => {
       backend.snapshots.set(batchId, files);
+    },
+    batchesAfter: (batchId) => {
+      const ids = [...backend.snapshots.keys()];
+      const at = ids.indexOf(batchId);
+      return at === -1 ? [] : ids.slice(at + 1);
     },
     recordCreated: (batchId, files) => {
       const known = backend.snapshots.get(batchId) ?? [];
@@ -305,11 +311,62 @@ describe("slide requests", () => {
     p.stop();
   });
 
+  test("a request in flight keeps the index the agent was told; later requests count it and re-base from what was inserted", async () => {
+    // Deck: s0 s1 s2 (+ more). R1 "after 0" is dispatched; while the agent
+    // holds it, R2 "first" and R3 "after 1" are added. R1 must still be
+    // inserted at 1 (the agent's copy), and after R1 lands R3 must sit after
+    // the original slide 1, which is now at 2.
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend, { leaseMs: 60_000 });
+    const add = async (after: number, description: string) =>
+      (await body<{ entry: { id: string; slide: { index: number } } }>(
+        await p.handleDevRequest(post("/__dev/annotations", { kind: "add-slide", request: { after, description } })),
+      )).entry;
+    const r1 = await add(0, "R1");
+    expect(r1.slide.index).toBe(1);
+    const dispatched = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    const event = await body<{ annotations: Array<{ id: string; slide: { index: number } }> }>(
+      await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=500")),
+    );
+    expect(event.annotations).toEqual([{ id: r1.id, slide: { index: 1, sourceFile: null } }].map((a) => expect.objectContaining(a)));
+
+    await Bun.sleep(2);
+    const r2 = await add(-1, "R2");
+    await Bun.sleep(2);
+    const r3 = await add(1, "R3");
+    // R2 takes 0; R1 is frozen at 1 (not pushed to 2); R3 counts both: 1 + 1 + 2.
+    expect(backend.store.entries[r2.id]!.slide.index).toBe(0);
+    expect(backend.store.entries[r1.id]!.slide.index).toBe(1);
+    expect(backend.store.entries[r3.id]!.slide.index).toBe(4);
+    expect(backend.store.entries[r1.id]!.request!.after).toBe(0);
+
+    await p.handleDevRequest(post("/__dev/poll", { id: dispatched.batchId, type: "done", data: { applied: [r1.id], files: ["main.tsx"], notes: [] } }));
+    // Inserted at 1: R3's "after 1" now names index 2; R2's "first" is unaffected.
+    expect(backend.store.entries[r3.id]!.request!.after).toBe(2);
+    expect(backend.store.entries[r2.id]!.request!.after).toBe(-1);
+    expect(backend.store.entries[r2.id]!.slide.index).toBe(0);
+    expect(backend.store.entries[r3.id]!.slide.index).toBe(4);
+    // Final deck once both land: R2 s0 R1 s1 R3 s2.
+    const next = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    const second = await body<{ annotations: Array<{ id: string; slide: { index: number } }> }>(
+      await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=500")),
+    );
+    expect(second.annotations.map((a) => [a.id, a.slide.index])).toEqual([[r2.id, 0], [r3.id, 4]]);
+    void next;
+    p.stop();
+  });
+
   test("validation, entry-file snapshot, created files recorded on reply, event fields", async () => {
     const backend = memoryBackend();
     const p = createDevProtocol(backend);
     expect((await p.handleDevRequest(post("/__dev/annotations", { kind: "add-slide", request: { after: 0 } })))!.status).toBe(400);
     expect((await p.handleDevRequest(post("/__dev/annotations", { kind: "add-slide", request: { after: -2, description: "x" } })))!.status).toBe(400);
+    // Past the last slide of a known deck (5 slides here).
+    const past = await p.handleDevRequest(post("/__dev/annotations", { kind: "add-slide", request: { after: 5, description: "x" } }));
+    expect(past!.status).toBe(400);
+    expect((await body<{ error: string }>(past)).error).toBe("request_after_out_of_range");
+    expect((await p.handleDevRequest(post("/__dev/annotations", { slideIndex: -1 })))!.status).toBe(400);
+    expect((await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 1.5 })))!.status).toBe(400);
     expect((await p.handleDevRequest(post("/__dev/annotations", { kind: "explode", slideIndex: 0 })))!.status).toBe(400);
     const reserved = await p.handleDevRequest(post("/__dev/annotations", { kind: "move-slide", slideIndex: 0 }));
     expect((await body<{ error: string }>(reserved)).error).toBe("kind_not_implemented");
@@ -358,6 +415,78 @@ describe("hardening", () => {
     expect(dup!.status).toBe(409);
     expect((await body<{ error: string }>(dup)).error).toBe("batch_already_resolved");
     expect(backend.store.entries[id]!.status).toBe("applied");
+    p.stop();
+  });
+
+  test("dispatch is refused while an agent holds a lease (the snapshot would capture its half-applied work)", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend, { leaseMs: 60_000 });
+    await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 1, comments: [{ x: 0, y: 0, text: "a" }] }));
+    const b1 = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=1000"));
+    const b = await body<{ entry: { id: string } }>(
+      await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 0, comments: [{ x: 0, y: 0, text: "b" }] })),
+    );
+    const refused = await p.handleDevRequest(post("/__dev/dispatch", {}));
+    expect(refused!.status).toBe(409);
+    expect((await body<{ error: string }>(refused)).error).toBe("agent_busy");
+    expect(backend.store.entries[b.entry.id]!.status).toBe("open");
+    expect(backend.snapshots.size).toBe(1);
+    const aId = Object.values(backend.store.entries).find((e) => e.batchId === b1.batchId)!.id;
+    await p.handleDevRequest(post("/__dev/poll", { id: b1.batchId, type: "done", data: { applied: [aId], files: [], notes: [] } }));
+    expect((await p.handleDevRequest(post("/__dev/dispatch", {})))!.status).toBe(200);
+    p.stop();
+  });
+
+  test("a dispatched entry cannot be dismissed or reopened from the sidebar", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend, { leaseMs: 60_000 });
+    const saved = await body<{ entry: { id: string } }>(
+      await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 1, comments: [{ x: 0, y: 0, text: "a" }] })),
+    );
+    const b1 = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    for (const status of ["dismissed", "open"]) {
+      const res = await p.handleDevRequest(post("/__dev/annotation-status", { id: saved.entry.id, status }));
+      expect(res!.status).toBe(409);
+      expect(await body<{ error: string; batchId: string }>(res)).toEqual({ error: "entry_dispatched", batchId: b1.batchId });
+    }
+    expect(backend.store.entries[saved.entry.id]!.status).toBe("dispatched");
+    p.stop();
+  });
+
+  test("reverting an older batch reopens every batch dispatched after it", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend, { leaseMs: 60_000 });
+    const round = async (text: string) => {
+      const saved = await body<{ entry: { id: string } }>(
+        await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 1, comments: [{ x: 0, y: 0, text }] })),
+      );
+      const { batchId } = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+      await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=500"));
+      await p.handleDevRequest(post("/__dev/poll", { id: batchId, type: "done", data: { applied: [saved.entry.id], files: [], notes: [] } }));
+      return { id: saved.entry.id, batchId };
+    };
+    const a = await round("a");
+    const b = await round("b");
+    const c = await round("c");
+    const reverted = await body<{ reopenedBatches: string[] }>(await p.handleDevRequest(post("/__dev/revert", { batchId: b.batchId })));
+    expect(reverted.reopenedBatches).toEqual([c.batchId]);
+    expect(backend.restored).toEqual([b.batchId]);
+    expect(backend.store.entries[a.id]!.status).toBe("applied");
+    expect(backend.store.entries[b.id]!.status).toBe("open");
+    expect(backend.store.entries[c.id]!.status).toBe("open");
+    expect(backend.snapshots.has(a.batchId)).toBe(true);
+    expect(backend.snapshots.has(b.batchId)).toBe(false);
+    expect(backend.snapshots.has(c.batchId)).toBe(false);
+    p.stop();
+  });
+
+  test("poll?timeout=0 is a probe that returns at once", async () => {
+    const p = createDevProtocol(memoryBackend());
+    const started = Date.now();
+    const event = await body<{ type: string }>(await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=0")));
+    expect(event.type).toBe("timeout");
+    expect(Date.now() - started).toBeLessThan(100);
     p.stop();
   });
 

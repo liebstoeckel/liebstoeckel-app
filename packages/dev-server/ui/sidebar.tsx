@@ -71,19 +71,30 @@ interface DevState {
   /** An agent holds a batch and is working on it. */
   agentBusy: boolean;
   loaded: boolean;
+  /** The server no longer accepts this page's token (it restarted); only a reload helps. */
+  stale: boolean;
 }
 
+const STALE_HINT = "Dev server restarted: reload the page";
+
 function useDevState(transport: DevTransport, toast: (text: string) => void) {
-  const [state, setState] = useState<DevState>({ entries: {}, agentPolling: false, agentBusy: false, loaded: false });
+  const [state, setState] = useState<DevState>({ entries: {}, agentPolling: false, agentBusy: false, loaded: false, stale: false });
   const [failedBatch, setFailedBatch] = useState<string | null>(null);
+  const markStale = useCallback(() => {
+    setState((s) => (s.stale ? s : { ...s, agentPolling: false, agentBusy: false, stale: true }));
+    toast(STALE_HINT);
+  }, [toast]);
   const refresh = useCallback(async () => {
     try {
       const s = await transport.getState();
-      setState({ entries: s.annotations, agentPolling: s.agentPolling, agentBusy: Boolean(s.agentBusy), loaded: true });
-    } catch {
-      // transient; the next event refreshes
+      setState((prev) => ({ ...prev, entries: s.annotations, agentPolling: s.agentPolling, agentBusy: Boolean(s.agentBusy), loaded: true }));
+    } catch (err) {
+      // A 401 is the one failure that never heals: the token in this page is
+      // from a server that is gone. Anything else is transient; the next
+      // event refreshes.
+      if ((err as { status?: unknown })?.status === 401) markStale();
     }
-  }, [transport]);
+  }, [transport, markStale]);
 
   useEffect(() => {
     void refresh();
@@ -118,13 +129,31 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
           if (msg.revertable && typeof msg.batchId === "string") setFailedBatch(msg.batchId);
           void refresh();
           break;
-        case "batch_reverted":
-          toast("Batch reverted");
+        case "batch_reverted": {
+          // Restoring a snapshot also undoes every batch applied after it; the
+          // server reopens those entries too and names the batches here.
+          const reopened = Array.isArray(msg.reopenedBatches) ? (msg.reopenedBatches as string[]) : [];
+          const later = reopened.filter((b) => b !== msg.batchId).length;
+          toast(later > 0 ? `Batch reverted (with ${later} later batch${later === 1 ? "" : "es"} it had built on)` : "Batch reverted");
           setFailedBatch(null);
+          if (reopened.length > 0) {
+            const set = new Set(reopened);
+            setState((s) => {
+              const entries = { ...s.entries };
+              for (const [id, e] of Object.entries(entries)) {
+                if (e.batchId && set.has(e.batchId)) entries[id] = { ...e, status: "open", batchId: null };
+              }
+              return { ...s, entries };
+            });
+          }
           void refresh();
           break;
+        }
         case "annotation_updated":
           void refresh();
+          break;
+        case "stream_closed":
+          markStale();
           break;
         case "exit":
           toast("Dev server stopped");
@@ -132,10 +161,12 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
           break;
       }
     });
-  }, [transport, refresh, toast]);
+  }, [transport, refresh, toast, markStale]);
 
   return { ...state, failedBatch, refresh };
 }
+
+const BUSY_SEND_HINT = "An agent is applying a batch; send the next one once it replies";
 
 function useToast(): [string | null, (text: string) => void] {
   const [text, setText] = useState<string | null>(null);
@@ -217,6 +248,9 @@ export function DevSidebar(props: DevSidebarProps) {
   // When a slide request turns applied, land the user on the new slide. The
   // first load seeds the set silently: requests applied in an earlier session
   // must not yank the deck to their slides on every page open.
+  // The jump waits until the slide list actually has the new slide: the agent's
+  // reply lands before hot reload has rebuilt the entry, and a goto past the
+  // end would be clamped to the old last slide and never retried.
   const seenApplied = useRef<Set<string> | null>(null);
   useEffect(() => {
     if (!dev.loaded) return;
@@ -227,10 +261,11 @@ export function DevSidebar(props: DevSidebarProps) {
     }
     for (const e of appliedRequests) {
       if (seenApplied.current.has(e.id)) continue;
+      if (slides.length <= e.slide.index) continue;
       seenApplied.current.add(e.id);
       bridge.goto(e.slide.index);
     }
-  }, [entries, dev.loaded, bridge]);
+  }, [entries, slides, dev.loaded, bridge]);
 
   // Insert affordance state: the `after` index being described, or null.
   const [insertAfter, setInsertAfter] = useState<number | null>(null);
@@ -268,9 +303,14 @@ export function DevSidebar(props: DevSidebarProps) {
       const result = await transport.dispatch();
       if (!result.agentPolling) toast("Staged: no agent is polling; run `liebstoeckel dev poll`");
     } catch (err) {
-      toast(err instanceof Error && err.message === "nothing_to_dispatch"
-        ? "No open annotations to send"
-        : `Send failed: ${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      toast(
+        message === "nothing_to_dispatch"
+          ? "No open annotations to send"
+          : message === "agent_busy"
+            ? BUSY_SEND_HINT
+            : `Send failed: ${message}`,
+      );
     }
   }
 
@@ -294,7 +334,12 @@ export function DevSidebar(props: DevSidebarProps) {
   }
 
   // Three states, in priority: working on a batch, waiting for one, nobody there.
-  const presence = dev.agentBusy ? "agent working" : dev.agentPolling ? "agent polling" : "agent offline";
+  const presence = dev.stale ? "server restarted" : dev.agentBusy ? "agent working" : dev.agentPolling ? "agent polling" : "agent offline";
+  // A batch snapshots the whole source tree as it is at dispatch, so a second
+  // batch sent while an agent is mid-edit would freeze its half-done work as
+  // the state Revert returns to. One batch at a time.
+  const canSend = openCount > 0 && !dev.agentBusy;
+  const sendTitle = dev.agentBusy ? BUSY_SEND_HINT : "Send to agent";
   const dotState = dev.agentBusy ? "busy" : dev.agentPolling ? "on" : "off";
 
   return (
@@ -325,9 +370,9 @@ export function DevSidebar(props: DevSidebarProps) {
         <button
           type="button"
           className="lst-icon-btn"
-          title="Send to agent"
+          title={sendTitle}
           aria-label="Send to agent"
-          disabled={openCount === 0}
+          disabled={!canSend}
           onClick={() => void send()}
         >
           <Icon d={ICONS.send} />
@@ -390,7 +435,7 @@ export function DevSidebar(props: DevSidebarProps) {
             <span className="lst-count">{openCount} open</span>
           </h2>
           {entries.length === 0 ? (
-            <div className="lst-empty">{dev.loaded ? "Nothing saved yet. Mark a slide above to start." : "Loading"}</div>
+            <div className="lst-empty">{dev.stale ? STALE_HINT : dev.loaded ? "Nothing saved yet. Mark a slide above to start." : "Loading"}</div>
           ) : (
             <EntryList entries={entries.slice(0, 30)} onDismiss={(id) => void dismiss(id)} />
           )}
@@ -398,7 +443,7 @@ export function DevSidebar(props: DevSidebarProps) {
       </div>
 
       <footer className="lst-footer">
-        <button type="button" className="lst-btn" data-primary="true" disabled={openCount === 0} onClick={() => void send()}>
+        <button type="button" className="lst-btn" data-primary="true" disabled={!canSend} title={sendTitle} onClick={() => void send()}>
           Send to agent <Icon d={ICONS.send} />
         </button>
         <button
@@ -556,9 +601,14 @@ function EntryList({ entries, onDismiss }: { entries: AnnotationEntry[]; onDismi
             <span className="lst-chip" data-s={entry.status}>
               {entry.status}
             </span>
-            <button type="button" className="lst-x" title="Dismiss" aria-label="Dismiss annotation" onClick={() => onDismiss(entry.id)}>
-              <Icon d={ICONS.close} />
-            </button>
+            {entry.status !== "dispatched" && (
+              // An entry with the agent is locked until it replies: dismissing
+              // it mid-batch would make the agent's reply fail or undo the
+              // dismissal, and the server refuses it anyway.
+              <button type="button" className="lst-x" title="Dismiss" aria-label="Dismiss annotation" onClick={() => onDismiss(entry.id)}>
+                <Icon d={ICONS.close} />
+              </button>
+            )}
           </div>
           {entry.kind === "add-slide" && entry.request ? (
             <div className="lst-txt">{entry.request.description}</div>

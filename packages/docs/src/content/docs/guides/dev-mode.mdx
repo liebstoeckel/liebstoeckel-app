@@ -57,11 +57,13 @@ embed the dev server in your own tooling (it exports `startDevServer`).
    so shared components and the entry are covered too; a file the agent created
    is removed), and your annotations reopen for another round. If the agent
    replied with an error instead, the batch stays revertable, so a half-applied
-   attempt can be undone the same way. While a batch is with the agent its
-   annotations are locked and Revert waits (a restore mid-edit would wipe the
-   agent's work); both come back the moment it replies. The last ten batches
-   stay revertable; older snapshots are pruned (git covers anything beyond
-   that).
+   attempt can be undone the same way. Reverting an older batch also undoes
+   every batch sent after it (the sources go back to before the older one), so
+   those annotations reopen as well. While a batch is with the agent its
+   annotations are locked and Send and Revert wait (a restore mid-edit would
+   wipe the agent's work, and a new snapshot would capture it half done); all
+   come back the moment it replies. The last ten batches stay revertable;
+   older snapshots are pruned (git covers anything beyond that).
 
 </Steps>
 
@@ -69,7 +71,7 @@ embed the dev server in your own tooling (it exports `startDevServer`).
 Sending with no agent listening simply stages the batch: the next
 `liebstoeckel dev poll` picks it up, even after a dev-server restart. The same
 applies when an agent takes a batch and never replies (a crash, a killed
-terminal): its claim expires after ten minutes and the next poll receives the
+terminal): its claim expires after thirty minutes and the next poll receives the
 batch again.
 </Aside>
 

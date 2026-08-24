@@ -30,8 +30,9 @@
     "drawer",
     "ui",
     "!stories",
-    "!src/**/*.test.ts",
-    "!src/**/*.test.tsx",
+    "!**/*.test.ts",
+    "!**/*.test.tsx",
+    "!ui/fixtures.ts",
     "LICENSE"
   ],
   "engines": {

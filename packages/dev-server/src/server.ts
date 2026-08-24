@@ -66,7 +66,7 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
       deckDir,
       token,
       onStop: () => {
-        removeServerInfo(deckDir);
+        removeServerInfo(deckDir, process.pid);
         server.stop(true);
       },
     }),

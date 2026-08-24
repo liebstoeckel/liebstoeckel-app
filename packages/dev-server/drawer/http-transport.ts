@@ -6,7 +6,24 @@ import type { AnnotationEntry, DevTransport } from "./bridge";
 /** The subset of EventSource the fan-out needs, so tests can hand in a fake. */
 export interface EventStream {
   onmessage: ((event: MessageEvent) => void) | null;
+  onerror?: ((event: Event) => void) | null;
+  /** EventSource.readyState; 2 (CLOSED) after a non-OK response, which the browser never retries. */
+  readyState?: number;
   close(): void;
+}
+
+const STREAM_CLOSED = 2;
+
+/** A failed request, with the HTTP status so callers can tell a stale token
+ *  (401: the server restarted) from a refused action (409) or a bad request. */
+export class TransportError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "TransportError";
+  }
 }
 
 export type EventListener = (msg: Record<string, unknown>) => void;
@@ -51,6 +68,23 @@ export function sharedEvents(open: () => EventStream): (onMessage: EventListener
         closeSource();
       }
     };
+    // A non-OK response (a 401 after the server restarted with a new token)
+    // closes the stream for good on the browser side, silently. Tell the
+    // subscribers as a synthetic event so the UI can ask for a reload instead
+    // of showing "Loading" forever; a transient drop keeps reconnecting on its
+    // own and is not reported.
+    s.onerror = () => {
+      if (s.readyState !== STREAM_CLOSED || source !== s) return;
+      exited = true;
+      closeSource();
+      for (const l of [...listeners]) {
+        try {
+          l({ type: "stream_closed" });
+        } catch (err) {
+          console.error("dev-mode event listener failed", err);
+        }
+      }
+    };
   };
 
   return (onMessage) => {
@@ -75,14 +109,14 @@ export function httpTransport(token: string): DevTransport {
       body: JSON.stringify({ token, ...body }),
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok) throw new Error(String(data.error ?? res.statusText));
+    if (!res.ok) throw new TransportError(String(data.error ?? res.statusText), res.status);
     return data;
   }
   const subscribe = sharedEvents(() => new EventSource(authed("/__dev/events")));
   return {
     async getState() {
       const res = await fetch(authed("/__dev/state"));
-      if (!res.ok) throw new Error("state fetch failed");
+      if (!res.ok) throw new TransportError(res.status === 401 ? "unauthorized" : "state fetch failed", res.status);
       return (await res.json()) as { annotations: Record<string, AnnotationEntry>; agentPolling: boolean; agentBusy?: boolean };
     },
     async saveAnnotation(input) {

@@ -88,9 +88,10 @@ const HMR_COMMENT = `// Hot-module boundary: a slide edit re-runs this entry int
 // reloads instead of jumping back to slide 1. \`bun build\` compiles the
 // hot.data access to a plain createRoot and erases accept() in built decks.`;
 
-/** Both `import.meta.hot.accept()` and the optional-chained `import.meta.hot?.accept()`
- *  make the entry a self-accepting boundary; either counts as migrated. */
-const HOT_ACCEPT_RE = /import\.meta\.hot\??\.accept\s*\(/;
+/** `import.meta.hot.accept()` and the optional-chained forms
+ *  (`import.meta.hot?.accept()`, `import.meta.hot?.accept?.()`) all make the
+ *  entry a self-accepting boundary; any of them counts as migrated. */
+const HOT_ACCEPT_RE = /import\.meta\.hot\??\.accept(?:\?\.)?\s*\(/;
 
 function readEntry(deckDir: string): { rel: string; source: string } | null {
   const rel = findEntryFile(deckDir);
@@ -120,11 +121,14 @@ const hmrEntryBoundary: Migration = {
       if (!entry) throw new Error("entry file disappeared between canApply and apply");
       // Match the file's own line endings so a CRLF deck does not end up mixed.
       const eol = entry.source.includes("\r\n") ? "\r\n" : "\n";
+      // The non-null `!` is TypeScript syntax; a .js/.jsx/.mjs entry would
+      // stop parsing with it, so only a TypeScript entry gets it.
+      const bang = /\.tsx?$/.test(entry.rel) ? "!" : "";
       const patched = entry.source.replace(
         ENTRY_CHAIN_RE,
         (_m, indent: string) =>
           `${indent}${HMR_COMMENT.split("\n").join(`${eol}${indent}`)}${eol}` +
-          `${indent}const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));${eol}` +
+          `${indent}const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")${bang}));${eol}` +
           `${indent}root.render(`,
       );
       const withAccept = `${patched.replace(/\s*$/, eol)}import.meta.hot.accept();${eol}`;

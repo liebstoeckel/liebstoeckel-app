@@ -25,9 +25,13 @@ export type BatchSnapshot = Record<string, FileSnapshot>;
 export interface BatchRecord {
   files: BatchSnapshot;
   existed: string[] | null;
+  /** Epoch-ms of the dispatch; absent on records written before it was kept
+   *  (those cannot be ordered, so a revert never reopens them). */
+  dispatchedAt?: number;
 }
 
-const SKIP_DIRS = new Set(["node_modules", ".git", ".liebstoeckel", "dist", "build", "out", ".cache"]);
+/** Directories never snapshotted, listed, or deleted on revert. */
+export const SKIP_DIRS = new Set(["node_modules", ".git", ".liebstoeckel", "dist", "build", "out", ".cache"]);
 const SOURCE_EXTS = new Set([".mdx", ".md", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".css", ".json", ".html", ".svg", ".toml", ".yaml", ".yml", ".txt"]);
 const MAX_SOURCE_BYTES = 512 * 1024;
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
@@ -161,7 +165,11 @@ export function loadBatchSnapshot(deckDir: string, batchId: string): BatchRecord
     const raw = JSON.parse(readFileSync(file, "utf-8"));
     if (!raw || typeof raw !== "object") return null;
     if (raw.version === 2 && raw.files && typeof raw.files === "object") {
-      return { files: raw.files as BatchSnapshot, existed: Array.isArray(raw.existed) ? (raw.existed as string[]) : null };
+      return {
+        files: raw.files as BatchSnapshot,
+        existed: Array.isArray(raw.existed) ? (raw.existed as string[]) : null,
+        ...(typeof raw.dispatchedAt === "number" ? { dispatchedAt: raw.dispatchedAt } : {}),
+      };
     }
     // Pre-manifest format: a flat file map. No existence record, so revert
     // restores but never deletes for these.
@@ -169,6 +177,28 @@ export function loadBatchSnapshot(deckDir: string, batchId: string): BatchRecord
   } catch {
     return null;
   }
+}
+
+/** Ids of the batches dispatched after `batchId` (by recorded dispatch time).
+ *  Empty when either side has no dispatch time. */
+export function batchesDispatchedAfter(deckDir: string, batchId: string): string[] {
+  const me = loadBatchSnapshot(deckDir, batchId);
+  if (me?.dispatchedAt === undefined) return [];
+  const since = me.dispatchedAt;
+  let names: string[];
+  try {
+    names = readdirSync(snapshotsDir(deckDir)).filter((name) => name.endsWith(".json"));
+  } catch {
+    return [];
+  }
+  const later: Array<{ id: string; at: number }> = [];
+  for (const name of names) {
+    const id = name.slice(0, -".json".length);
+    if (id === batchId) continue;
+    const record = loadBatchSnapshot(deckDir, id);
+    if (record?.dispatchedAt !== undefined && record.dispatchedAt > since) later.push({ id, at: record.dispatchedAt });
+  }
+  return later.sort((a, b) => a.at - b.at).map((entry) => entry.id);
 }
 
 /** Cap the snapshot store: whole-tree snapshots are written on every dispatch

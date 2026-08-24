@@ -3,9 +3,18 @@ import { type EventStream, sharedEvents } from "./http-transport";
 
 class FakeStream implements EventStream {
   onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  readyState = 1;
   closed = false;
   close(): void {
     this.closed = true;
+  }
+  /** Simulate the browser's reaction to a response status: a non-OK response
+   *  moves the source to CLOSED before onerror; a dropped connection stays
+   *  CONNECTING (0) and retries on its own. */
+  fail(readyState: number): void {
+    this.readyState = readyState;
+    this.onerror?.(new Event("error"));
   }
   push(msg: unknown): void {
     this.onmessage?.(new MessageEvent("message", { data: typeof msg === "string" ? msg : JSON.stringify(msg) }));
@@ -73,5 +82,25 @@ describe("sharedEvents", () => {
     opened[0]!.push("42");
     opened[0]!.push({ type: "ok" });
     expect(seen).toEqual([{ type: "ok" }]);
+  });
+
+  test("a closed stream (a 401 after a restart) is reported once and never reopened", () => {
+    const { opened, subscribe } = harness();
+    const seen: unknown[] = [];
+    subscribe((m) => seen.push(m));
+    opened[0]!.fail(2);
+    expect(seen).toEqual([{ type: "stream_closed" }]);
+    expect(opened[0]!.closed).toBe(true);
+    subscribe((m: unknown) => seen.push(m));
+    expect(opened).toHaveLength(1);
+  });
+
+  test("a reconnecting stream (a dropped connection) is not reported", () => {
+    const { opened, subscribe } = harness();
+    const seen: unknown[] = [];
+    subscribe((m) => seen.push(m));
+    opened[0]!.fail(0);
+    expect(seen).toEqual([]);
+    expect(opened[0]!.closed).toBe(false);
   });
 });

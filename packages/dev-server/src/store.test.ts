@@ -142,6 +142,24 @@ describe("slide request indices", () => {
     expect(assignRequestIndices(next)).toBe(next);
   });
 
+  test("a dispatched request keeps its index but still counts for the ones after it", () => {
+    let store = emptyStore();
+    // Told to the agent as index 1; a request added earlier must not move it.
+    store = upsertEntry(store, request("flight", 0, { createdAt: 1, status: "dispatched", batchId: "b", slide: { index: 1, sourceFile: null } }));
+    store = upsertEntry(store, request("first", -1, { createdAt: 2 }));
+    store = upsertEntry(store, request("later", 1, { createdAt: 3 }));
+    expect(indices(assignRequestIndices(store))).toEqual({ first: 0, flight: 1, later: 4 });
+  });
+
+  test("rebase leaves a dispatched request alone", () => {
+    let store = emptyStore();
+    store = upsertEntry(store, request("flight", 3, { createdAt: 1, status: "dispatched", batchId: "b", slide: { index: 4, sourceFile: null } }));
+    store = upsertEntry(store, request("open", 3, { createdAt: 2 }));
+    const next = rebaseRequestsAfterInsert(store, [1]);
+    expect(next.entries.flight!.request!.after).toBe(3);
+    expect(next.entries.open!.request!.after).toBe(4);
+  });
+
   test("rebase shifts pending `after` values at or past each insert, ascending", () => {
     let store = emptyStore();
     store = upsertEntry(store, request("keep", 0, { createdAt: 1 }));

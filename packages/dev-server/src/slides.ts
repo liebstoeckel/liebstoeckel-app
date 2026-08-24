@@ -42,18 +42,111 @@ export function parseImports(source: string): Map<string, string> {
   return map;
 }
 
+/** Blank out `//` and `/* *\/` comments (keeping newlines) so a comma or
+ *  bracket inside one cannot shift the slide count. String contents are left
+ *  as they are; the splitter below skips them. */
+function stripComments(source: string): string {
+  let out = "";
+  let i = 0;
+  while (i < source.length) {
+    const ch = source[i]!;
+    const next = source[i + 1];
+    if (ch === "/" && next === "/") {
+      while (i < source.length && source[i] !== "\n") i++;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      const close = source.indexOf("*/", i + 2);
+      const end = close === -1 ? source.length : close + 2;
+      out += source.slice(i, end).replace(/[^\n]/g, " ");
+      i = end;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      const end = skipString(source, i);
+      out += source.slice(i, end);
+      i = end;
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  return out;
+}
+
+/** Index just past the string literal that opens at `start`. */
+function skipString(source: string, start: number): number {
+  const quote = source[start]!;
+  let i = start + 1;
+  while (i < source.length) {
+    const ch = source[i]!;
+    if (ch === "\\") {
+      i += 2;
+      continue;
+    }
+    if (ch === quote) return i + 1;
+    if (quote !== "`" && ch === "\n") return i;
+    i++;
+  }
+  return source.length;
+}
+
+/** Split the inside of the slides array on top-level commas only: commas in
+ *  strings, nested brackets, parens, braces, or JSX tags belong to one item. */
+function splitTopLevel(body: string): string[] {
+  const items: string[] = [];
+  let current = "";
+  let depth = 0;
+  let i = 0;
+  while (i < body.length) {
+    const ch = body[i]!;
+    if (ch === '"' || ch === "'" || ch === "`") {
+      const end = skipString(body, i);
+      current += body.slice(i, end);
+      i = end;
+      continue;
+    }
+    if (ch === "[" || ch === "{" || ch === "(") depth++;
+    else if (ch === "]" || ch === "}" || ch === ")") depth--;
+    else if (ch === "<") {
+      // A JSX tag opener: `<Name` or `</`; comparisons (`a < b`) are not
+      // followed by an identifier start or slash.
+      const after = body[i + 1] ?? "";
+      if (/[A-Za-z_$\/>]/.test(after)) depth++;
+    } else if (ch === ">" && depth > 0 && body[i - 1] !== "=") {
+      // A tag close (`>` or `/>`); `=>` is an arrow, not a tag.
+      depth--;
+    } else if (ch === "," && depth === 0) {
+      items.push(current);
+      current = "";
+      i++;
+      continue;
+    }
+    current += ch;
+    i++;
+  }
+  items.push(current);
+  return items;
+}
+
 /** The ordered identifier list inside `slides={[ ... ]}` (JSX) or
  *  `slides: [ ... ]` (object form). Non-identifier items (inline elements,
  *  calls, spreads) become null holes. */
-export function parseSlideIdentifiers(source: string): string[] | null {
+export function parseSlideIdentifiers(rawSource: string): string[] | null {
+  const source = stripComments(rawSource);
   const anchor = source.match(/slides\s*(?:=\s*\{|\:)\s*\[/);
   if (!anchor || anchor.index === undefined) return null;
   const start = anchor.index + anchor[0].length;
-  // Scan to the matching close bracket, tolerating nested brackets.
+  // Scan to the matching close bracket, tolerating nested brackets and
+  // skipping string contents.
   let depth = 1;
   let end = -1;
   for (let i = start; i < source.length; i++) {
     const ch = source[i];
+    if (ch === '"' || ch === "'" || ch === "`") {
+      i = skipString(source, i) - 1;
+      continue;
+    }
     if (ch === "[") depth++;
     else if (ch === "]") {
       depth--;
@@ -64,9 +157,7 @@ export function parseSlideIdentifiers(source: string): string[] | null {
     }
   }
   if (end === -1) return null;
-  return source
-    .slice(start, end)
-    .split(",")
+  return splitTopLevel(source.slice(start, end))
     .map((item) => item.trim())
     .filter((item) => item.length > 0)
     .map((item) => (/^[A-Za-z_$][\w$]*$/.test(item) ? item : ""));

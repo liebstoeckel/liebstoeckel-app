@@ -32,10 +32,18 @@ export function hasDevLoaderTag(html: string): boolean {
   return html.includes(DEV_ATTR);
 }
 
-/** Add the loader tag before </head> (or <body as a fallback). Idempotent. */
+/** Add the loader tag before </head> (or <body as a fallback). Idempotent.
+ *  The tag takes the file's own line ending and sits one level inside the
+ *  `</head>` line's indentation, so the patch reads like the scaffold. */
 export function addDevLoaderTag(html: string): string {
   if (hasDevLoaderTag(html)) return html;
-  if (html.includes("</head>")) return html.replace("</head>", `    ${DEV_LOADER_TAG}\n  </head>`);
+  const head = html.match(/^([ \t]*)<\/head>/m);
+  if (head) {
+    const eol = html.includes("\r\n") ? "\r\n" : "\n";
+    const indent = head[1] ?? "";
+    return html.replace(head[0], `${indent}  ${DEV_LOADER_TAG}${eol}${indent}</head>`);
+  }
+  if (html.includes("</head>")) return html.replace("</head>", `${DEV_LOADER_TAG}</head>`);
   if (html.includes("<body")) return html.replace("<body", `${DEV_LOADER_TAG}<body`);
   return DEV_LOADER_TAG + html;
 }

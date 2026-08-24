@@ -102,6 +102,30 @@ describe("0001-hmr-entry-boundary", () => {
     expect(runAutoPatches(d, ["entry"])).toEqual({ applied: [], hinted: [], warnings: [] });
   });
 
+  test("the fully optional-chained import.meta.hot?.accept?.() counts as migrated", () => {
+    const d = deck({
+      "index.html": INDEX_HTML,
+      "main.tsx": `const root = (import.meta.hot?.data.root ??= createRoot(document.getElementById("root")!));\nroot.render(<A />);\nimport.meta.hot?.accept?.();\n`,
+    });
+    expect(m.detect(d)).toBe(false);
+  });
+
+  test("a JavaScript entry is patched without the TypeScript non-null assertion", async () => {
+    const jsEntry = plainEntry().replace('document.getElementById("root")!', 'document.getElementById("root")');
+    const d = deck({ "index.html": INDEX_HTML.replace("./main.tsx", "./main.jsx"), "main.jsx": jsEntry });
+    expect(m.autoPatch!.canApply(d)).toBe(true);
+    expect(m.autoPatch!.apply(d)).toBe("main.jsx");
+    const out = readFileSync(join(d, "main.jsx"), "utf-8");
+    expect(out).not.toContain("!");
+    expect(out).toContain('import.meta.hot.data.root ??= createRoot(document.getElementById("root")));');
+    // The result must still parse as JavaScript (the `!` would be a syntax error).
+    expect(() => new Bun.Transpiler({ loader: "jsx" }).transformSync(out)).not.toThrow();
+    // And the TypeScript entry keeps it.
+    const t = deck({ "index.html": INDEX_HTML, "main.tsx": plainEntry() });
+    m.autoPatch!.apply(t);
+    expect(readFileSync(join(t, "main.tsx"), "utf-8")).toContain('getElementById("root")!));');
+  });
+
   test("no entry resolvable means nothing to detect", () => {
     const d = deck({ "index.html": INDEX_HTML });
     expect(m.detect(d)).toBe(false);
@@ -176,6 +200,14 @@ describe("0002-dev-loader-tag", () => {
     expect(html).toContain(`${DEV_LOADER_TAG}\n  </head>`);
     expect(addDevLoaderTag(html)).toBe(html);
     expect(m.detect(d)).toBe(false);
+  });
+
+  test("the tag takes the </head> line's indentation plus one level, and the file's line endings", () => {
+    const lf = addDevLoaderTag("<html>\n<head>\n<title>t</title>\n</head>\n<body></body>\n</html>\n");
+    expect(lf).toContain(`\n  ${DEV_LOADER_TAG}\n</head>`);
+    const crlf = addDevLoaderTag("<html>\r\n  <head>\r\n    <title>t</title>\r\n  </head>\r\n<body></body>\r\n</html>\r\n");
+    expect(crlf).toContain(`\r\n    ${DEV_LOADER_TAG}\r\n  </head>`);
+    expect(crlf).not.toMatch(/[^\r]\n/);
   });
 
   test("falls back to <body when there is no </head>", () => {
