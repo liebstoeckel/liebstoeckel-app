@@ -167,6 +167,7 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
 }
 
 const BUSY_SEND_HINT = "An agent is applying a batch; send the next one once it replies";
+const STAGED_SEND_HINT = "A batch is staged for the next agent; send the next one once it was picked up and answered";
 
 function useToast(): [string | null, (text: string) => void] {
   const [text, setText] = useState<string | null>(null);
@@ -309,7 +310,9 @@ export function DevSidebar(props: DevSidebarProps) {
           ? "No open annotations to send"
           : message === "agent_busy"
             ? BUSY_SEND_HINT
-            : `Send failed: ${message}`,
+            : message === "batch_pending"
+              ? STAGED_SEND_HINT
+              : `Send failed: ${message}`,
       );
     }
   }
@@ -337,9 +340,13 @@ export function DevSidebar(props: DevSidebarProps) {
   const presence = dev.stale ? "server restarted" : dev.agentBusy ? "agent working" : dev.agentPolling ? "agent polling" : "agent offline";
   // A batch snapshots the whole source tree as it is at dispatch, so a second
   // batch sent while an agent is mid-edit would freeze its half-done work as
-  // the state Revert returns to. One batch at a time.
-  const canSend = openCount > 0 && !dev.agentBusy;
-  const sendTitle = dev.agentBusy ? BUSY_SEND_HINT : "Send to agent";
+  // the state Revert returns to, and one sent while a batch is merely staged
+  // (no agent yet) would snapshot before that batch's edits, so reverting it
+  // later would wipe them too. One batch in flight at a time, claimed or not:
+  // dispatched entries in the store are the sign of one.
+  const staged = entries.some((e) => e.status === "dispatched");
+  const canSend = openCount > 0 && !dev.agentBusy && !staged;
+  const sendTitle = dev.agentBusy ? BUSY_SEND_HINT : staged ? STAGED_SEND_HINT : "Send to agent";
   const dotState = dev.agentBusy ? "busy" : dev.agentPolling ? "on" : "off";
 
   return (

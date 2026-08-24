@@ -144,22 +144,34 @@ export function assignRequestIndices(store: AnnotationStore): AnnotationStore {
   return next ?? store;
 }
 
-/** After slides were inserted, `after` values that named a slide at or past an
- *  insertion point are stale by one per insert before them. Re-base the still
- *  pending requests so they keep naming the same slide; call with the indices
- *  the applied requests took, before `assignRequestIndices`. */
-export function rebaseRequestsAfterInsert(store: AnnotationStore, insertedIndices: number[]): AnnotationStore {
-  if (insertedIndices.length === 0) return store;
-  const inserted = [...insertedIndices].sort((a, b) => a - b);
+/** A request that was applied: what the agent inserted, as it was asked. */
+export interface AppliedRequest {
+  after: number;
+  createdAt: number;
+}
+
+/** After slides were inserted, the still pending requests must keep naming
+ *  the same slides: every insert before the slide a request names pushes that
+ *  slide by one. Two rules decide "before". An applied request whose `after`
+ *  is smaller landed ahead of the named slide. One with the SAME `after` is
+ *  the chain case: the sidebar orders requests at one position by creation,
+ *  and a later request queued below an earlier one's ghost means "after that
+ *  new slide too", so an applied sibling created earlier counts as well (one
+ *  created later does not: the pending request stays ahead of it). Call with
+ *  the applied requests before `assignRequestIndices`. */
+export function rebaseRequestsAfterInsert(store: AnnotationStore, applied: AppliedRequest[]): AnnotationStore {
+  if (applied.length === 0) return store;
   let next: AnnotationStore | null = null;
   for (const entry of pendingRequests(store)) {
     // An in-flight request was handed to the agent with its `after` fixed;
     // moving it under the agent would desync the reply.
     if (entry.status === "dispatched") continue;
-    let after = entry.request!.after;
-    // Ascending: each insert is at its final position given the ones before it.
-    for (const index of inserted) if (after >= index) after += 1;
-    if (after === entry.request!.after) continue;
+    const before = entry.request!.after;
+    let after = before;
+    for (const a of applied) {
+      if (a.after < before || (a.after === before && a.createdAt < entry.createdAt)) after += 1;
+    }
+    if (after === before) continue;
     next ??= { ...store, entries: { ...store.entries } };
     next.entries[entry.id] = { ...entry, request: { ...entry.request!, after } };
   }

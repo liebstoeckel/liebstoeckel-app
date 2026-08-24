@@ -370,6 +370,13 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       // would capture half-applied work as this batch's "before", and the
       // agent's own batch could no longer be reverted cleanly.
       if (agentBusy()) return json(409, { error: "agent_busy", hint: "an agent holds a batch; send again after it replies or its claim expires" });
+      // A staged batch nobody has claimed yet is just as blocking: its
+      // snapshot predates this one, so the agent would apply both in order and
+      // reverting this batch would also wipe the staged one's edits while its
+      // entries stayed "applied". One batch in flight at a time, claimed or not.
+      if (pending.length > 0) {
+        return json(409, { error: "batch_pending", batchId: pending[0]!.event.id, hint: "a batch is staged for the next agent; send again after it was picked up and answered" });
+      }
       store = assignRequestIndices(store);
       const open = entriesByStatus(store, "open", body.slideIndex);
       if (open.length === 0) return json(400, { error: "nothing_to_dispatch" });
@@ -485,11 +492,6 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       }
       const validation = validateReply(body, batchEntries.map((e) => e.id));
       if (!validation.ok) return json(400, { error: validation.error, hint: validation.hint });
-      // The indices the agent actually inserted at are the ones it was handed
-      // in the event, so read them from the delivered event, not the store.
-      const delivered = pending.find((e) => e.event.id === body.id)?.event as
-        | { annotations?: Array<{ id: string; kind?: string; slide: { index: number } }> }
-        | undefined;
       acknowledge(pending, body.id);
       if (validation.kind === "done") {
         const applied = new Set(validation.data.applied);
@@ -499,9 +501,11 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         store = setStatus(store, backToOpen, "open");
         // Slides were inserted: requests still pending named slides of the
         // deck before those inserts, so shift their `after` past them first.
-        const inserted = (delivered?.annotations ?? batchEntries)
-          .filter((e) => applied.has(e.id) && e.kind === "add-slide")
-          .map((e) => e.slide.index);
+        // The `after` an applied request carries is the one the agent was
+        // handed (frozen while dispatched), so the store is authoritative.
+        const inserted = batchEntries
+          .filter((e) => applied.has(e.id) && e.kind === "add-slide" && e.request)
+          .map((e) => ({ after: e.request!.after, createdAt: e.createdAt }));
         store = assignRequestIndices(rebaseRequestsAfterInsert(store, inserted));
         save();
         if (validation.data.files.length > 0) backend.recordCreated(body.id, validation.data.files);
@@ -564,6 +568,7 @@ export {
   serializeStore,
   setStatus,
   upsertEntry,
+  type AppliedRequest,
   type AnnotationComment,
   type AnnotationEntry,
   type AnnotationKind,

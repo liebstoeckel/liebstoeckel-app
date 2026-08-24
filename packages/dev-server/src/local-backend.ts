@@ -5,6 +5,7 @@ import type { DevBackend } from "./protocol";
 import {
   SKIP_DIRS,
   batchesDispatchedAfter,
+  listCreatedSources,
   listDeckFiles,
   listDeckSources,
   loadBatchSnapshot,
@@ -100,7 +101,25 @@ export function createLocalBackend(opts: LocalBackendOptions): DevBackend {
     },
     restoreSnapshot: (batchId) => {
       const record = loadBatchSnapshot(deckDir, batchId);
-      return record ? restoreSnapshot(deckDir, record.files) : null;
+      if (!record) return null;
+      const result = restoreSnapshot(deckDir, record.files);
+      // Source files that did not exist at dispatch are the batch's own,
+      // reported or not: an agent that gave up mid-batch replies with an
+      // error and lists nothing, and a `done` reply may omit a file it
+      // created. Leaving those behind would strand an orphan slide file (and
+      // its numeric prefix) beside the restored entry.
+      if (record.existed) {
+        for (const rel of listCreatedSources(deckDir, record.existed)) {
+          if (rel in record.files) continue;
+          try {
+            rmSync(join(deckDir, rel));
+            result.restored.push(rel);
+          } catch (err) {
+            result.failures.push({ file: rel, message: err instanceof Error ? err.message : String(err) });
+          }
+        }
+      }
+      return result;
     },
     removeSnapshot: (batchId) => removeBatchSnapshot(deckDir, batchId),
     onStop: opts.onStop,

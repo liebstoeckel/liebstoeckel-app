@@ -356,6 +356,61 @@ describe("slide requests", () => {
     p.stop();
   });
 
+  test("a request chained below an in-flight one at the same position lands after it, across batches", async () => {
+    // R1 "after slide 1" is with the agent (index 1). The user queues R2 at
+    // the same position: the sidebar shows it below R1's ghost (index 2).
+    // After R1 lands at 1, R2 must still go to 2, not slip in front of R1.
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend, { leaseMs: 60_000 });
+    const add = async (after: number, description: string) =>
+      (await body<{ entry: { id: string; slide: { index: number } } }>(
+        await p.handleDevRequest(post("/__dev/annotations", { kind: "add-slide", request: { after, description } })),
+      )).entry;
+    const r1 = await add(0, "R1");
+    const b1 = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=500"));
+    await Bun.sleep(2);
+    const r2 = await add(0, "R2");
+    expect(backend.store.entries[r2.id]!.slide.index).toBe(2);
+    await p.handleDevRequest(post("/__dev/poll", { id: b1.batchId, type: "done", data: { applied: [r1.id], files: ["main.tsx"], notes: [] } }));
+    expect(backend.store.entries[r2.id]!.request!.after).toBe(1);
+    expect(backend.store.entries[r2.id]!.slide.index).toBe(2);
+    const b2 = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    const event = await body<{ annotations: Array<{ id: string; slide: { index: number } }>; _instructions: string }>(
+      await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=500")),
+    );
+    expect(event.annotations.map((a) => [a.id, a.slide.index])).toEqual([[r2.id, 2]]);
+    expect(event._instructions).toContain("right after slide 2");
+    void b2;
+    p.stop();
+  });
+
+  test("dispatch is refused while a staged batch waits for an agent (its snapshot would predate this one)", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend, { leaseMs: 60_000 });
+    const save = async (text: string) =>
+      (await body<{ entry: { id: string } }>(
+        await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 1, comments: [{ x: 0, y: 0, text }] })),
+      )).entry.id;
+    const a = await save("a");
+    const b1 = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    // Nobody polled: the batch is staged, not leased.
+    expect(p.agentBusy()).toBe(false);
+    const b = await save("b");
+    const refused = await p.handleDevRequest(post("/__dev/dispatch", {}));
+    expect(refused!.status).toBe(409);
+    expect(await body<{ error: string; batchId: string }>(refused)).toMatchObject({ error: "batch_pending", batchId: b1.batchId });
+    expect(backend.store.entries[b]!.status).toBe("open");
+    expect(backend.snapshots.size).toBe(1);
+    // Picked up and answered: the next batch may go.
+    await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=500"));
+    expect((await p.handleDevRequest(post("/__dev/dispatch", {})))!.status).toBe(409);
+    await p.handleDevRequest(post("/__dev/poll", { id: b1.batchId, type: "done", data: { applied: [a], files: [], notes: [] } }));
+    expect((await p.handleDevRequest(post("/__dev/dispatch", {})))!.status).toBe(200);
+    // Reverting the later batch leaves the earlier one's applied state intact, because it was applied first.
+    p.stop();
+  });
+
   test("validation, entry-file snapshot, created files recorded on reply, event fields", async () => {
     const backend = memoryBackend();
     const p = createDevProtocol(backend);

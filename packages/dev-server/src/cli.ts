@@ -147,6 +147,13 @@ export const devCommand = defineCommand({
         stdout: "inherit",
         stderr: "inherit",
       });
+      // The child is the server. A signal aimed at this process alone (a
+      // supervisor, tmux, `kill`) must reach it, or it keeps serving behind a
+      // live server.json with nobody attached; a terminal Ctrl-C signals both,
+      // and the child's shutdown is idempotent, so forwarding is harmless then.
+      for (const signal of ["SIGINT", "SIGTERM"] as const) {
+        process.on(signal, () => child.kill(signal));
+      }
       process.exit(await child.exited);
     }
     // Scaffold migrations for the surfaces dev serves: decks scaffolded before
@@ -180,13 +187,19 @@ export const devCommand = defineCommand({
       throw err;
     }
     // Ctrl-C or a tmux teardown must not leave a server.json pointing at a
-    // dead process (which `dev poll` would otherwise try to dial).
+    // dead process (which `dev poll` would otherwise try to dial). Idempotent
+    // and installed with `on`, not `once`: a second signal (the re-exec parent
+    // forwarding the Ctrl-C both already received) must not fall through to
+    // the default handler and kill the process before server.json is removed.
+    let shuttingDown = false;
     const shutdown = () => {
+      if (shuttingDown) return;
+      shuttingDown = true;
       server.stop();
       setTimeout(() => process.exit(0), 300);
     };
-    process.once("SIGINT", shutdown);
-    process.once("SIGTERM", shutdown);
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
     if (args.json) {
       console.log(JSON.stringify({ ok: true, url: server.url, port: server.port, _instructions: bootInstructions() }));
     } else {

@@ -62,7 +62,9 @@ embed the dev server in your own tooling (it exports `startDevServer`).
    those annotations reopen as well. While a batch is with the agent its
    annotations are locked and Send and Revert wait (a restore mid-edit would
    wipe the agent's work, and a new snapshot would capture it half done); all
-   come back the moment it replies. The last ten batches stay revertable;
+   come back the moment it replies. Send also waits while a batch is staged
+   with no agent listening yet: one batch in flight at a time, so that every
+   snapshot really is the state before its own batch. The last ten batches stay revertable;
    older snapshots are pruned (git covers anything beyond that).
 
 </Steps>

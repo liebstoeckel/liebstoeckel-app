@@ -155,23 +155,36 @@ describe("slide request indices", () => {
     let store = emptyStore();
     store = upsertEntry(store, request("flight", 3, { createdAt: 1, status: "dispatched", batchId: "b", slide: { index: 4, sourceFile: null } }));
     store = upsertEntry(store, request("open", 3, { createdAt: 2 }));
-    const next = rebaseRequestsAfterInsert(store, [1]);
+    const next = rebaseRequestsAfterInsert(store, [{ after: 1, createdAt: 0 }]);
     expect(next.entries.flight!.request!.after).toBe(3);
     expect(next.entries.open!.request!.after).toBe(4);
   });
 
-  test("rebase shifts pending `after` values at or past each insert, ascending", () => {
+  test("rebase shifts pending `after` values past every insert that landed before the slide they name", () => {
     let store = emptyStore();
     store = upsertEntry(store, request("keep", 0, { createdAt: 1 }));
     store = upsertEntry(store, request("at", 2, { createdAt: 2 }));
     store = upsertEntry(store, request("past", 5, { createdAt: 3 }));
     store = upsertEntry(store, request("done", 1, { createdAt: 0, status: "applied", slide: { index: 2, sourceFile: null } }));
-    // Inserts landed at 2 and 4: "after 2" names a slide that moved to 3, "after 5" one that moved twice.
-    const next = rebaseRequestsAfterInsert(store, [4, 2]);
+    // Applied: "after 1" and "after 3". "after 2" names a slide that moved once, "after 5" one that moved twice.
+    const next = rebaseRequestsAfterInsert(store, [{ after: 3, createdAt: 0 }, { after: 1, createdAt: 0 }]);
     expect(next.entries.keep!.request!.after).toBe(0);
     expect(next.entries.at!.request!.after).toBe(3);
     expect(next.entries.past!.request!.after).toBe(7);
     expect(next.entries.done!.request!.after).toBe(1);
     expect(rebaseRequestsAfterInsert(store, [])).toBe(store);
+  });
+
+  test("rebase keeps a chain at one position in creation order across batches", () => {
+    // R1 "after 0" was applied (now at index 1). R2 "after 0" was queued below
+    // R1's ghost, so it belongs after R1's new slide: its `after` moves to 1.
+    // R0 "after 0" created BEFORE R1 stays ahead of it.
+    let store = emptyStore();
+    store = upsertEntry(store, request("r0", 0, { createdAt: 1 }));
+    store = upsertEntry(store, request("r2", 0, { createdAt: 3 }));
+    const next = assignRequestIndices(rebaseRequestsAfterInsert(store, [{ after: 0, createdAt: 2 }]));
+    expect(next.entries.r0!.request!.after).toBe(0);
+    expect(next.entries.r2!.request!.after).toBe(1);
+    expect(indices(next)).toEqual({ r0: 1, r2: 3 });
   });
 });

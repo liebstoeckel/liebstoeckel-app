@@ -60,6 +60,20 @@ export function listDeckFiles(root: string): string[] {
   return out.sort();
 }
 
+/** Whether a deck-relative path has an authoring (text source) extension. */
+export function isSourceFile(rel: string): boolean {
+  return SOURCE_EXTS.has(rel.slice(rel.lastIndexOf(".")).toLowerCase());
+}
+
+/** Source files under the deck now that were not in `existed` (a batch's
+ *  existence record): what the batch created, whether or not the agent
+ *  reported them. Non-source files are never listed (an asset the user dropped
+ *  in meanwhile is not the batch's to remove). */
+export function listCreatedSources(root: string, existed: string[], all: string[] = listDeckFiles(root)): string[] {
+  const known = new Set(existed);
+  return all.filter((rel) => isSourceFile(rel) && !known.has(rel));
+}
+
 /** The text sources worth snapshotting for revert: known authoring extensions
  *  under a per-file and total size cap, so a deck with large assets still
  *  snapshots quickly. */
@@ -67,8 +81,7 @@ export function listDeckSources(root: string, all: string[] = listDeckFiles(root
   const picked: string[] = [];
   let total = 0;
   for (const rel of all) {
-    const ext = rel.slice(rel.lastIndexOf(".")).toLowerCase();
-    if (!SOURCE_EXTS.has(ext)) continue;
+    if (!isSourceFile(rel)) continue;
     let size: number;
     try {
       size = statSync(join(root, rel)).size;

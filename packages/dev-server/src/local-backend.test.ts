@@ -114,6 +114,25 @@ describe("recordCreated", () => {
     expect(existsSync(join(dir, "node_modules", "dep.js"))).toBe(true);
   });
 
+  test("a source file the batch created but never reported is removed on revert; a non-source file stays", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-dev-unreported-"));
+    mkdirSync(join(dir, "slides"), { recursive: true });
+    writeFileSync(join(dir, "main.tsx"), "slides={[A]}\n");
+    const backend = createLocalBackend({ deckDir: dir, token: "t" });
+    backend.takeSnapshot("b1", ["main.tsx"]);
+    // The agent creates a slide and an asset, then gives up with an error
+    // reply: nothing is reported, recordCreated never runs.
+    writeFileSync(join(dir, "slides", "07-half.mdx"), "# half\n");
+    writeFileSync(join(dir, "slides", "chart.png"), Buffer.from([0x89]));
+    writeFileSync(join(dir, "main.tsx"), "slides={[A, Half]}\n");
+    const result = backend.restoreSnapshot("b1")!;
+    expect(result.restored.sort()).toEqual(["main.tsx", "slides/07-half.mdx"]);
+    expect(result.failures).toEqual([]);
+    expect(existsSync(join(dir, "slides", "07-half.mdx"))).toBe(false);
+    expect(existsSync(join(dir, "slides", "chart.png"))).toBe(true);
+    expect(readFileSync(join(dir, "main.tsx"), "utf-8")).toBe("slides={[A]}\n");
+  });
+
   test("a pre-existing file the agent edited is restored, never deleted, even when attribution found nothing", () => {
     const dir = mkdtempSync(join(tmpdir(), "lst-dev-edited-"));
     mkdirSync(join(dir, "slides"), { recursive: true });
