@@ -89,7 +89,7 @@
       },
       "dependencies": {
         "@liebstoeckel/control-core": "workspace:*",
-        "hono": "4.12.25",
+        "hono": "4.13.5",
       },
     },
     "packages/control-core": {
@@ -386,7 +386,7 @@
         "age-encryption": "^0.3.0",
         "chokidar": "^5.0.0",
         "citty": "^0.2.2",
-        "hono": "4.12.25",
+        "hono": "4.13.5",
         "onnxruntime-node": "^1.24.0",
         "ppu-paddle-ocr": "^6.4.0",
         "react": "^19.2.7",
@@ -2192,7 +2192,7 @@
 
     "hastscript": ["hastscript@9.0.1", "", { "dependencies": { "@types/hast": "^3.0.0", "comma-separated-tokens": "^2.0.0", "hast-util-parse-selector": "^4.0.0", "property-information": "^7.0.0", "space-separated-tokens": "^2.0.0" } }, "sha512-g7df9rMFX/SPi34tyGCyUBREQoKkapwdY/T04Qn9TDWfHhAYt4/I0gMVirzK5wEzeUqIjEB+LXC/ypb7Aqno5w=="],
 
-    "hono": ["hono@4.12.25", "", {}, "sha512-2NFaIyNVgJmBs/ecmtGzlmluTFs5cHEWGTdu0t1HBwYzoGXOL5nUQBRMXsXWla5i4KkG//QMzVP88m1+I3fdAQ=="],
+    "hono": ["hono@4.13.5", "", {}, "sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw=="],
 
     "hookable": ["hookable@6.1.1", "", {}, "sha512-U9LYDy1CwhMCnprUfeAZWZGByVbhd54hwepegYTK7Pi5NvqEj63ifz5z+xukznehT7i6NIZRu89Ay1AZmRsLEQ=="],
 
