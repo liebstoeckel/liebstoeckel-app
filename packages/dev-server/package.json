@@ -25,16 +25,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": [
-    "src",
-    "drawer",
-    "ui",
-    "!stories",
-    "!**/*.test.ts",
-    "!**/*.test.tsx",
-    "!ui/fixtures.ts",
-    "LICENSE"
-  ],
+  "files": ["src", "drawer", "ui", "!stories", "!**/*.test.ts", "!**/*.test.tsx", "!ui/fixtures.ts", "!**/.impeccable", "LICENSE"],
   "engines": {
     "bun": ">=1.3"
   },

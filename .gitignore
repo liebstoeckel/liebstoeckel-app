@@ -45,3 +45,6 @@ docs/private/
 
 # machine-local office defaults (OFFICE_LITERT_LM_COMMAND and the like)
 packages/office/.env
+
+# impeccable skill per-directory state (hook caches hold absolute local paths)
+.impeccable/

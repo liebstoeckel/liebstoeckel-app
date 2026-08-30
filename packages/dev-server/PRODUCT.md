@@ -20,7 +20,7 @@ Figma's side panels: it should stay out of the deck's way and behave exactly as 
 panel is expected to.
 
 The same sidebar is the parent-frame half of a future hosted editor: organization
-members annotating and later authoring hosted decks inside the control-dashboard, with
+members annotating and later authoring hosted decks in a hosted editor, with
 the deck in a sandboxed iframe. Local and hosted share the component; only the wire
 differs.
 

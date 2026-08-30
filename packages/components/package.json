@@ -25,10 +25,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": [
-    "src",
-    "LICENSE"
-  ],
+  "files": ["src", "!**/.impeccable", "LICENSE"],
   "engines": {
     "bun": ">=1.3"
   },

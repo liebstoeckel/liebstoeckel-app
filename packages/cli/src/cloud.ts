@@ -562,8 +562,9 @@ export async function fetchDefaultBrand(): Promise<{ name: string; source: strin
   }
 }
 
-/** The `@fontsource` side-effect imports a pulled brand source declares ((internal ADR)), *  the deck's font deps. Inlined here (not imported from control-core) to keep the
- *  OSS CLI free of the private control plane. */
+/** The `@fontsource` side-effect imports a pulled brand source declares, which
+ *  become the deck's font deps. Inlined here (not imported from a private
+ *  package) so the OSS CLI stands alone. */
 export function fontPackagesFromSource(source: string): string[] {
   const pkgs = new Set<string>();
   for (const m of source.matchAll(/^import\s+"(@fontsource[^"]+)";/gm)) pkgs.add(m[1]!);

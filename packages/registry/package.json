@@ -25,15 +25,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": [
-    "src",
-    "!src/**/*.test.ts",
-    "!src/**/*.test.tsx",
-    "registry.json",
-    "items",
-    "files",
-    "LICENSE"
-  ],
+  "files": ["src", "!src/**/*.test.ts", "!src/**/*.test.tsx", "registry.json", "items", "files", "!**/.impeccable", "LICENSE"],
   "engines": {
     "bun": ">=1.3"
   },

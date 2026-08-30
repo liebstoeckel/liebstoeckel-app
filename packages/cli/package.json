@@ -25,13 +25,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": [
-    "src",
-    "!src/**/*.test.ts",
-    "!src/**/*.test.tsx",
-    "skill",
-    "LICENSE"
-  ],
+  "files": ["src", "!src/**/*.test.ts", "!src/**/*.test.tsx", "skill", "!**/.impeccable", "LICENSE"],
   "engines": {
     "bun": ">=1.3"
   },
