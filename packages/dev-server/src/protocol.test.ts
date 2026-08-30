@@ -215,6 +215,25 @@ describe("lifecycle", () => {
     expect(backend.stopped).toBe(true);
   });
 
+  test("presence lingers for a grace period after a reply, delivery does not", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend, { leaseMs: 60_000, presenceGraceMs: 200 });
+    await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 0, comments: [{ x: 0.1, y: 0.1, text: "hi" }] }));
+    const dispatched = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    const event = await body<{ id: string }>(await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=50")));
+    expect(event.id).toBe(dispatched.batchId);
+    await p.handleDevRequest(post("/__dev/poll", { id: event.id, type: "done", data: { applied: [], files: [], notes: [] } }));
+    // No poll is parked, yet the sidebar still sees an agent for a moment.
+    expect(p.agentPolling()).toBe(false);
+    expect((await body<{ agentPolling: boolean }>(await p.handleDevRequest(get("/__dev/state?token=tok")))).agentPolling).toBe(true);
+    // A dispatch in that window is staged, not delivered: presence is cosmetic.
+    await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 0, comments: [{ x: 0.2, y: 0.2, text: "again" }] }));
+    expect((await body<{ agentPolling: boolean }>(await p.handleDevRequest(post("/__dev/dispatch", {})))).agentPolling).toBe(false);
+    await new Promise((r) => setTimeout(r, 300));
+    expect((await body<{ agentPolling: boolean }>(await p.handleDevRequest(get("/__dev/state?token=tok")))).agentPolling).toBe(false);
+    p.stop();
+  });
+
   test("a poll whose client went away stops counting as a present agent", async () => {
     const backend = memoryBackend();
     const p = createDevProtocol(backend);

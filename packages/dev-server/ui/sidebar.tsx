@@ -75,7 +75,9 @@ interface DevState {
   stale: boolean;
 }
 
-const STALE_HINT = "Dev server restarted: reload the page";
+const STALE_HINT = "Dev server stopped: this page reloads by itself once it is back";
+/** How often a stale page asks whether the server came back. */
+const RESTART_PROBE_MS = 1000;
 
 function useDevState(transport: DevTransport, toast: (text: string) => void) {
   const [state, setState] = useState<DevState>({ entries: {}, agentPolling: false, agentBusy: false, loaded: false, stale: false });
@@ -84,6 +86,32 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
     setState((s) => (s.stale ? s : { ...s, agentPolling: false, agentBusy: false, stale: true }));
     toast(STALE_HINT);
   }, [toast]);
+
+  // A restarted server mints a new token, so nothing this page holds can talk
+  // to it: the only recovery is a fresh load. Probe with the old token until
+  // it is refused (a 401 means a new server answers; a network error means no
+  // server yet; a 200 means the old one is still flushing its exit), then reload.
+  useEffect(() => {
+    if (!state.stale) return;
+    let active = true;
+    const probe = async () => {
+      while (active) {
+        try {
+          await transport.getState();
+        } catch (err) {
+          if ((err as { status?: unknown })?.status === 401) {
+            window.location.reload();
+            return;
+          }
+        }
+        await new Promise((r) => setTimeout(r, RESTART_PROBE_MS));
+      }
+    };
+    void probe();
+    return () => {
+      active = false;
+    };
+  }, [state.stale, transport]);
   const refresh = useCallback(async () => {
     try {
       const s = await transport.getState();
@@ -156,8 +184,8 @@ function useDevState(transport: DevTransport, toast: (text: string) => void) {
           markStale();
           break;
         case "exit":
-          toast("Dev server stopped");
-          setState((s) => ({ ...s, agentPolling: false, agentBusy: false }));
+          // The stream is closed for good on our side; only a reload reconnects.
+          markStale();
           break;
       }
     });
@@ -337,7 +365,7 @@ export function DevSidebar(props: DevSidebarProps) {
   }
 
   // Three states, in priority: working on a batch, waiting for one, nobody there.
-  const presence = dev.stale ? "server restarted" : dev.agentBusy ? "agent working" : dev.agentPolling ? "agent polling" : "agent offline";
+  const presence = dev.stale ? "server stopped, waiting" : dev.agentBusy ? "agent working" : dev.agentPolling ? "agent polling" : "agent offline";
   // A batch snapshots the whole source tree as it is at dispatch, so a second
   // batch sent while an agent is mid-edit would freeze its half-done work as
   // the state Revert returns to, and one sent while a batch is merely staged

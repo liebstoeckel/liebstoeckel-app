@@ -71,9 +71,11 @@ embed the dev server in your own tooling (it exports `startDevServer`).
 
 <Aside type="tip" title="No agent running?">
 Sending with no agent listening simply stages the batch: the next
-`liebstoeckel dev poll` picks it up, even after a dev-server restart. The same
+`liebstoeckel dev poll` picks it up, even after a dev-server restart (the shell page
+notices the restart and reloads itself; a polling agent receives `exit` and has to be
+told to poll again). The same
 applies when an agent takes a batch and never replies (a crash, a killed
-terminal): its claim expires after thirty minutes and the next poll receives the
+terminal): its claim expires after five minutes and the next poll receives the
 batch again.
 </Aside>
 

@@ -77,7 +77,7 @@ after, `-1` for first) and `slide.index`, the index the new slide takes.
 
 ## Recovery
 
-Delivered events are leased for thirty minutes: if you crash or never reply,
+Delivered events are leased for five minutes: if you crash or never reply,
 the same batch is redelivered on a later poll, and a dev-server restart
 requeues unresolved batches. While you hold a batch the user cannot send or
 revert, so reply as soon as you are done. Reverting is the user's button, not yours; never git-revert dev-mode

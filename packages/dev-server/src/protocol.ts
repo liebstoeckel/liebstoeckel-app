@@ -29,7 +29,14 @@ const DEFAULT_POLL_TIMEOUT_MS = 240_000;
 // A batch under an agent routinely takes longer than a few minutes; a lease
 // that expires under a working agent reopens Revert (whole-tree restore) on
 // top of its edits, so it errs long.
-const DEFAULT_LEASE_MS = 1_800_000;
+// A leased batch is only ever redelivered to a *new* poll, and a single local
+// agent does not poll again before it replies, so the lease mostly decides how
+// soon a relaunched agent gets the batch a crashed one held. Five minutes covers
+// a slow apply without stranding a batch for half an hour.
+const DEFAULT_LEASE_MS = 300_000;
+// After a reply the agent re-enters `dev poll` within seconds; showing "offline"
+// for that gap is noise, so presence lingers this long past the last reply.
+const PRESENCE_GRACE_MS = 20_000;
 const SSE_HEARTBEAT_MS = 30_000;
 const STOP_FLUSH_MS = 100;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -80,6 +87,8 @@ export interface DevProtocol {
 export interface DevProtocolOptions {
   pollTimeoutMs?: number;
   leaseMs?: number;
+  /** How long presence outlives an agent's reply before it counts as offline. */
+  presenceGraceMs?: number;
 }
 
 type Poll = { resolve: (event: unknown) => void; timer: ReturnType<typeof setTimeout> };
@@ -95,6 +104,7 @@ function shortId(): string {
 export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions = {}): DevProtocol {
   const pollTimeoutMs = opts.pollTimeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS;
+  const presenceGraceMs = opts.presenceGraceMs ?? PRESENCE_GRACE_MS;
 
   let store = backend.loadStore();
   const pending: Array<PendingEvent> = [];
@@ -102,6 +112,8 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
   const sseClients = new Set<ReadableStreamDefaultController<Uint8Array>>();
   let seq = 1;
   let leaseTimer: ReturnType<typeof setTimeout> | null = null;
+  let presenceGraceUntil = 0;
+  let presenceTimer: ReturnType<typeof setTimeout> | null = null;
   let lastAgentPolling: string | null = null;
   let stopped = false;
 
@@ -132,8 +144,24 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
     return pending.some((entry) => entry.leaseUntil > now);
   }
 
+  /** What the sidebar shows: a parked poll, or an agent that replied moments
+   *  ago and is on its way back to one. `agentPolling()` stays the strict
+   *  answer that decides whether a dispatch is delivered or staged. */
+  function agentPresent(): boolean {
+    return agentPolling() || Date.now() < presenceGraceUntil;
+  }
+
   function presence(): { connected: boolean; busy: boolean } {
-    return { connected: agentPolling(), busy: agentBusy() };
+    return { connected: agentPresent(), busy: agentBusy() };
+  }
+
+  function extendPresenceGrace(): void {
+    presenceGraceUntil = Date.now() + presenceGraceMs;
+    if (presenceTimer) clearTimeout(presenceTimer);
+    presenceTimer = setTimeout(() => {
+      presenceTimer = null;
+      broadcastAgentPollingIfChanged();
+    }, presenceGraceMs + 5);
   }
 
   function broadcastAgentPollingIfChanged(): void {
@@ -230,7 +258,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       if (!authorized()) return json(401, { error: "unauthorized" });
       return json(200, {
         annotations: store.entries,
-        agentPolling: agentPolling(),
+        agentPolling: agentPresent(),
         agentBusy: agentBusy(),
         slides: backend.resolveSlides(),
       });
@@ -246,7 +274,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
           sseClients.add(controller);
           controller.enqueue(
             new TextEncoder().encode(
-              `data: ${JSON.stringify({ type: "connected", agentPolling: agentPolling(), agentBusy: agentBusy() })}\n\n`,
+              `data: ${JSON.stringify({ type: "connected", agentPolling: agentPresent(), agentBusy: agentBusy() })}\n\n`,
             ),
           );
           heartbeat = setInterval(() => {
@@ -493,6 +521,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       const validation = validateReply(body, batchEntries.map((e) => e.id));
       if (!validation.ok) return json(400, { error: validation.error, hint: validation.hint });
       acknowledge(pending, body.id);
+      extendPresenceGrace();
       if (validation.kind === "done") {
         const applied = new Set(validation.data.applied);
         const backToOpen = batchEntries.filter((e) => !applied.has(e.id)).map((e) => e.id);
@@ -544,6 +573,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
     polls = [];
     broadcast({ type: "exit" });
     if (leaseTimer) clearTimeout(leaseTimer);
+    if (presenceTimer) clearTimeout(presenceTimer);
     // The exit responses above are only queued; tearing the host down in the
     // same tick would close those sockets before the bytes leave. Give the
     // event loop a moment to flush them first.
