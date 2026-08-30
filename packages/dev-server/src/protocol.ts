@@ -60,8 +60,9 @@ export interface DevBackend {
   /** Where the agent finds a stored screenshot (absolute path locally). */
   screenshotRef(name: string): string;
   takeSnapshot(batchId: string, files: string[]): void;
-  /** After a done reply: files the agent touched that the snapshot does not
-   *  know are recorded as created, so revert removes them. */
+  /** Once the agent has replied (done or error): seal what the batch
+   *  created, the reported files plus any source that appeared since
+   *  dispatch, so revert removes them and nothing added later. */
   recordCreated(batchId: string, files: string[]): void;
   /** Restore a batch snapshot; null when no snapshot exists for the id. */
   restoreSnapshot(batchId: string): RestoreResult | null;
@@ -438,6 +439,15 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       if (agentBusy()) return json(409, { error: "agent_busy", hint: "an agent holds a batch; revert after it replies or its claim expires" });
       const result = backend.restoreSnapshot(body.batchId);
       if (!result) return json(404, { error: "unknown_batch" });
+      if (result.failures.length > 0) {
+        // A file that could not be written or removed (locked by an editor,
+        // a permission error) leaves the tree half restored. Keep the
+        // entries and the snapshot as they are so the revert can be retried
+        // once the file is free; flipping them now would show the batch as
+        // reverted while its edits are still on disk, and dropping the
+        // snapshot would make the retry impossible.
+        return json(500, { error: "revert_incomplete", hint: "some files could not be restored; fix them and revert again", ...result });
+      }
       // The tree is now as it was before this batch, so every batch applied
       // after it is gone from the deck as well: reopen those too, rather than
       // leaving entries marked applied for edits that no longer exist.
@@ -537,7 +547,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
           .map((e) => ({ after: e.request!.after, createdAt: e.createdAt }));
         store = assignRequestIndices(rebaseRequestsAfterInsert(store, inserted));
         save();
-        if (validation.data.files.length > 0) backend.recordCreated(body.id, validation.data.files);
+        backend.recordCreated(body.id, validation.data.files);
         broadcast({
           type: "batch_resolved",
           batchId: body.id,
@@ -551,6 +561,8 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
         save();
         // The snapshot stays: the agent may have half-applied the batch before
         // giving up, and /__dev/revert with this batch id puts the deck back.
+        // Seal what it created so far so that revert removes those too.
+        backend.recordCreated(body.id, []);
         broadcast({ type: "batch_failed", batchId: body.id, message: validation.message, revertable: true });
       }
       flushPolls();

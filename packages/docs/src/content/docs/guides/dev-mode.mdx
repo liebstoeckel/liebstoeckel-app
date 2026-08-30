@@ -55,7 +55,10 @@ embed the dev server in your own tooling (it exports `startDevServer`).
 5. Not what you wanted? **Revert** puts the deck's source files back exactly as
    they were when that batch was dispatched (every text source is snapshotted,
    so shared components and the entry are covered too; a file the agent created
-   is removed), and your annotations reopen for another round. If the agent
+   is removed, but anything you add after the agent replied is yours and stays),
+   and your annotations reopen for another round. If a file cannot be restored
+   (locked by an editor, say), nothing is marked reverted; free the file and
+   revert again. If the agent
    replied with an error instead, the batch stays revertable, so a half-applied
    attempt can be undone the same way. Reverting an older batch also undoes
    every batch sent after it (the sources go back to before the older one), so

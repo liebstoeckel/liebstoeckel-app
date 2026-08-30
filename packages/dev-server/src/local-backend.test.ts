@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createLocalBackend, loadStore, readServerInfo, removeServerInfo, saveStore, writeServerInfo } from "./local-backend";
@@ -121,10 +121,11 @@ describe("recordCreated", () => {
     const backend = createLocalBackend({ deckDir: dir, token: "t" });
     backend.takeSnapshot("b1", ["main.tsx"]);
     // The agent creates a slide and an asset, then gives up with an error
-    // reply: nothing is reported, recordCreated never runs.
+    // reply: nothing is reported, but the reply seals the created set.
     writeFileSync(join(dir, "slides", "07-half.mdx"), "# half\n");
     writeFileSync(join(dir, "slides", "chart.png"), Buffer.from([0x89]));
     writeFileSync(join(dir, "main.tsx"), "slides={[A, Half]}\n");
+    backend.recordCreated("b1", []);
     const result = backend.restoreSnapshot("b1")!;
     expect(result.restored.sort()).toEqual(["main.tsx", "slides/07-half.mdx"]);
     expect(result.failures).toEqual([]);
@@ -149,6 +150,53 @@ describe("recordCreated", () => {
     expect(readFileSync(join(dir, "slides", "03.mdx"), "utf-8")).toBe("ORIGINAL\n");
     // Binary files are not snapshotted, but they existed, so revert leaves them alone.
     expect(existsSync(join(dir, "logo.png"))).toBe(true);
+  });
+
+  test("a source file the user adds after the batch resolved is not the batch's: revert leaves it alone", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-dev-later-"));
+    mkdirSync(join(dir, "slides"), { recursive: true });
+    writeFileSync(join(dir, "main.tsx"), "slides={[A]}\n");
+    const backend = createLocalBackend({ deckDir: dir, token: "t" });
+    backend.takeSnapshot("b1", ["main.tsx"]);
+    writeFileSync(join(dir, "slides", "02-agent.mdx"), "# agent\n");
+    writeFileSync(join(dir, "main.tsx"), "slides={[A, B]}\n");
+    backend.recordCreated("b1", ["main.tsx"]);
+    // Half an hour later the user writes a slide by hand, then reverts b1.
+    writeFileSync(join(dir, "slides", "12-closing.mdx"), "# mine\n");
+    const result = backend.restoreSnapshot("b1")!;
+    expect(result.restored.sort()).toEqual(["main.tsx", "slides/02-agent.mdx"]);
+    expect(existsSync(join(dir, "slides", "02-agent.mdx"))).toBe(false);
+    expect(readFileSync(join(dir, "slides", "12-closing.mdx"), "utf-8")).toBe("# mine\n");
+  });
+
+  test("a batch that never got a reply restores its snapshot but deletes nothing", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-dev-noreply-"));
+    mkdirSync(join(dir, "slides"), { recursive: true });
+    writeFileSync(join(dir, "main.tsx"), "slides={[A]}\n");
+    const backend = createLocalBackend({ deckDir: dir, token: "t" });
+    backend.takeSnapshot("b1", ["main.tsx"]);
+    writeFileSync(join(dir, "slides", "02-new.mdx"), "# new\n");
+    writeFileSync(join(dir, "main.tsx"), "slides={[A, B]}\n");
+    const result = backend.restoreSnapshot("b1")!;
+    expect(result.restored).toEqual(["main.tsx"]);
+    expect(existsSync(join(dir, "slides", "02-new.mdx"))).toBe(true);
+  });
+
+  test("a reported path that leaves the deck through a symlink is never deleted", () => {
+    const outside = mkdtempSync(join(tmpdir(), "lst-dev-outside-"));
+    writeFileSync(join(outside, "theme.css"), "ORIGINAL\n");
+    const dir = mkdtempSync(join(tmpdir(), "lst-dev-symlink-"));
+    writeFileSync(join(dir, "main.tsx"), "x\n");
+    symlinkSync(outside, join(dir, "shared"), "dir");
+    const backend = createLocalBackend({ deckDir: dir, token: "t" });
+    backend.takeSnapshot("b1", ["main.tsx"]);
+    // The agent edits the linked theme and reports it; the link was never in
+    // the existence record, so without the real-path check it would look created.
+    writeFileSync(join(dir, "shared", "theme.css"), "EDITED\n");
+    backend.recordCreated("b1", ["shared/theme.css"]);
+    const result = backend.restoreSnapshot("b1")!;
+    expect(result.restored).toEqual([]);
+    expect(readFileSync(join(outside, "theme.css"), "utf-8")).toBe("EDITED\n");
   });
 });
 

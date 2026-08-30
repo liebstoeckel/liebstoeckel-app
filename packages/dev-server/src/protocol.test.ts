@@ -12,6 +12,8 @@ interface MemoryBackend extends DevBackend {
   /** Insertion order doubles as dispatch order. */
   snapshots: Map<string, string[]>;
   created: Map<string, string[]>;
+  /** Failures the next restore of that batch reports. */
+  failures: Map<string, RestoreResult["failures"]>;
   restored: string[];
   stopped: boolean;
 }
@@ -22,6 +24,7 @@ function memoryBackend(initial: AnnotationStore = emptyStore()): MemoryBackend {
     store: initial,
     snapshots: new Map(),
     created: new Map(),
+    failures: new Map(),
     restored: [],
     stopped: false,
     authorize: (url, body) => (body?.token ?? url.searchParams.get("token")) === "tok",
@@ -49,7 +52,7 @@ function memoryBackend(initial: AnnotationStore = emptyStore()): MemoryBackend {
       const files = backend.snapshots.get(batchId);
       if (!files) return null;
       backend.restored.push(batchId);
-      return { restored: files, failures: [] };
+      return { restored: files, failures: backend.failures.get(batchId) ?? [], skipped: [] };
     },
     removeSnapshot: (batchId) => {
       backend.snapshots.delete(batchId);
@@ -171,8 +174,10 @@ describe("lifecycle", () => {
     const id = Object.keys(backend.store.entries)[0]!;
     await p.handleDevRequest(post("/__dev/poll", { id: dispatched.batchId, type: "error", message: "could not parse" }));
     expect(backend.store.entries[id]!.status).toBe("open");
-    // The snapshot stays so a half-applied failure can still be reverted.
+    // The snapshot stays so a half-applied failure can still be reverted,
+    // and the created set is sealed at the error reply like at a done reply.
     expect(backend.snapshots.has(dispatched.batchId)).toBe(true);
+    expect(backend.created.has(dispatched.batchId)).toBe(true);
     expect((await p.handleDevRequest(post("/__dev/revert", { batchId: dispatched.batchId })))!.status).toBe(200);
     expect(backend.restored).toEqual([dispatched.batchId]);
     p.stop();
@@ -525,6 +530,29 @@ describe("hardening", () => {
       expect(await body<{ error: string; batchId: string }>(res)).toEqual({ error: "entry_dispatched", batchId: b1.batchId });
     }
     expect(backend.store.entries[saved.entry.id]!.status).toBe("dispatched");
+    p.stop();
+  });
+
+  test("a revert with restore failures keeps the entries applied and the snapshot on disk for a retry", async () => {
+    const backend = memoryBackend();
+    const p = createDevProtocol(backend);
+    await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 1 }));
+    const id = Object.keys(backend.store.entries)[0]!;
+    const dispatched = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=1000"));
+    await p.handleDevRequest(post("/__dev/poll", { id: dispatched.batchId, type: "done", data: { applied: [id], files: [], notes: [] } }));
+
+    backend.failures.set(dispatched.batchId, [{ file: "slides/02.mdx", message: "EBUSY" }]);
+    const failed = await p.handleDevRequest(post("/__dev/revert", { batchId: dispatched.batchId }));
+    expect(failed!.status).toBe(500);
+    expect((await body<{ error: string; failures: unknown[] }>(failed)).error).toBe("revert_incomplete");
+    expect(backend.store.entries[id]!.status).toBe("applied");
+    expect(backend.snapshots.has(dispatched.batchId)).toBe(true);
+
+    backend.failures.delete(dispatched.batchId);
+    expect((await p.handleDevRequest(post("/__dev/revert", { batchId: dispatched.batchId })))!.status).toBe(200);
+    expect(backend.store.entries[id]!.status).toBe("open");
+    expect(backend.snapshots.has(dispatched.batchId)).toBe(false);
     p.stop();
   });
 

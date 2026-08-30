@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { DevShell, DevSidebar, FIXTURE_SLIDES, createFrameHost, memoryTransport } from "../src/ui";
+import { DevShell, DevSidebar, createFrameHost } from "../src/ui";
+import { FIXTURE_SLIDES, memoryTransport } from "../ui/fixtures";
 import type { FrameBridge, FrameEvents } from "../ui/types";
 import type { StoryContext } from "./main";
 

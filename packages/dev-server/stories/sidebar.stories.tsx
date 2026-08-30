@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AnnotationEntry } from "../drawer/bridge";
-import { DevShell, DevSidebar, FIXTURE_SLIDES, fixtureEntry, type MemoryFrame, memoryFrame, memoryTransport } from "../src/ui";
+import { DevShell, DevSidebar } from "../src/ui";
+import { FIXTURE_SLIDES, fixtureEntry, type MemoryFrame, memoryFrame, memoryTransport } from "../ui/fixtures";
 import type { StoryContext } from "./main";
 
 export default { title: "DevSidebar" };

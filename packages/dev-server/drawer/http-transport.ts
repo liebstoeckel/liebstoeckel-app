@@ -109,7 +109,9 @@ export function httpTransport(token: string): DevTransport {
       body: JSON.stringify({ token, ...body }),
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!res.ok) throw new TransportError(String(data.error ?? res.statusText), res.status);
+    // The server's `hint` says what to do about it (free a locked file and
+    // revert again); the bare error code is a fallback, not a message.
+    if (!res.ok) throw new TransportError(String(data.hint ?? data.error ?? res.statusText), res.status);
     return data;
   }
   const subscribe = sharedEvents(() => new EventSource(authed("/__dev/events")));

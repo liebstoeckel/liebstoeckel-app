@@ -1,5 +1,5 @@
-import { type Dirent, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { type Dirent, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { snapshotsDir } from "./paths";
 
 // Pre-dispatch source snapshots back the drawer's one-click Revert: before an
@@ -8,7 +8,9 @@ import { snapshotsDir } from "./paths";
 // entry, so the whole source tree is the only safe unit); revert restores them
 // byte-for-byte and HMR shows the rollback. A batch also records which files
 // existed at dispatch, so a file the agent reports that was not snapshotted is
-// only ever deleted on revert when it provably did not exist before. Snapshots
+// only ever deleted on revert when it provably did not exist before. The set
+// of files a batch created is sealed when the agent replies; anything the
+// user adds after that is theirs and revert never touches it. Snapshots
 // persist to disk so revert survives a dev-server restart. Git backstops
 // anything older.
 
@@ -95,21 +97,50 @@ export function listDeckSources(root: string, all: string[] = listDeckFiles(root
   return picked;
 }
 
-/** Deck-relative and inside the deck root, or null. The traversal guard for
- *  everything file-shaped that crosses the dev protocol. */
+/** Deck-relative (forward slashes, so it matches `listDeckFiles` on every
+ *  platform) and lexically inside the deck root, or null. The traversal guard
+ *  for everything file-shaped that crosses the dev protocol. */
 export function withinRoot(root: string, file: string): string | null {
   if (typeof file !== "string" || !file) return null;
   const abs = isAbsolute(file) ? file : resolve(root, file);
   const rel = relative(resolve(root), abs);
   if (!rel || rel.startsWith("..") || isAbsolute(rel)) return null;
-  return rel;
+  return sep === "/" ? rel : rel.split(sep).join("/");
+}
+
+/** Whether a deck-relative path really lives under the deck root once
+ *  symlinks are resolved. `withinRoot` is lexical; a symlinked directory
+ *  (`shared -> ../company-theme`) passes it while pointing outside, and a
+ *  revert that writes or deletes through it would reach files that are not
+ *  the deck's. Checks the deepest existing ancestor, so a path to be created
+ *  is judged by the directory it would land in. */
+export function insideRootReal(root: string, rel: string): boolean {
+  let realRoot: string;
+  try {
+    realRoot = realpathSync(resolve(root));
+  } catch {
+    return false;
+  }
+  let probe = join(root, rel);
+  while (!existsSync(probe)) {
+    const parent = dirname(probe);
+    if (parent === probe) return false;
+    probe = parent;
+  }
+  let real: string;
+  try {
+    real = realpathSync(probe);
+  } catch {
+    return false;
+  }
+  return real === realRoot || real.startsWith(realRoot + sep);
 }
 
 export function snapshotFiles(root: string, files: string[]): BatchSnapshot {
   const snapshot: BatchSnapshot = {};
   for (const file of files) {
     const rel = withinRoot(root, file);
-    if (!rel || rel in snapshot) continue;
+    if (!rel || rel in snapshot || !insideRootReal(root, rel)) continue;
     const abs = join(root, rel);
     try {
       snapshot[rel] = existsSync(abs)
@@ -126,14 +157,22 @@ export interface RestoreResult {
   /** Files written or removed; files already at their snapshot content are left untouched. */
   restored: string[];
   failures: Array<{ file: string; message: string }>;
+  /** Snapshot entries that now resolve outside the deck root (a symlink
+   *  appeared since dispatch); left alone rather than followed. */
+  skipped: string[];
 }
 
 export function restoreSnapshot(root: string, snapshot: BatchSnapshot): RestoreResult {
   const restored: string[] = [];
   const failures: RestoreResult["failures"] = [];
+  const skipped: string[] = [];
   for (const [file, before] of Object.entries(snapshot)) {
     const rel = withinRoot(root, file);
     if (!rel) continue;
+    if (!insideRootReal(root, rel)) {
+      skipped.push(rel);
+      continue;
+    }
     const abs = join(root, rel);
     try {
       if (before.exists) {
@@ -152,7 +191,7 @@ export function restoreSnapshot(root: string, snapshot: BatchSnapshot): RestoreR
       failures.push({ file: rel, message: err instanceof Error ? err.message : String(err) });
     }
   }
-  return { restored, failures };
+  return { restored, failures, skipped };
 }
 
 // ---------------------------------------------------------------------------

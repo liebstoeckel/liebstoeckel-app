@@ -4,4 +4,3 @@
 export { DevShell, DevSidebar, type DevShellProps } from "../ui/sidebar";
 export type { DevSidebarProps, FrameBridge, FrameEvents, OverlayMode, SlideInfo } from "../ui/types";
 export { createFrameHost, type FrameHost, type FrameHostOptions } from "../ui/frame-host";
-export { FIXTURE_SLIDES, fixtureEntry, memoryFrame, memoryTransport, type MemoryFrame, type MemoryTransport } from "../ui/fixtures";

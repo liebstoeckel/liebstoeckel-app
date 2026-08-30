@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   batchesDispatchedAfter,
+  insideRootReal,
   listDeckFiles,
   listDeckSources,
   loadBatchSnapshot,
@@ -29,6 +30,33 @@ describe("withinRoot", () => {
     expect(withinRoot(root, "../secrets")).toBeNull();
     expect(withinRoot(root, "/etc/passwd")).toBeNull();
     expect(withinRoot(root, "")).toBeNull();
+  });
+
+  test("returns forward slashes whatever the platform separator, so it matches the deck listing", () => {
+    // On win32 `relative` yields backslashes while `listDeckFiles` builds
+    // paths with `/`; a mismatch there would make every subdirectory file
+    // look "created" and get deleted on revert.
+    expect(withinRoot("/deck", join("slides", "a.mdx"))).toBe("slides/a.mdx");
+    expect(withinRoot("/deck", join("/deck", "assets", "logo.png"))).toBe("assets/logo.png");
+  });
+});
+
+describe("insideRootReal", () => {
+  test("follows symlinks: a path through a linked directory outside the deck is refused, a new file under a real dir is fine", () => {
+    const outside = mkdtempSync(join(tmpdir(), "lst-dev-outside-"));
+    writeFileSync(join(outside, "theme.css"), "body{}\n");
+    const dir = deck();
+    symlinkSync(outside, join(dir, "shared"), "dir");
+    symlinkSync(join(outside, "theme.css"), join(dir, "linked.css"), "file");
+    expect(insideRootReal(dir, "slides/a.mdx")).toBe(true);
+    expect(insideRootReal(dir, "slides/not-yet.mdx")).toBe(true);
+    expect(insideRootReal(dir, "brand/new/dir/x.mdx")).toBe(true);
+    expect(insideRootReal(dir, "shared/theme.css")).toBe(false);
+    expect(insideRootReal(dir, "shared/new.css")).toBe(false);
+    expect(insideRootReal(dir, "linked.css")).toBe(false);
+    // A symlinked directory is invisible to the listing, so it is never in a
+    // batch's existence record either.
+    expect(listDeckFiles(dir)).toEqual(["slides/a.mdx"]);
   });
 });
 
@@ -56,6 +84,25 @@ describe("snapshot and restore", () => {
     const result = restoreSnapshot(dir, { "../evil.txt": { exists: true, content: "x" } });
     expect(result.restored).toEqual([]);
     expect(existsSync(join(dir, "..", "evil.txt"))).toBe(false);
+  });
+
+  test("snapshot and restore never write or delete through a symlink that leaves the deck", () => {
+    const outside = mkdtempSync(join(tmpdir(), "lst-dev-outside-"));
+    writeFileSync(join(outside, "theme.css"), "ORIGINAL\n");
+    const dir = deck();
+    symlinkSync(outside, join(dir, "shared"), "dir");
+    // Referenced by attribution: not snapshotted, since it is not the deck's.
+    expect(Object.keys(snapshotFiles(dir, ["shared/theme.css", "slides/a.mdx"]))).toEqual(["slides/a.mdx"]);
+    // A record that names it anyway (the link appeared after dispatch) is skipped, not followed.
+    const result = restoreSnapshot(dir, {
+      "shared/theme.css": { exists: false, content: "" },
+      "shared/other.css": { exists: true, content: "x" },
+    });
+    expect(result.restored).toEqual([]);
+    expect(result.failures).toEqual([]);
+    expect(result.skipped.sort()).toEqual(["shared/other.css", "shared/theme.css"]);
+    expect(readFileSync(join(outside, "theme.css"), "utf-8")).toBe("ORIGINAL\n");
+    expect(existsSync(join(outside, "other.css"))).toBe(false);
   });
 });
 

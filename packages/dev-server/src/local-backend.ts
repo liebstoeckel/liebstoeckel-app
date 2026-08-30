@@ -5,6 +5,7 @@ import type { DevBackend } from "./protocol";
 import {
   SKIP_DIRS,
   batchesDispatchedAfter,
+  insideRootReal,
   listCreatedSources,
   listDeckFiles,
   listDeckSources,
@@ -82,8 +83,16 @@ export function createLocalBackend(opts: LocalBackendOptions): DevBackend {
       const record = loadBatchSnapshot(deckDir, batchId);
       if (!record) return;
       const existed = record.existed ? new Set(record.existed) : null;
+      // Called once the agent has replied, so this seals what the batch
+      // created: the reported files plus every source file that appeared
+      // under the deck since dispatch. An agent that gave up mid-batch
+      // replies with an error and lists nothing, and a `done` reply may omit
+      // a file it created; without the sweep an orphan slide file (and its
+      // numeric prefix) would survive the revert. Sealing now, not at revert
+      // time, is what keeps a file the user adds later out of the deletion.
+      const candidates = [...files, ...(record.existed ? listCreatedSources(deckDir, record.existed) : [])];
       let changed = false;
-      for (const file of files) {
+      for (const file of candidates) {
         const rel = withinRoot(deckDir, file);
         if (!rel || rel in record.files) continue;
         // Dependency, VCS, and dev-state dirs are outside the existence record,
@@ -92,8 +101,9 @@ export function createLocalBackend(opts: LocalBackendOptions): DevBackend {
         // Only a file that provably did not exist at dispatch is "created"
         // (revert deletes it). One that existed but was not snapshotted (binary,
         // oversized, or a batch without an existence record) is left alone
-        // rather than destroyed.
-        if (!existed || existed.has(rel)) continue;
+        // rather than destroyed. A path that resolves outside the deck through
+        // a symlink is not the deck's to delete either.
+        if (!existed || existed.has(rel) || !insideRootReal(deckDir, rel)) continue;
         record.files[rel] = { exists: false, content: "" };
         changed = true;
       }
@@ -102,24 +112,10 @@ export function createLocalBackend(opts: LocalBackendOptions): DevBackend {
     restoreSnapshot: (batchId) => {
       const record = loadBatchSnapshot(deckDir, batchId);
       if (!record) return null;
-      const result = restoreSnapshot(deckDir, record.files);
-      // Source files that did not exist at dispatch are the batch's own,
-      // reported or not: an agent that gave up mid-batch replies with an
-      // error and lists nothing, and a `done` reply may omit a file it
-      // created. Leaving those behind would strand an orphan slide file (and
-      // its numeric prefix) beside the restored entry.
-      if (record.existed) {
-        for (const rel of listCreatedSources(deckDir, record.existed)) {
-          if (rel in record.files) continue;
-          try {
-            rmSync(join(deckDir, rel));
-            result.restored.push(rel);
-          } catch (err) {
-            result.failures.push({ file: rel, message: err instanceof Error ? err.message : String(err) });
-          }
-        }
-      }
-      return result;
+      // Only what the record holds: the snapshotted sources and the created
+      // set sealed at the agent's reply. No live sweep, so a file the user
+      // wrote after the batch resolved is never mistaken for the batch's.
+      return restoreSnapshot(deckDir, record.files);
     },
     removeSnapshot: (batchId) => removeBatchSnapshot(deckDir, batchId),
     onStop: opts.onStop,
