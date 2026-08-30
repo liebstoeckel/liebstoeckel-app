@@ -39,3 +39,6 @@ deploy/**/charts/
 
 # local scratch notes, never committed
 docs/private/
+
+# machine-local office defaults (OFFICE_LITERT_LM_COMMAND and the like)
+packages/office/.env
