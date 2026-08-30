@@ -11,7 +11,7 @@ reason: the dev-mode bridge (the shell's sidebar talks to the framed deck throug
 ## Why
 
 Dev mode is a shell page: `liebstoeckel dev` serves the annotation sidebar at
-`/` with the deck framed at `/deck`. Inside that frame, a small inline
+`/` with the deck framed from a per-session token path (`/deck` redirects to it). Inside that frame, a small inline
 `<script data-liebstoeckel-dev>` in the deck's `index.html` loads the bridge
 script that connects the framed deck to the sidebar (annotations, the agent
 live loop). The tag is permanent deck source and safe everywhere: it probes the

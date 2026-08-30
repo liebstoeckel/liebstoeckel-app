@@ -29,7 +29,9 @@ differs.
 The dev-server package is liebstoeckel's authoring-time surface: it serves a deck with
 hot reload and puts a tool sidebar beside it. The first tool is live annotations
 (strokes and positioned comments on a slide, dispatched as a batch to a polling agent,
-with one-click revert); the sidebar also carries the slide list and agent presence.
+with one-click revert); the slide list is the second, where a **+** between rows queues a
+described new slide for the agent to create and register; the sidebar also shows agent
+presence.
 Success looks like: an author never loses their place in the deck, the sidebar never
 steals the stage, a change round-trips (annotate, send, hot reload) in seconds, and the
 component later drops into the dashboard without a redesign.

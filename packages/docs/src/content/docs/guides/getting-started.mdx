@@ -39,6 +39,10 @@ The umbrella CLI scaffolds a workspace-wired deck:
    cd my-talk && bun run dev           # http://localhost:3000 (set PORT to change it)
    ```
 
+   `bun run dev` is the deck's plain hot-reload server. For the annotation
+   sidebar and the agent loop, run [`liebstoeckel dev`](/guides/dev-mode/)
+   instead.
+
    To present a live session for a room instead (LAN by default, or through a
    public relay), use `liebstoeckel live my-talk`. See [Live presenting](/guides/live/).
 

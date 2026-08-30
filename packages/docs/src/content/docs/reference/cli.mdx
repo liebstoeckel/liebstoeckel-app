@@ -264,8 +264,10 @@ Useful for verifying your `"files"` allowlist before shipping. The `-o` tarball 
 ## `dev`
 
 Serve a deck for authoring: hot reload plus the dev shell (a sidebar beside
-the deck; the plain deck alone is at `/deck`), whose first tool is [live annotations](/guides/dev-mode/) an AI agent can apply to
-your slide source while you watch.
+the deck; the plain deck alone is behind `/deck`), whose first tool is [live annotations](/guides/dev-mode/) an AI agent can apply to
+your slide source while you watch. With `--dir`, the server re-executes with
+the deck as its working directory so the deck's own `bunfig.toml` plugins load;
+a port already in use fails with a message naming it.
 
 ```bash
 liebstoeckel dev                     # the deck in the current directory
@@ -545,8 +547,9 @@ A deck that deliberately diverges can opt out per migration in its
 ```
 
 A suppressed migration is never detected, hinted, or patched; `doctor --json`
-still lists it with `suppressed: true` and the reason, and warns about opt-out
-entries that suppress nothing (an empty reason, or an unknown id).
+still lists it with `suppressed: true` and the reason, and warns (as
+`migrationWarnings`) about opt-out entries that suppress nothing (an empty
+reason, or an unknown id).
 
 ## Staying up to date
 

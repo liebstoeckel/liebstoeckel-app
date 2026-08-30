@@ -26,6 +26,9 @@ liebstoeckel add <name>...       # copy registry items (charts, …) into a deck
 liebstoeckel registry list|view  # browse the chart/component registry (--json for agents)
 liebstoeckel build [dir]         # build a deck into one self-contained .html (+ thumbnails)
 liebstoeckel eject <deck.html>   # recover a built deck's editable source
+liebstoeckel dev [--dir <deck>]  # hot reload + the dev-mode sidebar (annotations an agent applies)
+liebstoeckel dev poll            # agent side: wait for an annotation batch, or reply to one
+liebstoeckel doctor [--dir <deck>]   # environment + scaffold-migration check
 liebstoeckel pack [dir]          # inspect or emit the source a build embeds
 liebstoeckel licenses [dir]      # report the third-party licenses bundled into a deck
 liebstoeckel live <deck|dir>     # present live (LAN, or through a --relay)
@@ -38,7 +41,7 @@ liebstoeckel login|push|orgs|decks|brand   # liebstoeckel cloud (coming soon)
 liebstoeckel <deck|dir>          # shorthand for: liebstoeckel live <deck>
 ```
 
-There's no `dev` subcommand. For the hot-reloading dev server, run `bun run dev` inside the deck (the scaffold wires the script), or use `liebstoeckel live`.
+`dev` serves the deck with hot reload beside the annotation sidebar an agent can act on; see the [dev mode guide](https://docs.liebstoeckel.app/guides/dev-mode/). A deck's own `bun run dev` is the plain hot-reload server without the sidebar.
 
 The bin is installed as both `liebstoeckel` and the short alias `lst`. `live`, `relay`, `thumbs`, and `export` hand off to a sibling package; the rest are implemented here. Every command has its own `--help`. The authoritative command and flag reference lives at [docs.liebstoeckel.app/reference/cli](https://docs.liebstoeckel.app/reference/cli/).
 

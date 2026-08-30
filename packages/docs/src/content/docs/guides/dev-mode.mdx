@@ -31,8 +31,11 @@ embed the dev server in your own tooling (it exports `startDevServer`).
    liebstoeckel dev
    ```
 
-   Open the printed URL. The sidebar lists your slides, and the dot in its header shows
-   whether an agent is currently listening. Click a slide to jump to it; the
+   Open the printed URL. The sidebar lists your slides, and its header names what
+   the agent is doing: **agent polling** (waiting for work), **agent working** (it
+   holds a batch), **agent offline** (nobody is listening), or **server stopped,
+   waiting** while the page waits for a restarted `dev` to come back, after which
+   it reloads itself. Click a slide to jump to it; the
    chevron collapses the sidebar to a thin rail so the deck gets the full
    width, and on narrow windows it floats over the deck instead of pushing it.
 
@@ -44,7 +47,8 @@ embed the dev server in your own tooling (it exports `startDevServer`).
    ```
 
 3. In the browser: hit **Draw** or **Comment** in the sidebar, mark up the
-   slide (Escape leaves the mode), **Save**, then **Send to agent**.
+   slide (Escape leaves the mode), **Save** (or **Clear** to drop the marks),
+   then **Send to agent**.
 
 4. The agent receives the batch (comments, strokes, an annotated screenshot,
    and the resolved slide source file), edits the slide, and replies. Hot
@@ -58,11 +62,13 @@ embed the dev server in your own tooling (it exports `startDevServer`).
    is removed, but anything you add after the agent replied is yours and stays),
    and your annotations reopen for another round. If a file cannot be restored
    (locked by an editor, say), nothing is marked reverted; free the file and
-   revert again. If the agent
-   replied with an error instead, the batch stays revertable, so a half-applied
-   attempt can be undone the same way. Reverting an older batch also undoes
-   every batch sent after it (the sources go back to before the older one), so
-   those annotations reopen as well. While a batch is with the agent its
+   revert again. A file that has since become a symlink pointing outside the
+   deck is left alone rather than written through. If the agent replied with an
+   error instead, the batch stays revertable, so a half-applied attempt can be
+   undone the same way. **Revert** always undoes the most recent batch (or the
+   last one the agent failed on); press it again to walk further back. Because
+   the sources go back to before that batch, every batch applied after it is
+   undone too, and those annotations reopen as well. While a batch is with the agent its
    annotations are locked and Send and Revert wait (a restore mid-edit would
    wipe the agent's work, and a new snapshot would capture it half done); all
    come back the moment it replies. Send also waits while a batch is staged
@@ -108,6 +114,8 @@ arrow means direction or movement, a cross means *remove*.
 
 - Dev-mode state lives in `.liebstoeckel/dev/` inside the deck (annotations,
   screenshots, revert snapshots, the session token). It is git-ignored.
+- An annotation you no longer want can be dismissed with the ✕ on its row; one
+  that is currently with the agent is locked until it replies.
 - On start, `dev` applies any pending
   [scaffold migrations](/reference/cli/#scaffold-migrations) for decks created
   under older conventions, one notice per patched file. The first run on an

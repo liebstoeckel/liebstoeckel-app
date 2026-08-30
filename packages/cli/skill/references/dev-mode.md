@@ -13,7 +13,9 @@ directly, and the dev server hot-reloads the page. No build step is involved.
    without the sidebar is at `/deck`). Add `--json` for machine-readable
    startup info.
 2. Poll: `liebstoeckel dev poll` (long-poll, blocks up to 10 minutes, prints
-   one JSON event, exits). Run it again immediately after every event or reply.
+   one JSON event, exits; `--timeout <ms>` changes the wait, `--dir <deck>` when
+   you are not in the deck directory). Run it again immediately after every
+   event or reply.
    - Claude Code: run the poll as a background task; you are notified when it
      returns. Do not block the shell.
    - Other harnesses: run it in the foreground and read its output; never
@@ -54,6 +56,23 @@ open list. On failure: `liebstoeckel dev poll --reply <batchId> error "reason"`.
 A second reply for a batch that is already resolved is refused with
 `batch_already_resolved`; treat that as success, do not retry.
 
+## When a poll or reply fails
+
+Every failure prints one JSON object with `error` and usually a `hint`; follow
+the hint rather than retrying blindly.
+
+- `no_dev_server`: no server is running (or its record is stale after a kill).
+  Tell the user; do not start one unasked.
+- `unauthorized` (a 401): the server restarted and minted a new token. The
+  loop is over until the user restarts it; see Recovery.
+- `forbidden`: the server rejected the request's `Host` header; poll from the
+  machine that runs `dev`, through localhost.
+- `unknown_reply_id`: the batch id is not one this server knows; check the id
+  in the event you received.
+- `applied_id_not_in_batch`, `error_reply_requires_message`,
+  `missing_result_data`, `<key>_must_be_string_array`: your reply was
+  malformed. Correct `--data` (or add the reason) and reply once more.
+
 ## Handling a slide request
 
 An `apply` event may contain entries with `kind: "add-slide"`: the user pressed
@@ -80,5 +99,9 @@ after, `-1` for first) and `slide.index`, the index the new slide takes.
 Delivered events are leased for five minutes: if you crash or never reply,
 the same batch is redelivered on a later poll, and a dev-server restart
 requeues unresolved batches. While you hold a batch the user cannot send or
-revert, so reply as soon as you are done. Reverting is the user's button, not yours; never git-revert dev-mode
-edits on your own initiative.
+revert, so reply as soon as you are done. After an `exit`, do not poll again
+on your own: the token is dead and every request answers 401. When the user
+says the dev server is running again, run `liebstoeckel dev poll` once more; it
+re-reads the server record and any staged batch is redelivered. Reverting is
+the user's button, not yours; never git-revert dev-mode edits on your own
+initiative.
