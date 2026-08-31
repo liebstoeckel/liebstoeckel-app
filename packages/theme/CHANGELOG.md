@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app/compare/theme-v0.3.3...theme-v0.3.4) (2026-08-31)
+
+
+### Bug Fixes
+
+* **theme:** acme and sunset use bundled font families ([0dc855d](https://github.com/liebstoeckel/liebstoeckel-app/commit/0dc855d5e91d8622ff0641715967ed5b9524cb89))
+
 ## [0.3.3](https://github.com/liebstoeckel/liebstoeckel-app/compare/theme-v0.3.2...theme-v0.3.3) (2026-06-09)
 
 

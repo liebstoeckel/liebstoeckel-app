@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app/compare/components-v0.3.3...components-v0.3.4) (2026-08-31)
+
+
+### Features
+
+* **deck-spec,control-core:** brands, custom themes, and the full font catalog over MCP ([cb754f2](https://github.com/liebstoeckel/liebstoeckel-app/commit/cb754f23d98db10818c93610c19668b63c890af5))
+* **deck-spec:** slide layout components + validated JSON spec pipeline ([2fdaf5c](https://github.com/liebstoeckel/liebstoeckel-app/commit/2fdaf5c17c0e0c4d0d7df0319a7d1555473f4f24))
+* **engine,components:** deck-level backdrop slot; Atmosphere goes static and compositor-only ([63a9985](https://github.com/liebstoeckel/liebstoeckel-app/commit/63a99854fc37ba369a04cd9b5b3cace315dc9f38))
+* **registry,components:** deterministic overflow hardening for charts and layouts ([57a4940](https://github.com/liebstoeckel/liebstoeckel-app/commit/57a49403885fefd91028ac8f994c6c86ba637b51))
+
+
+### Bug Fixes
+
+* **components:** BulletsSlide flows many short bullets into two columns ([8fa14c4](https://github.com/liebstoeckel/liebstoeckel-app/commit/8fa14c4b575936ab3b3674ca3f5a37128e393cac))
+
 ## [0.3.3](https://github.com/liebstoeckel/liebstoeckel-app/compare/components-v0.3.2...components-v0.3.3) (2026-06-09)
 
 

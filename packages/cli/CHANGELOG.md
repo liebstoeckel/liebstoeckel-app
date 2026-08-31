@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.3.11](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.10...cli-v0.3.11) (2026-08-31)
+
+
+### Features
+
+* **cli:** liebstoeckel update command, skill self-heal, doctor staleness ([305e523](https://github.com/liebstoeckel/liebstoeckel-app/commit/305e523244b22f7b1319f46d1778920b4ebfaa2e))
+* **cli:** scaffold-migration registry with doctor surface and dev auto-patch ([1d182be](https://github.com/liebstoeckel/liebstoeckel-app/commit/1d182be76937a38e72c88e7b80ae0e80688932f5))
+* **cli:** update warns when scope packages resolve to multiple versions ([e3cb4ce](https://github.com/liebstoeckel/liebstoeckel-app/commit/e3cb4ce6500b1b802585893b2c6319752d180c43))
+* **dev-mode:** add-slide requests from the sidebar's slide list ([5fcec49](https://github.com/liebstoeckel/liebstoeckel-app/commit/5fcec49c508c6a3d35376a5486fb8ce7e4c02493))
+* **dev-mode:** shell at /, plain deck at /deck ([4fa5934](https://github.com/liebstoeckel/liebstoeckel-app/commit/4fa59341cba73b03766cb975417c30eb7f05d46b))
+* **dev-mode:** shell page with the sidebar beside the deck frame, postMessage bridge, stage-relative coordinates ([6c8e8da](https://github.com/liebstoeckel/liebstoeckel-app/commit/6c8e8da5cf70e5f71f012c37ede9c6275e6d4891))
+* **dev-server:** local dev mode with annotation drawer and agent poll loop ([b8fabac](https://github.com/liebstoeckel/liebstoeckel-app/commit/b8fabac25a8bbd5975a28d5af60f49237cfa643e))
+* **dev-server:** publish dev mode with the CLI ([6501103](https://github.com/liebstoeckel/liebstoeckel-app/commit/6501103c8216a22bf7fef044049105c0c348e66b))
+* **dev:** slide edits keep deck state across hot reloads ([8070875](https://github.com/liebstoeckel/liebstoeckel-app/commit/8070875a89e273d7d02a45b405c92f30b31c7733))
+* **skill:** route agents to dev mode from the deck skill ([c7020b8](https://github.com/liebstoeckel/liebstoeckel-app/commit/c7020b87e471feecf92c2f42a6e401f02fdbff92))
+
+
+### Bug Fixes
+
+* **cli:** update bypasses bun's manifest cache (--no-cache) ([f4b3b12](https://github.com/liebstoeckel/liebstoeckel-app/commit/f4b3b1244c548ff13de20fa1ba7735cc6fdaf1ab))
+* **cli:** update covers the CLI's own install root and really refreshes the skill ([a63cebf](https://github.com/liebstoeckel/liebstoeckel-app/commit/a63cebffce885ed344fbe3db341f2c1215dac018))
+* **dev-mode:** pre-merge review fixes across protocol, sidebar, migrations, and release wiring ([f2e187a](https://github.com/liebstoeckel/liebstoeckel-app/commit/f2e187aae3181d1dd3a3af3365cdc7ea31ac2462))
+* **dev-mode:** the shell reloads itself after a server restart, leases last five minutes, presence outlives a reply ([e424ace](https://github.com/liebstoeckel/liebstoeckel-app/commit/e424ace028bff346edc453edbd7d6ce4da2c970b))
+* **dev-mode:** whole-tree revert snapshots, request index chain, migration and loader hardening ([2124565](https://github.com/liebstoeckel/liebstoeckel-app/commit/2124565c069920744d370e01a1b55bbc2ca93f8e))
+* **thumbnails:** make Chrome work on Windows (raw-CDP transport + detection hardening) ([e055e23](https://github.com/liebstoeckel/liebstoeckel-app/commit/e055e2375ff17e9028de438dda117d7ee5a23a67))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/dev-server bumped to 0.3.1
+    * @liebstoeckel/engine bumped to 0.3.9
+    * @liebstoeckel/live-server bumped to 0.3.9
+    * @liebstoeckel/present-relay bumped to 0.3.9
+    * @liebstoeckel/registry bumped to 0.3.5
+    * @liebstoeckel/theme bumped to 0.3.4
+    * @liebstoeckel/thumbnails bumped to 0.3.9
+
 ## [0.3.10](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.9...cli-v0.3.10) (2026-07-26)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/theme",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Design tokens and the Tailwind v4 theme that style liebstoeckel decks.",
   "keywords": [
     "liebstoeckel",
@@ -25,7 +25,11 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["src", "!**/.impeccable", "LICENSE"],
+  "files": [
+    "src",
+    "!**/.impeccable",
+    "LICENSE"
+  ],
   "engines": {
     "bun": ">=1.3"
   },

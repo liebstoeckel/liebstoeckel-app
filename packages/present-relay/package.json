@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/present-relay",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "WAN relay for liebstoeckel live mode, reaching remote audiences without exposing your laptop.",
   "keywords": [
     "liebstoeckel",
@@ -26,7 +26,13 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["src", "!src/**/*.test.ts", "!src/**/*.test.tsx", "!**/.impeccable", "LICENSE"],
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "!**/.impeccable",
+    "LICENSE"
+  ],
   "engines": {
     "bun": ">=1.3"
   },

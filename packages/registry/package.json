@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/registry",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "The default registry of charts and building blocks for liebstoeckel decks.",
   "keywords": [
     "liebstoeckel",
@@ -25,7 +25,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["src", "!src/**/*.test.ts", "!src/**/*.test.tsx", "registry.json", "items", "files", "!**/.impeccable", "LICENSE"],
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "registry.json",
+    "items",
+    "files",
+    "!**/.impeccable",
+    "LICENSE"
+  ],
   "engines": {
     "bun": ">=1.3"
   },

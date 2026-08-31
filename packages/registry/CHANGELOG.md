@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.5](https://github.com/liebstoeckel/liebstoeckel-app/compare/registry-v0.3.4...registry-v0.3.5) (2026-08-31)
+
+
+### Features
+
+* **deck-spec,control-core:** brands, custom themes, and the full font catalog over MCP ([cb754f2](https://github.com/liebstoeckel/liebstoeckel-app/commit/cb754f23d98db10818c93610c19668b63c890af5))
+* **registry,components:** deterministic overflow hardening for charts and layouts ([57a4940](https://github.com/liebstoeckel/liebstoeckel-app/commit/57a49403885fefd91028ac8f994c6c86ba637b51))
+
 ## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app/compare/registry-v0.3.3...registry-v0.3.4) (2026-06-22)
 
 

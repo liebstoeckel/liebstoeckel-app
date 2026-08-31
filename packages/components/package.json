@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/components",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Shared React slide primitives for liebstoeckel decks: MDX element mapping, magic-move, and the brand atmosphere.",
   "keywords": [
     "liebstoeckel",
@@ -25,7 +25,11 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["src", "!**/.impeccable", "LICENSE"],
+  "files": [
+    "src",
+    "!**/.impeccable",
+    "LICENSE"
+  ],
   "engines": {
     "bun": ">=1.3"
   },

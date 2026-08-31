@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.9](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.8...thumbnails-v0.3.9) (2026-08-31)
+
+
+### Bug Fixes
+
+* **thumbnails:** keep the GPU thread out of the browser process ([cf74716](https://github.com/liebstoeckel/liebstoeckel-app/commit/cf7471616c48d909d80256a4c948c49a43827d32))
+* **thumbnails:** keep the single-process flags off the raw-CDP transport ([cf8741b](https://github.com/liebstoeckel/liebstoeckel-app/commit/cf8741b96ec9590f5a46ad82f3a76d81f1d37655))
+* **thumbnails:** make Chrome work on Windows (raw-CDP transport + detection hardening) ([e055e23](https://github.com/liebstoeckel/liebstoeckel-app/commit/e055e2375ff17e9028de438dda117d7ee5a23a67))
+* **thumbnails:** reject CDP sends once the socket has closed ([c6d19ac](https://github.com/liebstoeckel/liebstoeckel-app/commit/c6d19acdfaadd8a3b8fd2394b9272c0b5130330b))
+* **thumbnails:** replace --single-process with a supported low-process launch; add LIEBSTOECKEL_CHROMIUM_ARGS ([5b31d83](https://github.com/liebstoeckel/liebstoeckel-app/commit/5b31d838f816e4056f1685a4fb67f9b656fe9bd2))
+* **thumbnails:** settle frames on fonts and finite animations before capture ([f789212](https://github.com/liebstoeckel/liebstoeckel-app/commit/f7892123e6a84835ae1bf16fd74ec6871689a767))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.3.9
+
 ## [0.3.8](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.7...thumbnails-v0.3.8) (2026-07-26)
 
 

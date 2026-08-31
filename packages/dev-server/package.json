@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/dev-server",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "description": "Local dev mode for liebstoeckel decks: HMR serving plus a shell page with an annotation sidebar beside the framed deck, and an agent poll loop.",
   "keywords": [
     "liebstoeckel",
@@ -25,7 +25,17 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["src", "drawer", "ui", "!stories", "!**/*.test.ts", "!**/*.test.tsx", "!ui/fixtures.ts", "!**/.impeccable", "LICENSE"],
+  "files": [
+    "src",
+    "drawer",
+    "ui",
+    "!stories",
+    "!**/*.test.ts",
+    "!**/*.test.tsx",
+    "!ui/fixtures.ts",
+    "!**/.impeccable",
+    "LICENSE"
+  ],
   "engines": {
     "bun": ">=1.3"
   },

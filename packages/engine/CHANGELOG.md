@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.9](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.8...engine-v0.3.9) (2026-08-31)
+
+
+### Features
+
+* **dev-mode:** shell page with the sidebar beside the deck frame, postMessage bridge, stage-relative coordinates ([6c8e8da](https://github.com/liebstoeckel/liebstoeckel-app/commit/6c8e8da5cf70e5f71f012c37ede9c6275e6d4891))
+* **dev-server:** local dev mode with annotation drawer and agent poll loop ([b8fabac](https://github.com/liebstoeckel/liebstoeckel-app/commit/b8fabac25a8bbd5975a28d5af60f49237cfa643e))
+* **engine,components:** deck-level backdrop slot; Atmosphere goes static and compositor-only ([63a9985](https://github.com/liebstoeckel/liebstoeckel-app/commit/63a99854fc37ba369a04cd9b5b3cace315dc9f38))
+
+
+### Bug Fixes
+
+* **dev-mode:** whole-tree revert snapshots, request index chain, migration and loader hardening ([2124565](https://github.com/liebstoeckel/liebstoeckel-app/commit/2124565c069920744d370e01a1b55bbc2ca93f8e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/components bumped to 0.3.4
+    * @liebstoeckel/theme bumped to 0.3.4
+
 ## [0.3.8](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.7...engine-v0.3.8) (2026-07-26)
 
 
