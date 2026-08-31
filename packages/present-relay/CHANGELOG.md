@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.10](https://github.com/liebstoeckel/liebstoeckel-app/compare/present-relay-v0.3.9...present-relay-v0.3.10) (2026-08-31)
+
+
+### Bug Fixes
+
+* **cli:** await the CLI entrypoints instead of floating them ([1e45993](https://github.com/liebstoeckel/liebstoeckel-app/commit/1e45993005436c6efcf68f3b2200d5fb9eefdeb1))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/live-server bumped to 0.3.10
+
 ## [0.3.9](https://github.com/liebstoeckel/liebstoeckel-app/compare/present-relay-v0.3.8...present-relay-v0.3.9) (2026-08-31)
 
 

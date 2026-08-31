@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.2](https://github.com/liebstoeckel/liebstoeckel-app/compare/dev-server-v0.3.1...dev-server-v0.3.2) (2026-08-31)
+
+
+### Bug Fixes
+
+* **cli:** await the CLI entrypoints instead of floating them ([1e45993](https://github.com/liebstoeckel/liebstoeckel-app/commit/1e45993005436c6efcf68f3b2200d5fb9eefdeb1))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * peerDependencies
+    * @liebstoeckel/cli bumped to 0.3.12
+
 ## [0.3.1](https://github.com/liebstoeckel/liebstoeckel-app/compare/dev-server-v0.1.0...dev-server-v0.3.1) (2026-08-31)
 
 

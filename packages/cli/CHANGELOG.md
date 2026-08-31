@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.12](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.11...cli-v0.3.12) (2026-08-31)
+
+
+### Bug Fixes
+
+* **cli:** await the CLI entrypoints instead of floating them ([1e45993](https://github.com/liebstoeckel/liebstoeckel-app/commit/1e45993005436c6efcf68f3b2200d5fb9eefdeb1))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/dev-server bumped to 0.3.2
+    * @liebstoeckel/engine bumped to 0.3.10
+    * @liebstoeckel/live-server bumped to 0.3.10
+    * @liebstoeckel/present-relay bumped to 0.3.10
+    * @liebstoeckel/thumbnails bumped to 0.3.10
+
 ## [0.3.11](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.10...cli-v0.3.11) (2026-08-31)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.10](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.9...engine-v0.3.10) (2026-08-31)
+
+
+### Bug Fixes
+
+* **engine:** tokenize with shiki's JavaScript regex engine ([1490f99](https://github.com/liebstoeckel/liebstoeckel-app/commit/1490f99a1706a1472c2f93f9ebcf3dd7cba5167f))
+
 ## [0.3.9](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.8...engine-v0.3.9) (2026-08-31)
 
 
