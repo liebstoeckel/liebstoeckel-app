@@ -1,4 +1,15 @@
 import { mkdir } from "node:fs/promises";
+
+/** mkdir -p that tolerates the target already existing. Bun on Windows throws
+ *  EEXIST from mkdir(".", { recursive: true }) where recursive should make it a
+ *  no-op, and "." is exactly what dirname() yields for a bare output filename. */
+async function ensureDir(dir: string): Promise<void> {
+  try {
+    await mkdir(dir, { recursive: true });
+  } catch (err) {
+    if ((err as { code?: string } | null)?.code !== "EEXIST") throw err;
+  }
+}
 import { dirname, join } from "node:path";
 import { printDeckPdf, renderDeckSlides, type RenderDriveOptions } from "./capture";
 
@@ -206,7 +217,7 @@ export async function exportDeck(html: string, opts: ExportOptions): Promise<Exp
       selectIndices,
     });
     const outFile = opts.outFile ?? `${base}.pdf`;
-    await mkdir(dirname(outFile), { recursive: true });
+    await ensureDir(dirname(outFile));
     await Bun.write(outFile, pdf);
     return { written: [outFile], pages, count };
   }
@@ -232,7 +243,7 @@ export async function exportDeck(html: string, opts: ExportOptions): Promise<Exp
 
   if (!isPdf) {
     const outDir = opts.outDir ?? ".";
-    await mkdir(outDir, { recursive: true });
+    await ensureDir(outDir);
     for (const f of frames) {
       const file = join(outDir, `${base}-slide-${String(f.index + 1).padStart(padW, "0")}.png`);
       await Bun.write(file, f.bytes);
@@ -249,7 +260,7 @@ export async function exportDeck(html: string, opts: ExportOptions): Promise<Exp
     pageH,
   );
   const outFile = opts.outFile ?? `${base}.pdf`;
-  await mkdir(dirname(outFile), { recursive: true });
+  await ensureDir(dirname(outFile));
   await Bun.write(outFile, pdf);
   written.push(outFile);
   return { written, pages: frames.length, count: drive.count };
