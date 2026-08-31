@@ -209,6 +209,10 @@ export const devCommand = defineCommand({
   },
 });
 
+// Top-level await, never a floating `void runMain()`: on Bun 1.4.0 for Windows a
+// rejecting Bun.file() read inside an un-awaited promise drops the event loop's
+// last reference, so the process exits 0 mid-command with no output at all.
+// Awaiting here keeps module evaluation (and the process) alive for the whole run.
 if (import.meta.main) {
-  runMain(devCommand);
+  await runMain(devCommand);
 }
