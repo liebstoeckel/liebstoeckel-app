@@ -9,6 +9,7 @@ import {
   type Highlighter,
   type SpecialLanguage,
 } from "shiki";
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import type { CodeToken, TokenizedStep } from "./types";
 
 const THEME = createCssVariablesTheme({ name: "brand", variablePrefix: "--shiki-", fontStyle: true });
@@ -34,7 +35,17 @@ const LANGS = [
 
 let hl: Promise<Highlighter> | null = null;
 function highlighter(): Promise<Highlighter> {
-  if (!hl) hl = createHighlighter({ themes: [THEME], langs: LANGS as unknown as string[] });
+  // The JavaScript regex engine instead of the default oniguruma WASM one: the
+  // macro runs inside the bundler, where awaiting off-thread work such as
+  // WebAssembly.compile can deadlock the build (the bundler blocks on the macro
+  // promise while the completion needs the loop to tick). Pure-JS regexes have
+  // nothing off-thread to await, and drop the WASM payload from build time.
+  if (!hl)
+    hl = createHighlighter({
+      themes: [THEME],
+      langs: LANGS as unknown as string[],
+      engine: createJavaScriptRegexEngine(),
+    });
   return hl;
 }
 
