@@ -250,7 +250,6 @@
       "dependencies": {
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
         "@fontsource-variable/schibsted-grotesk": "^5.2.8",
-        "@liebstoeckel/cli": "workspace:^",
         "citty": "^0.2.2",
         "modern-screenshot": "^4.6.5",
       },
@@ -261,6 +260,7 @@
         "react-dom": "19.2.7",
       },
       "peerDependencies": {
+        "@liebstoeckel/cli": "workspace:^",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
       },
