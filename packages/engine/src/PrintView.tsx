@@ -148,30 +148,44 @@ html, body { height: auto !important; min-height: 0 !important; overflow: visibl
                   breakAfter: n < chosen.length - 1 ? "page" : "auto",
                 }}
               >
-                {/* the canvas, scaled with a CSS transform (text stays vector under
-                    page.pdf) and centered inside the paper's printable area */}
+                {/* The canvas, fitted inside the paper's printable area and centered.
+                    Scaled with CSS `zoom`, deliberately not a transform: zoom is a
+                    layout-time scale, so the page box really is `scale x 1280x720`
+                    wide and its overflow clip holds. Under a transform Chromium's
+                    print pass ignored the clip, saw the backdrop blooms poking past
+                    the page, and shrank every page to fit them (visibly off-center
+                    on portrait paper), and Motion's layout projection lost track of
+                    CodeMagic/Magic content. Text stays vector either way. */}
                 <div
-                  data-print-slide
-                  className="bg-bg"
                   style={{
                     position: "absolute",
                     left: fit.x,
                     top: fit.y,
-                    width: STAGE_W,
-                    height: STAGE_H,
+                    width: STAGE_W * fit.scale,
+                    height: STAGE_H * fit.scale,
                     overflow: "hidden",
-                    transform: fit.scale === 1 ? undefined : `scale(${fit.scale})`,
-                    transformOrigin: "top left",
                   }}
                 >
-                  <PersistentProvider>
-                    <Backdrop still />
-                    <SlideFrame>
-                      <StepsProvider step={ALL_STEPS} slideIndex={idx}>
-                        <Current />
-                      </StepsProvider>
-                    </SlideFrame>
-                  </PersistentProvider>
+                  <div
+                    data-print-slide
+                    className="bg-bg"
+                    style={{
+                      position: "relative",
+                      width: STAGE_W,
+                      height: STAGE_H,
+                      overflow: "hidden",
+                      zoom: fit.scale,
+                    }}
+                  >
+                    <PersistentProvider>
+                      <Backdrop still />
+                      <SlideFrame>
+                        <StepsProvider step={ALL_STEPS} slideIndex={idx}>
+                          <Current />
+                        </StepsProvider>
+                      </SlideFrame>
+                    </PersistentProvider>
+                  </div>
                 </div>
               </div>
             );
