@@ -111,6 +111,7 @@ is your correctness signal.
    ```bash
    liebstoeckel build ./presentations/<name>                 # → dist/<name>.html
    liebstoeckel export ./presentations/<name> --format pdf -o deck.pdf
+   liebstoeckel export ./presentations/<name> --page-size a4 -o handout.pdf   # printable: slide fitted on A4
    ```
    Report the output path.
 

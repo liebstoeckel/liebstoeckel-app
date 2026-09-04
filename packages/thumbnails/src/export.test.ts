@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { inflateSync } from "node:zlib";
 import { parseSlideRange, pdfFromJpegPages, exportDeck } from "./export";
 import { printDeckPdf, resolveChromium } from "./capture";
+import { resolveExportPage } from "./page-size";
 
 describe("parseSlideRange (pure, 1-based → 0-based)", () => {
   test("empty / undefined means every slide", () => {
@@ -83,6 +84,22 @@ describe("pdfFromJpegPages (pure, dependency-free)", () => {
     expect(s).toContain("\xff\xd8\xff\xd9");
   });
 
+  test("full-bleed content stream is unchanged when no rect is given", () => {
+    const s = dec.decode(pdfFromJpegPages([{ jpeg, w: 16, h: 9 }], 1280, 720));
+    expect(s).toContain("q 1280 0 0 720 0 0 cm /Im0 Do Q");
+  });
+
+  test("a rect places the image on a page-sized MediaBox, y flipped to PDF's bottom-left origin", () => {
+    // A4 landscape in points with a 16:9 image fitted inside a 28.35pt (10mm) margin
+    const pageW = 841.89;
+    const pageH = 595.28;
+    const rect = { x: 28.35, y: 74.15, w: 785.19, h: 441.67 };
+    const s = dec.decode(pdfFromJpegPages([{ jpeg, w: 16, h: 9, rect }], pageW, pageH));
+    expect(s).toContain("/MediaBox [0 0 841.89 595.28]");
+    // y_pdf = pageH - y - h
+    expect(s).toContain("q 785.19 0 0 441.67 28.35 79.46 cm /Im0 Do Q");
+  });
+
   test("xref offsets point at real object headers", () => {
     const pdf = pdfFromJpegPages([{ jpeg, w: 10, h: 10 }], 10, 10);
     const s = dec.decode(pdf);
@@ -149,6 +166,18 @@ describe.skipIf(!hasChromium)("exportDeck (headless)", () => {
     const s = new TextDecoder("latin1").decode(new Uint8Array(await Bun.file(out).arrayBuffer()));
     expect(s.startsWith("%PDF-1.4")).toBe(true);
     expect(s).toContain("/Count 2");
+  }, 60_000);
+
+  test("raster PDF on a paper page: physical A4 MediaBox in points, image fitted inside the margin", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lst-pdf-a4-"));
+    const out = join(dir, "demo.pdf");
+    const page = resolveExportPage({ pageSize: "a4", format: "pdf" }).page!;
+    const r = await exportDeck(STUB, { format: "pdf", pdfMode: "raster", outFile: out, baseName: "demo", slides: "1", scale: 1, settleMs: 0, page });
+    expect(r.pages).toBe(1);
+    const s = new TextDecoder("latin1").decode(new Uint8Array(await Bun.file(out).arrayBuffer()));
+    expect(s).toContain("/MediaBox [0 0 841.89 595.28]");
+    // fitted: full printable width (841.89 - 2*28.35 = 785.19), 16:9 tall, centered
+    expect(s).toContain("q 785.2 0 0 441.67 28.35 76.8 cm /Im0 Do Q");
   }, 60_000);
 });
 

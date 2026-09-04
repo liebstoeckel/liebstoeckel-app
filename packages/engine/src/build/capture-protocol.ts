@@ -32,6 +32,16 @@ export interface PrintFlag {
   /** 0-based slides to lay out (default: every slide). The driver usually leaves
    *  this empty and selects via PRINT_SELECT_EVENT once SLIDE_COUNT is known. */
   indices?: number[];
+  /** Paper page in CSS px (width, height, and the margin the slide keeps clear).
+   *  When set, each slide is fitted and centered on a white page of this size
+   *  instead of the page being the 1280x720 canvas itself. */
+  page?: PrintPage;
+}
+
+export interface PrintPage {
+  width: number;
+  height: number;
+  margin: number;
 }
 
 /** The payload of a PRINT_SELECT_EVENT: which slides to render, plus a token the

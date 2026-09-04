@@ -19,6 +19,19 @@ export {
 } from "./capture";
 export type { DriverBrowser, DriverPage } from "./cdp";
 export {
+  DEFAULT_PAPER_MARGIN,
+  PAGE_SIZE_PRESETS,
+  fitRect,
+  parseLength,
+  parsePageSize,
+  resolveExportPage,
+  type ExportPage,
+  type ExportPageArgs,
+  type FitRect,
+  type Orientation,
+  type PageBox,
+} from "./page-size";
+export {
   exportDeck,
   parseSlideRange,
   pdfFromJpegPages,

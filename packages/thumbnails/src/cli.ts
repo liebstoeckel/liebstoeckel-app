@@ -3,8 +3,8 @@ import { defineCommand, runMain } from "citty";
 import { basename, join, resolve } from "node:path";
 import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { addThumbnailsToFile, exportDeck } from "./index";
-import type { ExportFormat, ThumbnailFormat } from "./index";
+import { DEFAULT_PAPER_MARGIN, addThumbnailsToFile, exportDeck, resolveExportPage } from "./index";
+import type { ExportFormat, ExportPage, ThumbnailFormat } from "./index";
 
 /** Parse a numeric flag value; undefined when absent or non-numeric (mirrors the
  *  previous CLI's lenient handling). */
@@ -145,6 +145,13 @@ export const exportCommand = defineCommand({
     width: { type: "string", description: "render width in px", valueHint: "1280" },
     quality: { type: "string", description: "image quality", valueHint: "92" },
     raster: { type: "boolean", description: "PDF: rasterize pages instead of vector (selectable) text" },
+    "page-size": {
+      type: "string",
+      description: "PDF: paper page, slide (default, the 16:9 canvas), a3|a4|a5|letter|legal, or <w>x<h><mm|in> like 210x297mm",
+      valueHint: "a4",
+    },
+    orientation: { type: "string", description: "PDF: paper orientation (default landscape)", valueHint: "landscape|portrait" },
+    margin: { type: "string", description: `PDF: paper margin on every side (default ${DEFAULT_PAPER_MARGIN})`, valueHint: "10mm" },
   },
   async run({ args }) {
     // Deck targeting ((internal ADR)): a leading positional, else --dir, else cwd.
@@ -160,11 +167,26 @@ export const exportCommand = defineCommand({
       );
     }
     const slides = args.slides;
-    const width = num(args.width) ?? 1280;
     const scale = num(args.scale);
     const quality = num(args.quality);
     // PDF text mode: vector (selectable text) by default; --raster forces image pages.
     const pdfMode: "vector" | "raster" = args.raster ? "raster" : "vector";
+    // Paper page (A4/Letter/...): the slide is fitted onto it; exclusive with --width.
+    let page: ExportPage;
+    try {
+      page = resolveExportPage({
+        pageSize: args["page-size"],
+        orientation: args.orientation,
+        margin: args.margin,
+        width: num(args.width),
+        format,
+      });
+    } catch (e) {
+      console.error(`✕ ${(e as Error).message}`);
+      process.exit(1);
+      return;
+    }
+    const width = page.page ? undefined : (num(args.width) ?? 1280);
 
     let html: string;
     let base: string;
@@ -176,7 +198,7 @@ export const exportCommand = defineCommand({
       return;
     }
 
-    const label = format === "pdf" ? `PDF (${pdfMode})` : "PNG";
+    const label = format === "pdf" ? `PDF (${pdfMode}${page.label ? `, ${page.label}` : ""})` : "PNG";
     process.stderr.write(`▶  exporting ${base} → ${label}\n`);
     try {
       const { written, pages, count } = await exportDeck(html, {
@@ -186,6 +208,7 @@ export const exportCommand = defineCommand({
         scale,
         quality,
         pdfMode,
+        page: page.page,
         baseName: base,
         outDir: format === "png" ? out : undefined,
         outFile: format === "pdf" ? out : undefined,

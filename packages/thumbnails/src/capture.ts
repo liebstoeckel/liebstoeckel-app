@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright-core";
 import { launchCdpBrowser, type DriverBrowser, type DriverPage } from "./cdp";
+import type { PageBox } from "./page-size";
 import {
   CAPTURE_EVENT,
   CAPTURE_FLAG,
@@ -467,6 +468,10 @@ export interface PrintDriveOptions {
   pageWidth?: number;
   /** logical page height in CSS px (default 16:9 of pageWidth). */
   pageHeight?: number;
+  /** Paper page (A4, Letter, ...) in CSS px with the margin the slide keeps
+   *  clear: the slide is fitted and centered on a white page of this size.
+   *  Takes precedence over pageWidth/pageHeight. Omit for canvas-sized pages. */
+  page?: PageBox;
   /** explicit Chromium/Chrome binary; else $LIEBSTOECKEL_CHROMIUM, else Playwright's */
   executablePath?: string;
   /** override the launch flags (defaults are container-friendly) */
@@ -496,17 +501,17 @@ export interface PrintDriveResult {
  * keeps the deck's *screen* styles (not print CSS). **Loud**, throws if no Chromium.
  */
 export async function printDeckPdf(html: string, opts: PrintDriveOptions = {}): Promise<PrintDriveResult> {
-  const pageWidth = opts.pageWidth ?? 1280;
-  const pageHeight = opts.pageHeight ?? Math.round((pageWidth * 9) / 16);
+  const pageWidth = opts.page?.width ?? opts.pageWidth ?? 1280;
+  const pageHeight = opts.page?.height ?? opts.pageHeight ?? Math.round((pageWidth * 9) / 16);
   const settleMs = opts.settleMs ?? 700;
   const timeout = opts.timeoutMs ?? 30000;
 
   const browser = await launchDriverBrowser(opts);
   try {
-    const page = await browser.newPage({ width: pageWidth, height: pageHeight });
+    const page = await browser.newPage({ width: Math.ceil(pageWidth), height: Math.ceil(pageHeight) });
     // print with the deck's screen styling, not print-media CSS
     await page.emulateScreenMedia();
-    await page.setContent(injectFlag(html, PRINT_FLAG, {}), timeout);
+    await page.setContent(injectFlag(html, PRINT_FLAG, opts.page ? { page: opts.page } : {}), timeout);
     try {
       await page.waitForFunction((key) => (window as unknown as Record<string, unknown>)[key as string] != null, SLIDE_COUNT, timeout);
     } catch {

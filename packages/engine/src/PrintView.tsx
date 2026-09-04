@@ -56,7 +56,21 @@ export function PrintView({ slides, brands = ["default"], plugins = [] }: DeckPr
   // The slides to lay out, and the token to echo once they've painted. The driver
   // sends a PRINT_SELECT once it knows the count; until then, honor a flag-supplied
   // list (or all slides) so a standalone print also works.
-  const initial = useMemo(() => printRequest()?.indices, []);
+  const request = useMemo(() => printRequest(), []);
+  const initial = request?.indices;
+  // Paper page (PDF export onto A4/Letter/...): the slide is fitted and centered
+  // on a white page. Without it the page is the canvas itself. The box the DOM
+  // fills is floored so a sub-pixel overhang never spills onto a blank extra page.
+  const paper = request?.page;
+  const pageW = paper ? Math.floor(paper.width) : STAGE_W;
+  const pageH = paper ? Math.floor(paper.height) : STAGE_H;
+  const fit = useMemo(() => {
+    if (!paper) return { x: 0, y: 0, scale: 1 };
+    const availW = Math.max(0, pageW - 2 * paper.margin);
+    const availH = Math.max(0, pageH - 2 * paper.margin);
+    const scale = Math.min(availW / STAGE_W, availH / STAGE_H);
+    return { x: (pageW - STAGE_W * scale) / 2, y: (pageH - STAGE_H * scale) / 2, scale };
+  }, [paper, pageW, pageH]);
   const [sel, setSel] = useState<PrintSelect>(() => ({
     indices: initial && initial.length ? initial : norm.map((_, i) => i),
     token: 0,
@@ -110,7 +124,7 @@ export function PrintView({ slides, brands = ["default"], plugins = [] }: DeckPr
       <MDXProvider components={mdxComponents}>
         {/* one page per slide; exact-size, clipped, page-broken. white page gutter
             never shows because each block fills the page (margin:0 in page.pdf). */}
-        <style>{`@page { size: ${STAGE_W}px ${STAGE_H}px; margin: 0 }
+        <style>{`@page { size: ${paper ? paper.width : STAGE_W}px ${paper ? paper.height : STAGE_H}px; margin: 0 }
 /* The deck is fullscreen (theme sets html,body{height:100%;overflow:hidden}). For
    print we must let the document GROW so the stacked slides paginate, otherwise it
    clips to one viewport and only slide 1 prints. */
@@ -124,23 +138,41 @@ html, body { height: auto !important; min-height: 0 !important; overflow: visibl
               <div
                 key={idx}
                 data-print-page
-                className="bg-bg"
+                className={paper ? undefined : "bg-bg"}
                 style={{
                   position: "relative",
-                  width: STAGE_W,
-                  height: STAGE_H,
+                  width: pageW,
+                  height: pageH,
                   overflow: "hidden",
+                  background: paper ? "#fff" : undefined,
                   breakAfter: n < chosen.length - 1 ? "page" : "auto",
                 }}
               >
-                <PersistentProvider>
-                  <Backdrop still />
-                  <SlideFrame>
-                    <StepsProvider step={ALL_STEPS} slideIndex={idx}>
-                      <Current />
-                    </StepsProvider>
-                  </SlideFrame>
-                </PersistentProvider>
+                {/* the canvas, scaled with a CSS transform (text stays vector under
+                    page.pdf) and centered inside the paper's printable area */}
+                <div
+                  data-print-slide
+                  className="bg-bg"
+                  style={{
+                    position: "absolute",
+                    left: fit.x,
+                    top: fit.y,
+                    width: STAGE_W,
+                    height: STAGE_H,
+                    overflow: "hidden",
+                    transform: fit.scale === 1 ? undefined : `scale(${fit.scale})`,
+                    transformOrigin: "top left",
+                  }}
+                >
+                  <PersistentProvider>
+                    <Backdrop still />
+                    <SlideFrame>
+                      <StepsProvider step={ALL_STEPS} slideIndex={idx}>
+                        <Current />
+                      </StepsProvider>
+                    </SlideFrame>
+                  </PersistentProvider>
+                </div>
               </div>
             );
           })}

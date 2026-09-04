@@ -380,6 +380,9 @@ liebstoeckel export [deck.html|deck-dir|--dir <deck>] [opts]
 | `--scale <n>` | device-scale factor for PNG / raster PDF (default `2` → 2560×1440) |
 | `--raster` | PDF only: image-per-page instead of the default vector PDF |
 | `--quality <n>` | JPEG quality for the raster PDF (default `92`) |
+| `--page-size <size>` | PDF only: the paper. `slide` (default, the page *is* the 16:9 canvas), `a3`, `a4`, `a5`, `letter`, `legal`, or an explicit `<w>x<h>` with a unit (`210x297mm`, `8.5x11in`) |
+| `--orientation landscape\|portrait` | PDF only, with a paper page: default `landscape` |
+| `--margin <n><mm\|cm\|in\|px>` | PDF only, with a paper page: clearance on every side (default `10mm`) |
 
 ```bash
 # slide 3 of a built deck → PNG
@@ -387,6 +390,9 @@ liebstoeckel export ./dist/my-deck.html --slides 3 -o ./out
 
 # whole deck as a PDF, building the source dir on demand
 liebstoeckel export ./presentations/demo --format pdf -o demo.pdf
+
+# printable handout: one slide per A4 page (landscape), 10 mm margin
+liebstoeckel export ./presentations/demo --page-size a4 -o handout.pdf
 ```
 
 **PDF is vector by default**: selectable, searchable text with embedded fonts and
@@ -394,6 +400,15 @@ vector charts/gradients, produced in a single `page.pdf()` over a print view tha
 stacks one slide per page (no merge, no extra dependency). Pass `--raster` for an
 image-per-page PDF instead: no text layer, but pixel-exact fidelity for a slide
 whose effects don't reproduce under print.
+
+**Printing.** By default each PDF page is exactly the 16:9 slide canvas, which
+prints poorly on paper. Pass `--page-size a4` (or `letter`, `a3`, an explicit
+`210x297mm`, ...) to get physical pages instead: the slide is scaled to fit the
+printable area (the page minus `--margin`), centered, on white paper, aspect
+preserved. Landscape is the default since slides are landscape; `--orientation
+portrait` fills the width and leaves the lower part of the page empty. Vector
+text stays selectable, and `--raster` produces the same page geometry. A paper
+page sizes the slide itself, so it cannot be combined with `--width`.
 
 PNGs come straight off the page (lossless, native resolution), named
 `<deck>-slide-NN.png` (1-based, zero-padded). Like `thumbs`, `export` needs Chromium

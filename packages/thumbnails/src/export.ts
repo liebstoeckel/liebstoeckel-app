@@ -12,6 +12,7 @@ async function ensureDir(dir: string): Promise<void> {
 }
 import { dirname, join } from "node:path";
 import { printDeckPdf, renderDeckSlides, type RenderDriveOptions } from "./capture";
+import { PT_PER_PX, fitRect, type FitRect, type PageBox } from "./page-size";
 
 /**
  * Static export of a built deck to PNG files or a single PDF ((internal ADR)), riding on
@@ -81,6 +82,8 @@ export interface JpegPage {
   /** intrinsic pixel dimensions of the JPEG. */
   w: number;
   h: number;
+  /** where to draw the image on the page, in page units (default: full-bleed). */
+  rect?: Pick<FitRect, "x" | "y" | "w" | "h">;
 }
 
 /**
@@ -89,6 +92,11 @@ export interface JpegPage {
  * is scaled into it, so the on-page resolution rides the capture scale factor.
  * Hand-rolled (one `DCTDecode` XObject per page) to avoid a PDF dependency.
  */
+/** PDF numbers: no exponent notation, no trailing zeros. */
+function num(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, "");
+}
+
 export function pdfFromJpegPages(pages: JpegPage[], pageW: number, pageH: number): Uint8Array {
   const enc = new TextEncoder();
   const chunks: Uint8Array[] = [];
@@ -126,11 +134,13 @@ export function pdfFromJpegPages(pages: JpegPage[], pageW: number, pageH: number
 
     obj(
       pageN,
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] ` +
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(pageW)} ${num(pageH)}] ` +
         `/Resources << /XObject << /Im0 ${imageN} 0 R >> >> /Contents ${contentN} 0 R >>`,
     );
 
-    const content = `q ${pageW} 0 0 ${pageH} 0 0 cm /Im0 Do Q`;
+    // PDF's origin is bottom-left; a rect given top-down is flipped on y.
+    const r = pg.rect ? { ...pg.rect, y: pageH - pg.rect.y - pg.rect.h } : { x: 0, y: 0, w: pageW, h: pageH };
+    const content = `q ${num(r.w)} 0 0 ${num(r.h)} ${num(r.x)} ${num(r.y)} cm /Im0 Do Q`;
     obj(contentN, `<< /Length ${enc.encode(content).length} >>\nstream\n${content}\nendstream`);
 
     // image XObject, body is a dict header, the raw JPEG bytes, then the stream tail
@@ -185,6 +195,10 @@ export interface ExportOptions extends Omit<RenderDriveOptions, "onSlide"> {
    *   • "raster", one full-bleed JPEG per page → no text layer, but pixel-exact
    *     fidelity for slides with effects that don't reproduce under print. */
   pdfMode?: "vector" | "raster";
+  /** PDF: print onto a paper page (A4, Letter, ...) instead of a canvas-sized page.
+   *  The slide is fitted and centered inside the page minus its margin, on white.
+   *  Applies to both vector and raster modes. See `resolveExportPage`. */
+  page?: PageBox;
   /** progress callback: (nth-rendered, total-to-render). */
   onSlide?(index: number, total: number): void;
 }
@@ -211,6 +225,7 @@ export async function exportDeck(html: string, opts: ExportOptions): Promise<Exp
     const { pdf, count, pages } = await printDeckPdf(html, {
       pageWidth: opts.width,
       pageHeight: opts.height,
+      page: opts.page,
       executablePath: opts.executablePath,
       launchArgs: opts.launchArgs,
       timeoutMs: opts.timeoutMs,
@@ -252,10 +267,19 @@ export async function exportDeck(html: string, opts: ExportOptions): Promise<Exp
     return { written, pages: frames.length, count: drive.count };
   }
 
-  const pageW = opts.width ?? 1280;
-  const pageH = opts.height ?? Math.round((pageW * 9) / 16);
+  // Canvas page: the MediaBox is the logical px box, image full-bleed (unchanged).
+  // Paper page: a physical MediaBox in points with the slide fitted inside the
+  // margin, the same geometry PrintView produces for the vector PDF.
+  let pageW = opts.width ?? 1280;
+  let pageH = opts.height ?? Math.round((pageW * 9) / 16);
+  let rect: JpegPage["rect"];
+  if (opts.page) {
+    pageW = opts.page.width * PT_PER_PX;
+    pageH = opts.page.height * PT_PER_PX;
+    rect = fitRect({ w: 16, h: 9 }, { w: pageW, h: pageH }, opts.page.margin * PT_PER_PX);
+  }
   const pdf = pdfFromJpegPages(
-    frames.map((f) => ({ jpeg: f.bytes, w: drive.w, h: drive.h })),
+    frames.map((f) => ({ jpeg: f.bytes, w: drive.w, h: drive.h, rect })),
     pageW,
     pageH,
   );
