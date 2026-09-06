@@ -54,9 +54,18 @@ export type DeckProps = {
   plugins?: PluginDef<any>[];
 };
 
+/** This document's own URL (origin + path + query). A deck inlined into an
+ *  `about:srcdoc` frame (the MCP preview widget does this) has no usable
+ *  `location`; the embedder points a `<base>` at the deck's real URL, which
+ *  `document.baseURI` reflects. Everywhere else this is plain `location`. */
+function pageUrl(): string {
+  const u = location.protocol === "about:" ? new URL(document.baseURI) : location;
+  return u.origin + u.pathname + u.search;
+}
+
 function openPresenter() {
   // preserve the query (incl. ?t=<token>) so a live presenter window authenticates
-  const url = location.origin + location.pathname + location.search + "#presenter";
+  const url = pageUrl() + "#presenter";
   // window.open can throw (relay sandbox without allow-popups) or return null (a
   // popup blocker), never let that bubble up as an uncaught DOMException.
   try {
