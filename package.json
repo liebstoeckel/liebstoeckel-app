@@ -33,6 +33,7 @@
     "landing:dev": "cd packages/landing && bun --bun astro dev --host",
     "landing:build": "cd packages/landing && bun --bun astro build",
     "mcp:jam": "bun packages/mcp/src/cli.ts jam --workdir .mcp-workdir",
+    "mcp:tunnel": "bun packages/mcp/src/cli.ts tunnel --workdir .mcp-workdir",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "qa:devmode": "bun run scripts/dev-mode-sandbox.ts"
   },
