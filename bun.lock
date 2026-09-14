@@ -119,7 +119,9 @@
       "name": "@liebstoeckel/control-dashboard",
       "version": "0.0.0",
       "dependencies": {
+        "@better-auth/cimd": "1.7.3",
         "@better-auth/kysely-adapter": "1.7.3",
+        "@better-auth/mcp": "1.7.3",
         "@better-auth/passkey": "1.7.3",
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
         "@fontsource-variable/schibsted-grotesk": "^5.2.8",
