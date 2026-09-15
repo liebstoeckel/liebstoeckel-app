@@ -162,6 +162,7 @@
         "@tanstack/router-plugin": "^1.168.18",
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.3",
+        "@types/smtp-server": "^3.5.13",
         "@vitejs/plugin-react": "^6.0.2",
         "smtp-server": "^3.19.1",
         "storybook": "^10.4.2",
@@ -1713,6 +1714,8 @@
     "@types/resolve": ["@types/resolve@1.20.6", "", {}, "sha512-A4STmOXPhMUtHH+S6ymgE2GiBSMqf4oTvcQZMcHzokuTLVYzXTB8ttjcgxOVaAp2lGwEdzZ0J+cRbbeevQj1UQ=="],
 
     "@types/sax": ["@types/sax@1.2.7", "", { "dependencies": { "@types/node": "*" } }, "sha512-rO73L89PJxeYM3s3pPPjiPgVVcymqU490g0YO5n5By0k2Erzj6tay/4lr1CHAAU4JyOWd1rpQ8bCf6cZfHU96A=="],
+
+    "@types/smtp-server": ["@types/smtp-server@3.5.13", "", { "dependencies": { "@types/node": "*", "@types/nodemailer": "*" } }, "sha512-S3rGl2KbViH+98/CgHipPIWgtAFnjxLsppxIRbgJHNuZL7Y+py+7kZjT7xS+wOmCxYTn4O7IqLqkvekg99MDVQ=="],
 
     "@types/unist": ["@types/unist@3.0.3", "", {}, "sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q=="],
 
