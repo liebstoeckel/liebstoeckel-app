@@ -5,4 +5,28 @@
 **/.astro
 **/.output
 **/.nitro
+**/.tanstack
 *.log
+
+# In-cluster builds run on the workspace PVC the `test` task already used, so
+# everything a test or a sibling task leaves in the tree would otherwise land in
+# the build context. Some of it (the MCP / deck-spec test decks) carries a
+# package.json under a random name, which changes the manifest set every run
+# and defeats the dependency-layer cache. Mirror the scratch entries of
+# .gitignore here.
+**/.test-tmp
+**/.vt-*
+**/.verify-*
+**/srvplugin-*
+**/.liebstoeckel
+**/.liebstoeckel-mcp
+**/.dev-data
+**/storybook-static
+.mcp-workdir
+.cra/cache
+docs/private
+.idea
+
+# The build-push task exports each image tarball next to its Dockerfile, on the
+# same PVC, while sibling image builds are still transferring their context.
+**/image.tar
