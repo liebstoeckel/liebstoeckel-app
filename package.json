@@ -26,6 +26,8 @@
     "thumbs": "bun packages/thumbnails/src/cli.ts",
     "export": "bun packages/cli/src/cli.ts export",
     "test": "bun test packages scripts",
+    "test:framework": "bun test packages scripts --path-ignore-patterns '**/packages/office/**'",
+    "test:office": "bun test packages/office",
     "test:e2e:os": "LIEBSTOECKEL_E2E_OS_SMOKE=1 bun test packages/e2e/src/cli-os-smoke.test.ts",
     "test:e2e:upgrade": "LIEBSTOECKEL_E2E_UPGRADE=1 bun test packages/e2e/src/cli-upgrade.test.ts",
     "docs:dev": "cd packages/docs && bun --bun astro dev --host",

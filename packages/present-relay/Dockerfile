@@ -13,10 +13,28 @@
 # Config is entirely env-driven (see src/cli.ts): PORT, PRESENT_RELAY_TOKENS,
 # PRESENT_RELAY_PUBLIC_URL. PORT is pinned below because the CLI binds a random
 # port when it's unset.
+#
+# Layer order matters: the dependency install must not depend on source files,
+# or every commit rebuilds the whole monorepo node_modules and re-pushes
+# hundreds of MB. Docker's COPY cannot glob a nested tree, and a frozen install
+# needs EVERY workspace member's package.json, so a throwaway stage collects the
+# manifests and the real stage copies only those. COPY --from is
+# content-addressed, so the install layer stays cached until a manifest or the
+# lockfile actually changes.
+FROM oven/bun:1.3.14 AS manifests
+WORKDIR /src
+COPY . .
+RUN mkdir -p /manifests \
+ && find . -name node_modules -prune -o -type f \
+      \( -name package.json -o -name bun.lock -o -name bunfig.toml \) -print0 \
+    | tar --null --files-from=- -cf - \
+    | tar -xf - -C /manifests
+
 FROM oven/bun:1.3.14
 WORKDIR /app
-COPY . .
+COPY --from=manifests /manifests/ ./
 RUN bun install --frozen-lockfile
+COPY . .
 
 # Pin the listen port (CLI defaults to a random port otherwise) and disable
 # Bun's on-disk transpiler cache so the container runs cleanly under a
