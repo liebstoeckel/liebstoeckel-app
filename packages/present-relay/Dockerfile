@@ -14,13 +14,23 @@
 # PRESENT_RELAY_PUBLIC_URL. PORT is pinned below because the CLI binds a random
 # port when it's unset.
 #
-# Layer order matters: the dependency install must not depend on source files,
-# or every commit rebuilds the whole monorepo node_modules and re-pushes
+# Two stages. Layer order matters: the dependency install must not depend on
+# source files, or every commit rebuilds the whole node_modules and re-pushes
 # hundreds of MB. Docker's COPY cannot glob a nested tree, and a frozen install
 # needs EVERY workspace member's package.json, so a throwaway stage collects the
 # manifests and the real stage copies only those. COPY --from is
 # content-addressed, so the install layer stays cached until a manifest or the
 # lockfile actually changes.
+#
+# The install is a PRODUCTION install FILTERED to the relay's dependency
+# closure: the relay only ever runs source, so the dev toolchain of the other
+# workspaces (vite, storybook, astro, typescript, the visx showcase) has no
+# business in the image. `--filter` keeps the workspace deps it reaches through
+# live-server (engine, plugin-sdk, thumbnails and their packages), and Bun still
+# installs the peer dependencies those declare (yjs, react). The in-cluster
+# builder makes this matter twice: its native snapshotter copies the whole
+# tree for every layer and walks the whole image on export, so a small tree is
+# a fast build as well as a small image.
 FROM oven/bun:1.3.14 AS manifests
 WORKDIR /src
 COPY . .
@@ -33,7 +43,7 @@ RUN mkdir -p /manifests \
 FROM oven/bun:1.3.14
 WORKDIR /app
 COPY --from=manifests /manifests/ ./
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --production --filter @liebstoeckel/present-relay
 COPY . .
 
 # Pin the listen port (CLI defaults to a random port otherwise) and disable

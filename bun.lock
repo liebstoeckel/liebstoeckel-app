@@ -374,13 +374,13 @@
         "@liebstoeckel/thumbnails": "workspace:^",
         "@modelcontextprotocol/server": "^2.0.0",
         "jose": "^6.2.8",
+        "react": "^19.2.7",
+        "react-dom": "^19.2.7",
         "zod": "^4.3.5",
       },
       "devDependencies": {
         "@modelcontextprotocol/client": "^2.0.0",
         "@types/react": "^19",
-        "react": "^19.2.7",
-        "react-dom": "^19.2.7",
       },
     },
     "packages/office": {
