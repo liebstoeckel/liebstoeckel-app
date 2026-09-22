@@ -90,8 +90,12 @@ them, and the link itself stays the same:
 
 - **Expiry**: how long the link lives (7 days on the free plan; longer, or *no expiry*, on
   paid).
-- **White-label** *(paid)*: drop the "Published with liebstoeckel" banner. The abuse-report
-  path always remains.
+
+The "Published with liebstoeckel" banner is not a share setting. It follows the workspace's
+plan: on the free plan every public link carries it, and on paid plans (**Pro** / **Team**)
+no public link does, with nothing to turn on. If a workspace moves back to free, the banner
+returns on all of its links. The abuse-report link is on every public share, whatever the
+plan. Live sessions follow the same rule.
 
 ## Present live from the dashboard
 
@@ -199,7 +203,8 @@ abuse that doubles as the upgrade nudge; paid plans are uncapped.
 ## Plans
 
 Workspaces are **free** by default. Paid plans (**Pro** / **Team**) unlock uncapped share
-views, view history with longer retention, white-label shares, longer/no-expiry links, and
+views, view history with longer retention, public links without the liebstoeckel banner,
+longer/no-expiry links, and
 larger live sessions with **persisted results**.
 Plans attach to the **organization** (one subscription per workspace). The CLI shows your
 current plan under `liebstoeckel orgs`.
