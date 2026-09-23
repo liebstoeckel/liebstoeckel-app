@@ -19,6 +19,7 @@
 **/.verify-*
 **/srvplugin-*
 **/.liebstoeckel
+.deck-previews
 **/.liebstoeckel-mcp
 **/.dev-data
 **/storybook-static

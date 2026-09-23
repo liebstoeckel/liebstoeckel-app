@@ -45,6 +45,8 @@ const rootCommand = defineCommand({
     // cloud (coming soon, the hosted service is not generally available yet):
     login: () => import("./cloud").then((m) => m.loginCommand),
     push: () => import("./cloud").then((m) => m.pushCommand),
+    pull: () => import("./cloud").then((m) => m.pullCommand),
+    sync: () => import("./cloud").then((m) => m.syncCommand),
     orgs: () => import("./cloud").then((m) => m.orgsCommand),
     decks: () => import("./cloud").then((m) => m.decksCommand),
     brand: () => import("./cloud").then((m) => m.brandCommand),

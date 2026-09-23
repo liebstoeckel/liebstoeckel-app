@@ -47,7 +47,8 @@
     "./add": "./src/add.ts",
     "./trust": "./src/trust.ts",
     "./migrations": "./src/migrations.ts",
-    "./dev-loader": "./src/dev-loader.ts"
+    "./dev-loader": "./src/dev-loader.ts",
+    "./source": "./src/source.ts"
   },
   "dependencies": {
     "@liebstoeckel/dev-server": "workspace:^",

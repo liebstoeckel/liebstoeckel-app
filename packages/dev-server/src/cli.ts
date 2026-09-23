@@ -110,6 +110,7 @@ export const devCommand = defineCommand({
     port: { type: "string", description: "port (default: 3000)" },
     host: { type: "string", description: "bind hostname (default 127.0.0.1; 0.0.0.0 to expose)" },
     json: { type: "boolean", description: "print startup info as JSON" },
+    live: { type: "boolean", description: "mirror this folder with the cloud deck's live sources (needs `push --source` once), coming soon" },
   },
   subCommands: {
     poll: devPollCommand,
@@ -142,6 +143,7 @@ export const devCommand = defineCommand({
           ...(args.port ? ["--port", String(args.port)] : []),
           ...(args.host ? ["--host", String(args.host)] : []),
           ...(args.json ? ["--json"] : []),
+          ...(args.live ? ["--live"] : []),
         ],
         cwd: deckDir,
         stdout: "inherit",
@@ -170,6 +172,18 @@ export const devCommand = defineCommand({
       console.error(`Invalid --port ${args.port}`);
       process.exit(1);
     }
+    // Catch up and connect before serving, so the first page load already
+    // shows the live files.
+    let live: { stop(): void } | null = null;
+    if (args.live) {
+      const { startLive } = await import("./live.ts");
+      try {
+        live = await startLive(deckDir, (line) => console.error(`⇄ ${line}`));
+      } catch (err) {
+        console.error(`✕ ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+      }
+    }
     let server;
     try {
       server = await startDevServer({
@@ -195,6 +209,7 @@ export const devCommand = defineCommand({
     const shutdown = () => {
       if (shuttingDown) return;
       shuttingDown = true;
+      live?.stop();
       server.stop();
       setTimeout(() => process.exit(0), 300);
     };
@@ -205,6 +220,7 @@ export const devCommand = defineCommand({
     } else {
       console.log(`▶  ${server.url}/  (dev mode: sidebar + your deck; the plain deck alone is ${server.url}/deck)`);
       console.log(`   agent loop: liebstoeckel dev poll${args.dir ? ` --dir ${args.dir}` : ""}`);
+      if (live) console.log("   live: this folder is mirrored with the cloud deck");
     }
   },
 });

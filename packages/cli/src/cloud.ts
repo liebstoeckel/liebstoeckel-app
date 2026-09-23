@@ -156,6 +156,8 @@ export const pushCommand = defineCommand({
     title: { type: "string", description: "override the deck title", valueHint: "t" },
     name: { type: "string", description: "deck key for re-push upsert", valueHint: "key" },
     new: { type: "boolean", description: "force a fresh deck (new key)" },
+    source: { type: "boolean", description: "also upload the deck's source files for live editing, coming soon" },
+    dir: { type: "string", description: "deck source folder for --source (default: .)", valueHint: "deck" },
     org: CLOUD_ARGS.org,
     api: CLOUD_ARGS.api,
   },
@@ -167,6 +169,8 @@ async function runPush(args: {
   title?: string;
   name?: string;
   new?: boolean;
+  source?: boolean;
+  dir?: string;
   org?: string;
   api?: string;
 }): Promise<void> {
@@ -229,7 +233,144 @@ async function runPush(args: {
   };
   const what = isNew ? "created" : `updated to v${version}`;
   console.log(`\n✓ pushed "${deck.title}" (${what})${org ? ` in ${org}` : ""}, view it at ${api}\n`);
+  if (args.source) await pushSource(resolve(args.dir ?? "."), deck.id, { api, token: creds.token, org });
 }
+
+/** `push --source`: link the folder to the deck's live source (first time)
+ *  and upload the local files as an import based on the last sync. */
+async function pushSource(deckDir: string, deckId: string, cloud: { api: string; token: string; org?: string }) {
+  const src = await import("./source");
+  const previous = src.readSyncState(deckDir);
+  const state =
+    previous && previous.deckId === deckId
+      ? previous
+      : { deckId, api: cloud.api, org: cloud.org, base: null, committed: null };
+  try {
+    const access = await src.sourceAccess(cloud, deckId, true);
+    const outcome = await src.pushSourceFiles(deckDir, state, access, "Push from the CLI");
+    if (outcome.ok) {
+      console.log(outcome.changed ? `✓ sources uploaded (${outcome.commit.slice(0, 8)})` : "✓ sources already up to date");
+      return;
+    }
+    console.error("✕ the live deck changed the same lines as your local files:");
+    for (const c of outcome.conflicts) console.error(`  ${c.path} (${c.kind})`);
+    console.error("  run `liebstoeckel pull` to merge, resolve the markers, then push again.");
+    process.exit(1);
+  } catch (err) {
+    console.error(`✕ ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+}
+
+/** Shared preamble of the source-sync commands: deck folder, state, access. */
+async function sourceContext(args: { dir?: string; api?: string; org?: string }) {
+  const src = await import("./source");
+  const deckDir = resolve(args.dir ?? ".");
+  const state = src.readSyncState(deckDir);
+  if (!state) {
+    console.error("✕ this folder is not linked to a cloud deck; run `liebstoeckel push --source` first");
+    process.exit(1);
+  }
+  const cloud = await src.cloudFromCreds(args, state);
+  if (!cloud) notLoggedIn();
+  try {
+    const access = await src.sourceAccess(cloud, state.deckId, false);
+    return { src, deckDir, state, access };
+  } catch (err) {
+    console.error(`✕ ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+}
+
+const SOURCE_ARGS = {
+  dir: { type: "string" as const, description: "deck folder (default: .)", valueHint: "deck" },
+  json: { type: "boolean" as const, description: "machine-readable output" },
+  org: CLOUD_ARGS.org,
+  api: CLOUD_ARGS.api,
+};
+
+export const pullCommand = defineCommand({
+  meta: { name: "pull", description: "merge the live cloud deck's source edits into this folder, coming soon" },
+  args: SOURCE_ARGS,
+  async run({ args }) {
+    const { src, deckDir, state, access } = await sourceContext(args);
+    try {
+      const result = await src.pullDeck(deckDir, state, access);
+      if (args.json) {
+        console.log(JSON.stringify(result));
+      } else if (result.kind === "in-sync") {
+        console.log("✓ already in sync");
+      } else if (result.kind === "conflict") {
+        console.error("✕ conflicts; resolve the markers, then run `liebstoeckel pull` or `push --source` again:");
+        for (const c of result.conflicts) {
+          const hint = c.kind === "delete" ? ": one side deleted it, the edited file was kept; delete it again to remove it" : "";
+          console.error(`  ${c.path} (${c.kind})${hint}`);
+        }
+      } else {
+        for (const p of result.written) console.log(`  ${p}`);
+        console.log(result.kind === "merged" ? "✓ merged and uploaded" : "✓ pulled");
+      }
+      if (result.kind === "conflict") process.exit(1);
+    } catch (err) {
+      console.error(`✕ ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  },
+});
+
+const syncStatusCommand = defineCommand({
+  meta: { name: "status", description: "who changed what in the live deck since your last `sync commit`" },
+  args: SOURCE_ARGS,
+  async run({ args }) {
+    const { src, state, access } = await sourceContext(args);
+    const history = await src.fetchHistory(access);
+    const since = src.checkpointsBetween(history, state.committed, null);
+    const head = since.at(-1)?.commit ?? state.committed;
+    let changed: string[] = [];
+    if (head && head !== state.committed) {
+      const [from, to] = await Promise.all([
+        state.committed ? src.fetchFiles(access, state.committed) : Promise.resolve({ commit: null, files: {} as Record<string, string> }),
+        src.fetchFiles(access, head),
+      ]);
+      const paths = new Set([...Object.keys(from.files), ...Object.keys(to.files)]);
+      changed = [...paths].filter((p) => from.files[p] !== to.files[p]).sort();
+    }
+    if (args.json) {
+      console.log(JSON.stringify({ deckId: state.deckId, base: state.base, committed: state.committed, checkpoints: since, changed }));
+      return;
+    }
+    if (since.length === 0) {
+      console.log("nothing new since your last `sync commit`");
+      return;
+    }
+    for (const c of since) {
+      const who = c.authors.map((a) => a.name).join(", ");
+      console.log(`${new Date(c.time).toISOString().slice(0, 16).replace("T", " ")}  ${c.message}  (${who})`);
+    }
+    if (changed.length > 0) console.log(`\nfiles changed: ${changed.join(", ")}`);
+  },
+});
+
+const syncCommitCommand = defineCommand({
+  meta: { name: "commit", description: "commit this deck folder, crediting the other live editors" },
+  args: SOURCE_ARGS,
+  async run({ args }) {
+    const { src, deckDir, state, access } = await sourceContext(args);
+    try {
+      const result = await src.syncCommit(deckDir, state, access);
+      if (args.json) console.log(JSON.stringify(result));
+      else console.log(result.committed ? `✓ committed\n\n${result.message}` : "nothing to commit in this folder");
+    } catch (err) {
+      console.error(`✕ ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  },
+});
+
+export const syncCommand = defineCommand({
+  meta: { name: "sync", description: "live source sync: status and attributed commits, coming soon" },
+  subCommands: { status: syncStatusCommand, commit: syncCommitCommand },
+});
 
 interface OrgList {
   active: { slug: string; name: string; role: string; personal: boolean; plan: string };

@@ -1,6 +1,7 @@
 import { type Dirent, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { snapshotsDir } from "./paths";
+import { MAX_SOURCE_BYTES, MAX_TOTAL_BYTES, SKIP_DIRS, isSourceFile } from "./sync/sources.ts";
 
 // Pre-dispatch source snapshots back the drawer's one-click Revert: before an
 // apply batch is delivered, the deck's text sources are copied here (slide
@@ -33,10 +34,7 @@ export interface BatchRecord {
 }
 
 /** Directories never snapshotted, listed, or deleted on revert. */
-export const SKIP_DIRS = new Set(["node_modules", ".git", ".liebstoeckel", "dist", "build", "out", ".cache"]);
-const SOURCE_EXTS = new Set([".mdx", ".md", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".css", ".json", ".html", ".svg", ".toml", ".yaml", ".yml", ".txt"]);
-const MAX_SOURCE_BYTES = 512 * 1024;
-const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
+export { SKIP_DIRS, isSourceFile };
 
 /** Every file under the deck (deck-relative, forward slashes), skipping
  *  dependency, build, VCS, and dev-state directories. */
@@ -60,11 +58,6 @@ export function listDeckFiles(root: string): string[] {
   };
   walk(resolve(root), "");
   return out.sort();
-}
-
-/** Whether a deck-relative path has an authoring (text source) extension. */
-export function isSourceFile(rel: string): boolean {
-  return SOURCE_EXTS.has(rel.slice(rel.lastIndexOf(".")).toLowerCase());
 }
 
 /** Source files under the deck now that were not in `existed` (a batch's

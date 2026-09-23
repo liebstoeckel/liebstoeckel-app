@@ -45,13 +45,17 @@
     "./cli": "./src/cli.ts",
     "./protocol": "./src/protocol.ts",
     "./bridge": "./src/bridge.ts",
-    "./ui": "./src/ui.ts"
+    "./ui": "./src/ui.ts",
+    "./sync": "./src/sync.ts",
+    "./live-mirror": "./src/live-mirror.ts"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/schibsted-grotesk": "^5.2.8",
     "citty": "^0.2.2",
-    "modern-screenshot": "^4.6.5"
+    "modern-screenshot": "^4.6.5",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.31"
   },
   "scripts": {
     "stories": "bun run stories/serve.ts"

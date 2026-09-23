@@ -9,7 +9,7 @@ import { dirname, join, resolve } from "node:path";
 // would break that host at build time, silently, the next time someone adds
 // a convenient import. This test walks both graphs and refuses.
 
-const ENTRIES = ["src/protocol.ts", "src/bridge.ts", "src/ui.ts"];
+const ENTRIES = ["src/protocol.ts", "src/bridge.ts", "src/ui.ts", "src/sync.ts"];
 const ROOT = resolve(import.meta.dir, "..");
 
 const NODE_BUILTINS = new Set([
