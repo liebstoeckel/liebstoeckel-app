@@ -39,7 +39,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./cli": "./src/cli.ts"
+    "./cli": "./src/cli.ts",
+    "./placement": "./src/placement/index.ts",
+    "./placement/protocol": "./src/placement/protocol.ts"
   },
   "dependencies": {
     "@liebstoeckel/engine": "workspace:^",
