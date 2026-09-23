@@ -180,7 +180,10 @@ export async function withMarkers(base: string, local: string, live: string): Pr
   try {
     const [l, b, r] = ["local", "base", "live"].map((n) => join(dir, n));
     await Promise.all([writeFile(l!, local), writeFile(b!, base), writeFile(r!, live)]);
-    const proc = Bun.spawn(["git", "merge-file", "-p", "-L", "local", "-L", "base", "-L", "live", l!, b!, r!], {
+    // Conflict markers come from the developer's own Git.
+    const bin = Bun.which("git");
+    if (!bin) throw new SyncError("writing conflict markers needs Git installed (git merge-file)");
+    const proc = Bun.spawn([bin, "merge-file", "-p", "-L", "local", "-L", "base", "-L", "live", l!, b!, r!], {
       stdout: "pipe",
       stderr: "pipe",
     });

@@ -39,7 +39,8 @@ describe("planPull", () => {
 });
 
 describe("withMarkers", () => {
-  test("writes Git conflict markers", async () => {
+  // The markers come from the developer's Git; skip where there is none (the CI image).
+  test.skipIf(!Bun.which("git"))("writes Git conflict markers", async () => {
     const out = await withMarkers("x\ny\n", "x\nLOCAL\n", "x\nLIVE\n");
     expect(out).toContain("<<<<<<< local");
     expect(out).toContain(">>>>>>> live");
