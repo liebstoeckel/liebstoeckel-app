@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { Counter, Gauge, Histogram, Registry, createRelayMetrics } from "./metrics";
+import { Counter, Gauge, Histogram, Registry, closeReason, createRelayMetrics } from "./metrics";
 
 describe("metrics registry", () => {
   test("counter renders type/help + accumulates by label set", () => {
@@ -64,5 +64,18 @@ describe("relay metric set", () => {
     const out2 = m.registry.render();
     expect(out2).toContain('liebstoeckel_relay_session_rejects_total{reason="quota"} 1');
     expect(out2).toContain('liebstoeckel_relay_ws_opens_total{role="audience"} 1');
+  });
+});
+
+describe("closeReason", () => {
+  test("names the servers' close codes, a client's close, and everything else", () => {
+    expect([4006, 4004, 4003, 4005, 1000, 1001, 1006, 1011, 0].map(closeReason)).toEqual([
+      "ended", "moved", "restarting", "too_old", "client", "client", "abnormal", "abnormal", "abnormal",
+    ]);
+  });
+
+  test("the failure counters alerts watch are exported at 0 from the start", () => {
+    const text = createRelayMetrics().registry.render();
+    expect(text).toContain("liebstoeckel_relay_snapshot_failures_total 0");
   });
 });

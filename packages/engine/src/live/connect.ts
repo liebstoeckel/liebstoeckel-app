@@ -41,7 +41,9 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   const WS = opts.WS ?? WebSocket;
   const baseMs = opts.reconnectBaseMs ?? 1000;
   const maxMs = opts.reconnectMaxMs ?? 15000;
-  const staleMs = opts.staleMs ?? 60000;
+  // Servers send a keepalive every 10 s (older ones every 25 s): 35 s of silence means
+  // the server is gone or hung, and waiting longer only keeps the room frozen.
+  const staleMs = opts.staleMs ?? 35_000;
   const reloadAfter = opts.reloadAfterAttempts ?? 0;
   const quickMs = opts.quickRetryMs ?? 500;
   const quickWindowMs = opts.quickRetryWindowMs ?? 30_000;

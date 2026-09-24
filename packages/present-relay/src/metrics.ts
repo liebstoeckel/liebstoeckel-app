@@ -121,6 +121,26 @@ export class Registry {
   }
 }
 
+/** Why a socket closed, as a bounded label: the close codes the servers send, a close
+ *  by the client, or anything else (a dropped network, a crash). */
+export function closeReason(code: number): "ended" | "moved" | "restarting" | "too_old" | "client" | "abnormal" {
+  switch (code) {
+    case 4006:
+      return "ended";
+    case 4004:
+      return "moved";
+    case 4003:
+      return "restarting";
+    case 4005:
+      return "too_old";
+    case 1000:
+    case 1001:
+      return "client";
+    default:
+      return "abnormal";
+  }
+}
+
 /** The relay's metric set ((internal ADR)). One registry per relay instance (test-friendly). */
 export function createRelayMetrics(version = "unknown") {
   const r = new Registry();
@@ -138,7 +158,7 @@ export function createRelayMetrics(version = "unknown") {
     snapshotSeed: r.register(new Counter("liebstoeckel_relay_snapshot_seed_total", "Snapshot re-seed on create, by result")),
     sessionFenced: r.register(new Counter("liebstoeckel_relay_session_fenced_total", "Sessions stopped because a newer placement or an end was found in storage, by result")),
     wsOpens: r.register(new Counter("liebstoeckel_relay_ws_opens_total", "WebSocket opens, by role")),
-    wsCloses: r.register(new Counter("liebstoeckel_relay_ws_closes_total", "WebSocket closes, by role")),
+    wsCloses: r.register(new Counter("liebstoeckel_relay_ws_closes_total", "WebSocket closes, by role and reason (ended|moved|restarting|too_old|client|abnormal)")),
     wsConnections: r.register(new Gauge("liebstoeckel_relay_ws_connections", "Open WebSocket connections, by role")),
     audienceCapRejects: r.register(new Counter("liebstoeckel_relay_audience_cap_rejections_total", "WS rejected: audience cap reached")),
     protocolRejects: r.register(new Counter("liebstoeckel_relay_protocol_rejections_total", "WS closed: the client's live protocol is too old")),
@@ -148,6 +168,9 @@ export function createRelayMetrics(version = "unknown") {
     buildInfo: r.register(new Gauge("liebstoeckel_relay_build_info", "Relay build info (constant 1)")),
   };
   m.buildInfo.set(1, { version });
+  // Failure counters start at 0: a series that first appears at 1 is no increase to
+  // Prometheus, so an alert on the first failure would never fire.
+  for (const c of [m.snapshotFailures, m.audienceCapRejects, m.protocolRejects, m.grantDenials]) c.inc({}, 0);
   return m;
 }
 

@@ -12,7 +12,7 @@ import {
 } from "@liebstoeckel/live-server";
 import { bearer, matchAccount, safeEqual } from "./auth";
 import { mintGrant, verifyGrant } from "./grant";
-import { createRelayMetrics } from "./metrics";
+import { closeReason, createRelayMetrics } from "./metrics";
 import { withSpan, SpanKind, ctxFromHeaders } from "./tracing";
 import { CLOSE, LIVE_PROTOCOL, TOO_OLD_REASON, negotiateVersion } from "@liebstoeckel/live-server/placement/protocol";
 import type { ServerWebSocket } from "bun";
@@ -138,7 +138,8 @@ const DEFAULTS = {
   maxSessionsPerAccount: 200,
   sessionTtlMs: 6 * 60 * 60 * 1000,
   maxFrameBytes: 4 * 1024 * 1024,
-  keepaliveMs: 25_000,
+  // Well inside the live client's watchdog, so a hung relay is left within about 35 s.
+  keepaliveMs: 10_000,
   snapshotMs: 20_000,
   logFlushMs: 1_500,
   fenceMs: 10_000,
@@ -639,9 +640,9 @@ export function createRelay(opts: RelayOptions): RelayServer {
         metrics.wsBytes.inc({ dir: "in" }, bytes.byteLength);
         socket.data.peer?.recv(bytes);
       },
-      close(socket) {
+      close(socket, code) {
         socket.data.peer?.leave();
-        metrics.wsCloses.inc({ role: socket.data.role });
+        metrics.wsCloses.inc({ role: socket.data.role, reason: closeReason(code) });
         metrics.wsConnections.dec({ role: socket.data.role });
         const s = sessions.get(socket.data.sessionId);
         if (s && s.sockets.delete(socket) && socket.data.role === "audience" && s.audienceCount > 0) s.audienceCount--;

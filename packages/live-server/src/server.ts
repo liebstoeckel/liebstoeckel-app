@@ -44,7 +44,8 @@ const MAX_FRAME_BYTES = 4 * 1024 * 1024;
  *  Yjs over `/sync`. */
 export async function startServer(opts: ServeOptions): Promise<LiveServer> {
   const session = createSession();
-  const hub = new Hub({ keepaliveMs: 25_000 });
+  // Well inside the live client's 35 s watchdog.
+  const hub = new Hub({ keepaliveMs: 10_000 });
   const cleanups: Array<() => void> = [];
   const serverPlugins: string[] = [];
 
