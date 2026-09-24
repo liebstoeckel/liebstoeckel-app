@@ -1,11 +1,25 @@
 // A participant in a deck's live document over the sync service's WebSocket.
 // Browser-safe: uses the global WebSocket, so the dashboard and the CLI share
 // it. Reconnects with backoff and resends its state after a reconnect, so
-// edits made while offline are not lost.
+// edits made while offline are not lost. When the server says it is
+// restarting, or the deck moved, it reconnects at once; when the server no
+// longer speaks this client's protocol, it stops and says why.
 
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
 import * as Y from "yjs";
-import { MSG_AWARENESS, MSG_READY, MSG_UPDATE, type ServerNotice, decodeFrame, encodeFrame } from "./wire.ts";
+import {
+  MSG_AWARENESS,
+  MSG_READY,
+  MSG_UPDATE,
+  type ServerNotice,
+  decodeFrame,
+  encodeFrame,
+  isFatalClose,
+  reconnectsAtOnce,
+  withProtocol,
+} from "./wire.ts";
+
+export type SyncStatus = "connecting" | "open" | "closed" | "failed";
 
 export interface SyncClientOptions {
   /** `ws(s)://<host>/d/<deck>/ws?t=<grant>`, or a function returning one, called
@@ -16,7 +30,10 @@ export interface SyncClientOptions {
   reconnect?: boolean;
   onReady?: () => void;
   onNotice?: (notice: ServerNotice) => void;
-  onStatus?: (status: "connecting" | "open" | "closed") => void;
+  onStatus?: (status: SyncStatus) => void;
+  /** The server refused this client for good (status "failed"): a message
+   *  for the user, e.g. to update the CLI or reload the page. */
+  onFatal?: (message: string) => void;
 }
 
 export class SyncClient {
@@ -26,6 +43,8 @@ export class SyncClient {
   private closed = false;
   private attempts = 0;
   private everReady = false;
+  /** The last error notice, which explains a fatal close. */
+  private lastError: string | null = null;
   private resolveReady!: () => void;
   /** Resolves once the first initial state has arrived. */
   readonly ready: Promise<void>;
@@ -80,7 +99,7 @@ export class SyncClient {
 
   private open(url: string): void {
     if (this.closed) return;
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(withProtocol(url));
     ws.binaryType = "arraybuffer";
     this.ws = ws;
     this.isReady = false;
@@ -91,7 +110,9 @@ export class SyncClient {
     ws.onmessage = (event) => {
       if (typeof event.data === "string") {
         try {
-          this.opts.onNotice?.(JSON.parse(event.data) as ServerNotice);
+          const notice = JSON.parse(event.data) as ServerNotice;
+          if (notice.type === "error") this.lastError = notice.message;
+          this.opts.onNotice?.(notice);
         } catch {
           // ignore
         }
@@ -103,9 +124,22 @@ export class SyncClient {
       else if (frame.type === MSG_AWARENESS) applyAwarenessUpdate(this.awareness, frame.payload, this);
       else if (frame.type === MSG_READY) this.onServerReady();
     };
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       this.isReady = false;
+      if (isFatalClose(event.code)) {
+        this.closed = true;
+        this.opts.onStatus?.("failed");
+        this.opts.onFatal?.(this.lastError ?? (event.reason || "The sync service no longer supports this client."));
+        return;
+      }
       this.opts.onStatus?.("closed");
+      if (reconnectsAtOnce(event.code) && !this.closed && this.opts.reconnect !== false) {
+        // A restart, a move to another server or a fresh grant: nothing is
+        // wrong, so no backoff. A little jitter spreads a whole deck's clients.
+        this.attempts = 0;
+        setTimeout(() => this.connect(), Math.random() * 100);
+        return;
+      }
       this.retry();
     };
     ws.onerror = () => {

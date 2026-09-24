@@ -15,6 +15,7 @@ import {
   SKIP_DIRS,
   isSyncPath,
   mergeTrees,
+  withProtocol,
 } from "@liebstoeckel/dev-server/sync";
 import { loadCreds } from "./creds";
 
@@ -248,13 +249,27 @@ export async function sourceAccess(cloud: Cloud, deckId: string, enable: boolean
   return (await res.json()) as SyncAccess;
 }
 
+/** One call to the sync service. A 503 means the deck is changing servers
+ *  (a restart or a move), which takes seconds: wait and try again. A 426 means
+ *  the service no longer speaks this CLI's protocol. */
 async function syncCall<T>(access: SyncAccess, path: string, init: RequestInit = {}): Promise<{ status: number; body: T }> {
-  const res = await fetch(`${access.url}${path}`, {
-    ...init,
-    headers: { authorization: `Bearer ${access.grant}`, "content-type": "application/json", ...(init.headers ?? {}) },
-  });
-  const body = (await res.json().catch(() => ({}))) as T;
-  return { status: res.status, body };
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(withProtocol(`${access.url}${path}`), {
+      ...init,
+      headers: { authorization: `Bearer ${access.grant}`, "content-type": "application/json", ...(init.headers ?? {}) },
+    });
+    if (res.status === 503 && attempt < 20) {
+      await res.body?.cancel();
+      await Bun.sleep(Math.min(5, Number(res.headers.get("retry-after")) || 1) * 1000);
+      continue;
+    }
+    const body = (await res.json().catch(() => ({}))) as T;
+    if (res.status === 426) {
+      const message = (body as { error?: string }).error ?? "the sync service no longer supports this CLI";
+      throw new SyncError(`${message} Run \`liebstoeckel update\`.`, 426);
+    }
+    return { status: res.status, body };
+  }
 }
 
 export interface LiveFiles {

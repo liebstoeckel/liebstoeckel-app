@@ -22,6 +22,8 @@ function isForbidden(specifier: string): boolean {
   if (specifier.startsWith("node:")) return true;
   if (NODE_BUILTINS.has(specifier)) return true;
   if (specifier === "@liebstoeckel/cli" || specifier.startsWith("@liebstoeckel/cli/")) return true;
+  // Of live-server only the import-free client protocol is a leaf.
+  if (specifier.startsWith("@liebstoeckel/live-server") && specifier !== "@liebstoeckel/live-server/placement/protocol") return true;
   return false;
 }
 

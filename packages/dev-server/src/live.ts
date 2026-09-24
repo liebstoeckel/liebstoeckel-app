@@ -48,6 +48,7 @@ export async function startLive(deckDir: string, log: (line: string) => void): P
     onStatus: (status) => {
       if (status === "closed") log("live: disconnected, reconnecting");
     },
+    onFatal: (message) => log(`live: stopped. ${message} Run \`liebstoeckel update\`.`),
   });
   const timeout = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new LiveStartError("could not reach the live deck")), 15_000),

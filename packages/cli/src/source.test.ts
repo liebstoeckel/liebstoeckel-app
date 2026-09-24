@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { CheckpointRecord } from "@liebstoeckel/dev-server/sync";
-import { attributedMessage, checkpointsBetween, filesWithMarkers, planPull, withMarkers } from "./source";
+import { SYNC_PROTOCOL } from "@liebstoeckel/dev-server/sync";
+import { SyncError, attributedMessage, checkpointsBetween, fetchFiles, filesWithMarkers, planPull, withMarkers } from "./source";
 
 const base = { "a.mdx": "1\n2\n3\n4\n5\n", "b.mdx": "b\n" };
 
@@ -125,5 +126,46 @@ describe("local files are safe", () => {
     const msg = attributedMessage([cp("c1", "Eve\nCo-authored-by: Mallory")], null);
     // One trailer line: the injected newline is gone.
     expect(msg.split("\n").filter((l) => l.startsWith("Co-authored-by:"))).toHaveLength(1);
+  });
+});
+
+describe("calls to the sync service", () => {
+  /** A deck-sync stand-in answering with `replies` in turn, recording `v`. */
+  function stub(replies: Array<() => Response>) {
+    const versions: Array<string | null> = [];
+    const srv = Bun.serve({
+      port: 0,
+      fetch(req) {
+        versions.push(new URL(req.url).searchParams.get("v"));
+        return (replies.shift() ?? replies.at(-1) ?? (() => new Response("gone", { status: 500 })))();
+      },
+    });
+    const access = { url: `http://127.0.0.1:${srv.port}/d/deck1`, wsUrl: "", grant: "g", role: "edit" as const, expiresAt: Date.now() + 60_000 };
+    return { srv, access, versions };
+  }
+  const moving = () => new Response("deck is moving, retry", { status: 503, headers: { "retry-after": "1" } });
+
+  test("send the protocol version and wait out a deck moving between servers", async () => {
+    const { srv, access, versions } = stub([moving, () => Response.json({ commit: "c1", files: { "a.mdx": "a\n" } })]);
+    try {
+      const started = Date.now();
+      expect(await fetchFiles(access)).toEqual({ commit: "c1", files: { "a.mdx": "a\n" } });
+      expect(Date.now() - started).toBeGreaterThanOrEqual(900);
+      expect(versions).toEqual([String(SYNC_PROTOCOL), String(SYNC_PROTOCOL)]);
+    } finally {
+      srv.stop(true);
+    }
+  });
+
+  test("a protocol the service no longer speaks is an error that says how to update", async () => {
+    const { srv, access } = stub([() => Response.json({ error: "This client is too old for the server." }, { status: 426 })]);
+    try {
+      const err = await fetchFiles(access).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(SyncError);
+      expect((err as SyncError).status).toBe(426);
+      expect((err as SyncError).message).toBe("This client is too old for the server. Run `liebstoeckel update`.");
+    } finally {
+      srv.stop(true);
+    }
   });
 });
