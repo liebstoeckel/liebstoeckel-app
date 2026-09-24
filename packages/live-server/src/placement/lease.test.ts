@@ -20,6 +20,7 @@ function fakeKube() {
       const m = url.pathname.match(/^\/apis\/coordination\.k8s\.io\/v1\/namespaces\/ns\/leases(?:\/(.+))?$/);
       if (!m) return new Response("no", { status: 404 });
       const name = m[1];
+      if (req.method === "GET" && !name) return Response.json({ kind: "LeaseList", items: [...leases.values()] });
       if (req.method === "GET" && name) {
         const l = leases.get(name);
         return l ? Response.json(l) : new Response("nf", { status: 404 });
@@ -93,6 +94,18 @@ describe("kubeLeaseApi", () => {
     if (updated === "conflict") throw new Error("unexpected");
     expect(await a.update({ ...created, holder: "z" })).toBe("conflict"); // stale resourceVersion
     expect((await a.get("l"))?.holder).toBe("y");
+  });
+
+  test("lists every lease with its holder and epoch", async () => {
+    const { api } = setup();
+    const a = api();
+    await a.create({ name: "relay-a", holder: "a_1", durationSeconds: 15, transitions: 0, acquireTime: null, renewTime: null, resourceVersion: "" });
+    await a.create({ name: "relay-b", holder: "b_1", durationSeconds: 15, transitions: 2, acquireTime: null, renewTime: null, resourceVersion: "" });
+    const all = await a.list!();
+    expect(all.map((l) => [l.name, l.holder, l.transitions]).sort()).toEqual([
+      ["relay-a", "a_1", 0],
+      ["relay-b", "b_1", 2],
+    ]);
   });
 
   test("a hanging API fails within the timeout instead of stalling", async () => {
@@ -222,6 +235,24 @@ describe("LeaseHolder", () => {
     await second.h.tick();
     expect(second.events).toEqual(["acquired shard-0 1"]);
     expect(holderIdentity("pod-0")).not.toBe(holderIdentity("pod-0"));
+  });
+
+  test("a holder takes only what it wants, keeps renewing what it holds, and does not take back a released lease", async () => {
+    const { api } = setup();
+    const clock = { t: 0 };
+    const want = new Set(["a", "b"]);
+    const h = new LeaseHolder({ api: api(), identity: "p_1", names: ["a", "b", "c"], wants: (n) => want.has(n), now: () => clock.t });
+    await h.tick();
+    expect(h.heldNames().sort()).toEqual(["a", "b"]);
+    want.delete("b");
+    await h.tick();
+    expect(h.heldNames().sort()).toEqual(["a", "b"]); // held leases are renewed regardless
+    await h.release("b");
+    await h.tick();
+    expect(h.heldNames()).toEqual(["a"]);
+    const other = new LeaseHolder({ api: api(), identity: "q_1", names: ["b", "c"], now: () => clock.t });
+    await other.tick();
+    expect(other.heldNames().sort()).toEqual(["b", "c"]);
   });
 
   test("the renew interval must fit twice into the valid window", () => {

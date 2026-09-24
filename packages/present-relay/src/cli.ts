@@ -4,6 +4,7 @@ import { S3Client } from "bun";
 import { createRelay, type RelayStorage } from "./relay-server";
 import { relayPublicBaseFromPod } from "./addressing";
 import { initTracing } from "./tracing";
+import { LeaseHolder, holderIdentity, inClusterLeaseApi } from "@liebstoeckel/live-server/placement";
 
 /** Object storage for session snapshots ((internal ADR)), wired from S3_* env when present.
  *  Absent → the relay runs without persistence (transient/CLI use). */
@@ -26,6 +27,20 @@ function s3Storage(): RelayStorage | undefined {
     },
     async put(key, bytes) {
       await client.write(key, bytes);
+    },
+    async list(prefix) {
+      const keys: string[] = [];
+      let startAfter: string | undefined;
+      for (;;) {
+        const page = await client.list({ prefix, startAfter, maxKeys: 1000 });
+        const contents = page.contents ?? [];
+        for (const c of contents) keys.push(c.key);
+        if (!page.isTruncated || contents.length === 0) return keys;
+        startAfter = contents.at(-1)!.key;
+      }
+    },
+    async delete(key) {
+      await client.delete(key);
     },
   };
 }
@@ -79,7 +94,23 @@ export const relayCommand = defineCommand({
     }
 
     const storage = s3Storage();
-    const relay = createRelay({ accountTokens: tokens, port, publicBaseUrl, storage });
+    // In Kubernetes the pod holds a lease of its own (`relay-<pod>`): the control
+    // plane treats the pod as alive while it renews, however slowly it answers
+    // requests, and a new holder identity tells it the pod restarted and lost its
+    // sessions. Losing the lease changes nothing here: the relay keeps serving its
+    // clients and stops a session only on a newer placement of it.
+    const leaseApi = inClusterLeaseApi();
+    const identity = holderIdentity();
+    const liveness = leaseApi
+      ? new LeaseHolder({
+          api: leaseApi,
+          identity,
+          names: [`relay-${process.env.POD_NAME ?? process.env.HOSTNAME ?? "local"}`],
+          onError: (name, err) => console.error(JSON.stringify({ level: "warn", msg: "relay liveness lease", lease: name, err: String(err) })),
+        })
+      : null;
+    liveness?.start();
+    const relay = createRelay({ accountTokens: tokens, port, publicBaseUrl, storage, holder: liveness ? identity : undefined });
     const base = publicBaseUrl?.replace(/\/$/, "") ?? `http://localhost:${relay.port}`;
 
     console.log(`\n▶  liebstoeckel relay listening on :${relay.port}`);
@@ -101,6 +132,7 @@ export const relayCommand = defineCommand({
     // terminationGracePeriodSeconds (set on the StatefulSet) to finish.
     const shutdown = async () => {
       await relay.stop();
+      await liveness?.stop();
       process.exit(0);
     };
     process.on("SIGINT", () => void shutdown());

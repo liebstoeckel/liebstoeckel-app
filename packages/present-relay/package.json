@@ -43,7 +43,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./cli": "./src/cli.ts",
-    "./grant": "./src/grant.ts"
+    "./grant": "./src/grant.ts",
+    "./state": "./src/state.ts"
   },
   "dependencies": {
     "@liebstoeckel/live-server": "workspace:^",
@@ -54,6 +55,7 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
     "@opentelemetry/resources": "^2.10.0",
     "@opentelemetry/sdk-trace-base": "^2.10.0",
-    "@opentelemetry/semantic-conventions": "^1.41.1"
+    "@opentelemetry/semantic-conventions": "^1.41.1",
+    "yjs": "^13.6.31"
   }
 }

@@ -14,6 +14,9 @@ import { bearer, matchAccount, safeEqual } from "./auth";
 import { mintGrant, verifyGrant } from "./grant";
 import { createRelayMetrics } from "./metrics";
 import { withSpan, SpanKind, ctxFromHeaders } from "./tracing";
+import { CLOSE } from "@liebstoeckel/live-server/placement/protocol";
+import type { ServerWebSocket } from "bun";
+import { SessionState, type StateStorage } from "./state";
 
 /** Templated path for relay span names, collapse session ids so the span name stays bounded
  *  (`/sync/<id>` → `/sync/:id`), the trace-name equivalent of the metric cardinality rule. */
@@ -23,11 +26,15 @@ function tracePath(pathname: string): string {
     .replace(/^\/(s|sync)\/[^/]+/, "/$1/:id");
 }
 
-/** Pluggable object storage for session snapshots ((internal ADR)). The hosted deploy wires
- *  a Bun S3 client; the core stays storage-agnostic + testable. */
+/** Pluggable object storage for session state. The hosted deploy wires a Bun S3
+ *  client; the core stays storage-agnostic and testable. `list` and `delete` enable
+ *  epoch-fenced state (sessions created with `x-session-epoch`); without them only
+ *  the single-key snapshot (`x-snapshot-key`) is available. */
 export interface RelayStorage {
   get(key: string): Promise<Uint8Array | null>;
   put(key: string, bytes: Uint8Array): Promise<void>;
+  list?(prefix: string): Promise<string[]>;
+  delete?(key: string): Promise<void>;
 }
 
 export interface RelayOptions {
@@ -54,10 +61,18 @@ export interface RelayOptions {
   storage?: RelayStorage;
   /** snapshot debounce period (ms) for persisted sessions. */
   snapshotMs?: number;
+  /** update-log flush period (ms) for epoch-fenced sessions. */
+  logFlushMs?: number;
+  /** how often (ms) an epoch-fenced session checks whether it was replaced or ended. */
+  fenceMs?: number;
   /** per-audience-peer write rate (enforced sessions). */
   audienceRate?: { capacity: number; refillPerSec: number };
   /** image tag for the `liebstoeckel_relay_build_info` metric ((internal ADR)). */
   version?: string;
+  /** The holder identity of this process's liveness lease (hosted). Reported with
+   *  every created session and in /stats, so the control plane can tell a restarted
+   *  pod (a new holder, empty memory) from the one it placed the session on. */
+  holder?: string;
 }
 
 interface RelaySession {
@@ -83,8 +98,14 @@ interface RelaySession {
   watermark: boolean;
   /** object-storage key for this session's Yjs snapshot, if persisted. */
   snapshotKey?: string;
+  /** epoch-fenced state (hosted, placed by the control plane); replaces snapshotKey. */
+  state?: SessionState;
   ttl?: ReturnType<typeof setTimeout>;
   snap?: ReturnType<typeof setInterval>;
+  log?: ReturnType<typeof setInterval>;
+  fence?: ReturnType<typeof setInterval>;
+  /** open sockets, closed with a reason when the session goes away */
+  sockets: Set<ServerWebSocket<WSData>>;
 }
 
 export interface RelayServer {
@@ -119,6 +140,8 @@ const DEFAULTS = {
   maxFrameBytes: 4 * 1024 * 1024,
   keepaliveMs: 25_000,
   snapshotMs: 20_000,
+  logFlushMs: 1_500,
+  fenceMs: 10_000,
   audienceRate: { capacity: 20, refillPerSec: 5 },
 };
 
@@ -191,10 +214,11 @@ export function createRelay(opts: RelayOptions): RelayServer {
   });
 
   const persist = async (s: RelaySession) => {
-    if (!cfg.storage || !s.snapshotKey) return;
+    if (!cfg.storage || (!s.snapshotKey && !s.state)) return;
     metrics.snapshotWrites.inc();
     try {
-      await cfg.storage.put(s.snapshotKey, s.hub.snapshot());
+      if (s.state) await s.state.snapshot(s.hub.snapshot());
+      else await cfg.storage.put(s.snapshotKey!, s.hub.snapshot());
     } catch (e) {
       // Best-effort: a failed write must never crash the relay, but it must NOT be
       // silent (results would vanish). Structured log + a counter ((internal ADR)).
@@ -206,12 +230,22 @@ export function createRelay(opts: RelayOptions): RelayServer {
     }
   };
 
-  const dropSession = (s: RelaySession) => {
+  /** Tear a session down. `ended` and `restarting` store the final state first
+   *  (results survive); `moved` stores nothing, another pod owns the session now.
+   *  Every socket is closed with the matching code, so clients act at once instead
+   *  of waiting for a watchdog, and the audience count follows. */
+  const dropSession = async (s: RelaySession, reason: "ended" | "moved" | "restarting" = "ended"): Promise<void> => {
     if (s.ttl) clearTimeout(s.ttl);
     if (s.snap) clearInterval(s.snap);
-    sessions.delete(s.id);
-    // Snapshot the final state before tearing down the doc (results survive, (internal ADR)).
-    void persist(s).finally(() => s.hub.destroy());
+    if (s.log) clearInterval(s.log);
+    if (s.fence) clearInterval(s.fence);
+    if (sessions.get(s.id) === s) sessions.delete(s.id);
+    if (reason === "moved") s.state?.stop();
+    else await persist(s);
+    s.state?.stop();
+    const code = reason === "moved" ? CLOSE.MOVED : reason === "restarting" ? CLOSE.RESTARTING : CLOSE.ENDED;
+    for (const socket of [...s.sockets]) socket.close(code, reason);
+    s.hub.destroy();
   };
 
   // POST /api/sessions, create a live session from an uploaded deck ((internal ADR)). A closure over
@@ -268,21 +302,61 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // (`/s/<id>?t=<grant>`) and its stateless grant stay valid, only the pod the
     // multi-layer ForwardAuth route resolves to changes. Absent (CLI) → relay mints one.
     const providedId = (req.headers.get("x-session-id") || "").trim() || undefined;
+    // Epoch-fenced state (hosted): the control plane bumps the epoch on every
+    // (re)placement and names the org the state lives under. Needs a listable store.
+    const epochHdr = Number(req.headers.get("x-session-epoch") ?? "");
+    const stateOrg = (req.headers.get("x-state-org") || "").trim();
+    const fenced =
+      providedId !== undefined && Number.isSafeInteger(epochHdr) && epochHdr > 0 && stateOrg !== "" &&
+      !!cfg.storage?.list && !!cfg.storage?.delete;
 
     const session = createSession();
     if (providedId) {
       // A stale entry under this id (re-provision raced its predecessor's teardown)
-      // is dropped + snapshotted first so the fresh, re-seeded one wins.
+      // goes first so the fresh, re-seeded one wins. Under epochs the new one loads
+      // what the old one stored, so the old one must store before it goes.
       const stale = sessions.get(providedId);
-      if (stale) dropSession(stale);
+      if (stale) {
+        if (stale.state && stale.state.epoch >= epochHdr) {
+          metrics.sessionRejects.inc({ reason: "stale_epoch" });
+          return json({ error: "a newer placement of this session is already here" }, 409);
+        }
+        await dropSession(stale, "moved");
+      }
       session.id = providedId;
+    }
+    let state: SessionState | undefined;
+    let seed: Uint8Array | null = null;
+    if (fenced) {
+      try {
+        const opened = await SessionState.open({
+          storage: cfg.storage as StateStorage,
+          org: stateOrg,
+          session: providedId!,
+          epoch: epochHdr,
+        });
+        if (opened === "stale") {
+          metrics.sessionRejects.inc({ reason: "stale_epoch" });
+          return json({ error: "a newer placement of this session exists" }, 409);
+        }
+        state = opened.state;
+        seed = opened.seed;
+      } catch (e) {
+        metrics.sessionRejects.inc({ reason: "storage" });
+        console.error(JSON.stringify({ level: "error", msg: "relay state load failed", session: providedId, err: String(e) }));
+        return json({ error: "session state unavailable" }, 503);
+      }
     }
     const hub = new Hub({
       keepaliveMs: cfg.keepaliveMs,
       audience: enforce ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate } : undefined,
     });
-    // Re-seed from a prior snapshot if one exists (relay restart / reconnect).
-    if (cfg.storage && snapshotKey) {
+    // Re-seed from the stored state: the previous epoch's, or (a session placed
+    // before epochs, or unfenced) the single snapshot key.
+    if (seed) {
+      hub.seed(seed);
+      metrics.snapshotSeed.inc({ result: "hit" });
+    } else if (cfg.storage && snapshotKey) {
       try {
         const prior = await cfg.storage.get(snapshotKey);
         if (prior) {
@@ -309,13 +383,43 @@ export function createRelay(opts: RelayOptions): RelayServer {
       audienceCap,
       audienceCount: 0,
       watermark,
-      snapshotKey,
+      snapshotKey: state ? undefined : snapshotKey,
+      state,
+      sockets: new Set(),
     };
-    rs.ttl = setTimeout(() => dropSession(rs), ttlMs);
-    (rs.ttl as { unref?: () => void }).unref?.();
-    if (cfg.storage && snapshotKey) {
+    const unref = (t: unknown) => (t as { unref?: () => void }).unref?.();
+    rs.ttl = setTimeout(() => void dropSession(rs), ttlMs);
+    unref(rs.ttl);
+    if (state) {
+      // Every change goes to the update log within ~1.5 s, so a crash loses at most
+      // that much (the presenter's client resends its own state on reconnect).
+      hub.doc.on("update", (update: Uint8Array) => state!.note(update));
+      // The first snapshot makes this epoch visible at once: an older owner still
+      // running learns at its next fence check that it was replaced.
+      await persist(rs);
+      rs.log = setInterval(() => {
+        state!.flushLog().catch((e) => {
+          snapshotFailures++;
+          metrics.snapshotFailures.inc();
+          console.error(JSON.stringify({ level: "error", msg: "relay log flush failed", session: rs.id, err: String(e) }));
+        });
+      }, cfg.logFlushMs);
+      unref(rs.log);
+      rs.fence = setInterval(() => {
+        state!.fence().then(
+          (result) => {
+            if (result === "owner" || sessions.get(rs.id) !== rs) return;
+            metrics.sessionFenced.inc({ result });
+            void dropSession(rs, result === "ended" ? "ended" : "moved");
+          },
+          () => undefined, // storage unreachable: keep serving, check again later
+        );
+      }, cfg.fenceMs);
+      unref(rs.fence);
+    }
+    if (cfg.storage && (snapshotKey || state)) {
       rs.snap = setInterval(() => void persist(rs), cfg.snapshotMs);
-      (rs.snap as { unref?: () => void }).unref?.();
+      unref(rs.snap);
     }
     sessions.set(rs.id, rs);
     metrics.sessionCreates.inc();
@@ -331,6 +435,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     const { http, ws } = originOf(req, opts);
     return json({
       id: rs.id,
+      ...(opts.holder ? { holder: opts.holder } : {}),
       presenterToken: session.presenterToken,
       viewerToken: session.viewerToken,
       runnerToken: rs.runnerToken,
@@ -404,7 +509,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // Account-gated, the per-pod Ingress makes it publicly reachable.
     if (pathname === "/stats") {
       if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
-      return json({ ok: true, sessions: sessions.size, cordoned, startedAt });
+      return json({ ok: true, sessions: sessions.size, cordoned, startedAt, ...(opts.holder ? { holder: opts.holder } : {}) });
     }
 
     // --- Prometheus metrics: this pod's logical state ((internal ADR)). Account-gated like /stats, so
@@ -427,13 +532,19 @@ export function createRelay(opts: RelayOptions): RelayServer {
 
     // --- control API: create / end a session ((internal ADR)). ---
     if (pathname === "/api/sessions" && req.method === "POST") return handleCreateSession(req);
+    // `x-session-epoch` (hosted) names the placement that supersedes this one: a
+    // request for an epoch not above ours is late and must not drop the current
+    // placement. `?reason=moved` (another pod took over) stores nothing and closes
+    // sockets with `moved`; otherwise the session ended: final state, then `ended`.
     const del = pathname.match(/^\/api\/sessions\/([^/]+)$/);
     if (del && req.method === "DELETE") {
       const account = matchAccount(cfg.accountTokens, bearer(req));
       if (!account) return json({ error: "unauthorized" }, 401);
       const s = sessions.get(del[1]!);
       if (!s || s.account !== account) return json({ error: "not found" }, 404);
-      dropSession(s);
+      const by = Number(req.headers.get("x-session-epoch") ?? "");
+      if (s.state && Number.isSafeInteger(by) && by <= s.state.epoch) return json({ error: "stale request" }, 409);
+      await dropSession(s, url.searchParams.get("reason") === "moved" ? "moved" : "ended");
       return new Response(null, { status: 204 });
     }
 
@@ -494,6 +605,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
           socket.close();
           return;
         }
+        s.sockets.add(socket);
         if (socket.data.role === "audience") s.audienceCount++;
         metrics.wsOpens.inc({ role: socket.data.role });
         metrics.wsConnections.inc({ role: socket.data.role });
@@ -516,7 +628,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         metrics.wsCloses.inc({ role: socket.data.role });
         metrics.wsConnections.dec({ role: socket.data.role });
         const s = sessions.get(socket.data.sessionId);
-        if (s && socket.data.role === "audience" && s.audienceCount > 0) s.audienceCount--;
+        if (s && s.sockets.delete(socket) && socket.data.role === "audience" && s.audienceCount > 0) s.audienceCount--;
       },
     },
   });
@@ -528,18 +640,10 @@ export function createRelay(opts: RelayOptions): RelayServer {
     sessions,
     stats: () => ({ snapshotFailures }),
     async stop() {
-      const active = [...sessions.values()];
-      // Flush every active session's final snapshot and AWAIT the writes before
-      // tearing down. The old path fired `dropSession` (un-awaited persist) then
-      // returned, so a SIGTERM + process.exit raced the S3 PUTs and lost the last
-      // interval's state. Now a graceful shutdown is lossless ((internal ADR) §5).
-      await Promise.allSettled(active.map((s) => persist(s)));
-      for (const s of active) {
-        if (s.ttl) clearTimeout(s.ttl);
-        if (s.snap) clearInterval(s.snap);
-        sessions.delete(s.id);
-        s.hub.destroy();
-      }
+      // Store every session's final state and AWAIT the writes before tearing down,
+      // so a SIGTERM followed by process.exit cannot race the S3 PUTs. Clients get
+      // `restarting` and reconnect to wherever the session is placed next.
+      await Promise.allSettled([...sessions.values()].map((s) => dropSession(s, "restarting")));
       server.stop(true);
     },
   };

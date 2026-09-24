@@ -13,6 +13,8 @@ import type { LeaseRecord } from "./decide.ts";
 
 export interface LeaseApi {
   get(name: string): Promise<LeaseRecord | null>;
+  /** Every lease in the namespace (readers: which pods are alive). */
+  list?(): Promise<LeaseRecord[]>;
   create(record: LeaseRecord): Promise<LeaseRecord | "conflict">;
   update(record: LeaseRecord): Promise<LeaseRecord | "conflict">;
 }
@@ -115,6 +117,11 @@ export function kubeLeaseApi(opts: KubeLeaseApiOptions): LeaseApi {
       if (res.status === 404) return null;
       if (!res.ok) return fail(`get ${name}`, res);
       return fromKube((await res.json()) as KubeLease);
+    },
+    async list() {
+      const res = await call("GET", base);
+      if (!res.ok) return fail("list", res);
+      return ((await res.json()) as { items?: KubeLease[] }).items?.map(fromKube) ?? [];
     },
     async create(record) {
       const res = await call("POST", base, toKube(record, opts.namespace));

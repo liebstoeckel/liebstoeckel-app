@@ -103,6 +103,8 @@
         "@better-auth/mcp": "1.7.3",
         "@better-auth/passkey": "1.7.3",
         "@liebstoeckel/deck-sync": "workspace:*",
+        "@liebstoeckel/live-server": "workspace:*",
+        "@liebstoeckel/present-relay": "workspace:*",
         "@opentelemetry/api": "^1.9.1",
         "@opentelemetry/context-async-hooks": "^2.10.0",
         "@opentelemetry/core": "^2.10.0",
@@ -510,6 +512,7 @@
         "@opentelemetry/sdk-trace-base": "^2.10.0",
         "@opentelemetry/semantic-conventions": "^1.41.1",
         "citty": "^0.2.2",
+        "yjs": "^13.6.31",
       },
     },
     "packages/registry": {

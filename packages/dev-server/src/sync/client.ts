@@ -14,6 +14,7 @@ import {
   type ServerNotice,
   decodeFrame,
   encodeFrame,
+  CLOSE,
   isFatalClose,
   reconnectsAtOnce,
   withProtocol,
@@ -129,7 +130,8 @@ export class SyncClient {
       if (isFatalClose(event.code)) {
         this.closed = true;
         this.opts.onStatus?.("failed");
-        this.opts.onFatal?.(this.lastError ?? (event.reason || "The sync service no longer supports this client."));
+        const fallback = event.code === CLOSE.ENDED ? "This session has ended." : "The sync service no longer supports this client.";
+        this.opts.onFatal?.(this.lastError ?? (event.reason || fallback));
         return;
       }
       this.opts.onStatus?.("closed");

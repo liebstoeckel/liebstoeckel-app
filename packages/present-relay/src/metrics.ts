@@ -136,6 +136,7 @@ export function createRelayMetrics(version = "unknown") {
     snapshotWrites: r.register(new Counter("liebstoeckel_relay_snapshot_writes_total", "Snapshot persist attempts")),
     snapshotFailures: r.register(new Counter("liebstoeckel_relay_snapshot_failures_total", "Snapshot persist failures")),
     snapshotSeed: r.register(new Counter("liebstoeckel_relay_snapshot_seed_total", "Snapshot re-seed on create, by result")),
+    sessionFenced: r.register(new Counter("liebstoeckel_relay_session_fenced_total", "Sessions stopped because a newer placement or an end was found in storage, by result")),
     wsOpens: r.register(new Counter("liebstoeckel_relay_ws_opens_total", "WebSocket opens, by role")),
     wsCloses: r.register(new Counter("liebstoeckel_relay_ws_closes_total", "WebSocket closes, by role")),
     wsConnections: r.register(new Gauge("liebstoeckel_relay_ws_connections", "Open WebSocket connections, by role")),

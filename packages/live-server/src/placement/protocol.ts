@@ -11,6 +11,8 @@ export const CLOSE = {
   MOVED: 4004,
   /** The client speaks a protocol version the server no longer supports. */
   PROTOCOL_TOO_OLD: 4005,
+  /** The object is gone for good (a live talk that ended); do not reconnect. */
+  ENDED: 4006,
 } as const;
 
 /** Close codes after which a client should reconnect immediately, without
@@ -21,7 +23,7 @@ export function reconnectsAtOnce(code: number): boolean {
 
 /** Close codes after which reconnecting cannot help. */
 export function isFatalClose(code: number): boolean {
-  return code === CLOSE.PROTOCOL_TOO_OLD;
+  return code === CLOSE.PROTOCOL_TOO_OLD || code === CLOSE.ENDED;
 }
 
 export interface SupportedVersions {

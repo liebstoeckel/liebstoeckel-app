@@ -15,8 +15,12 @@ export interface LeaseHolderOptions {
   /** Unique per process, e.g. `${podName}_${random}`: a restarted pod must
    *  not pass for its previous incarnation (see `holderIdentity`). */
   identity: string;
-  /** The leases to hold. */
+  /** The leases this holder may hold. */
   names: string[];
+  /** Whether to take a lease it does not hold (free, expired, or new); asked each
+   *  pass. Held leases are always renewed. Default: take every one. A holder that
+   *  should hold only its share of a set (several pods) answers from that share. */
+  wants?: (name: string) => boolean;
   durationSeconds?: number;
   renewEveryMs?: number;
   /** Consider a lease lost this long before it could expire for others. */
@@ -136,6 +140,7 @@ export class LeaseHolder {
     }
     const action = decide(record, this.opts.identity, this.seen.get(name), t, this.held.has(name));
     if (action.kind === "wait") return;
+    if (action.kind !== "renew" && this.opts.wants && !this.opts.wants(name)) return;
     const next = nextRecord(record, name, this.opts.identity, action, this.durationSeconds, this.wallNow());
     const written = action.kind === "create" ? await this.opts.api.create(next) : await this.opts.api.update(next);
     if (written === "conflict") {
@@ -168,6 +173,9 @@ export class LeaseHolder {
   /** Give a lease up after `flush` (write final state), so the next holder
    *  need not wait for it to expire. */
   async release(name: string, flush?: () => Promise<void>): Promise<void> {
+    // Never interleave with a renewal of the same lease: a renewal landing after the
+    // release would hold the lease again, with nobody renewing it.
+    while (this.running) await this.running;
     const h = this.held.get(name);
     if (!h) return;
     if (flush) await flush();
