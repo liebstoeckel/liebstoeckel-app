@@ -311,7 +311,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
            bottom + the viewport-pinned chrome below the fold. */}
        <div className="relative h-dvh w-screen overflow-hidden bg-bg">
         <ScaledStage className="absolute inset-0">
-          <div data-deck-root className="absolute inset-0 bg-bg">
+          <div data-deck-root data-slide={index} className="absolute inset-0 bg-bg">
             {/* One backdrop per view, behind the transition stack: a slide change
                 crossfades transparent content over it instead of mounting a
                 second decorated frame. */}
