@@ -1,7 +1,9 @@
 // Holds a set of leases: acquires what is free or expired, renews what it
 // holds, and says when it lost one, either because someone else holds it now
 // or because it could not renew in time. The second case is judged on our own
-// monotonic clock, so a dead API connection is noticed without the API.
+// monotonic clock, so a dead API connection is noticed without the API: a
+// timer per held lease fires when its valid window ends, independent of any
+// request that may still be hanging.
 
 import { type LeaseRecord, type Observation, decide, nextRecord, releasedRecord } from "./decide.ts";
 import type { LeaseApi } from "./lease-api.ts";
@@ -36,6 +38,7 @@ interface Held {
 
 export class LeaseHolder {
   private readonly held = new Map<string, Held>();
+  private readonly expiryTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly seen = new Map<string, Observation>();
   private timer: ReturnType<typeof setInterval> | null = null;
   private running: Promise<void> | null = null;
@@ -77,8 +80,10 @@ export class LeaseHolder {
     return this.durationSeconds * 1000 - this.marginMs;
   }
 
-  /** One pass over all leases. Serialized: a slow pass is not overlapped. */
+  /** One pass over all leases. Serialized: a slow pass is not overlapped,
+   *  but expiry is still checked while one is running. */
   tick(): Promise<void> {
+    for (const name of [...this.held.keys()]) void this.checkExpired(name);
     if (this.running) return this.running;
     this.running = this.pass().finally(() => {
       this.running = null;
@@ -86,16 +91,33 @@ export class LeaseHolder {
     return this.running;
   }
 
+  /** The leases are handled concurrently, so one hanging request does not
+   *  delay the others. */
   private async pass(): Promise<void> {
-    for (const name of this.opts.names) {
-      if (this.stopped) return;
-      try {
-        await this.step(name);
-      } catch (err) {
-        this.opts.onError?.(name, err);
-      }
-      await this.checkExpired(name);
-    }
+    await Promise.all(
+      this.opts.names.map(async (name) => {
+        if (this.stopped) return;
+        try {
+          await this.step(name);
+        } catch (err) {
+          this.opts.onError?.(name, err);
+        }
+        await this.checkExpired(name);
+      }),
+    );
+  }
+
+  private drop(name: string): void {
+    this.held.delete(name);
+    clearTimeout(this.expiryTimers.get(name));
+    this.expiryTimers.delete(name);
+  }
+
+  private armExpiry(name: string, lastRenewMs: number): void {
+    clearTimeout(this.expiryTimers.get(name));
+    const timer = setTimeout(() => void this.checkExpired(name), Math.max(0, lastRenewMs + this.validForMs() - this.now()));
+    timer.unref?.();
+    this.expiryTimers.set(name, timer);
   }
 
   private async step(name: string): Promise<void> {
@@ -109,7 +131,7 @@ export class LeaseHolder {
     }
     const mine = this.held.get(name);
     if (mine && record && record.holder !== this.opts.identity) {
-      this.held.delete(name);
+      this.drop(name);
       await this.opts.onLost?.(name, "taken");
     }
     const action = decide(record, this.opts.identity, this.seen.get(name), t, this.held.has(name));
@@ -119,21 +141,26 @@ export class LeaseHolder {
     if (written === "conflict") {
       // Someone else wrote first; re-read on the next pass.
       if (this.held.has(name)) {
-        this.held.delete(name);
+        this.drop(name);
         await this.opts.onLost?.(name, "taken");
       }
       return;
     }
     this.seen.set(name, { resourceVersion: written.resourceVersion, sinceMs: this.now() });
+    // A write that only landed after the valid window is not a hold we may act
+    // on; the loss was (or is about to be) reported, and the next pass takes
+    // the lease over with a new epoch.
+    if (this.now() - t >= this.validForMs()) return;
     const was = this.held.get(name);
     this.held.set(name, { epoch: written.transitions, record: written, lastRenewMs: t });
+    this.armExpiry(name, t);
     if (!was) await this.opts.onAcquired?.(name, written.transitions);
   }
 
   private async checkExpired(name: string): Promise<void> {
     const h = this.held.get(name);
     if (h && this.now() - h.lastRenewMs >= this.validForMs()) {
-      this.held.delete(name);
+      this.drop(name);
       await this.opts.onLost?.(name, "expired");
     }
   }
@@ -144,7 +171,7 @@ export class LeaseHolder {
     const h = this.held.get(name);
     if (!h) return;
     if (flush) await flush();
-    this.held.delete(name);
+    this.drop(name);
     try {
       await this.opts.api.update(releasedRecord(h.record, this.wallNow()));
     } catch (err) {

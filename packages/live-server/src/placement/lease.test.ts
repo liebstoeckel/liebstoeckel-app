@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { LeaseHolder, holderIdentity, type LossReason } from "./holder.ts";
+import type { LeaseRecord } from "./decide.ts";
 import { type LeaseApi, kubeLeaseApi } from "./lease-api.ts";
 
 /** A fake of the Kubernetes Lease API: resourceVersion CAS, 409 on conflict,
@@ -134,7 +135,7 @@ describe("LeaseHolder", () => {
     ca.t = 12_000;
     expect(a.h.epochOf("shard-0")).toBeNull();
     await a.h.tick();
-    expect(a.events).toEqual(["acquired shard-0 0", "lost shard-0 taken"]);
+    expect(a.events).toEqual(["acquired shard-0 0", "lost shard-0 expired"]);
   });
 
   test("two holders racing for a free lease: exactly one wins", async () => {
@@ -159,6 +160,41 @@ describe("LeaseHolder", () => {
     await a.h.tick();
     expect(a.events).toEqual(["acquired shard-0 0", "lost shard-0 expired"]);
     expect(a.h.epochOf("shard-0")).toBeNull();
+  });
+
+  test("a request hanging past the valid window does not delay the loss of any lease", async () => {
+    const names = Array.from({ length: 16 }, (_, i) => `shard-${i}`);
+    const records = new Map<string, LeaseRecord>();
+    let hang = false;
+    const never = new Promise<never>(() => {});
+    let rv = 0;
+    const api: LeaseApi = {
+      get: async (n) => (hang ? never : (records.get(n) ?? null)),
+      create: async (r) => {
+        const w = { ...r, resourceVersion: String(++rv) };
+        records.set(r.name, w);
+        return w;
+      },
+      update: async (r) => {
+        const w = { ...r, resourceVersion: String(++rv) };
+        records.set(r.name, w);
+        return w;
+      },
+    };
+    const clock = { t: 0 };
+    const lost: string[] = [];
+    const h = new LeaseHolder({ api, identity: "a_1", names, now: () => clock.t, onLost: (n, why) => void lost.push(`${n} ${why}`) });
+    await h.tick();
+    expect(h.heldNames()).toHaveLength(16);
+    hang = true;
+    clock.t = 5000;
+    void h.tick(); // hangs on every lease
+    await Promise.resolve();
+    clock.t = 12_000;
+    void h.tick(); // the pass is still running; expiry is judged anyway
+    await Bun.sleep(0);
+    expect(lost.toSorted()).toEqual(names.map((n) => `${n} expired`).toSorted());
+    expect(h.heldNames()).toEqual([]);
   });
 
   test("stop flushes, releases, and the next holder takes over at once with a new epoch", async () => {

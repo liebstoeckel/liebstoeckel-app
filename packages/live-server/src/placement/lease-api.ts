@@ -18,7 +18,7 @@ export interface LeaseApi {
 }
 
 export interface KubeLeaseApiOptions {
-  /** e.g. https://10.43.0.1:443 */
+  /** The API server, e.g. https://kubernetes.default.svc:443 */
   baseUrl: string;
   namespace: string;
   /** Read per request: projected service-account tokens rotate. */
