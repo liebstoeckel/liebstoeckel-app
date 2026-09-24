@@ -27,6 +27,8 @@ export interface ConnectOptions {
   /** Recovery action when the session looks gone. Default: reload the page (which
    *  re-resolves the stable `/live/:slug` → the new relay session) where possible. */
   onUnrecoverable?: () => void;
+  /** Give up on a connection attempt that has not opened after this long (ms). */
+  connectTimeoutMs?: number;
   /** After a planned close (restarting, moved), retry about this often (ms, plus up to
    *  as much jitter) instead of backing off, for `quickRetryWindowMs`. */
   quickRetryMs?: number;
@@ -46,6 +48,8 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   const staleMs = opts.staleMs ?? 35_000;
   const reloadAfter = opts.reloadAfterAttempts ?? 0;
   const quickMs = opts.quickRetryMs ?? 500;
+  const connectTimeoutMs = opts.connectTimeoutMs ?? 10_000;
+  let attemptAt = 0;
   const quickWindowMs = opts.quickRetryWindowMs ?? 30_000;
   /** Until when failed reconnects retry quickly: the server announced it is coming back. */
   let quickUntil = 0;
@@ -112,22 +116,34 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   // watchdog: if the socket is OPEN but we've heard nothing within staleMs, the
   // connection is likely half-open, drop it so `close` triggers a reconnect.
   if (staleMs > 0) {
-    const period = Math.min(Math.max(Math.floor(staleMs / 3), 20), 30000);
+    const period = Math.min(Math.max(Math.floor(Math.min(staleMs, connectTimeoutMs) / 3), 20), 30000);
     watchdog = setInterval(() => {
-      if (closed || !ws || ws.readyState !== ws.OPEN) return;
-      if (Date.now() - lastMsgAt > staleMs) {
-        try {
-          ws.close();
-        } catch {
-          /* close handler reconnects */
-        }
-      }
+      if (closed || !ws) return;
+      const silent = ws.readyState === ws.OPEN && Date.now() - lastMsgAt > staleMs;
+      const stuck = ws.readyState === ws.CONNECTING && Date.now() - attemptAt > connectTimeoutMs;
+      if (silent || stuck) abandon(ws);
     }, period);
     (watchdog as { unref?: () => void }).unref?.();
   }
 
+  /** Give up on a socket and reconnect now. A hung server never answers the closing
+   *  handshake, so the browser's `close` event would only come when the connection
+   *  finally dies: do not wait for it. */
+  function abandon(sock: WebSocket) {
+    if (ws !== sock) return;
+    ws = null;
+    try {
+      sock.close();
+    } catch {
+      /* already closing */
+    }
+    emit(false);
+    schedule();
+  }
+
   function open() {
     if (closed) return;
+    attemptAt = Date.now();
     const sock = new WS(url);
     ws = sock;
     sock.binaryType = "arraybuffer";

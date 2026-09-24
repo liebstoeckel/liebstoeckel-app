@@ -5,7 +5,10 @@ import { LIVE_CLOSE, LIVE_PROTOCOL, type LiveState } from "./protocol";
 
 // Minimal WebSocket stand-in so we can unit-test connect without a server.
 class MockWS {
+  CONNECTING = 0;
   OPEN = 1;
+  /** A hung server: closing never completes, so no close event. */
+  hung = false;
   readyState = 0;
   binaryType = "blob";
   sent: Uint8Array[] = [];
@@ -18,6 +21,10 @@ class MockWS {
     this.sent.push(d);
   }
   close() {
+    if (this.hung) {
+      this.readyState = 2; // CLOSING, forever
+      return;
+    }
     this.readyState = 3;
     this.emit("close");
   }
@@ -288,6 +295,37 @@ describe("connectLive close codes and protocol version", () => {
     await Bun.sleep(50);
     expect(created.length).toBe(1);
     expect(state).toEqual({ status: "outdated", message: "update please" });
+    conn.close();
+  });
+});
+
+describe("connectLive and a hung server", () => {
+  const factory = () => {
+    const created: MockWS[] = [];
+    const WS = function (url: string) {
+      const s = new MockWS(url);
+      created.push(s);
+      return s;
+    } as unknown as typeof WebSocket;
+    return { created, WS };
+  };
+
+  test("a silent open socket is given up without waiting for its close event", async () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", { WS, staleMs: 60, reconnectBaseMs: 10, reconnectMaxMs: 10 });
+    created[0]!.open();
+    created[0]!.hung = true; // the server froze: no frames, and closing never completes
+    await Bun.sleep(250);
+    expect(created.length).toBeGreaterThanOrEqual(2);
+    conn.close();
+  });
+
+  test("a connection attempt that never opens is retried", async () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", { WS, staleMs: 60_000, connectTimeoutMs: 60, reconnectBaseMs: 10, reconnectMaxMs: 10 });
+    created[0]!.hung = true; // never opens
+    await Bun.sleep(250);
+    expect(created.length).toBeGreaterThanOrEqual(2);
     conn.close();
   });
 });
