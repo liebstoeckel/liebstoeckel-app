@@ -31,6 +31,11 @@ export interface LeaseHolderOptions {
   onAcquired?: (name: string, epoch: number) => void | Promise<void>;
   onLost?: (name: string, reason: LossReason) => void | Promise<void>;
   onError?: (name: string, err: unknown) => void;
+  /** Whether a holder identity is a dead earlier process of this one, whose lease is
+   *  taken over at once instead of after its duration. Only for a lease no other live
+   *  process can hold: a pod's own liveness lease under a StatefulSet, which never runs
+   *  two pods of one name at once. Default: never. */
+  isPredecessor?: (holder: string) => boolean;
 }
 
 interface Held {
@@ -138,7 +143,8 @@ export class LeaseHolder {
       this.drop(name);
       await this.opts.onLost?.(name, "taken");
     }
-    const action = decide(record, this.opts.identity, this.seen.get(name), t, this.held.has(name));
+    const predecessor = !!record?.holder && record.holder !== this.opts.identity && (this.opts.isPredecessor?.(record.holder) ?? false);
+    const action = decide(record, this.opts.identity, this.seen.get(name), t, this.held.has(name), predecessor);
     if (action.kind === "wait") return;
     if (action.kind !== "renew" && this.opts.wants && !this.opts.wants(name)) return;
     const next = nextRecord(record, name, this.opts.identity, action, this.durationSeconds, this.wallNow());
@@ -199,6 +205,13 @@ export class LeaseHolder {
 }
 
 /** A lease identity unique to this process: the pod name plus a random part. */
+/** Whether `holder` is an identity of another process of the same pod (see
+ *  `holderIdentity`): under a StatefulSet that is a dead predecessor. */
+export function samePodHolder(identity: string, holder: string): boolean {
+  const pod = identity.slice(0, identity.lastIndexOf("_"));
+  return holder !== identity && holder.lastIndexOf("_") > 0 && holder.slice(0, holder.lastIndexOf("_")) === pod;
+}
+
 export function holderIdentity(podName = process.env.POD_NAME ?? process.env.HOSTNAME ?? "local"): string {
   return `${podName}_${crypto.randomUUID().slice(0, 8)}`;
 }

@@ -209,6 +209,51 @@ describe("connectLive close codes and protocol version", () => {
     });
   }
 
+  test("after a planned close, failed reconnects retry quickly instead of backing off", async () => {
+    const created: MockWS[] = [];
+    let refuse = false;
+    const WS = function (url: string) {
+      const s = new MockWS(url);
+      created.push(s);
+      if (refuse) queueMicrotask(() => s.close()); // the talk is not placed again yet
+      return s;
+    } as unknown as typeof WebSocket;
+    const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 5000, reconnectMaxMs: 5000, quickRetryMs: 20 });
+    created[0]!.open();
+    refuse = true;
+    created[0]!.serverClose(LIVE_CLOSE.RESTARTING);
+    await Bun.sleep(400);
+    // With a 5 s backoff there would be one attempt; quick retries make several.
+    expect(created.length).toBeGreaterThan(5);
+    refuse = false;
+    await Bun.sleep(100);
+    created.at(-1)!.open();
+    // Back to normal: a plain drop now backs off again.
+    const before = created.length;
+    created.at(-1)!.serverClose(1006);
+    await Bun.sleep(300);
+    expect(created.length).toBe(before);
+    conn.close();
+  });
+
+  test("the quick retries end after their window", async () => {
+    const created: MockWS[] = [];
+    const WS = function (url: string) {
+      const s = new MockWS(url);
+      created.push(s);
+      if (created.length > 1) queueMicrotask(() => s.close());
+      return s;
+    } as unknown as typeof WebSocket;
+    const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 5000, reconnectMaxMs: 5000, quickRetryMs: 10, quickRetryWindowMs: 150 });
+    created[0]!.open();
+    created[0]!.serverClose(LIVE_CLOSE.MOVED);
+    await Bun.sleep(400);
+    const settled = created.length;
+    await Bun.sleep(300);
+    expect(created.length).toBe(settled); // backing off now
+    conn.close();
+  });
+
   test("a plain drop backs off", async () => {
     const { created, WS } = factory();
     const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 5000, reconnectMaxMs: 5000 });

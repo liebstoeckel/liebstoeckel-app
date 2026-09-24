@@ -26,23 +26,27 @@ export interface Observation {
 export type LeaseAction =
   | { kind: "create" }
   | { kind: "renew" }
-  | { kind: "takeover"; why: "free" | "expired" | "reacquire" }
+  | { kind: "takeover"; why: "free" | "expired" | "reacquire" | "predecessor" }
   | { kind: "wait"; untilMs: number | null };
 
 /** `iHoldIt`: this process holds the lease already. A record naming us that
  *  this process does not know (a restart under the same identity) is taken
  *  over with a new epoch, never renewed: the old incarnation's state under
- *  the old epoch has to be loaded first. */
+ *  the old epoch has to be loaded first. `predecessor`: the holder is known to
+ *  be a dead earlier process of ours (the caller decides, e.g. an earlier
+ *  process of the same StatefulSet pod), so there is nothing to wait out. */
 export function decide(
   record: LeaseRecord | null,
   me: string,
   seen: Observation | undefined,
   nowMs: number,
   iHoldIt = false,
+  predecessor = false,
 ): LeaseAction {
   if (!record) return { kind: "create" };
   if (record.holder === me) return iHoldIt ? { kind: "renew" } : { kind: "takeover", why: "reacquire" };
   if (!record.holder) return { kind: "takeover", why: "free" };
+  if (predecessor) return { kind: "takeover", why: "predecessor" };
   if (!seen || seen.resourceVersion !== record.resourceVersion) return { kind: "wait", untilMs: null };
   const expiresAt = seen.sinceMs + record.durationSeconds * 1000;
   return nowMs >= expiresAt ? { kind: "takeover", why: "expired" } : { kind: "wait", untilMs: expiresAt };

@@ -27,6 +27,10 @@ export interface ConnectOptions {
   /** Recovery action when the session looks gone. Default: reload the page (which
    *  re-resolves the stable `/live/:slug` → the new relay session) where possible. */
   onUnrecoverable?: () => void;
+  /** After a planned close (restarting, moved), retry about this often (ms, plus up to
+   *  as much jitter) instead of backing off, for `quickRetryWindowMs`. */
+  quickRetryMs?: number;
+  quickRetryWindowMs?: number;
 }
 
 /** Connect a Yjs doc to the live server over WebSocket, with auto-reconnect and a
@@ -39,6 +43,10 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   const maxMs = opts.reconnectMaxMs ?? 15000;
   const staleMs = opts.staleMs ?? 60000;
   const reloadAfter = opts.reloadAfterAttempts ?? 0;
+  const quickMs = opts.quickRetryMs ?? 500;
+  const quickWindowMs = opts.quickRetryWindowMs ?? 30_000;
+  /** Until when failed reconnects retry quickly: the server announced it is coming back. */
+  let quickUntil = 0;
   const onUnrecoverable =
     opts.onUnrecoverable ??
     (() => {
@@ -74,10 +82,17 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
     if (closed) return;
     setState({ status: "reconnecting" });
     // A restart or a move is planned: the session is up again on a server within
-    // moments, so reconnect now (a little jitter spreads a whole audience).
+    // moments, so reconnect now (a little jitter spreads a whole audience), and while
+    // it is being placed again keep retrying about every half second rather than
+    // backing off into a long wait just as it comes back.
     if (atOnce) {
       attempt = 0;
+      quickUntil = Date.now() + quickWindowMs;
       timer = setTimeout(open, Math.random() * 250);
+      return;
+    }
+    if (Date.now() < quickUntil) {
+      timer = setTimeout(open, quickMs + Math.random() * quickMs);
       return;
     }
     // Persistent failure → the session is likely gone (re-provisioned). Stop hammering
@@ -116,6 +131,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
     sock.binaryType = "arraybuffer";
     sock.addEventListener("open", () => {
       attempt = 0;
+      quickUntil = 0;
       lastMsgAt = Date.now();
       try {
         sock.send(new Uint8Array(Y.encodeStateAsUpdate(doc)));

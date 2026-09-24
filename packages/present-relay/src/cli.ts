@@ -4,7 +4,7 @@ import { S3Client } from "bun";
 import { createRelay, type RelayStorage } from "./relay-server";
 import { relayPublicBaseFromPod } from "./addressing";
 import { initTracing } from "./tracing";
-import { LeaseHolder, holderIdentity, inClusterLeaseApi } from "@liebstoeckel/live-server/placement";
+import { LeaseHolder, holderIdentity, inClusterLeaseApi, samePodHolder } from "@liebstoeckel/live-server/placement";
 
 /** Object storage for session snapshots ((internal ADR)), wired from S3_* env when present.
  *  Absent → the relay runs without persistence (transient/CLI use). */
@@ -106,6 +106,9 @@ export const relayCommand = defineCommand({
           api: leaseApi,
           identity,
           names: [`relay-${process.env.POD_NAME ?? process.env.HOSTNAME ?? "local"}`],
+          // A restarted relay (same pod, new process) takes its pod's lease over at once:
+          // the new holder tells the control plane at once that the talks here are gone.
+          isPredecessor: (holder) => samePodHolder(identity, holder),
           onError: (name, err) => console.error(JSON.stringify({ level: "warn", msg: "relay liveness lease", lease: name, err: String(err) })),
         })
       : null;

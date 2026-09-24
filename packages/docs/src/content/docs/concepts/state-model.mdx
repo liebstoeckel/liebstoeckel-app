@@ -43,7 +43,7 @@ Plugin state is a CRDT, so writes merge and there's no central lock. We assume *
 ## Resilience
 
 - **Reconnect:** `connectLive` auto-reconnects with capped exponential backoff and re-pushes local state on reopen. A clean network blip recovers without a reload.
-- **Server restarts and moves:** a server that restarts, or hands the session to another server, closes sockets with a close code that says so (`4003` restarting, `4004` moved); clients reconnect at once instead of backing off. `4006` means the talk ended: the client stops reconnecting and keeps its state for the end card.
+- **Server restarts and moves:** a server that restarts, or hands the session to another server, closes sockets with a close code that says so (`4003` restarting, `4004` moved); clients reconnect at once and keep retrying about every half second while the session starts up again elsewhere, instead of backing off. `4006` means the talk ended: the client stops reconnecting and keeps its state for the end card.
 - **Protocol version:** the client sends its live protocol version (`v` on the socket URL). A server that no longer supports it closes the socket with `4005` and a reason, and the page shows that a reload is needed instead of retrying forever. A client without a version counts as version 1.
 - **Half-open detection:** the server sends a keepalive (~25 s) and Bun pings idle sockets; the client runs a watchdog and force-reconnects if no frame arrives within `staleMs`. A silently-dead (mobile-sleep / NAT-timeout) socket recovers instead of hanging.
 - **Bad frames:** every `Y.applyUpdate` boundary (client message, server `Hub.recv`) is wrapped, and the server caps inbound frame size. One malformed update can't disrupt the session.

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { LeaseHolder, holderIdentity, type LossReason } from "./holder.ts";
+import { LeaseHolder, holderIdentity, samePodHolder, type LossReason } from "./holder.ts";
 import type { LeaseRecord } from "./decide.ts";
 import { type LeaseApi, kubeLeaseApi } from "./lease-api.ts";
 
@@ -259,5 +259,41 @@ describe("LeaseHolder", () => {
     expect(
       () => new LeaseHolder({ api: {} as LeaseApi, identity: "x", names: [], durationSeconds: 10, renewEveryMs: 5000, marginMs: 3000 }),
     ).toThrow();
+  });
+});
+
+describe("LeaseHolder and a dead predecessor", () => {
+  test("a restarted process of the same pod takes its lease over at once; a stranger waits", async () => {
+    const { api } = setup();
+    const clock = { t: 0 };
+    const old = holder(api(), "relay-0_aaaa", clock, ["relay-relay-0"]);
+    await old.h.tick();
+    expect(old.events).toEqual(["acquired relay-relay-0 0"]);
+    // The old process dies without releasing (a crash).
+    const stranger = new LeaseHolder({ api: api(), identity: "relay-1_cccc", names: ["relay-relay-0"], durationSeconds: 15, now: () => clock.t, onError: () => {} });
+    await stranger.tick();
+    expect(stranger.epochOf("relay-relay-0")).toBeNull();
+    const events: string[] = [];
+    const next = new LeaseHolder({
+      api: api(),
+      identity: "relay-0_bbbb",
+      names: ["relay-relay-0"],
+      durationSeconds: 15,
+      now: () => clock.t,
+      isPredecessor: (h) => samePodHolder("relay-0_bbbb", h),
+      onAcquired: (n, epoch) => void events.push(`acquired ${n} ${epoch}`),
+      onError: () => {},
+    });
+    await next.tick();
+    expect(events).toEqual(["acquired relay-relay-0 1"]); // at once, with a new epoch
+    expect((await api().get("relay-relay-0"))?.holder).toBe("relay-0_bbbb");
+  });
+
+  test("samePodHolder matches other processes of the same pod only", () => {
+    expect(samePodHolder("relay-0_bbbb", "relay-0_aaaa")).toBe(true);
+    expect(samePodHolder("relay-0_bbbb", "relay-0_bbbb")).toBe(false);
+    expect(samePodHolder("relay-0_bbbb", "relay-1_aaaa")).toBe(false);
+    expect(samePodHolder("relay-1_bbbb", "relay-10_aaaa")).toBe(false);
+    expect(samePodHolder("relay-0_bbbb", "relay-0")).toBe(false);
   });
 });
