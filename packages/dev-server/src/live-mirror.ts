@@ -3,6 +3,10 @@
 // files (so HMR picks them up); local file changes become minimal text edits.
 // Each file remembers the content last agreed between disk and document, so
 // the mirror never echoes its own writes and can merge when both sides moved.
+// It also remembers what each of its own writes of a remote change replaced on
+// disk: a tool that read the file before such a write and saves its old copy
+// back (a stale save) is merged against the version it read, so it cannot
+// revert remote edits on lines it did not change.
 
 import { type Dirent, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -19,6 +23,26 @@ import {
   mergeText,
   setFile,
 } from "./sync.ts";
+
+/** How far back a stale save is recognized: what the mirror's recent writes of
+ *  remote changes replaced, per file. Long enough for a tool that reads, works
+ *  for a while and writes the whole file back (an agent, a formatter). */
+const HISTORY_VERSIONS = 20;
+const HISTORY_MS = 2 * 60_000;
+
+/** Lines in one text and not the other, counted with multiplicity. */
+export function lineDistance(a: string, b: string): number {
+  const count = new Map<string, number>();
+  for (const l of a.split("\n")) count.set(l, (count.get(l) ?? 0) + 1);
+  let only = 0;
+  for (const l of b.split("\n")) {
+    const n = count.get(l) ?? 0;
+    if (n > 0) count.set(l, n - 1);
+    else only++;
+  }
+  for (const n of count.values()) only += n;
+  return only;
+}
 
 /** Origin of the mirror's own document changes. */
 const LOCAL = Symbol("live-mirror");
@@ -63,6 +87,9 @@ export function listSourcePaths(dir: string): string[] {
 
 export class LiveMirror {
   private readonly agreed = new Map<string, string>();
+  /** What the mirror's own writes of remote changes replaced on disk, per file,
+   *  newest last: the versions a stale save can be based on. */
+  private readonly history = new Map<string, Array<{ content: string; at: number }>>();
   private readonly seen = new Map<string, Seen>();
   private timer: ReturnType<typeof setInterval> | null = null;
   private lastLog = new Map<string, number>();
@@ -141,7 +168,15 @@ export class LiveMirror {
     }
   }
 
-  private writeDisk(path: string, content: string | undefined): void {
+  /** Write remote content to disk; `replaced` is what was there, which a tool
+   *  may still hold as its stale copy. */
+  private writeDisk(path: string, content: string | undefined, replaced: string | undefined): void {
+    if (replaced !== undefined) {
+      const now = Date.now();
+      const versions = (this.history.get(path) ?? []).filter((v) => now - v.at < HISTORY_MS);
+      versions.push({ content: replaced, at: now });
+      this.history.set(path, versions.slice(-HISTORY_VERSIONS));
+    }
     const abs = join(this.opts.dir, path);
     if (content === undefined) {
       rmSync(abs, { force: true });
@@ -188,9 +223,22 @@ export class LiveMirror {
     }
     if (disk === agreed) {
       // Only the document moved: take it.
-      this.writeDisk(path, live);
+      this.writeDisk(path, live, disk);
       this.remember(path, live);
       if (remote) this.announce(path, live === undefined ? "deleted" : "changed");
+      return;
+    }
+    // The file moved. If it is closer to a version agreed before the current one,
+    // it was written from a stale read: merge against what the writer read, so
+    // only the lines it changed count as local changes.
+    const base = disk !== undefined && live !== undefined && agreed !== undefined ? this.staleBase(path, disk, agreed) : null;
+    if (base !== null) {
+      const m = mergeText(base, disk!, live!, { preferOurs: true });
+      const merged = m.ok ? m.text : disk!;
+      if (merged !== disk) this.writeDisk(path, merged, disk);
+      if (merged !== live) this.writeDoc(path, merged);
+      this.remember(path, merged);
+      this.opts.log?.(`${path}: kept remote lines over a stale save`);
       return;
     }
     if (live === agreed) {
@@ -210,7 +258,7 @@ export class LiveMirror {
     } else {
       merged = disk ?? live;
     }
-    if (merged !== disk) this.writeDisk(path, merged);
+    if (merged !== disk) this.writeDisk(path, merged, disk);
     if (merged !== live) this.writeDoc(path, merged);
     this.remember(path, merged);
     if (remote) this.announce(path, "merged");
@@ -219,6 +267,25 @@ export class LiveMirror {
   private remember(path: string, content: string | undefined): void {
     if (content === undefined) this.agreed.delete(path);
     else this.agreed.set(path, content);
+  }
+
+  /** The version a stale save was based on: one the mirror recently replaced on disk
+   *  with a remote change, when `disk` is strictly closer to it than to the current
+   *  agreed content; null for a save from a fresh read (including undoing one's own
+   *  edit, which never passed through the mirror's writes). */
+  private staleBase(path: string, disk: string, agreed: string): string | null {
+    const now = Date.now();
+    let best: string | null = null;
+    let bestDistance = lineDistance(disk, agreed);
+    for (const v of this.history.get(path) ?? []) {
+      if (now - v.at >= HISTORY_MS) continue;
+      const d = lineDistance(disk, v.content);
+      if (d < bestDistance) {
+        best = v.content;
+        bestDistance = d;
+      }
+    }
+    return best;
   }
 
   /** Name who is editing the file (from awareness), at most every 2 s per file. */

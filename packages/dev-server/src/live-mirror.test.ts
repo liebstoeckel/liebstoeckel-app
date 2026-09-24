@@ -113,3 +113,68 @@ describe("LiveMirror safety", () => {
     expect(read(dir, "a.mdx")).toBe("1\nLOCAL\n3\n4\nFIVE\n");
   });
 });
+
+describe("LiveMirror and stale saves", () => {
+  /** Apply a remote edit to the mirror's document, as the sync service would. */
+  const remoteEdit = (doc: Y.Doc, path: string, content: string) => {
+    const remote = new Y.Doc();
+    Y.applyUpdate(remote, Y.encodeStateAsUpdate(doc));
+    setFile(remote, path, content);
+    Y.applyUpdate(doc, Y.encodeStateAsUpdate(remote, Y.encodeStateVector(doc)), "remote");
+  };
+
+  test("a save based on a read from before a remote edit keeps that remote edit", () => {
+    const { dir, doc, mirror, lines } = setup({ "a.mdx": "1\n2\n3\n4\n5\n" });
+    // A tool reads the file now ...
+    const read0 = read(dir, "a.mdx");
+    // ... a remote edit lands and the mirror writes it to disk ...
+    remoteEdit(doc, "a.mdx", "1\n2\nTHREE\n4\n5\n");
+    expect(read(dir, "a.mdx")).toBe("1\n2\nTHREE\n4\n5\n");
+    // ... and the tool writes back its old copy with its own change.
+    writeFileSync(join(dir, "a.mdx"), read0.replace("1\n", "ONE\n"));
+    mirror.poll();
+    expect(readTree(doc)["a.mdx"]).toBe("ONE\n2\nTHREE\n4\n5\n");
+    expect(read(dir, "a.mdx")).toBe("ONE\n2\nTHREE\n4\n5\n");
+    expect(lines.some((l) => l.includes("stale save"))).toBe(true);
+  });
+
+  test("a stale save that meets a newer remote edit keeps both remote edits", () => {
+    const { dir, doc } = setup({ "a.mdx": "1\n2\n3\n4\n5\n" });
+    const read0 = read(dir, "a.mdx");
+    remoteEdit(doc, "a.mdx", "1\n2\nTHREE\n4\n5\n");
+    writeFileSync(join(dir, "a.mdx"), read0.replace("1\n", "ONE\n"));
+    // Before the next poll, another remote edit arrives: the mirror reconciles now.
+    remoteEdit(doc, "a.mdx", "1\n2\nTHREE\n4\nFIVE\n");
+    expect(readTree(doc)["a.mdx"]).toBe("ONE\n2\nTHREE\n4\nFIVE\n");
+    expect(read(dir, "a.mdx")).toBe("ONE\n2\nTHREE\n4\nFIVE\n");
+  });
+
+  test("a save from a fresh read still wins on the lines it changed", () => {
+    const { dir, doc, mirror } = setup({ "a.mdx": "1\n2\n3\n4\n5\n" });
+    remoteEdit(doc, "a.mdx", "1\n2\nTHREE\n4\n5\n");
+    // The tool reads after the remote edit and changes that same line on purpose.
+    writeFileSync(join(dir, "a.mdx"), read(dir, "a.mdx").replace("THREE\n", "three, mine\n"));
+    mirror.poll();
+    expect(readTree(doc)["a.mdx"]).toBe("1\n2\nthree, mine\n4\n5\n");
+  });
+
+  test("undoing your own saved edit is sent, not taken for a stale save", () => {
+    const { dir, doc, mirror } = setup({ "a.mdx": "1\n2\n3\n" });
+    writeFileSync(join(dir, "a.mdx"), "1\nMINE\n3\n");
+    mirror.poll();
+    expect(readTree(doc)["a.mdx"]).toBe("1\nMINE\n3\n");
+    writeFileSync(join(dir, "a.mdx"), "1\n2\n3\n"); // undo, save
+    mirror.poll();
+    expect(readTree(doc)["a.mdx"]).toBe("1\n2\n3\n");
+  });
+
+  test("a save of an older version with no other change keeps every remote edit", () => {
+    const { dir, doc, mirror } = setup({ "a.mdx": "1\n2\n3\n" });
+    const read0 = read(dir, "a.mdx");
+    remoteEdit(doc, "a.mdx", "1\nTWO\n3\n");
+    writeFileSync(join(dir, "a.mdx"), read0); // e.g. an editor saving an unchanged stale buffer
+    mirror.poll();
+    expect(readTree(doc)["a.mdx"]).toBe("1\nTWO\n3\n");
+    expect(read(dir, "a.mdx")).toBe("1\nTWO\n3\n");
+  });
+});
