@@ -1,6 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
 import { connectLive } from "./connect";
+import { LIVE_CLOSE, LIVE_PROTOCOL, type LiveState } from "./protocol";
 
 // Minimal WebSocket stand-in so we can unit-test connect without a server.
 class MockWS {
@@ -19,6 +20,11 @@ class MockWS {
   close() {
     this.readyState = 3;
     this.emit("close");
+  }
+  /** The server closes the socket with a code. */
+  serverClose(code: number, reason = "") {
+    this.readyState = 3;
+    this.emit("close", { code, reason });
   }
   // test drivers
   open() {
@@ -164,6 +170,79 @@ describe("connectLive recovery escalation ((internal ticket))", () => {
     created[0]!.open(); // immediate success resets attempt to 0
     await new Promise((r) => setTimeout(r, 30));
     expect(recovered).toBe(0);
+    conn.close();
+  });
+});
+
+describe("connectLive close codes and protocol version", () => {
+  const factory = () => {
+    const created: MockWS[] = [];
+    const WS = function (url: string) {
+      const s = new MockWS(url);
+      created.push(s);
+      return s;
+    } as unknown as typeof WebSocket;
+    return { created, WS };
+  };
+
+  test("sends its protocol version", () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", { WS, staleMs: 0 });
+    expect(new URL(created[0]!.url).searchParams.get("v")).toBe(String(LIVE_PROTOCOL));
+    conn.close();
+  });
+
+  for (const code of [LIVE_CLOSE.RESTARTING, LIVE_CLOSE.MOVED, LIVE_CLOSE.GRANT_EXPIRED]) {
+    test(`reconnects at once after close ${code}, even after failures`, async () => {
+      const { created, WS } = factory();
+      // A long backoff: only an immediate reconnect makes it within the test.
+      const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 5000, reconnectMaxMs: 5000 });
+      const states: string[] = [];
+      conn.onState((s) => states.push(s.status));
+      created[0]!.open();
+      created[0]!.serverClose(code);
+      await Bun.sleep(400);
+      expect(created.length).toBe(2);
+      created[1]!.open();
+      expect(states).toEqual(["connecting", "connected", "reconnecting", "connected"]);
+      conn.close();
+    });
+  }
+
+  test("a plain drop backs off", async () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 5000, reconnectMaxMs: 5000 });
+    created[0]!.open();
+    created[0]!.serverClose(1006);
+    await Bun.sleep(400);
+    expect(created.length).toBe(1);
+    conn.close();
+  });
+
+  test("ended: stops for good and keeps the doc readable", async () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 1, reconnectMaxMs: 1 });
+    let state: LiveState | undefined;
+    conn.onState((s) => (state = s));
+    created[0]!.open();
+    conn.doc.getMap("m").set("votes", 3);
+    created[0]!.serverClose(LIVE_CLOSE.ENDED, "ended");
+    await Bun.sleep(50);
+    expect(created.length).toBe(1);
+    expect(state?.status).toBe("ended");
+    expect(conn.doc.getMap("m").get("votes")).toBe(3);
+    conn.close();
+  });
+
+  test("too old: stops and passes on the server's message", async () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 1, reconnectMaxMs: 1 });
+    let state: LiveState | undefined;
+    conn.onState((s) => (state = s));
+    created[0]!.serverClose(LIVE_CLOSE.PROTOCOL_TOO_OLD, "update please");
+    await Bun.sleep(50);
+    expect(created.length).toBe(1);
+    expect(state).toEqual({ status: "outdated", message: "update please" });
     conn.close();
   });
 });

@@ -14,7 +14,7 @@ import { bearer, matchAccount, safeEqual } from "./auth";
 import { mintGrant, verifyGrant } from "./grant";
 import { createRelayMetrics } from "./metrics";
 import { withSpan, SpanKind, ctxFromHeaders } from "./tracing";
-import { CLOSE } from "@liebstoeckel/live-server/placement/protocol";
+import { CLOSE, LIVE_PROTOCOL, TOO_OLD_REASON, negotiateVersion } from "@liebstoeckel/live-server/placement/protocol";
 import type { ServerWebSocket } from "bun";
 import { SessionState, type StateStorage } from "./state";
 
@@ -121,7 +121,7 @@ export interface RelayServer {
   stop(): Promise<void>;
 }
 
-type WSData = { sessionId: string; peer: Peer | null; role: PeerRole };
+type WSData = { sessionId: string; peer: Peer | null; role: PeerRole; tooOld?: boolean };
 
 const hex = (bytes = 16): string => {
   const a = new Uint8Array(bytes);
@@ -256,6 +256,13 @@ export function createRelay(opts: RelayOptions): RelayServer {
     if (!account) {
       metrics.sessionRejects.inc({ reason: "unauthorized" });
       return json({ error: "unauthorized" }, 401);
+    }
+    // The control plane names the live protocol it expects (`x-live-protocol`; none
+    // means version 1): one this relay no longer speaks is refused before any work.
+    const version = negotiateVersion(req.headers.get("x-live-protocol"), LIVE_PROTOCOL);
+    if (!version.ok) {
+      metrics.sessionRejects.inc({ reason: "protocol" });
+      return json({ error: version.message }, version.status);
     }
     // Cordoned pods take no new sessions, a backstop; placement already skips us.
     if (cordoned) {
@@ -442,6 +449,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       presenterGrant,
       viewerGrant,
       expiresAt: exp,
+      protocol: version.version,
       urls: {
         presenter: `${http}/s/${rs.id}?t=${presenterGrant}`,
         viewer: `${http}/s/${rs.id}?t=${viewerGrant}`,
@@ -565,7 +573,10 @@ export function createRelay(opts: RelayOptions): RelayServer {
         metrics.audienceCapRejects.inc();
         return new Response("audience full", { status: 503 });
       }
-      const data: WSData = { sessionId: s.id, peer: null, role };
+      // A browser cannot read the body of a refused upgrade, so an old client is let
+      // in and then closed with a code that tells it why.
+      const tooOld = !negotiateVersion(url.searchParams.get("v"), LIVE_PROTOCOL).ok;
+      const data: WSData = { sessionId: s.id, peer: null, role, tooOld };
       return srv.upgrade(req, { data }) ? undefined : new Response("upgrade failed", { status: 400 });
     }
 
@@ -600,6 +611,11 @@ export function createRelay(opts: RelayOptions): RelayServer {
       idleTimeout: 120,
       maxPayloadLength: cfg.maxFrameBytes,
       open(socket) {
+        if (socket.data.tooOld) {
+          metrics.protocolRejects.inc();
+          socket.close(CLOSE.PROTOCOL_TOO_OLD, TOO_OLD_REASON);
+          return;
+        }
         const s = sessions.get(socket.data.sessionId);
         if (!s) {
           socket.close();

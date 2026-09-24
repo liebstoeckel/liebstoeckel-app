@@ -26,6 +26,13 @@ export function isFatalClose(code: number): boolean {
   return code === CLOSE.PROTOCOL_TOO_OLD || code === CLOSE.ENDED;
 }
 
+/** The live-talk protocol (decks in the browser, the relay's create API) the
+ *  servers speak: the browser sends `v`, the control plane `x-live-protocol`. */
+export const LIVE_PROTOCOL: SupportedVersions = { min: 1, max: 1 };
+
+/** A close reason must fit 123 bytes; the full message goes where there is room. */
+export const TOO_OLD_REASON = "This page is out of date. Reload it to reconnect.";
+
 export interface SupportedVersions {
   /** Oldest version still accepted. */
   min: number;

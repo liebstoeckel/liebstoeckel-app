@@ -52,6 +52,15 @@ client is scoped to match: the **presenter view** (<kbd>p</kbd> / `#presenter`) 
 shortcut help (<kbd>?</kbd>) for viewers, so the speaker notes and plugin consoles aren't
 reachable from a shared audience link.
 
+### Connection status
+
+Every window reconnects by itself after a network drop or a server restart, and sends
+what it changed while it was away. While it is not connected, the presenter sees a
+small status in the corner: **Reconnecting**, or **Talk ended** once the session is
+over. Viewers see only what does not fix itself: the end of the talk, or **Out of date,
+reload** when the page is older than the server it talks to supports (a reload loads a
+current one).
+
 ## Where code runs
 
 <Aside type="caution" title="Decks are trusted">

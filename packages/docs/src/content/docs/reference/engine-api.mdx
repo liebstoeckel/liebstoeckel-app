@@ -48,9 +48,11 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 | Export | Kind | Purpose |
 | --- | --- | --- |
 | `Plugin` | component | place a plugin (`id`, `props?`, `components?`) |
-| `LiveProvider` · `useLive` · `LiveContextValue` | component/hook/type | the live context |
+| `LiveProvider` · `useLive` · `LiveContextValue` | component/hook/type | the live context (with `connection`, the live connection's state) |
 | `detectLive` · `LiveInfo` | fn/type | is a live server connected? |
-| `connectLive` · `LiveConnection` | fn/type | connect to a session over WebSocket |
+| `connectLive` · `LiveConnection` | fn/type | connect to a session over WebSocket; `onStatus` (connected or not) and `onState` (`LiveState`) |
+| `LiveState` · `LiveStatus` | types | `connecting`, `connected`, `reconnecting`, `ended`, `outdated` (with the server's message) |
+| `LIVE_CLOSE` · `LIVE_PROTOCOL` · `withLiveProtocol` | consts/fn | the live socket's close codes and protocol version |
 | `useLiveDeck` · `getDeckIndex` · `setDeckIndex` · `DeckController` | hooks/fns/type | the synced slide/step controller |
 | `getParticipantId` | fn | stable (or ephemeral) per-browser id |
 | `mergeUi` | fn | merge author surface overrides |

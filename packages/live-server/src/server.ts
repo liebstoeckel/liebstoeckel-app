@@ -2,6 +2,7 @@ import * as os from "node:os";
 import { Hub } from "./relay";
 import { createSession, roleForToken, buildLinks, type Session, type Links } from "./session";
 import { injectBootstrap } from "./inject";
+import { CLOSE, LIVE_PROTOCOL, TOO_OLD_REASON, negotiateVersion } from "./placement/protocol";
 import { extractManifest, rehydrateServerBundle } from "./manifest";
 
 /** First non-internal IPv4 address (for LAN links / QR). */
@@ -33,7 +34,7 @@ export interface LiveServer {
   stop(): void;
 }
 
-type WSData = { peer: ReturnType<Hub["join"]> | null };
+type WSData = { peer: ReturnType<Hub["join"]> | null; tooOld?: boolean };
 
 /** cap inbound WS frames (Yjs updates for a poll-class deck are tiny) */
 const MAX_FRAME_BYTES = 4 * 1024 * 1024;
@@ -75,7 +76,9 @@ export async function startServer(opts: ServeOptions): Promise<LiveServer> {
 
       if (url.pathname === "/sync") {
         if (!roleForToken(session, token)) return new Response("forbidden", { status: 403 });
-        const data: WSData = { peer: null };
+        // A browser cannot read the body of a refused upgrade, so an old client is
+        // let in and then closed with a code that tells it why.
+        const data: WSData = { peer: null, tooOld: !negotiateVersion(url.searchParams.get("v"), LIVE_PROTOCOL).ok };
         return srv.upgrade(req, { data }) ? undefined : new Response("upgrade failed", { status: 400 });
       }
 
@@ -96,6 +99,10 @@ export async function startServer(opts: ServeOptions): Promise<LiveServer> {
       // this window, so a dead client is detected and its peer cleaned up.
       idleTimeout: 120,
       open(ws) {
+        if (ws.data.tooOld) {
+          ws.close(CLOSE.PROTOCOL_TOO_OLD, TOO_OLD_REASON);
+          return;
+        }
         ws.data.peer = hub.join((d) => ws.send(d));
       },
       message(ws, msg) {

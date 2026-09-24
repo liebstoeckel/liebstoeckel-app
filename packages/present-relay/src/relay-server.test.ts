@@ -253,3 +253,41 @@ describe("relay cordon, drain control ((internal ticket))", () => {
     expect((await createSession(base)).status).toBe(200); // uncordoned again
   });
 });
+
+describe("relay live protocol version", () => {
+  const closeOf = (url: string): Promise<{ code: number; reason: string }> =>
+    new Promise((res) => {
+      const ws = new WebSocket(url);
+      ws.addEventListener("close", (e) => res({ code: e.code, reason: e.reason }));
+    });
+
+  test("a socket without or with a current version connects", async () => {
+    const base = start();
+    const body = await (await createSession(base)).json();
+    for (const v of ["", "&v=1", "&v=99"]) {
+      const { ws } = await wsOpen(`${body.urls.sync}?t=${body.viewerGrant}${v}`);
+      ws.close();
+    }
+  });
+
+  test("a socket with a version below the minimum is closed with 4005 and a reason", async () => {
+    const base = start();
+    const body = await (await createSession(base)).json();
+    const closed = await closeOf(`${body.urls.sync}?t=${body.viewerGrant}&v=0`);
+    expect(closed.code).toBe(4005);
+    expect(closed.reason).toContain("Reload");
+  });
+
+  test("the create API refuses a too-old control plane with 426 and says why", async () => {
+    const base = start();
+    const res = await fetch(`${base}/api/sessions`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${TOKEN}`, "content-type": "text/html", "x-live-protocol": "0" },
+      body: DECK,
+    });
+    expect(res.status).toBe(426);
+    expect(((await res.json()) as { error: string }).error).toContain("too old");
+    const ok = await (await createSession(base)).json();
+    expect(ok.protocol).toBe(1);
+  });
+});

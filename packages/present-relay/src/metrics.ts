@@ -141,6 +141,7 @@ export function createRelayMetrics(version = "unknown") {
     wsCloses: r.register(new Counter("liebstoeckel_relay_ws_closes_total", "WebSocket closes, by role")),
     wsConnections: r.register(new Gauge("liebstoeckel_relay_ws_connections", "Open WebSocket connections, by role")),
     audienceCapRejects: r.register(new Counter("liebstoeckel_relay_audience_cap_rejections_total", "WS rejected: audience cap reached")),
+    protocolRejects: r.register(new Counter("liebstoeckel_relay_protocol_rejections_total", "WS closed: the client's live protocol is too old")),
     grantDenials: r.register(new Counter("liebstoeckel_relay_grant_denials_total", "Deck/sync requests denied (bad/expired grant)")),
     wsFrames: r.register(new Counter("liebstoeckel_relay_ws_frames_total", "Yjs WS frames, by direction")),
     wsBytes: r.register(new Counter("liebstoeckel_relay_ws_bytes_total", "Yjs WS bytes, by direction")),

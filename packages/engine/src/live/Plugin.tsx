@@ -5,6 +5,7 @@ import { pluginState, registerPluginInstance, type ClientProps, type PluginDef, 
 import { mergeUi } from "./ui";
 import { GlowTap, BreakoutSheet, useBreakoutEligible } from "./breakout";
 import { PluginBoundary } from "./PluginBoundary";
+import type { LiveState } from "./protocol";
 
 export interface LiveContextValue {
   live: boolean;
@@ -14,6 +15,8 @@ export interface LiveContextValue {
   theme: ThemeTokens;
   /** read-only follow-along link, for the in-deck QR (live only) */
   viewerUrl?: string;
+  /** the live connection's state (live only) */
+  connection?: LiveState;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   plugins: Record<string, PluginDef<any>>;
 }

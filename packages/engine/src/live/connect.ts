@@ -1,9 +1,13 @@
 import * as Y from "yjs";
 import type { LiveInfo } from "./detect";
+import { LIVE_CLOSE, type LiveState, withLiveProtocol } from "./protocol";
 
 export interface LiveConnection {
   doc: Y.Doc;
   onStatus(cb: (connected: boolean) => void): void;
+  /** The detailed state (reconnecting, ended, outdated), called with the current
+   *  state at once and on every change. */
+  onState(cb: (state: LiveState) => void): void;
   close(): void;
 }
 
@@ -43,9 +47,16 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   let escalated = false;
   const doc = new Y.Doc();
   const sep = info.ws.includes("?") ? "&" : "?";
-  const url = `${info.ws}${sep}p=${encodeURIComponent(participant)}`;
+  const url = withLiveProtocol(`${info.ws}${sep}p=${encodeURIComponent(participant)}`);
   const statusCbs: Array<(c: boolean) => void> = [];
   const emit = (c: boolean) => statusCbs.forEach((cb) => cb(c));
+  const stateCbs: Array<(s: LiveState) => void> = [];
+  let state: LiveState = { status: "connecting" };
+  const setState = (next: LiveState) => {
+    if (next.status === state.status && next.message === state.message) return;
+    state = next;
+    stateCbs.forEach((cb) => cb(state));
+  };
 
   let ws: WebSocket | null = null;
   let closed = false;
@@ -59,8 +70,16 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   };
   doc.on("update", onUpdate);
 
-  const schedule = () => {
+  const schedule = (atOnce = false) => {
     if (closed) return;
+    setState({ status: "reconnecting" });
+    // A restart or a move is planned: the session is up again on a server within
+    // moments, so reconnect now (a little jitter spreads a whole audience).
+    if (atOnce) {
+      attempt = 0;
+      timer = setTimeout(open, Math.random() * 250);
+      return;
+    }
     // Persistent failure → the session is likely gone (re-provisioned). Stop hammering
     // the dead URL and escalate to stable-link recovery exactly once ((internal ticket)).
     if (reloadAfter > 0 && attempt >= reloadAfter && !escalated) {
@@ -104,6 +123,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
         /* ignore */
       }
       emit(true);
+      setState({ status: "connected" });
     });
     sock.addEventListener("message", (e: MessageEvent) => {
       lastMsgAt = Date.now(); // any frame (update or keepalive) proves liveness
@@ -113,9 +133,21 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
         /* ignore malformed frame */
       }
     });
-    sock.addEventListener("close", () => {
+    sock.addEventListener("close", (e?: CloseEvent) => {
+      if (ws !== sock) return; // an older socket closing late
       emit(false);
-      schedule();
+      const code = e?.code ?? 0;
+      if (code === LIVE_CLOSE.ENDED) {
+        stop();
+        setState({ status: "ended" });
+        return;
+      }
+      if (code === LIVE_CLOSE.PROTOCOL_TOO_OLD) {
+        stop();
+        setState({ status: "outdated", message: e?.reason || "This page is out of date. Reload it to reconnect." });
+        return;
+      }
+      schedule(code === LIVE_CLOSE.RESTARTING || code === LIVE_CLOSE.MOVED || code === LIVE_CLOSE.GRANT_EXPIRED);
     });
     sock.addEventListener("error", () => {
       try {
@@ -126,12 +158,24 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
     });
   }
 
+  /** Stop reconnecting for good (the talk ended, or this client is refused) but
+   *  keep the doc: its state stays readable for the end card and results. */
+  function stop() {
+    closed = true;
+    if (timer) clearTimeout(timer);
+    if (watchdog) clearInterval(watchdog);
+  }
+
   open();
 
   return {
     doc,
     onStatus(cb) {
       statusCbs.push(cb);
+    },
+    onState(cb) {
+      stateCbs.push(cb);
+      cb(state);
     },
     close() {
       closed = true;

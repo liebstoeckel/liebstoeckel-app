@@ -17,6 +17,7 @@ import { PersistentProvider } from "./PersistentLayer";
 import { useCoarsePointer } from "./useCoarsePointer";
 import { normalizeSlides } from "./slides";
 import type { DeckProps } from "./Deck";
+import { LiveStatusBadge } from "./live/status";
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(() => Date.now());
@@ -503,6 +504,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
           >
             reset
           </button>
+          <LiveStatusBadge state={liveCtx?.connection} role={liveCtx?.role} />
           {live && (
             <button
               onClick={() => setShare((v) => !v)}

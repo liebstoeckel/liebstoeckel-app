@@ -11,6 +11,7 @@ import { PrintView } from "./PrintView";
 import { LiveProvider, type LiveContextValue } from "./live/Plugin";
 import { detectLive } from "./live/detect";
 import { connectLive } from "./live/connect";
+import type { LiveState } from "./live/protocol";
 import { getParticipantId } from "./live/participant";
 import { captureRequest, printRequest } from "./build/capture-protocol";
 
@@ -51,6 +52,8 @@ export function Present(props: DeckProps) {
   );
   const conn = useMemo(() => (info ? connectLive(info, participant) : null), [info, participant]);
   const doc = useMemo(() => conn?.doc ?? new Y.Doc(), [conn]);
+  const [connection, setConnection] = useState<LiveState | undefined>(undefined);
+  useEffect(() => conn?.onState(setConnection), [conn]);
 
   // A plugin with global surfaces + a presenter console (e.g. Q&A) can be used without an
   // on-slide placement, so register its default instance in the doc index, otherwise the
@@ -71,6 +74,7 @@ export function Present(props: DeckProps) {
     doc,
     theme,
     viewerUrl: info?.viewer,
+    connection: info ? connection : undefined,
     plugins: registry,
   };
 

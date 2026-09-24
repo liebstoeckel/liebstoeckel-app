@@ -105,3 +105,17 @@ describe("classifyTargetPath", () => {
     expect(classifyTargetPath("notes.txt", false)).toBe("unknown");
   });
 });
+
+describe("startServer live protocol version", () => {
+  test("a socket below the minimum version is closed with 4005; a current one syncs", async () => {
+    live = await startServer({ html: BASE_HTML, hostname: "127.0.0.1", publicHost: "127.0.0.1" });
+    const sync = `ws://127.0.0.1:${live.port}/sync?t=${live.session.viewerToken}`;
+    const closed = await new Promise<number>((res) => {
+      const ws = new WebSocket(`${sync}&v=0`);
+      ws.addEventListener("close", (e) => res(e.code));
+    });
+    expect(closed).toBe(4005);
+    const { ws } = await wsRecv(`${sync}&v=1`);
+    ws.close();
+  });
+});

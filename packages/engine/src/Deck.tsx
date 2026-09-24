@@ -27,6 +27,7 @@ import type { Theme } from "@liebstoeckel/theme";
 import { useCoarsePointer } from "./useCoarsePointer";
 import { moveSelection, gridCols, type GridDir } from "./overview";
 import type { NavMode } from "./interaction";
+import { LiveStatusBadge } from "./live/status";
 
 export type DeckProps = {
   slides: SlideInput[];
@@ -373,6 +374,7 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
 
         {/* QR + overview render OUTSIDE the scaled canvas (device scale) so they're
             full-size on a phone, the touch ⋮ menu opens them. */}
+        <LiveStatusBadge state={liveCtx?.connection} role={role} className="absolute left-3 top-3 z-30" />
         <QrOverlay open={qr} url={liveCtx?.viewerUrl} onClose={() => setQr(false)} />
         <AnimatePresence>
           {overview && (
