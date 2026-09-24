@@ -268,6 +268,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@liebstoeckel/dev-server": "workspace:*",
+        "@liebstoeckel/live-server": "workspace:*",
         "y-protocols": "^1.0.6",
         "yjs": "^13.6.31",
       },
