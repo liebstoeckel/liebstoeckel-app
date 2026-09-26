@@ -54,3 +54,6 @@ packages/office/.env
 
 # Claude Code runtime lock
 .claude/scheduled_tasks.lock
+
+# Local runs of the preview inner process
+packages/deck-sync/preview-scaffold/.test-deck/
