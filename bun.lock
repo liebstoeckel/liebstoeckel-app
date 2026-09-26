@@ -269,8 +269,29 @@
       "name": "@liebstoeckel/deck-sync",
       "version": "0.0.0",
       "dependencies": {
+        "@fontsource-variable/fraunces": "^5.2.9",
+        "@fontsource-variable/hanken-grotesk": "^5.2.8",
+        "@fontsource-variable/jetbrains-mono": "^5.2.8",
+        "@fontsource-variable/schibsted-grotesk": "^5.2.8",
+        "@liebstoeckel/components": "workspace:*",
         "@liebstoeckel/dev-server": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
         "@liebstoeckel/live-server": "workspace:*",
+        "@liebstoeckel/theme": "workspace:*",
+        "@mdx-js/mdx": "^3.1.1",
+        "@mdx-js/react": "^3.1.1",
+        "@visx/axis": "^3.12.0",
+        "@visx/curve": "^3.12.0",
+        "@visx/gradient": "^3.12.0",
+        "@visx/group": "^3.12.0",
+        "@visx/scale": "^3.12.0",
+        "@visx/shape": "^3.12.0",
+        "@visx/text": "^3.12.0",
+        "bun-plugin-tailwind": "^0.1.2",
+        "motion": "^12.40.0",
+        "react": "^19.2.7",
+        "react-dom": "^19.2.7",
+        "tailwindcss": "^4.3.0",
         "y-protocols": "^1.0.6",
         "yjs": "^13.6.31",
       },
@@ -3009,6 +3030,8 @@
     "@img/sharp-wasm32/@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
 
     "@liebstoeckel/control-dashboard/tailwindcss": ["tailwindcss@4.3.3", "", {}, "sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ=="],
+
+    "@liebstoeckel/deck-sync/tailwindcss": ["tailwindcss@4.3.3", "", {}, "sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ=="],
 
     "@liebstoeckel/office/tailwindcss": ["tailwindcss@4.3.3", "", {}, "sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ=="],
 
