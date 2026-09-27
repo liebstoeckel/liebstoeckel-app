@@ -364,7 +364,9 @@
       "name": "@liebstoeckel/e2e",
       "version": "0.0.0",
       "dependencies": {
+        "@electric-sql/pglite": "^0.5.3",
         "@liebstoeckel/engine": "workspace:*",
+        "@liebstoeckel/forms": "workspace:*",
         "@liebstoeckel/live-server": "workspace:*",
         "@liebstoeckel/plugin-poll": "workspace:*",
         "@liebstoeckel/plugin-qa": "workspace:*",
@@ -395,6 +397,32 @@
         "react": "^19.2.7",
         "react-dom": "^19.2.7",
         "yjs": "^13.6.31",
+      },
+    },
+    "packages/forms": {
+      "name": "@liebstoeckel/forms",
+      "version": "0.0.0",
+      "bin": {
+        "liebstoeckel-forms": "./src/cli.ts",
+      },
+      "dependencies": {
+        "@fontsource-variable/schibsted-grotesk": "^5.2.8",
+        "@liebstoeckel/corporate-design": "workspace:*",
+        "altcha": "3.2.3",
+        "altcha-lib": "2.5.0",
+        "nodemailer": "9.0.1",
+        "pg": "8.21.0",
+        "react": "^19.2.7",
+        "react-dom": "^19.2.7",
+      },
+      "devDependencies": {
+        "@electric-sql/pglite": "^0.5.3",
+        "@electric-sql/pglite-socket": "^0.2.4",
+        "@types/nodemailer": "8.0.1",
+        "@types/pg": "8.20.0",
+        "@types/react": "^19",
+        "@types/smtp-server": "^3.5.13",
+        "smtp-server": "^3.19.1",
       },
     },
     "packages/landing": {
@@ -1204,6 +1232,8 @@
 
     "@liebstoeckel/engine": ["@liebstoeckel/engine@workspace:packages/engine"],
 
+    "@liebstoeckel/forms": ["@liebstoeckel/forms@workspace:packages/forms"],
+
     "@liebstoeckel/landing": ["@liebstoeckel/landing@workspace:packages/landing"],
 
     "@liebstoeckel/landing-dist": ["@liebstoeckel/landing-dist@workspace:packages/landing-dist"],
@@ -1998,6 +2028,10 @@
 
     "agent-base": ["agent-base@9.0.0", "", {}, "sha512-TQf59BsZnytt8GdJKLPfUZ54g/iaUL2OWDSFCCvMOhsHduDQxO8xC4PNeyIkVcA5KwL2phPSv0douC0fgWzmnA=="],
 
+    "altcha": ["altcha@3.2.3", "", { "dependencies": { "hash-wasm": "^4.12.0" } }, "sha512-yBHJIOoGZyU4/ap3AnlL2kChEVw40QP142BtxYZN5dCjAeBlaScuAEWxmrLDVQjlRBplayapUIvARs0eG48OVw=="],
+
+    "altcha-lib": ["altcha-lib@2.5.0", "", { "peerDependencies": { "@fastify/cookie": "^11.0.0", "@fastify/cors": "^11.0.0", "@fastify/formbody": "^8.0.0 || ^9.0.0", "@nestjs/common": "^10.0.0 || ^11.0.0 || ^12.0.0", "@nestjs/core": "^10.0.0 || ^11.0.0 || ^12.0.0", "@nestjs/platform-express": "^10.0.0 || ^11.0.0 || ^12.0.0", "@nestjs/platform-fastify": "^10.0.0 || ^11.0.0 || ^12.0.0", "@sveltejs/kit": "^2.0.0", "cookie-parser": "^1.0.0", "cors": "^2.0.0", "express": "^4.0.0 || ^5.0.0", "fastify": "^5.0.0", "h3": "^2.0.0", "hono": "^4.0.0" }, "optionalPeers": ["@fastify/cookie", "@fastify/cors", "@fastify/formbody", "@nestjs/common", "@nestjs/core", "@nestjs/platform-express", "@nestjs/platform-fastify", "@sveltejs/kit", "cookie-parser", "cors", "express", "fastify", "h3", "hono"], "bin": { "altcha-lib": "bin/cli.mjs" } }, "sha512-MiqlwnImoooVTmFzZ8odhpqtCsSl7M/6cmgaX42Tkuvd41e5IVveg6hiw/e9rXSb6dm1RvniPmeURwO64wWTuQ=="],
+
     "am-i-vibing": ["am-i-vibing@0.4.0", "", { "dependencies": { "process-ancestry": "^0.1.0" }, "bin": { "am-i-vibing": "dist/cli.mjs" } }, "sha512-MxT4XZL7pzLHpuvhDKdMaQHMGGkJDLluKBLsbstn+8wv9sWcFT6h+0ve9qkml95amVTZtZV83gQe2hY+ojgHLg=="],
 
     "ansi-regex": ["ansi-regex@5.0.1", "", {}, "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ=="],
@@ -2389,6 +2423,8 @@
     "h3-v2": ["h3@2.0.1-rc.20", "", { "dependencies": { "rou3": "^0.8.1", "srvx": "^0.11.13" }, "peerDependencies": { "crossws": "^0.4.1" }, "optionalPeers": ["crossws"], "bin": { "h3": "bin/h3.mjs" } }, "sha512-28ljodXuUp0fZovdiSRq4G9OgrxCztrJe5VdYzXAB7ueRvI7pIUqLU14Xi3XqdYJ/khXjfpUOOD2EQa6CmBgsg=="],
 
     "has-property-descriptors": ["has-property-descriptors@1.0.2", "", { "dependencies": { "es-define-property": "^1.0.0" } }, "sha512-55JNKuIW+vq4Ke1BjOTjM2YctQIvCT7GFzHwmfZPGo5wnrgkid0YQtnAleFSqumZm4az3n2BS+erby5ipJdgrg=="],
+
+    "hash-wasm": ["hash-wasm@4.12.0", "", {}, "sha512-+/2B2rYLb48I/evdOIhP+K/DD2ca2fgBjp6O+GBEnCDk2e4rpeXIK8GvIyRPjTezgmWn9gmKwkQjjx6BtqDHVQ=="],
 
     "hasown": ["hasown@2.0.4", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A=="],
 
