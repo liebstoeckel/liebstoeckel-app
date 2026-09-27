@@ -8,6 +8,7 @@ import { useLive } from "./live/Plugin";
 import { PresenterPanel } from "./live/presenterPanel";
 import { BreakoutAllowedContext } from "./live/breakout";
 import { useLiveDeck } from "./live/deckIndex";
+import { withoutParticipant } from "./live/participant";
 import { resolveStep, type StepPos } from "./delivery";
 import { StepsProvider } from "./steps";
 import { ScaledStage, SlideFrame } from "./Stage";
@@ -285,7 +286,8 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
   // hash (it loaded with ?t=<presenterToken>), scanning it drives from a phone.
   const [share, setShare] = useState(false);
   const presenterUrl = useMemo(
-    () => (typeof location !== "undefined" ? location.origin + location.pathname + location.search : undefined),
+    () =>
+      typeof location !== "undefined" ? location.origin + location.pathname + withoutParticipant(location.search) : undefined,
     [],
   );
   // Nothing left to advance to: last slide AND all reveals shown (a remaining reveal

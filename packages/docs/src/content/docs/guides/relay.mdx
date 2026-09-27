@@ -48,6 +48,8 @@ Omitting `allow-same-origin` puts the deck in a **unique opaque origin**: it can
 In an opaque origin, `localStorage`/`IndexedDB` throw and cookies are denied. Plugin **client** parts must use WebSocket + shared state only; anything needing secrets or external HTTP belongs in the **server** part (which runs on your machine). WebSocket auth uses the **token in the URL**, so there's no CSWSH risk.
 </Aside>
 
+Because storage is blocked, a viewer's participant id (the key their poll vote and Q&A upvotes are recorded under) is kept in their own tab's address instead: on first load the deck adds `?pid=…` to the URL in place, and a reload reads it back, so reloading doesn't count anyone twice. The links and QR code you hand out never carry an id, and the presenter pop-out and presenter share link strip it. An audience member who copies the address from their own tab and gives it to someone else shares their identity with them, so point people at the QR code or the link you shared.
+
 ## Tokens & quotas
 
 Three token layers keep roles separated:

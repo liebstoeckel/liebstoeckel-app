@@ -9,6 +9,7 @@ import { PortraitHint } from "./MobileHint";
 import { useDeckSync } from "./useDeckSync";
 import { useLive } from "./live/Plugin";
 import { useLiveDeck } from "./live/deckIndex";
+import { withoutParticipant } from "./live/participant";
 import { PersistentProvider, PersistentLayer, type PersistentItem } from "./PersistentLayer";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { Backdrop, BackdropProvider, type BackdropComponent } from "./backdrop";
@@ -62,14 +63,15 @@ export type DeckProps = {
  *  `about:srcdoc` frame (the MCP preview widget does this) has no usable
  *  `location`; the embedder points a `<base>` at the deck's real URL, which
  *  `document.baseURI` reflects. Everywhere else this is plain `location`. */
-function pageUrl(): string {
+function pageUrlWithoutParticipant(): string {
   const u = location.protocol === "about:" ? new URL(document.baseURI) : location;
-  return u.origin + u.pathname + u.search;
+  return u.origin + u.pathname + withoutParticipant(u.search);
 }
 
 function openPresenter() {
-  // preserve the query (incl. ?t=<token>) so a live presenter window authenticates
-  const url = pageUrl() + "#presenter";
+  // preserve the query (incl. ?t=<token>) so a live presenter window authenticates,
+  // minus this tab's participant id: the pop-out is a participant of its own
+  const url = pageUrlWithoutParticipant() + "#presenter";
   // window.open can throw (relay sandbox without allow-popups) or return null (a
   // popup blocker), never let that bubble up as an uncaught DOMException.
   try {

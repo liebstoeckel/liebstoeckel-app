@@ -55,7 +55,7 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 | `LiveState` · `LiveStatus` | types | `connecting`, `connected`, `reconnecting`, `ended`, `outdated` (with the server's message) |
 | `LIVE_CLOSE` · `LIVE_PROTOCOL` · `withLiveProtocol` | consts/fn | the live socket's close codes and protocol version |
 | `useLiveDeck` · `getDeckIndex` · `setDeckIndex` · `DeckController` | hooks/fns/type | the synced slide/step controller |
-| `getParticipantId` | fn | stable (or ephemeral) per-browser id |
+| `getParticipantId` | fn | stable per-tab participant id: a `?pid=` in the page URL first, then `sessionStorage`, else a new one (written into the tab's URL when storage is blocked, so a reload keeps it) |
 | `mergeUi` | fn | merge author surface overrides |
 
 ## Navigation & delivery
