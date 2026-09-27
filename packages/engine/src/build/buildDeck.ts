@@ -1,3 +1,4 @@
+import type { BunPlugin } from "bun";
 import { rm } from "node:fs/promises";
 import { basename, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -166,6 +167,7 @@ export async function bundleDeck({
   selfNotice = DEFAULT_SELF_NOTICE,
   allowSecret = false,
   generator,
+  plugins = [],
 }: {
   entry?: string;
   outdir?: string;
@@ -186,6 +188,9 @@ export async function bundleDeck({
   /** The tool driving the build (e.g. the CLI), recorded in the generator stamp
    *  next to the engine version. Omit when the engine builds on its own behalf. */
   generator?: Generator;
+  /** Plugins that run before the deck plugins (a host's own checks on what the
+   *  bundle may read). */
+  plugins?: BunPlugin[];
 } = {}) {
   // The collector always runs (a pure onLoad observer): besides licenses it backs the
   // single-copy guard below, which must hold whether or not we embed notices.
@@ -196,7 +201,7 @@ export async function bundleDeck({
     minify,
     target: "browser",
     compile: true,
-    plugins: [...DECK_PLUGINS, licenses.plugin],
+    plugins: [...plugins, ...DECK_PLUGINS, licenses.plugin],
   });
 
   if (!result.success) {
