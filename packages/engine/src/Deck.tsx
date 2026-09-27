@@ -30,6 +30,7 @@ import { moveSelection, gridCols, type GridDir } from "./overview";
 import type { NavMode } from "./interaction";
 import { LiveStatusBadge } from "./live/status";
 import { DEFAULT_BRANDS, warnIfBrandsMissing } from "./brandCheck";
+import { useDialogFocus } from "./focus";
 
 export type DeckProps = {
   slides: SlideInput[];
@@ -156,6 +157,8 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
   const totalRef = useRef(total);
   totalRef.current = total;
   const selectedThumbRef = useRef<HTMLButtonElement | null>(null);
+  const overviewBoxRef = useRef<HTMLDivElement | null>(null);
+  const endCardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     document.body.dataset.brand = brand;
@@ -310,10 +313,20 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
   const slideTransition = resolveTransition(requested, !!reduceMotion);
 
   // Keep the keyboard-selected overview thumbnail in view as you arrow through a
-  // long deck.
+  // long deck, and give it DOM focus so the focus ring and a screen reader follow
+  // the same selection the arrows move.
   useEffect(() => {
-    if (overview) selectedThumbRef.current?.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+    if (!overview) return;
+    const el = selectedThumbRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+    if (overviewBoxRef.current?.contains(document.activeElement)) el.focus({ preventScroll: true });
   }, [sel, overview, reduceMotion]);
+
+  // The overview and the driver's end card are modal: focus moves in on open and
+  // returns to the deck when they close (see useDialogFocus).
+  useDialogFocus(overview, overviewBoxRef, () => selectedThumbRef.current);
+  useDialogFocus((ended || mask) && !overview && canDrive, endCardRef);
 
   return (
     <MDXProvider components={mdxComponents}>
@@ -322,7 +335,14 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
        {/* 100dvh (dynamic viewport), NOT 100vh: on mobile the browser's address
            bar makes 100vh taller than the visible area, which would push the slide
            bottom + the viewport-pinned chrome below the fold. */}
-       <div className="relative h-dvh w-screen overflow-hidden bg-bg">
+       {/* The deck is the page's main landmark and the place focus returns to when a
+           dialog closes (tabIndex -1: focusable by script, never a Tab stop). */}
+       <main
+         aria-label="Presentation"
+         data-pi-focus-home
+         tabIndex={-1}
+         className="relative h-dvh w-screen overflow-hidden bg-bg outline-none"
+       >
         <ScaledStage className="absolute inset-0">
           <div data-deck-root data-slide={index} className="absolute inset-0 bg-bg">
             {/* One backdrop per view, behind the transition stack: a slide change
@@ -376,7 +396,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
                 exit={{ opacity: 0 }}
                 onClick={() => setBlurred(false)}
               >
-                <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="var(--brand-muted)" strokeWidth="1.4" opacity="0.5">
+                <svg aria-hidden width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="var(--brand-muted)" strokeWidth="1.4" opacity="0.5">
                   <path d="M2 12s3.5-6 10-6 10 6 10 6" strokeLinecap="round" />
                   <path d="M2 12s3.5 4 10 4 10-4 10-4" strokeLinecap="round" />
                 </svg>
@@ -392,6 +412,11 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
         <AnimatePresence>
           {overview && (
             <motion.div
+              ref={overviewBoxRef}
+              data-pi-chrome
+              role="dialog"
+              aria-modal="true"
+              aria-label="Slide overview"
               className="absolute inset-0 z-40 overflow-auto bg-bg/95 p-[4%] backdrop-blur-xl"
               // Mount already opaque (no fade-in): opening from the end screen, the
               // overview must cover the last slide *immediately* while the end card
@@ -416,8 +441,9 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
                       ctrl.setIndex(i);
                       closeOverview();
                     }}
+                    aria-label={`Slide ${i + 1}`}
                     aria-current={i === index ? "true" : undefined}
-                    className={`relative aspect-video overflow-hidden rounded-xl border text-left outline-none transition ${
+                    className={`relative aspect-video overflow-hidden rounded-xl border text-left transition ${
                       i === sel
                         ? "border-primary ring-2 ring-primary"
                         : i === index
@@ -426,7 +452,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
                     }`}
                   >
                     <DeckThumb Component={s.Component} src={thumbs?.get(i)} alt={`Slide ${i + 1}`} />
-                    <span className="absolute bottom-1 right-2 font-mono text-xs text-muted">{i + 1}</span>
+                    <span aria-hidden className="absolute bottom-1 right-2 font-mono text-xs text-muted">{i + 1}</span>
                   </button>
                 ))}
               </div>
@@ -445,7 +471,15 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
         <AnimatePresence>
           {(ended || mask) && !overview && (
             <motion.div
-              className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-bg text-center"
+              ref={endCardRef}
+              data-pi-chrome
+              // The driver gets a modal with actions; a live viewer gets the same card
+              // as a status message (nothing to operate, just "the deck has ended").
+              role={canDrive ? "dialog" : "status"}
+              aria-modal={canDrive ? "true" : undefined}
+              aria-label="End of deck"
+              tabIndex={-1}
+              className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-bg text-center outline-none"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -454,16 +488,16 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
             >
               <div className="space-y-2">
                 <div className="font-mono text-sm uppercase tracking-[0.3em] text-muted">End of deck</div>
-                <div className="font-mono text-xs text-muted/60">{count} {count === 1 ? "slide" : "slides"}</div>
+                <div className="font-mono text-xs text-muted">{count} {count === 1 ? "slide" : "slides"}</div>
               </div>
               {canDrive && (
                 <>
                   <div className="flex flex-wrap items-center justify-center gap-3" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => setEnded(false)} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">← Back</button>
+                    <button onClick={() => setEnded(false)} aria-label="Back to the last slide" className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">← Back</button>
                     <button onClick={openOverview} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">Overview</button>
-                    <button onClick={onRestart} className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">↺ Restart</button>
+                    <button onClick={onRestart} aria-label="Restart from slide 1" className="rounded-lg border border-border px-4 py-2 font-mono text-sm text-text transition hover:border-text">↺ Restart</button>
                   </div>
-                  <div className="font-mono text-[0.7rem] text-muted/50">← back · O overview · R restart · type a number to jump</div>
+                  <div className="font-mono text-[0.7rem] text-muted">← back · O overview · R restart · type a number to jump</div>
                 </>
               )}
             </motion.div>
@@ -476,7 +510,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
         <AnimatePresence>
           {jump && !overview && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
               className="pointer-events-none absolute left-1/2 top-8 z-[60] -translate-x-1/2 rounded-xl border border-border bg-surface/80 px-5 py-2 font-mono text-2xl text-text backdrop-blur"
@@ -500,7 +534,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
           onOverview={toggleOverview}
           onQr={() => setQr((v) => !v)}
         />
-       </div>
+       </main>
       </PersistentProvider>
      </BackdropProvider>
     </MDXProvider>

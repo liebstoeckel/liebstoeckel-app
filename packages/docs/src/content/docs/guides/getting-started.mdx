@@ -114,4 +114,10 @@ Decks are bundled with the **`Bun.build()` JS API** (in `build.ts`), not the `bu
 | <kbd>q</kbd> | show the join QR (live) · <kbd>t</kbd> cycle brand |
 | <kbd>123…</kbd>+<kbd>Enter</kbd> | jump to slide · <kbd>?</kbd> help |
 
+### Accessibility
+
+- **Screen readers.** The deck is the page's main landmark. Each slide change is announced as "Slide 3 of 12". Help, the overview, the end card and the share QR are modal dialogs.
+- **Focus.** The deck's own controls show a ring in the brand accent color when you focus them from the keyboard. <kbd>Tab</kbd> stays inside an open dialog. When a dialog closes, focus goes back to the deck, so the next <kbd>Space</kbd> or <kbd>→</kbd> moves the slides again. In the overview, the arrow keys move focus between the slides, and <kbd>Enter</kbd> opens the focused one.
+- **Reduced motion.** If the viewer's system asks for reduced motion, slide transitions shrink to a short fade. The deck's own overlays and hints appear without sliding, scaling or pulsing. Animations you write in your own slides are not changed. To check how your deck looks with this setting, turn on "Reduce motion" in your OS, or use the rendering panel in Chrome DevTools (emulate `prefers-reduced-motion: reduce`).
+
 <LinkCard title="Author your first deck" href="/guides/your-first-deck/" description="Slides, reveals, and Magic Move." />

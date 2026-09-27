@@ -59,3 +59,16 @@ body {
   font-family: var(--brand-font-mono); font-size: 0.8em; border: 1px solid var(--brand-border);
   padding: 0.1em 0.45em; border-radius: 0.35em;
 }
+
+/* Keyboard focus on the deck's own chrome (help, overview, end card, share,
+   menus, the presenter view): a visible brand-accent ring when a control is
+   focused from the keyboard, never on a mouse click. Scoped to elements marked
+   `data-pi-chrome`, so authored slide content keeps whatever focus style its
+   author chose. Base layer + :where() keep it overridable by any utility. */
+@layer base {
+  [data-pi-chrome] :where(button, a[href], summary, input, select, textarea, [role="button"], [role="option"], [tabindex]:not([tabindex="-1"])):focus-visible,
+  :where(button, a[href], [role="button"], [tabindex]:not([tabindex="-1"]))[data-pi-chrome]:focus-visible {
+    outline: 2px solid var(--brand-accent, currentColor);
+    outline-offset: 2px;
+  }
+}

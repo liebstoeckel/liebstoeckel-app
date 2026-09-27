@@ -116,7 +116,7 @@ function usePresenterStart(doc: Y.Doc, canWrite: boolean): { startedAt: number; 
 function Label({ children, dot }: { children: ReactNode; dot?: boolean }) {
   return (
     <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.3em] text-muted">
-      {dot && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary shadow-[0_0_8px_var(--brand-primary)]" />}
+      {dot && <span className="h-1.5 w-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-primary shadow-[0_0_8px_var(--brand-primary)]" />}
       {children}
     </div>
   );
@@ -225,7 +225,7 @@ function StepIndicator({
             revealing ? "text-accent" : "text-muted"
           }`}
         >
-          {revealing && <span className="h-2 w-2 animate-pulse rounded-full bg-accent shadow-[0_0_8px_var(--brand-accent)]" />}
+          {revealing && <span className="h-2 w-2 animate-pulse motion-reduce:animate-none rounded-full bg-accent shadow-[0_0_8px_var(--brand-accent)]" />}
           {revealing ? "Revealing steps" : "All steps shown"}
         </span>
         <span className="font-mono text-2xl font-semibold tabular-nums text-text">
@@ -234,7 +234,7 @@ function StepIndicator({
         </span>
       </div>
       {/* segmented bar, one segment per step, filled up to the current reveal */}
-      <div className="flex gap-1.5">
+      <div aria-hidden className="flex gap-1.5">
         {Array.from({ length: total }).map((_, i) => (
           <span
             key={i}
@@ -297,6 +297,8 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
   // The forward control finishes the deck before it goes inert, so the presenter can
   // put the audience on the end card from here instead of the run just stopping.
   const advanceLabel = ended ? "Ended" : atEnd ? "End →" : step < total ? "Reveal →" : "Next →";
+  // The same words without the arrow glyph, which a screen reader would read out.
+  const advanceName = ended ? "Deck ended" : atEnd ? "End the deck" : step < total ? "Reveal next step" : "Next slide";
   // Advancing past the last reveal ends the deck rather than calling next(), which
   // would clamp the index back onto the last slide and replay its reveals. `ended`
   // is shared state, so this is what puts the AUDIENCE on the end card: driving
@@ -380,7 +382,13 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
   // axes don't collide, so notes scroll can't misfire a slide change.
   if (coarse) {
     return (
-      <div className="flex h-dvh w-screen flex-col bg-bg font-body text-text">
+      <main
+        aria-label="Presenter view"
+        data-pi-chrome
+        data-pi-focus-home
+        tabIndex={-1}
+        className="flex h-dvh w-screen flex-col bg-bg font-body text-text outline-none"
+      >
         <SlideMeasure Component={Current} slideIndex={index} step={rawStep} onTotal={onTotal} />
         {shareOverlay}
         {/* 1 · slim status bar */}
@@ -400,7 +408,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
             </button>
             {live && (
               <button onClick={() => setShare((v) => !v)} aria-label="Share session links" className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted transition active:text-accent">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="7" height="7" rx="1" />
                   <rect x="14" y="3" width="7" height="7" rx="1" />
                   <rect x="3" y="14" width="7" height="7" rx="1" />
@@ -419,7 +427,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
         {!focused && (
         <div className="flex shrink-0 items-center gap-3 border-t border-border px-4 py-2">
           <div className="h-12 w-[5.5rem] shrink-0 opacity-80">
-            {Next ? <Thumb Component={Next} interactive={false} testId="presenter-preview-next" /> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
+            {Next ? <div aria-hidden className="h-full w-full"><Thumb Component={Next} interactive={false} testId="presenter-preview-next" /></div> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
           </div>
           <div className="min-w-0 flex-1 font-mono text-[11px]">
             <div className="uppercase tracking-[0.2em] text-muted">
@@ -458,12 +466,13 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
           <button
             onClick={advance}
             disabled={ended}
+            aria-label={advanceName}
             className="flex-[2.4] rounded-xl bg-primary py-4 font-mono text-base font-semibold uppercase tracking-widest text-on-primary transition active:brightness-110 disabled:opacity-40"
           >
             {advanceLabel}
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -475,6 +484,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
       <button
         onClick={retreat}
         disabled={atStart && !ended}
+        aria-label="Previous"
         className="flex-1 rounded-xl border border-border py-3 font-mono text-sm uppercase tracking-widest text-muted transition hover:border-text hover:text-text disabled:opacity-40 disabled:hover:border-border disabled:hover:text-muted"
       >
         ← Prev
@@ -482,6 +492,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
       <button
         onClick={advance}
         disabled={ended}
+        aria-label={advanceName}
         className="flex-[2] rounded-xl bg-primary py-3 font-mono text-sm font-semibold uppercase tracking-widest text-on-primary transition hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100"
       >
         {advanceLabel}
@@ -489,7 +500,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
     </div>
   );
   return (
-    <div className="flex h-screen w-screen flex-col bg-bg font-body text-text">
+    <div data-pi-chrome className="flex h-screen w-screen flex-col bg-bg font-body text-text">
       <SlideMeasure Component={Current} slideIndex={index} step={rawStep} onTotal={onTotal} />
       {/* top bar */}
       <header className="flex items-center justify-between border-b border-border px-4 py-3 lg:px-8 lg:py-4">
@@ -508,6 +519,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
           </div>
           <button
             onClick={resetTimer}
+            aria-label="Reset timer"
             className="rounded-lg border border-border px-3 py-2 font-mono text-xs uppercase tracking-wider text-muted transition hover:border-primary hover:text-primary"
           >
             reset
@@ -520,7 +532,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
               aria-label="Share session links"
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted transition hover:border-accent hover:text-accent"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="7" height="7" rx="1" />
                 <rect x="14" y="3" width="7" height="7" rx="1" />
                 <rect x="3" y="14" width="7" height="7" rx="1" />
@@ -536,7 +548,12 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
       {/* main: flex row; each column is a min-h-0 flex-col so inner regions can
           shrink. Thumbnails get capped/flexible heights; the notes panel always
           keeps a guaranteed, scrollable minimum. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-5 p-5 lg:flex-row lg:gap-7 lg:p-7">
+      <main
+        aria-label="Presenter view"
+        data-pi-focus-home
+        tabIndex={-1}
+        className="flex min-h-0 flex-1 flex-col gap-5 p-5 outline-none lg:flex-row lg:gap-7 lg:p-7"
+      >
         {/* current, hidden in focus mode (it's on the room's screen anyway) */}
         {!focused && (
           <section className="flex min-h-0 min-w-0 flex-col gap-3 lg:flex-[1.55]">
@@ -564,7 +581,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
             <div className="hidden min-h-[120px] shrink basis-[34%] flex-col gap-3 lg:flex">
               <Label>{ended ? "Deck ended" : Next ? "Next up" : "End of deck"}</Label>
               <div className="min-h-0 min-w-0 flex-1 opacity-80">
-                {Next ? <Thumb Component={Next} interactive={false} testId="presenter-preview-next" /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
+                {Next ? <div aria-hidden className="h-full w-full"><Thumb Component={Next} interactive={false} testId="presenter-preview-next" /></div> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
               </div>
             </div>
           )}
@@ -576,7 +593,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
               is hidden by focus mode */}
           {focused && navRow}
         </aside>
-      </div>
+      </main>
     </div>
   );
 }

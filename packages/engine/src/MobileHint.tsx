@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 /** A brief, dismissable "rotate for a bigger view" toast shown on a portrait phone
  *  (coarse pointer). Portaled to <body> so it renders at device scale, not inside
@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "motion/react";
 export function PortraitHint() {
   const [portrait, setPortrait] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (typeof matchMedia !== "function") return;
@@ -37,9 +38,9 @@ export function PortraitHint() {
       {show && (
         <motion.button
           onClick={() => setDismissed(true)}
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 12 }}
+          exit={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
           style={{
             position: "fixed",
             left: "50%",

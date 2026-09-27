@@ -64,6 +64,25 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   }
 }
 
+/** True when Enter on this target activates the element itself: a focused button,
+ *  link or button-like control (an overview thumbnail, an end-card action, the
+ *  presenter's Next). The browser clicks it natively, so the deck must not also run
+ *  its own Enter action, or one key press would act twice (e.g. open a slide from the
+ *  overview AND commit the selection again). Duck-typed like `isEditableTarget`. */
+export function isActivatableTarget(target: EventTarget | null): boolean {
+  const el = target as { tagName?: string; getAttribute?: (name: string) => string | null } | null;
+  if (!el?.tagName) return false;
+  switch (el.tagName) {
+    case "BUTTON":
+    case "SUMMARY":
+      return true;
+    case "A":
+      return el.getAttribute?.("href") != null;
+  }
+  const role = el.getAttribute?.("role");
+  return role === "button" || role === "option" || role === "tab" || role === "link";
+}
+
 // Keyboard navigation, routed by the active interaction layer (`mode`). In a modal
 // layer (overview, end) the layer owns its keys and deck nav never leaks through —
 // the routing is the pure `routeKey` (key × mode → action); this hook just dispatches.
@@ -118,6 +137,8 @@ export function useDeckNav(opts: {
     const onKey = (e: KeyboardEvent) => {
       // don't hijack typing in a plugin's input (Q&A box, etc.)
       if (isEditableTarget(e.target)) return;
+      // Enter on a focused control belongs to that control (it clicks natively).
+      if (e.key === "Enter" && isActivatableTarget(e.target)) return;
       const action = routeKey(mode, e.key);
       if (action == null) return;
       if (preventsDefault(e.key)) e.preventDefault();

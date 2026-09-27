@@ -1,5 +1,6 @@
-import { useEffect } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useDialogFocus } from "./focus";
 import type { Role } from "@liebstoeckel/plugin-sdk";
 
 type Shortcut = { keys: string[]; label: string; presenterOnly?: boolean };
@@ -44,6 +45,9 @@ export function HelpOverlay({
   }, [open, onClose]);
 
   const isViewer = role === "viewer";
+  const panel = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, panel);
+  const reduceMotion = useReducedMotion();
 
   const shortcuts: Shortcut[] = [
     { keys: ["→", "Space"], label: "Next / reveal step", presenterOnly: true },
@@ -64,13 +68,15 @@ export function HelpOverlay({
     <AnimatePresence>
       {open && (
         <motion.div
+          data-pi-chrome
           className="absolute inset-0 z-50 flex items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+          transition={{ duration: reduceMotion ? 0 : 0.18 }}
         >
           <div
+            aria-hidden
             className="absolute inset-0 bg-bg/70 backdrop-blur-md"
             onClick={onClose}
             onContextMenu={(e) => {
@@ -79,14 +85,19 @@ export function HelpOverlay({
             }}
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 10 }}
+            ref={panel}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pi-help-title"
+            tabIndex={-1}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 8 }}
-            transition={{ type: "spring", stiffness: 260, damping: 24 }}
-            className="relative max-h-[88%] w-[400px] overflow-auto rounded-2xl border border-border bg-surface/90 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 8 }}
+            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 24 }}
+            className="relative outline-none max-h-[88%] w-[400px] overflow-auto rounded-2xl border border-border bg-surface/90 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
           >
             <div className="mb-4 flex items-baseline justify-between">
-              <span className="font-heading text-xl font-semibold text-text">Shortcuts</span>
+              <h2 id="pi-help-title" className="m-0 font-heading text-xl font-semibold text-text">Shortcuts</h2>
               {role ? (
                 <span className="font-mono text-[11px] uppercase tracking-[0.25em] text-accent">
                   ● live · {role}

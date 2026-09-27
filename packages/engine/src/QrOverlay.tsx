@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useDialogFocus } from "./focus";
 import QRCode from "qrcode";
 
 /** Generate a QR data-URL for `url` while `enabled` (no work when closed). */
@@ -32,6 +33,7 @@ export type QrItem = { url?: string; label: string; sub?: string };
 /** A labelled QR + the URL underneath. Renders nothing without a url. */
 function QrCard({ url, label, sub, enabled, size }: { url?: string; label: string; sub?: string; enabled: boolean; size: number }) {
   const src = useQrDataUrl(url, enabled);
+  const reduceMotion = useReducedMotion();
   if (!url) return null;
   return (
     <div className="flex flex-col items-center gap-4">
@@ -43,9 +45,9 @@ function QrCard({ url, label, sub, enabled, size }: { url?: string; label: strin
           width={size}
           height={size}
           className="rounded-2xl border border-border shadow-2xl"
-          initial={{ scale: 0.92 }}
+          initial={reduceMotion ? false : { scale: 0.92 }}
           animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 220, damping: 20 }}
+          transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 220, damping: 20 }}
         />
       )}
       {sub && <div className="max-w-[18rem] break-all text-center font-mono text-[11px] text-muted">{sub}</div>}
@@ -61,11 +63,19 @@ export function QrShare({ open, items, title, onClose }: { open: boolean; items:
   useEscToClose(open, onClose);
   const visible = items.filter((i) => i.url);
   const big = visible.length <= 1;
+  const box = useRef<HTMLDivElement>(null);
+  useDialogFocus(open && visible.length > 0, box);
   return (
     <AnimatePresence>
       {open && visible.length > 0 && (
         <motion.div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 overflow-y-auto p-6 backdrop-blur-2xl"
+          ref={box}
+          data-pi-chrome
+          role="dialog"
+          aria-modal="true"
+          aria-label={title ?? visible[0]?.label ?? "QR code"}
+          tabIndex={-1}
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 overflow-y-auto p-6 outline-none backdrop-blur-2xl"
           style={{ background: "color-mix(in srgb, var(--brand-bg) 80%, transparent)" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { StageScaleContext } from "../Stage";
 import { useCoarsePointer } from "../useCoarsePointer";
 import { breakoutEligible } from "../mobile";
+import { useDialogFocus } from "../focus";
 
 /** Set false to suppress the touch breakout for plugins in a subtree (e.g. the
  *  presenter's non-interactive slide preview). */
@@ -20,6 +21,8 @@ export function useBreakoutEligible(interactive: boolean): boolean {
 /** A pulsing brand-accent ring + "tap to interact" pill around a (non-interactive)
  *  plugin preview. Tapping anywhere opens the full-size breakout. */
 export function GlowTap({ label, onOpen, children }: { label: string; onOpen: () => void; children: ReactNode }) {
+  // Under reduced motion the ring holds steady instead of pulsing.
+  const reduceMotion = useReducedMotion();
   return (
     <div
       role="button"
@@ -45,8 +48,8 @@ export function GlowTap({ label, onOpen, children }: { label: string; onOpen: ()
           boxShadow: "0 0 26px -4px var(--brand-accent, #e0c580)",
           pointerEvents: "none",
         }}
-        animate={{ opacity: [0.45, 1, 0.45] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        animate={reduceMotion ? { opacity: 0.85 } : { opacity: [0.45, 1, 0.45] }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
       />
       <div style={{ pointerEvents: "none" }}>{children}</div>
       <span
@@ -119,6 +122,10 @@ function useVisualViewport(): { height: number; offsetTop: number } | null {
 export function BreakoutSheet({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
   const short = useShortViewport();
   const vp = useVisualViewport();
+  const reduceMotion = useReducedMotion();
+  // Mounted only while open, so it is a modal for its whole lifetime.
+  const sheet = useRef<HTMLDivElement>(null);
+  useDialogFocus(true, sheet);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -159,12 +166,18 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
       }}
     >
       <motion.div
+        ref={sheet}
         data-pi-breakout
+        data-pi-chrome
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        initial={{ y: short ? 24 : "100%", opacity: short ? 0 : 1 }}
+        initial={reduceMotion ? { opacity: 0 } : { y: short ? 24 : "100%", opacity: short ? 0 : 1 }}
         animate={{ y: 0, opacity: 1 }}
-        exit={{ y: short ? 24 : "100%", opacity: short ? 0 : 1 }}
-        transition={{ type: "spring", stiffness: 320, damping: 36 }}
+        exit={reduceMotion ? { opacity: 0 } : { y: short ? 24 : "100%", opacity: short ? 0 : 1 }}
+        transition={reduceMotion ? { duration: 0.15 } : { type: "spring", stiffness: 320, damping: 36 }}
         style={{
           width: "100%",
           maxWidth: short ? "560px" : "720px",
@@ -181,6 +194,7 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
             : "none",
           borderTop: "1px solid var(--brand-border, color-mix(in srgb, var(--brand-text, #e9e6d7) 14%, transparent))",
           boxShadow: "0 -24px 60px -20px rgba(0,0,0,0.7)",
+          outline: "none",
         }}
       >
         {/* sticky header so the close button stays reachable while the body scrolls */}
@@ -210,7 +224,7 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
           </span>
           <button
             onClick={onClose}
-            aria-label="close"
+            aria-label="Close"
             style={{
               appearance: "none",
               cursor: "pointer",
