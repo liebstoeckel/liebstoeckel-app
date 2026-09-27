@@ -3,6 +3,8 @@ import { defineCommand, runMain } from "citty";
 import { resolve } from "node:path";
 import { bootInstructions } from "./instructions";
 import { readServerInfo, startDevServer } from "./server";
+import { formatPluginProblems } from "./serve-plugins";
+import { removeServerInfo } from "./local-backend";
 import { runAutoPatches } from "@liebstoeckel/cli/migrations";
 import { existsSync, realpathSync } from "node:fs";
 import { join } from "node:path";
@@ -184,12 +186,18 @@ export const devCommand = defineCommand({
         process.exit(1);
       }
     }
+    // Set when the server stops on purpose (a signal, or `/__dev/stop`), so
+    // the exit hook below can tell that apart from Bun ending the process.
+    let stopping = false;
     let server;
     try {
       server = await startDevServer({
         deckDir,
         port,
         hostname: args.host ?? "127.0.0.1",
+        onStop: () => {
+          stopping = true;
+        },
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -205,18 +213,38 @@ export const devCommand = defineCommand({
     // and installed with `on`, not `once`: a second signal (the re-exec parent
     // forwarding the Ctrl-C both already received) must not fall through to
     // the default handler and kill the process before server.json is removed.
-    let shuttingDown = false;
     const shutdown = () => {
-      if (shuttingDown) return;
-      shuttingDown = true;
+      if (stopping) return;
+      stopping = true;
       live?.stop();
       server.stop();
       setTimeout(() => process.exit(0), 300);
     };
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);
+    // Bun can still end the process on its own (a bundler plugin that loads
+    // but fails inside Bun, for one). The exit code is Bun's; what it does not
+    // say is that the dev server and the live mirror went with it. The hook
+    // sees code 0 even then, so it keys on `stopping`, not on the code.
+    process.on("exit", () => {
+      if (stopping) return;
+      removeServerInfo(deckDir, process.pid);
+      console.error("✕ the dev server stopped unexpectedly (see the error above); restart `liebstoeckel dev`");
+      if (live) console.error("⇄ live: stopped, edits no longer reach this folder or the cloud deck");
+    });
+    for (const line of server.pluginProblems.length > 0 ? formatPluginProblems(deckDir, server.pluginProblems) : []) {
+      console.error(`⚠ ${line}`);
+    }
     if (args.json) {
-      console.log(JSON.stringify({ ok: true, url: server.url, port: server.port, _instructions: bootInstructions() }));
+      console.log(
+        JSON.stringify({
+          ok: true,
+          url: server.url,
+          port: server.port,
+          ...(server.pluginProblems.length > 0 ? { pluginProblems: server.pluginProblems } : {}),
+          _instructions: bootInstructions(),
+        }),
+      );
     } else {
       console.log(`▶  ${server.url}/  (dev mode: sidebar + your deck; the plain deck alone is ${server.url}/deck)`);
       console.log(`   agent loop: liebstoeckel dev poll${args.dir ? ` --dir ${args.dir}` : ""}`);

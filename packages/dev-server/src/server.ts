@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { bootInstructions } from "./instructions";
 import { createLocalBackend, ensureDevGitignore, readServerInfo, removeServerInfo, writeServerInfo } from "./local-backend";
 import { createDevProtocol } from "./protocol";
+import { checkServePlugins, pluginErrorPage, type PluginProblem } from "./serve-plugins";
 
 // The dev-mode server: serves the dev shell (sidebar + the deck in a frame) at
 // /, the deck itself at /deck through Bun's dev pipeline (HMR, Fast Refresh),
@@ -23,12 +24,18 @@ export interface DevServerOptions {
   hostname?: string;
   /** Skip the Bun HTML dev pipeline and serve only /__dev/* (integration tests). */
   apiOnly?: boolean;
+  /** Called once the server has stopped itself (a `/__dev/stop` request). */
+  onStop?: () => void;
 }
 
 export interface DevServer {
   port: number;
   token: string;
   url: string;
+  /** Bundler plugins from the deck's bunfig.toml that did not resolve at
+   *  startup. While non-empty the deck route serves an error page instead of
+   *  the deck; it mounts the deck by itself once they resolve. */
+  pluginProblems: PluginProblem[];
   stop: () => void;
 }
 
@@ -68,6 +75,7 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
       onStop: () => {
         removeServerInfo(deckDir, process.pid);
         server.stop(true);
+        opts.onStop?.();
       },
     }),
   );
@@ -75,7 +83,15 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
   // The deck itself rides Bun's dev pipeline via a dynamic HTML import, which
   // gives HMR + Fast Refresh exactly as a hand-written server.ts would.
   const routes: Record<string, unknown> = {};
-  if (!opts.apiOnly) {
+  // Bun loads the deck's bunfig.toml plugins on the first deck request and
+  // exits the process when one does not resolve. So the HTML import is only
+  // mounted once they all resolve; until then `fetch` answers the deck route
+  // with an error page that polls `statusPath` and reloads when fixed.
+  let pluginProblems: PluginProblem[] = [];
+  let deckMounted = false;
+  let mounting: Promise<void> | null = null;
+  const statusPath = `${deckRoute(token)}/__plugins`;
+  async function mountDeck(): Promise<void> {
     const indexPath = join(deckDir, "index.html");
     if (!existsSync(indexPath)) throw new Error(`No index.html in ${deckDir}`);
     const mod = await import(indexPath);
@@ -86,6 +102,12 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     routes[deckRoute(token)] = mod.default;
     // A hand-typed trailing slash should not 404 the deck.
     routes[`${deckRoute(token)}/`] = mod.default;
+    deckMounted = true;
+  }
+  if (!opts.apiOnly) {
+    if (!existsSync(join(deckDir, "index.html"))) throw new Error(`No index.html in ${deckDir}`);
+    pluginProblems = checkServePlugins(deckDir);
+    if (pluginProblems.length === 0) await mountDeck();
   }
 
   const server = Bun.serve({
@@ -97,37 +119,63 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     idleTimeout: 255,
     development: { hmr: true, console: true },
     ...(Object.keys(routes).length > 0 ? { routes: routes as never } : {}),
-    fetch: async (req) => {
-      if (!hostAllowed(req.headers.get("host"), hostname)) {
-        return new Response("Forbidden: unexpected Host header", { status: 403 });
-      }
-      const url = new URL(req.url);
-      const p = url.pathname;
-      // The in-frame bridge. /__dev/drawer.js is a permanent alias: decks
-      // scaffolded with the earlier loader tag request it, and the scaffold
-      // migration never rewrites a tag that is already present.
-      if (p === "/__dev/bridge.js" || p === "/__dev/drawer.js") {
-        bridgeJs ??= await bridgeBundle();
-        return new Response(bridgeJs, { headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" } });
-      }
-      if (p === "/deck" || p === "/deck/") {
-        // Host-checked above; the fragment (deck position) survives a redirect.
-        return Response.redirect(`${deckRoute(token)}/${url.search}`, 302);
-      }
-      if (p === "/" || p === "/index.html" || p === "/__dev" || p === "/__dev/") {
-        shell ??= await shellBundle();
-        return new Response(shellHtml(shell, token), { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
-      }
-      if (p.startsWith("/__dev/") && /\.(js|css|woff2?|png|svg)$/.test(p)) {
-        shell ??= await shellBundle();
-        const asset = shell.assets.get(p.slice("/__dev/".length));
-        if (asset) return new Response(asset.bytes, { headers: { "Content-Type": asset.type, "Cache-Control": "no-store" } });
-      }
-      const handled = await protocol.handleDevRequest(req);
-      if (handled) return handled;
-      return new Response("Not found", { status: 404 });
-    },
+    fetch: handle,
   });
+
+  async function handle(req: Request): Promise<Response> {
+    if (!hostAllowed(req.headers.get("host"), hostname)) {
+      return new Response("Forbidden: unexpected Host header", { status: 403 });
+    }
+    const url = new URL(req.url);
+    const p = url.pathname;
+    // The in-frame bridge. /__dev/drawer.js is a permanent alias: decks
+    // scaffolded with the earlier loader tag request it, and the scaffold
+    // migration never rewrites a tag that is already present.
+    if (p === "/__dev/bridge.js" || p === "/__dev/drawer.js") {
+      bridgeJs ??= await bridgeBundle();
+      return new Response(bridgeJs, { headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" } });
+    }
+    if (!opts.apiOnly && (p === statusPath || (!deckMounted && (p === deckRoute(token) || p === `${deckRoute(token)}/`)))) {
+      if (!deckMounted) {
+        pluginProblems = checkServePlugins(deckDir);
+        if (pluginProblems.length === 0) {
+          mounting ??= mountDeck().then(() => {
+            // The same fetch goes back in, so the Host check, the shell and
+            // the protocol stay as they were; only the deck route is added.
+            server.reload({ routes: routes as never, fetch: handle, development: { hmr: true, console: true } } as never);
+          });
+          await mounting;
+        }
+      }
+      if (p === statusPath) {
+        return Response.json({ ok: pluginProblems.length === 0, problems: pluginProblems }, { headers: { "Cache-Control": "no-store" } });
+      }
+      if (pluginProblems.length > 0) {
+        return new Response(pluginErrorPage(deckDir, pluginProblems, statusPath), {
+          status: 503,
+          headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
+        });
+      }
+      // Mounted just now: the next request hits the route itself.
+      return Response.redirect(`${deckRoute(token)}/${url.search}`, 302);
+    }
+    if (p === "/deck" || p === "/deck/") {
+      // Host-checked above; the fragment (deck position) survives a redirect.
+      return Response.redirect(`${deckRoute(token)}/${url.search}`, 302);
+    }
+    if (p === "/" || p === "/index.html" || p === "/__dev" || p === "/__dev/") {
+      shell ??= await shellBundle();
+      return new Response(shellHtml(shell, token), { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+    }
+    if (p.startsWith("/__dev/") && /\.(js|css|woff2?|png|svg)$/.test(p)) {
+      shell ??= await shellBundle();
+      const asset = shell.assets.get(p.slice("/__dev/".length));
+      if (asset) return new Response(asset.bytes, { headers: { "Content-Type": asset.type, "Cache-Control": "no-store" } });
+    }
+    const handled = await protocol.handleDevRequest(req);
+    if (handled) return handled;
+    return new Response("Not found", { status: 404 });
+  }
 
   writeServerInfo(deckDir, { port: server.port!, token, hostname });
   ensureDevGitignore(deckDir);
@@ -136,6 +184,7 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     port: server.port!,
     token,
     url: `http://${hostname === "0.0.0.0" ? "localhost" : hostname}:${server.port}`,
+    pluginProblems,
     stop: () => protocol.stop(),
   };
 }

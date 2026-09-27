@@ -267,7 +267,11 @@ Serve a deck for authoring: hot reload plus the dev shell (a sidebar beside
 the deck; the plain deck alone is behind `/deck`), whose first tool is [live annotations](/guides/dev-mode/) an AI agent can apply to
 your slide source while you watch. With `--dir`, the server re-executes with
 the deck as its working directory so the deck's own `bunfig.toml` plugins load;
-a port already in use fails with a message naming it.
+a port already in use fails with a message naming it. A `[serve.static]` plugin
+that cannot be found from the deck folder is reported before the URL (and in
+the `--json` startup line as `pluginProblems: [{ plugin, message }]`); the
+server keeps running and shows an error page in place of the deck until
+`bun install` in the deck folder makes it resolve.
 
 ```bash
 liebstoeckel dev                     # the deck in the current directory

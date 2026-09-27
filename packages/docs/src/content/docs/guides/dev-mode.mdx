@@ -131,3 +131,22 @@ arrow means direction or movement, a cross means *remove*.
   reaching it by a LAN address then). The deck itself is served under a path
   that includes the session token; `/deck` is a checked redirect to it, so the
   address bar shows the token path once you open the plain deck.
+
+## Troubleshooting
+
+**The deck frame says a bundler plugin is missing.** The deck's `bunfig.toml`
+names plugins under `[serve.static] plugins` (Tailwind and MDX in a scaffolded
+deck), and at least one of them cannot be found from the deck folder. This
+usually means the deck's dependencies are not installed: a fresh clone, a
+failed install, or a deck folder moved or copied somewhere else. `dev` checks
+the plugins when it starts, prints each missing one before the URL, and keeps
+running; the sidebar, the agent loop and a `--live` mirror are not affected.
+Run `bun install` in the deck folder (or fix the plugin name in
+`bunfig.toml`); the deck frame notices within a few seconds and loads the deck,
+no restart needed. With `--json`, the startup line lists the missing plugins
+under `pluginProblems`.
+
+**The terminal says the dev server stopped unexpectedly.** Bun ended the
+process, and the error above that line says why. With `--live`, the mirror
+stopped with it, so edits no longer reach the folder or the cloud deck until
+you start `dev` again.
