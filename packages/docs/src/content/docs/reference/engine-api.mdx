@@ -72,5 +72,6 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 | `@liebstoeckel/engine/build` | `bundleDeck` (browser-free build primitive), `buildPluginManifest`, `buildServerBundle` |
 | `@liebstoeckel/engine/code` (macro) | `codeStory`, `code` (import `with { type: "macro" }`) |
 | `@liebstoeckel/engine/build/thumbnails` | `embedThumbnails`, `extractThumbnails`, `stripThumbnails` (the manifest format) |
+| `@liebstoeckel/engine/build/visual-audit` | `auditSlideDom`, the self-contained check behind `build --check --visual` (text cut off by its box, chart labels clipped by their svg, text off the stage), for running in a page that renders one slide at the stage size |
 | `@liebstoeckel/thumbnails` | `withThumbnails` (gated, never-fatal capture+embed), `captureThumbnails`, `addThumbnailsToFile`, `thumbnailsEnabled` |
 | `@liebstoeckel/thumbnails/build` | `buildDeck`, **the default build**: `bundleDeck` + slide thumbnails |

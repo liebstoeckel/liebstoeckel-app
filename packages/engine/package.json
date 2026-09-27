@@ -46,6 +46,7 @@
     "./build/licenses": "./src/build/licenses.ts",
     "./build/thumbnails": "./src/build/thumbnails.ts",
     "./build/capture-protocol": "./src/build/capture-protocol.ts",
+    "./build/visual-audit": "./src/build/visual-audit.ts",
     "./mdx-plugin": "./src/build/mdx-plugin.ts",
     "./visx-esm-plugin": "./src/build/visx-esm-plugin.ts",
     "./code": "./src/code/macro.ts"

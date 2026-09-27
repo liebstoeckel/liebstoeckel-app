@@ -250,6 +250,7 @@
         "@liebstoeckel/control-core": "workspace:^",
         "@liebstoeckel/engine": "workspace:^",
         "@liebstoeckel/registry": "workspace:^",
+        "@liebstoeckel/slide-spec": "workspace:^",
         "@liebstoeckel/theme": "workspace:^",
         "@liebstoeckel/thumbnails": "workspace:^",
         "@visx/axis": "^3.12.0",
@@ -262,7 +263,7 @@
         "motion": "^12.40.0",
         "react": "^19.2.7",
         "react-dom": "^19.2.7",
-        "zod": "^4.3.5",
+        "zod": "4.4.3",
       },
     },
     "packages/deck-sync": {
@@ -284,12 +285,14 @@
         "@liebstoeckel/plugin-reactions": "workspace:*",
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/plugin-ui": "workspace:*",
+        "@liebstoeckel/slide-spec": "workspace:*",
         "@liebstoeckel/theme": "workspace:*",
         "@mdx-js/mdx": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
         "@visx/axis": "^3.12.0",
         "@visx/curve": "^3.12.0",
         "@visx/gradient": "^3.12.0",
+        "@visx/grid": "^3.12.0",
         "@visx/group": "^3.12.0",
         "@visx/scale": "^3.12.0",
         "@visx/shape": "^3.12.0",
@@ -306,6 +309,7 @@
       },
       "devDependencies": {
         "@liebstoeckel/cli": "workspace:*",
+        "playwright-core": "1.60.0",
       },
     },
     "packages/dev-server": {
@@ -551,6 +555,14 @@
       "peerDependencies": {
         "react": "^19.2.7",
         "react-dom": "^19.2.7",
+      },
+    },
+    "packages/slide-spec": {
+      "name": "@liebstoeckel/slide-spec",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liebstoeckel/registry": "workspace:^",
+        "zod": "4.4.3",
       },
     },
     "packages/theme": {
@@ -1219,6 +1231,8 @@
     "@liebstoeckel/registry": ["@liebstoeckel/registry@workspace:packages/registry"],
 
     "@liebstoeckel/registry-demo": ["@liebstoeckel/registry-demo@workspace:presentations/registry-demo"],
+
+    "@liebstoeckel/slide-spec": ["@liebstoeckel/slide-spec@workspace:packages/slide-spec"],
 
     "@liebstoeckel/step-lab": ["@liebstoeckel/step-lab@workspace:presentations/step-lab"],
 
