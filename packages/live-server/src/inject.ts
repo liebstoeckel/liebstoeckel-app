@@ -8,6 +8,8 @@ export interface LiveBootstrap {
   participant: string;
   /** the read-only follow-along link (for the in-deck QR) */
   viewer?: string;
+  /** days the host keeps what the audience writes after the session; absent = not kept */
+  audienceInputKeptDays?: number;
 }
 
 /** Inject `window.__LIEBSTOECKEL_LIVE__` into <head> so the client knows a server

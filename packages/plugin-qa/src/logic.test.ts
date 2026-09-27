@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
 import { pluginState } from "@liebstoeckel/plugin-sdk";
-import { qaSchema, voteKey, voteCount, hasVoted, rankedQuestions, type QaState } from "./logic";
+import { qaSchema, voteKey, voteCount, hasVoted, rankedQuestions, keptHint, type QaState } from "./logic";
 
 const make = (over: Partial<QaState> = {}): QaState => ({
   questions: {},
@@ -113,5 +113,18 @@ describe("Q&A over shared Yjs state (Hub convergence)", () => {
       expect(ranked[0]!.id).toBe(qid);
       expect(ranked[0]!.votes).toBe(2);
     }
+  });
+});
+
+describe("keptHint", () => {
+  test("names how long questions are kept, in years when it divides evenly", () => {
+    expect(keptHint(365)).toBe("Your question may be saved by the presenter's organisation for up to a year.");
+    expect(keptHint(730)).toContain("for up to 2 years.");
+    expect(keptHint(30)).toContain("for up to 30 days.");
+    expect(keptHint(1)).toContain("for up to a day.");
+  });
+  test("says nothing when the session keeps nothing", () => {
+    expect(keptHint(undefined)).toBeNull();
+    expect(keptHint(0)).toBeNull();
   });
 });

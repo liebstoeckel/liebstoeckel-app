@@ -211,6 +211,19 @@ describe("hosted relay: audience white-label ((internal ADR))", () => {
     const aud = await fetch(`${base}/s/${id}?t=${viewerToken}`).then((r) => r.text());
     expect(aud).not.toContain("Published with liebstoeckel");
   });
+
+  test("a session whose plan keeps audience input tells the page how long; others say nothing", async () => {
+    const base = start();
+    const kept = await create(base, { "x-audience-input-kept-days": "365" });
+    const aud = await fetch(`${base}/s/${kept.id}?t=${kept.viewerToken}`).then((r) => r.text());
+    expect(aud).toContain('"audienceInputKeptDays":365');
+    const others: Record<string, string>[] = [{}, { "x-audience-input-kept-days": "0" }, { "x-audience-input-kept-days": "soon" }];
+    for (const hdr of others) {
+      const s = await create(base, hdr);
+      const page = await fetch(`${base}/s/${s.id}?t=${s.viewerToken}`).then((r) => r.text());
+      expect(page).not.toContain("audienceInputKeptDays");
+    }
+  });
 });
 
 describe("hosted relay: snapshot persistence", () => {

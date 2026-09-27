@@ -58,3 +58,12 @@ export function rankedQuestions(state: QaState): RankedQuestion[] {
   rows.sort((a, b) => (b.votes - a.votes) || (a.ts - b.ts));
   return rows;
 }
+
+/** The line shown above the ask box when the hosting session keeps what the audience
+ *  writes, so a viewer knows before they send. Null when nothing is kept. */
+export function keptHint(days: number | undefined): string | null {
+  if (!days || days <= 0) return null;
+  const years = days / 365;
+  const span = Number.isInteger(years) ? (years === 1 ? "a year" : `${years} years`) : days === 1 ? "a day" : `${days} days`;
+  return `Your question may be saved by the presenter's organisation for up to ${span}.`;
+}

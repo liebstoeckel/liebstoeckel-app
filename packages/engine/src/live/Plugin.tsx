@@ -15,6 +15,8 @@ export interface LiveContextValue {
   theme: ThemeTokens;
   /** read-only follow-along link, for the in-deck QR (live only) */
   viewerUrl?: string;
+  /** days the host keeps what the audience writes after the session (live only) */
+  audienceInputKeptDays?: number;
   /** the live connection's state (live only) */
   connection?: LiveState;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,6 +54,7 @@ export function usePluginProps(
     role: ctx.role,
     live: ctx.live,
     participantId: ctx.participant,
+    audienceInputKeptDays: ctx.audienceInputKeptDays,
     theme: ctx.theme,
     ui: mergeUi({}, {}),
     props,
@@ -138,6 +141,7 @@ export function Plugin({
           role={ctx.role}
           live={ctx.live}
           participantId={ctx.participant}
+          audienceInputKeptDays={ctx.audienceInputKeptDays}
           theme={ctx.theme}
           ui={mergeUi({}, components)}
           props={props}

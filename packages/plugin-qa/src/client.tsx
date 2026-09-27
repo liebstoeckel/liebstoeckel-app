@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { definePlugin, type ClientProps, type GlobalProps } from "@liebstoeckel/plugin-sdk";
 import { Button, Card, Eyebrow, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
-import { qaSchema, hasVoted, voteCount, voteKey, rankedQuestions, type QaState, type RankedQuestion } from "./logic";
+import { qaSchema, hasVoted, voteCount, voteKey, rankedQuestions, keptHint, type QaState, type RankedQuestion } from "./logic";
 
 const v = (name: string, fallback: string) => `var(--brand-${name}, ${fallback})`;
 
@@ -137,38 +137,51 @@ function useQaActions(p: Pick<ClientProps<QaState>, "snapshot" | "state" | "part
   return { submit, toggleVote };
 }
 
-/** The ask box. Clears itself on submit. */
-function Composer({ onSubmit, autoFocus }: { onSubmit: (text: string) => void; autoFocus?: boolean }) {
+/** The ask box. Clears itself on submit. When the hosting session keeps questions
+ *  after it ends, a line above the input says so and for how long: above, not below,
+ *  so the on-screen keyboard of a phone never covers it. */
+function Composer({ onSubmit, autoFocus, keptDays }: { onSubmit: (text: string) => void; autoFocus?: boolean; keptDays?: number }) {
   const [draft, setDraft] = useState("");
   const go = () => {
     onSubmit(draft);
     setDraft("");
   };
+  const hint = keptHint(keptDays);
   return (
-    <div style={{ display: "flex", gap: "0.5rem" }}>
-      <input
-        value={draft}
-        autoFocus={autoFocus}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && go()}
-        placeholder="Type your question…"
-        style={{
-          flex: 1,
-          minWidth: 0,
-          appearance: "none",
-          padding: "0.7rem 0.9rem",
-          borderRadius: "0.7rem",
-          border: `1px solid ${v("border", "#222734")}`,
-          background: `color-mix(in srgb, ${v("surface", "#11141b")} 60%, transparent)`,
-          color: v("text", "#f3f1ea"),
-          fontFamily: v("font-body", "sans-serif"),
-          fontSize: "1rem",
-          outline: "none",
-        }}
-      />
-      <Button onClick={go} active style={{ width: "auto", paddingLeft: "1.2rem", paddingRight: "1.2rem" }}>
-        Ask
-      </Button>
+    <div>
+      {hint && (
+        <div
+          data-testid="qa-kept-hint"
+          style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-body", "sans-serif"), fontSize: "0.78rem", lineHeight: 1.35, marginBottom: "0.45rem" }}
+        >
+          {hint}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        <input
+          value={draft}
+          autoFocus={autoFocus}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && go()}
+          placeholder="Type your question…"
+          style={{
+            flex: 1,
+            minWidth: 0,
+            appearance: "none",
+            padding: "0.7rem 0.9rem",
+            borderRadius: "0.7rem",
+            border: `1px solid ${v("border", "#222734")}`,
+            background: `color-mix(in srgb, ${v("surface", "#11141b")} 60%, transparent)`,
+            color: v("text", "#f3f1ea"),
+            fontFamily: v("font-body", "sans-serif"),
+            fontSize: "1rem",
+            outline: "none",
+          }}
+        />
+        <Button onClick={go} active style={{ width: "auto", paddingLeft: "1.2rem", paddingRight: "1.2rem" }}>
+          Ask
+        </Button>
+      </div>
     </div>
   );
 }
@@ -219,7 +232,7 @@ function QaSlide(p: ClientProps<QaState>) {
         {prompt}
       </div>
       <div style={{ marginBottom: "1.3rem" }}>
-        <Composer onSubmit={submit} />
+        <Composer onSubmit={submit} keptDays={p.audienceInputKeptDays} />
       </div>
       <Queue {...p} />
     </Card>
@@ -259,7 +272,7 @@ function QaPanel(p: GlobalProps<QaState>) {
     <div style={{ width: "100%", maxWidth: 480 }}>
       <Eyebrow>Ask the room</Eyebrow>
       <div style={{ margin: "0.4rem 0 0.9rem" }}>
-        <Composer onSubmit={submit} autoFocus />
+        <Composer onSubmit={submit} autoFocus keptDays={p.audienceInputKeptDays} />
       </div>
       <Queue snapshot={p.snapshot} state={p.state} participantId={p.participantId} role="viewer" />
     </div>

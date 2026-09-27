@@ -96,6 +96,10 @@ interface RelaySession {
   audienceCount: number;
   /** show the "Published with liebstoeckel" provenance badge (free tier; (internal ADR)). */
   watermark: boolean;
+  /** days the host keeps what the audience writes after the session (hosted, set by
+   *  the control plane from the org's plan); undefined = not kept. Shown to viewers
+   *  so a plugin can say so where they type. */
+  audienceInputKeptDays?: number;
   /** object-storage key for this session's Yjs snapshot, if persisted. */
   snapshotKey?: string;
   /** epoch-fenced state (hosted, placed by the control plane); replaces snapshotKey. */
@@ -305,6 +309,8 @@ export function createRelay(opts: RelayOptions): RelayServer {
     const capHdr = Number(req.headers.get("x-audience-cap") ?? "");
     const audienceCap = Number.isFinite(capHdr) && capHdr > 0 ? capHdr : undefined;
     const watermark = req.headers.get("x-watermark") === "1";
+    const keptHdr = Number(req.headers.get("x-audience-input-kept-days") ?? "");
+    const audienceInputKeptDays = Number.isSafeInteger(keptHdr) && keptHdr > 0 ? keptHdr : undefined;
     // Stable session id across re-provision ((internal ADR)): the control plane re-creates
     // a recovered session under the SAME id on a new pod, so the audience URL
     // (`/s/<id>?t=<grant>`) and its stateless grant stay valid, only the pod the
@@ -391,6 +397,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       audienceCap,
       audienceCount: 0,
       watermark,
+      audienceInputKeptDays,
       snapshotKey: state ? undefined : snapshotKey,
       state,
       sockets: new Set(),
@@ -476,7 +483,15 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // Free-tier provenance badge on the public audience view ((internal ADR)); paid
     // (white-label) sessions omit it. Presenter view is never watermarked.
     const html = s.watermark && role === "viewer" ? injectWatermark(s.html) : s.html;
-    const body = injectBootstrap(html, { ws: wsUrl, session: s.id, role, token, participant: "", viewer });
+    const body = injectBootstrap(html, {
+      ws: wsUrl,
+      session: s.id,
+      role,
+      token,
+      participant: "",
+      viewer,
+      ...(s.audienceInputKeptDays ? { audienceInputKeptDays: s.audienceInputKeptDays } : {}),
+    });
     return new Response(body, {
       headers: {
         "content-type": "text/html; charset=utf-8",

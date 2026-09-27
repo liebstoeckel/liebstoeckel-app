@@ -20,6 +20,11 @@ export interface ClientProps<T> {
   live: boolean;
   /** stable id for this browser session */
   participantId: string;
+  /** How many days the host keeps what the audience writes (answers, questions)
+   *  after the session ends. Absent or 0: nothing is kept past the session, as in a
+   *  standalone .html or a session on the bundled live server. A plugin with a
+   *  free-text input can use it to tell the audience before they send. */
+  audienceInputKeptDays?: number;
   /** resolved brand tokens (colors/fonts) for canvas/SVG use */
   theme: ThemeTokens;
   /** author-provided surface overrides (merged over defaults) */

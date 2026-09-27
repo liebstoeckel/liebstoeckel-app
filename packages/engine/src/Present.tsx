@@ -74,6 +74,7 @@ export function Present(props: DeckProps) {
     doc,
     theme,
     viewerUrl: info?.viewer,
+    audienceInputKeptDays: info?.audienceInputKeptDays,
     connection: info ? connection : undefined,
     plugins: registry,
   };
