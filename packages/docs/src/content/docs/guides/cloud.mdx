@@ -49,6 +49,14 @@ into the file, so there is nothing extra to send. The server reads both straight
 the uploaded file, which means titles with em-dashes, smart quotes, or emoji just work.
 The deck appears in your dashboard immediately.
 
+A deck built without thumbnails (on a machine without Chromium, for example) still gets
+them: the cloud captures the slides after the upload, and the cover shows up in the
+dashboard a few seconds later, marked *Preparing cover* until then. The same happens for
+decks written with the assistant or edited in the dashboard. The captured thumbnails are
+embedded into the stored deck, so its presenter overview has them too. A new version
+keeps showing the previous cover until its own is ready. Captures are free, but they add
+their images to the deck's stored size.
+
 ## Organizations: personal and teams
 
 Every account has a **personal workspace** (just you) and can create or join **team

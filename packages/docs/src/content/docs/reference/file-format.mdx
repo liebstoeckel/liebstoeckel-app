@@ -65,7 +65,7 @@ Below the module script, a build can embed up to four inert blocks. Each is a `<
 | `data-liebstoeckel-plugins` | `application/json` | Plugin manifest | Deck declares plugins |
 | `data-liebstoeckel-licenses` | `text/plain` | Third-party license notices | Default; off with `--no-inline-licenses` |
 | `data-liebstoeckel-source` | `application/octet-stream` | The deck's source, compressed | Default; off with `--no-inline-package` |
-| `data-liebstoeckel-thumbnails` | `application/json` | Slide thumbnail manifest | A Chromium was available at build time |
+| `data-liebstoeckel-thumbnails` | `application/json` | Slide thumbnail manifest | A Chromium was available at build time, or the deck was captured after an upload to the cloud |
 
 The JSON blocks carry a `"v"` version field so the shape can change without breaking older readers.
 

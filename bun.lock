@@ -103,6 +103,7 @@
         "@better-auth/mcp": "1.7.3",
         "@better-auth/passkey": "1.7.3",
         "@liebstoeckel/deck-sync": "workspace:*",
+        "@liebstoeckel/engine": "workspace:*",
         "@liebstoeckel/live-server": "workspace:*",
         "@liebstoeckel/present-relay": "workspace:*",
         "@opentelemetry/api": "^1.9.1",
