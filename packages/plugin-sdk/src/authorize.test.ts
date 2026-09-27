@@ -8,6 +8,7 @@ import {
   MAX_AUDIENCE_ENTRIES,
 } from "./authorize";
 import type { PluginManifest } from "./manifest";
+import { registerPluginInstance } from "./instances";
 
 // A deck with the two interactive built-ins. poll lets the audience write `votes`;
 // qa lets them write `questions` + `votes`; everything else is presenter-only.
@@ -149,6 +150,47 @@ describe("authorizeAudienceUpdate", () => {
       allows((d) => {
         const votes = d.getMap("plugin:poll").get("votes") as Y.Map<unknown>;
         for (let i = 0; i <= MAX_AUDIENCE_ENTRIES; i++) votes.set(`p${i}`, "red");
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("authorizeAudienceUpdate with real client writes", () => {
+  // Every client records the `<Plugin>` instances it renders; an entry without a title
+  // carries `title: undefined`, which Yjs stores as is. This used to fail the value
+  // bounds, and because the bounds looked at the whole doc, one such entry (the
+  // presenter's own) made every audience write fail, votes included.
+  test("an index entry without a title, then a vote, is allowed", () => {
+    const base = makeBase();
+    base.getMap("plugin-index").set("qa ", { type: "qa", instance: "", order: 1, title: undefined });
+    const state = Y.encodeStateAsUpdate(base);
+    const reg = delta(base, (d) => d.getMap("plugin-index").set("poll q2", { type: "poll", instance: "q2", order: 2, title: undefined }));
+    expect(authorizeAudienceUpdate(state, reg, scope)).toBe(true);
+    const vote = delta(base, (d) => (d.getMap("plugin:poll").get("votes") as Y.Map<unknown>).set("pidA", "red"));
+    expect(authorizeAudienceUpdate(state, vote, scope)).toBe(true);
+  });
+
+  test("registerPluginInstance without a title does not write an undefined title", () => {
+    const d = new Y.Doc();
+    registerPluginInstance(d, "poll", "", {});
+    expect("title" in (d.getMap("plugin-index").get("poll\u0000") as object)).toBe(false);
+  });
+
+  test("a value already in the doc does not block an unrelated audience write", () => {
+    const base = makeBase();
+    // Out of bounds, but written by the trusted presenter, not by this update.
+    const qa = base.getMap("plugin:qa").get("questions") as Y.Map<unknown>;
+    qa.set("long", "x".repeat(MAX_AUDIENCE_STRING + 1));
+    const state = Y.encodeStateAsUpdate(base);
+    const vote = delta(base, (d) => (d.getMap("plugin:poll").get("votes") as Y.Map<unknown>).set("pidA", "red"));
+    expect(authorizeAudienceUpdate(state, vote, scope)).toBe(true);
+  });
+
+  test("growing the instance index past the entry cap is still rejected", () => {
+    expect(
+      allows((d) => {
+        const idx = d.getMap("plugin-index");
+        for (let i = 0; i <= MAX_AUDIENCE_ENTRIES; i++) idx.set(`poll i${i}`, { type: "poll", instance: `i${i}`, order: i });
       }),
     ).toBe(false);
   });

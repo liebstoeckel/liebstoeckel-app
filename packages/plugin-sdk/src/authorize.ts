@@ -1,7 +1,7 @@
 import * as Y from "yjs";
 import type { PluginManifest } from "./manifest";
 
-// Relay-side write authorization for hosted live sessions ((internal ADR)). A public
+// Relay-side write authorization for hosted live sessions. A public
 // audience link invites strangers, so roles must be *enforced*, not honor-system:
 // the presenter/runner may write the whole doc, but an audience peer may only touch
 // the interaction fields a plugin explicitly declares (poll votes, Q&A questions/
@@ -11,7 +11,7 @@ import type { PluginManifest } from "./manifest";
 export type PeerRole = "presenter" | "runner" | "audience";
 
 /** The doc-level index a client appends to when it renders a `<Plugin>` (instance
- *  discovery, (internal ADR)). A legitimate audience write, the audience renders the deck. */
+ *  discovery). A legitimate audience write, the audience renders the deck. */
 export const PLUGIN_INDEX_KEY = "plugin-index";
 
 export interface AudienceScope {
@@ -114,6 +114,11 @@ function withinBounds(value: unknown, depth: number): boolean {
       return Number.isFinite(value);
     case "boolean":
       return true;
+    case "undefined":
+      // Yjs stores JSON plus `undefined` (an optional field left unset, e.g. an
+      // instance-index entry without a title). It carries no payload, so it is as
+      // harmless as an absent field; rejecting it muted every audience peer.
+      return true;
     case "object": {
       if (Array.isArray(value)) {
         if (value.length > MAX_AUDIENCE_ENTRIES) return false;
@@ -128,28 +133,37 @@ function withinBounds(value: unknown, depth: number): boolean {
       return true;
     }
     default:
-      return false; // function / undefined / symbol / bigint — never valid shared state
+      return false; // function / symbol / bigint, never valid shared state
   }
 }
 
-/** Are all audience-writable subtrees in `doc` within bounds? */
-function audienceValuesWithinBounds(doc: Y.Doc, scope: AudienceScope): boolean {
+/** The audience-writable units of `doc`, each serialized: a whole audience root (the
+ *  instance index) or one declared field of a plugin root. These are the units the
+ *  bounds apply to, so a root's or a field's entry count stays capped as a whole. */
+function audienceUnits(doc: Y.Doc, scope: AudienceScope): Map<string, unknown> {
+  const units = new Map<string, unknown>();
   for (const key of doc.share.keys()) {
     const allowed = scopeForRoot(scope, key);
-    if (allowed === null) continue; // presenter-only root — not audience-writable
-    let js: Record<string, unknown>;
-    try {
-      js = doc.getMap(key).toJSON() as Record<string, unknown>;
-    } catch {
-      return false; // fail closed on an unexpected root shape
-    }
+    if (allowed === null) continue; // presenter-only root, not audience-writable
+    const js = doc.getMap(key).toJSON() as Record<string, unknown>;
     if (allowed === "*") {
-      if (!withinBounds(js, 0)) return false;
+      units.set(key, js);
       continue;
     }
     for (const field of allowed) {
-      if (field in js && !withinBounds(js[field], 0)) return false;
+      if (field in js) units.set(`${key}\u0000${field}`, js[field]);
     }
+  }
+  return units;
+}
+
+/** Are the audience-writable units this update changed within bounds? Units the update
+ *  left alone are not judged: a value already in the doc (for instance one the trusted
+ *  presenter wrote) must never make every later audience write fail. */
+function changedUnitsWithinBounds(before: Map<string, unknown>, after: Map<string, unknown>): boolean {
+  for (const [unit, value] of after) {
+    if (before.has(unit) && stableStringify(before.get(unit)) === stableStringify(value)) continue;
+    if (!withinBounds(value, 0)) return false;
   }
   return true;
 }
@@ -167,12 +181,13 @@ export function authorizeAudienceUpdate(liveState: Uint8Array, update: Uint8Arra
   try {
     Y.applyUpdate(clone, liveState);
     const before = projectProtected(clone, scope);
+    const unitsBefore = audienceUnits(clone, scope);
     Y.applyUpdate(clone, update);
     const after = projectProtected(clone, scope);
     if (before !== after) return false; // touched a presenter-only field → drop
     // Scope is fine; now bound the values written into the allowed fields so a single
     // update can't carry a multi-megabyte string, deep nesting, or a runaway key count.
-    return audienceValuesWithinBounds(clone, scope);
+    return changedUnitsWithinBounds(unitsBefore, audienceUnits(clone, scope));
   } catch {
     return false;
   } finally {
