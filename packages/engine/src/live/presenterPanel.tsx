@@ -159,7 +159,7 @@ function Console({ ctx, inst, variant }: { ctx: LiveContextValue; inst: Inst; va
   // `transform`. Without this, Motion treats the two as one shared element and morphs
   // across the scale boundary (the (internal ADR) hazard).
   return (
-    <div className={`min-h-0 min-w-0 flex-1 overflow-auto rounded-2xl border border-border bg-surface/40 ${box}`}>
+    <div data-testid="presenter-console" className={`min-h-0 min-w-0 flex-1 overflow-auto rounded-2xl border border-border bg-surface/40 ${box}`}>
       <LayoutGroup id={`presenter-console-${ikey(inst)}`}>
         <C {...props} />
       </LayoutGroup>

@@ -129,9 +129,13 @@ function Thumb({
   Component,
   interactive = true,
   reveal,
+  testId,
 }: {
   Component?: ComponentType;
   interactive?: boolean;
+  /** A stable hook for tests, set on the on-screen previews only, so the hidden
+   *  measuring copy below never counts as a preview. */
+  testId?: string;
   /** Render this preview inside a StepsProvider so it shows the same reveal state
    *  the audience sees. Reporting the count is NOT done here, see SlideMeasure. */
   reveal?: { step: StepPos; slideIndex: number; onTotal?: (slideIndex: number, total: number) => void };
@@ -139,6 +143,7 @@ function Thumb({
   const body = Component ? <Component /> : null;
   return (
     <div
+      data-testid={testId}
       className={`relative h-full w-full overflow-hidden rounded-2xl border border-border bg-bg shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] ${interactive ? "" : "pointer-events-none"}`}
     >
       <MDXProvider components={mdxComponents}>
@@ -411,7 +416,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
         {!focused && (
         <div className="flex shrink-0 items-center gap-3 border-t border-border px-4 py-2">
           <div className="h-12 w-[5.5rem] shrink-0 opacity-80">
-            {Next ? <Thumb Component={Next} interactive={false} /> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
+            {Next ? <Thumb Component={Next} interactive={false} testId="presenter-preview-next" /> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
           </div>
           <div className="min-w-0 flex-1 font-mono text-[11px]">
             <div className="uppercase tracking-[0.2em] text-muted">
@@ -538,7 +543,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
                 : `On screen · ${String(index + 1).padStart(2, "0")} / ${String(norm.length).padStart(2, "0")}`}
             </Label>
             <div className="h-[30vh] min-h-0 min-w-0 lg:h-auto lg:flex-1">
-              <Thumb Component={Current} reveal={{ step: rawStep, slideIndex: index }} />
+              <Thumb Component={Current} reveal={{ step: rawStep, slideIndex: index }} testId="presenter-preview-current" />
             </div>
             {total > 0 && <StepIndicator step={step} total={total} ended={ended} atEnd={atEnd} />}
             {navRow}
@@ -556,7 +561,7 @@ export function PresenterView({ slides, brands = ["default"], title = "liebstoec
             <div className="hidden min-h-[120px] shrink basis-[34%] flex-col gap-3 lg:flex">
               <Label>{ended ? "Deck ended" : Next ? "Next up" : "End of deck"}</Label>
               <div className="min-h-0 min-w-0 flex-1 opacity-80">
-                {Next ? <Thumb Component={Next} interactive={false} /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
+                {Next ? <Thumb Component={Next} interactive={false} testId="presenter-preview-next" /> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
               </div>
             </div>
           )}
