@@ -1,9 +1,17 @@
 import { test, expect, describe } from "bun:test";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { rehydrateServerBundle } from "@liebstoeckel/plugin-sdk/manifest";
-import { buildServerBundle, buildPluginManifest, escapeInlineModuleScript, stampGenerator, stripDevMode } from "./buildDeck";
+import {
+  buildServerBundle,
+  buildPluginManifest,
+  bundleDeck,
+  escapeInlineModuleScript,
+  stampGenerator,
+  stripDevMode,
+} from "./buildDeck";
 
 describe("buildServerBundle", () => {
   // Real `Bun.build` (target:bun), isolated to a unique tmp dir. The build itself
@@ -110,4 +118,51 @@ describe("stripDevMode before escapeInlineModuleScript", () => {
     const out = escapeInlineModuleScript(stripDevMode(html));
     expect(out).toBe('<body><script type="module">app("x")</script>\n</body>');
   });
+});
+
+describe("bundleDeck", () => {
+  // A built deck is a production artifact whatever the builder's environment says:
+  // React must come in as its production build, with no dev-only JSX runtime,
+  // warnings or DevTools banner. The fixture lives inside the source tree (not the
+  // system tmpdir) so `react` resolves from the workspace node_modules.
+  test(
+    "ships React's production build even when NODE_ENV=development",
+    async () => {
+      const here = fileURLToPath(new URL(".", import.meta.url));
+      const dir = mkdtempSync(join(here, ".vt-prodbuild-"));
+      const prev = process.env.NODE_ENV;
+      try {
+        writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "prod-build-fixture", private: true }));
+        writeFileSync(
+          join(dir, "index.html"),
+          `<!doctype html><html><head></head><body><div id="root"></div><script type="module" src="./entry.tsx"></script></body></html>`,
+        );
+        writeFileSync(
+          join(dir, "entry.tsx"),
+          `import { createRoot } from "react-dom/client";\n` +
+            `const Slide = ({ items }: { items: string[] }) => <ul>{items.map((i) => <li key={i}>{i}</li>)}</ul>;\n` +
+            `createRoot(document.getElementById("root")!).render(<Slide items={["a", "b"]} />);\n`,
+        );
+        process.env.NODE_ENV = "development";
+        const outdir = join(dir, "dist");
+        await bundleDeck({
+          entry: join(dir, "index.html"),
+          pkgJson: join(dir, "package.json"),
+          outdir,
+          inlinePackage: false,
+          inlineLicenses: false,
+        });
+        const html = await Bun.file(join(outdir, "index.html")).text();
+        expect(html).toContain("createRoot");
+        expect(html).not.toContain("jsxDEV");
+        expect(html).not.toContain("Download the React DevTools");
+        expect(html).not.toContain("react.development");
+      } finally {
+        if (prev === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = prev;
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+    180_000,
+  );
 });

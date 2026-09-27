@@ -30,6 +30,16 @@ export { firstPartyVersionConflicts, formatFirstPartyConflicts, type FirstPartyC
  *  the exact same module graph as a real build. */
 const DECK_PLUGINS = [tailwind, mdx, visxEsmInterop];
 
+/** Compile-time constants every deck build pins. Without an explicit value Bun
+ *  inlines `process.env.NODE_ENV` from the builder's environment and falls back
+ *  to "development", so React (and anything else that branches on it) would
+ *  ship its development build, and the same source would produce different
+ *  bytes on two machines. A built deck is always a production artifact; the dev
+ *  server keeps the development build and does not come through here. Shared
+ *  like `DECK_PLUGINS` because packages pick their entry points by this value,
+ *  so the license and check builds must see the same module graph. */
+const DECK_DEFINE = { "process.env.NODE_ENV": JSON.stringify("production") };
+
 /** Default first-party notice embedded alongside the third-party block, the
  *  MPL-2.0 line + public source pointer that MPL §3.2(b)/§3.4 require to travel
  *  with the inlined engine code. */
@@ -201,6 +211,7 @@ export async function bundleDeck({
     minify,
     target: "browser",
     compile: true,
+    define: DECK_DEFINE,
     plugins: [...plugins, ...DECK_PLUGINS, licenses.plugin],
   });
 
@@ -272,6 +283,7 @@ export async function collectDeckLicenses({
     entrypoints: [entry],
     minify: false,
     target: "browser",
+    define: DECK_DEFINE,
     plugins: [...DECK_PLUGINS, licenses.plugin],
   });
   if (!result.success) {
@@ -323,6 +335,7 @@ export async function checkDeck({
     const result = await Bun.build({
       entrypoints: [entry],
       target: "browser",
+      define: DECK_DEFINE,
       plugins: [...DECK_PLUGINS, licenses.plugin],
       throw: false,
     });

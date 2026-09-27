@@ -26,7 +26,7 @@ await buildDeck({ entry: "./index.html", outdir: "./dist" });
 ## What ends up in the file
 
 - A **generator stamp** in the head (an HTML comment plus a `<meta name="generator">`) recording the engine and CLI versions that built it, so you can tell what produced a file. See the [file format reference](/reference/file-format/#generator-header).
-- Your bundled, minified JS (engine + slides + plugins' client code).
+- Your bundled, minified JS (engine + slides + plugins' client code). The build always uses React's production build and sets `process.env.NODE_ENV` to `"production"`, whatever your shell's `NODE_ENV` says, so the same source gives the same file on every machine. React's development warnings (missing `key` props, invalid hook calls) show up in the dev server, not in a built file.
 - The compiled CSS (Tailwind + brand variables + code/atmosphere styles).
 - Pre-tokenized highlighted code (no Shiki at runtime).
 - The **plugin manifest**: a JSON `<script>` listing the deck's plugins, with any server bundles base64-encoded (decoded + run only by a live server, never in the browser).
