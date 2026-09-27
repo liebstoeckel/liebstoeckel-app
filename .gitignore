@@ -54,3 +54,6 @@ packages/office/.env
 
 # Claude Code runtime lock
 .claude/scheduled_tasks.lock
+
+# autopilot: backlog, run reports and screenshots (local only)
+.autopilot/
