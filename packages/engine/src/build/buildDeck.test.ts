@@ -126,7 +126,7 @@ describe("bundleDeck", () => {
   // warnings or DevTools banner. The fixture lives inside the source tree (not the
   // system tmpdir) so `react` resolves from the workspace node_modules.
   test(
-    "ships React's production build even when NODE_ENV=development",
+    "ships React's production build and no dev-only checks even when NODE_ENV=development",
     async () => {
       const here = fileURLToPath(new URL(".", import.meta.url));
       const dir = mkdtempSync(join(here, ".vt-prodbuild-"));
@@ -140,6 +140,8 @@ describe("bundleDeck", () => {
         writeFileSync(
           join(dir, "entry.tsx"),
           `import { createRoot } from "react-dom/client";\n` +
+            `import { warnIfBrandsMissing } from "../../brandCheck.ts";\n` +
+            `warnIfBrandsMissing(["nocturn"]);\n` +
             `const Slide = ({ items }: { items: string[] }) => <ul>{items.map((i) => <li key={i}>{i}</li>)}</ul>;\n` +
             `createRoot(document.getElementById("root")!).render(<Slide items={["a", "b"]} />);\n`,
         );
@@ -157,6 +159,9 @@ describe("bundleDeck", () => {
         expect(html).not.toContain("jsxDEV");
         expect(html).not.toContain("Download the React DevTools");
         expect(html).not.toContain("react.development");
+        // The brand-name check is authoring feedback: its body and message stay out.
+        expect(html).not.toContain("is not defined, so the deck renders");
+        expect(html).not.toContain("Did you mean");
       } finally {
         if (prev === undefined) delete process.env.NODE_ENV;
         else process.env.NODE_ENV = prev;

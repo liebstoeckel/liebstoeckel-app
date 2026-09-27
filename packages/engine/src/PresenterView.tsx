@@ -18,6 +18,7 @@ import { useCoarsePointer } from "./useCoarsePointer";
 import { normalizeSlides } from "./slides";
 import type { DeckProps } from "./Deck";
 import { LiveStatusBadge } from "./live/status";
+import { DEFAULT_BRANDS } from "./brandCheck";
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(() => Date.now());
@@ -253,7 +254,7 @@ function StepIndicator({
   );
 }
 
-export function PresenterView({ slides, brands = ["default"], title = "liebstoeckel" }: DeckProps) {
+export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebstoeckel" }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   // Same controller selection as the Deck: shared doc when live, else BroadcastChannel.
   const liveCtx = useLive();

@@ -11,6 +11,7 @@ import { StepsProvider } from "./steps";
 import { LiveProvider, type LiveContextValue } from "./live/Plugin";
 import { normalizeSlides } from "./slides";
 import type { DeckProps } from "./Deck";
+import { DEFAULT_BRANDS } from "./brandCheck";
 import {
   PRINT_READY,
   PRINT_SELECT_EVENT,
@@ -33,7 +34,7 @@ const ALL_STEPS = 1e6;
  *  Each slide gets its own PersistentProvider: persistent travel ((internal ADR)) is a
  *  live-nav concept, so in a static all-slides layout each slide just renders its
  *  own elements in final position. */
-export function PrintView({ slides, brands = ["default"], plugins = [] }: DeckProps) {
+export function PrintView({ slides, brands = DEFAULT_BRANDS, plugins = [] }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
 
   // Offline (live:false) plugin context → each <Plugin> renders its fallback, same

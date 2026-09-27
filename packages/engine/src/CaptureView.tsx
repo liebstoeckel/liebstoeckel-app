@@ -12,6 +12,7 @@ import { LiveProvider, type LiveContextValue } from "./live/Plugin";
 import { normalizeSlides } from "./slides";
 import type { DeckProps } from "./Deck";
 import { CAPTURE_EVENT, CAPTURE_READY, SLIDE_COUNT, captureRequest } from "./build/capture-protocol";
+import { DEFAULT_BRANDS } from "./brandCheck";
 
 // A step value past any real slide's step count, so every <Step> is revealed for a
 // complete, final-state frame (the reveals start at their target because Step uses
@@ -21,7 +22,7 @@ const ALL_STEPS = 1e6;
 /** Build-time thumbnail render: one motionless slide at a time, driven by the
  *  headless capturer via the capture protocol. No live connection, no nav, no
  *  AnimatePresence, just the final state of slide `index` on the fixed canvas. */
-export function CaptureView({ slides, brands = ["default"], plugins = [] }: DeckProps) {
+export function CaptureView({ slides, brands = DEFAULT_BRANDS, plugins = [] }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   const [index, setIndex] = useState(() => captureRequest()?.index ?? 0);
 

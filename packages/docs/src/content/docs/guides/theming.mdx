@@ -18,6 +18,10 @@ import { Present } from "@liebstoeckel/engine";
 <Present brands={["nocturne"]} slides={[…]} />
 ```
 
+Leave out `brands` and the deck uses the house brand, `liebstoeckel`. The prop always wins over a `data-brand` attribute in your `index.html`.
+
+If a name in `brands` has no theme behind it, say a typo like `"nocturn"` or a brand of your own that is missing from `brandThemes`, the deck would render without any theme tokens. In development the engine checks every name in `brands` when the deck loads and prints a warning to the browser's developer console that names the brand, suggests the closest match and lists the brands that exist. Built decks carry no trace of this check.
+
 ## Define your own brand
 
 Author it with `defineTheme` and hand it to `<Present>` via `brandThemes`. The engine injects it as a `[data-brand]` stylesheet, so you ship a brand **without touching the theme package**:

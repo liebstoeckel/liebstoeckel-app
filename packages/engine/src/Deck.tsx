@@ -28,10 +28,13 @@ import { useCoarsePointer } from "./useCoarsePointer";
 import { moveSelection, gridCols, type GridDir } from "./overview";
 import type { NavMode } from "./interaction";
 import { LiveStatusBadge } from "./live/status";
+import { DEFAULT_BRANDS, warnIfBrandsMissing } from "./brandCheck";
 
 export type DeckProps = {
   slides: SlideInput[];
   persistent?: PersistentItem[];
+  /** Brand names to theme the deck with; the first is active and `t` cycles
+   *  through the rest. Defaults to the house brand, `["liebstoeckel"]`. */
   brands?: string[];
   title?: string;
   /** Deck-wide default slide transition. A slide can override it with its own
@@ -77,7 +80,7 @@ function openPresenter() {
   }
 }
 
-export function Deck({ slides, persistent = [], brands = ["default"], transition: deckTransition, mobileTransitions, backdrop }: DeckProps) {
+export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandThemes, transition: deckTransition, mobileTransitions, backdrop }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
   const count = norm.length;
   // Pre-rendered overview thumbnails (build-time), if the deck embedded them.
@@ -155,6 +158,14 @@ export function Deck({ slides, persistent = [], brands = ["default"], transition
   useEffect(() => {
     document.body.dataset.brand = brand;
   }, [brand]);
+
+  // Development only: report a brand name with no theme behind it (a typo, or a
+  // custom brand missing from `brandThemes`) instead of rendering unthemed.
+  const brandKey = [...brands, "", ...(brandThemes ?? []).map((t) => t.name)].join("\n");
+  useEffect(() => {
+    warnIfBrandsMissing(brands, brandThemes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandKey]);
 
   useEffect(() => {
     const onCtx = (e: MouseEvent) => {
