@@ -129,9 +129,10 @@ the deck's page to see decoded poll tallies, the Q&A backlog, and reaction total
 ### What live sessions store
 
 A live session keeps what the audience sends through its plugins: **poll votes**,
-**reactions**, and **Q&A questions together with any name** a participant types in. The
-audience never signs in, so those questions and names are the only personal data a session
-holds.
+**reactions**, and **Q&A questions** with their upvotes. The audience never signs in and
+there is no name field: each browser gets a random participant id, and a question is
+labelled with a generated handle such as `viewer-3f2a`. The only personal data a session
+can hold is whatever a participant writes into a question.
 
 - **Free**: results aren't kept. They are deleted shortly after the session's time limit
   runs out.
@@ -143,9 +144,9 @@ holds.
   plugin inside the deck, so a deck you uploaded already built shows it only after you
   rebuild it with the current CLI and upload it again.
 - **Delete results**: open a past session under **Present live** and choose **Delete
-  results**. Poll votes, questions, names and reaction totals from that session are
+  results**. Poll votes, questions and reaction totals from that session are
   deleted for good; the session itself stays in the list. Anyone who can manage the deck
-  can do this. If a participant asks for their question or name to be removed, this is how
+  can do this. If a participant asks for their question to be removed, this is how
   the presenter does it.
 - **Deleting a deck** deletes its live sessions and their saved results too. When an
   organization is deleted, its live results are deleted with it.
