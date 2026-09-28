@@ -8,6 +8,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { bunBin } from "./bun";
 import { loadCreds, saveCreds } from "./creds";
+import { CliError, bodyExcerpt, reporting, usageError, wantsJson } from "./output";
 
 const CLIENT_ID = "liebstoeckel-cli";
 
@@ -17,24 +18,28 @@ const CLOUD_ARGS = {
   org: { type: "string" as const, description: "organization slug", valueHint: "slug" },
 };
 
-/** Exit for a cloud command that has no API to talk to. The hosted control plane
- *  is not generally available yet, so OSS users see "coming soon" instead of a
- *  bare auth error that looks like a bug. */
+/** The shared `--json` option of the cloud commands that report a result. */
+const JSON_ARG = { type: "boolean" as const, description: "machine-readable JSON output (default when piped)" };
+
+/** Failure for a cloud command that has no API to talk to. The hosted control
+ *  plane is not generally available yet, so OSS users see "coming soon" instead
+ *  of a bare auth error that looks like a bug. */
 function notLoggedIn(): never {
-  // An agent (stdout not a TTY) gets the failure as JSON it can act on, per the
-  // agent-readable contract ((internal ADR)); a human at a terminal gets the prose.
-  if (!process.stdout.isTTY) {
-    console.log(
-      JSON.stringify({
-        error: "not logged in",
-        hint: "liebstoeckel cloud is coming soon; run `liebstoeckel login` once a control plane is available",
-      }),
-    );
-  } else {
-    console.error("✕ not logged in, run: liebstoeckel login --api <https://app-host>");
-    console.error("  (liebstoeckel cloud is coming soon; this command needs a hosted control plane)");
+  throw new CliError("not logged in", {
+    code: "not_logged_in",
+    hint: "liebstoeckel cloud is coming soon; run `liebstoeckel login --api <https://app-host>` once a control plane is available",
+  });
+}
+
+/** The failure for a non-2xx control-plane answer. `forbidden` says what a 403
+ *  means for this call; the server's body is cut short, it is only a clue. */
+async function httpFailure(res: Response, what: string, forbidden?: string): Promise<CliError> {
+  if (res.status === 401) {
+    return new CliError("session expired", { code: "session_expired", hint: "run `liebstoeckel login` again" });
   }
-  process.exit(1);
+  if (res.status === 403 && forbidden) return new CliError(forbidden, { code: "forbidden" });
+  if (res.status === 404) return new CliError(`${what}: not found`, { code: "not_found" });
+  return new CliError(`${what}: ${res.status} ${await bodyExcerpt(res)}`.trim(), { code: "request_failed" });
 }
 
 /** Uniform cloud org-targeting ((internal ADR)): an explicit `--org <slug>` wins, else
@@ -80,9 +85,10 @@ function slugifyKey(name: string): string {
 
 async function runLogin(api: string): Promise<void> {
   if (!api) {
-    console.error("usage: liebstoeckel login --api <https://app-host>");
-    console.error("  (liebstoeckel cloud is coming soon; this command needs a hosted control plane)");
-    process.exit(1);
+    throw usageError(
+      "no control plane given: liebstoeckel login --api <https://app-host>",
+      "liebstoeckel cloud is coming soon; this command needs a hosted control plane",
+    );
   }
 
   const codeRes = await fetch(`${api}/api/auth/device/code`, {
@@ -90,10 +96,7 @@ async function runLogin(api: string): Promise<void> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ client_id: CLIENT_ID, scope: "decks" }),
   });
-  if (!codeRes.ok) {
-    console.error(`✕ could not start login: ${codeRes.status} ${await codeRes.text()}`);
-    process.exit(1);
-  }
+  if (!codeRes.ok) throw await httpFailure(codeRes, "could not start login");
   const dc = (await codeRes.json()) as {
     device_code: string;
     user_code: string;
@@ -135,18 +138,16 @@ async function runLogin(api: string): Promise<void> {
     }
     // RFC 8628: keep polling while pending / told to slow down.
     if (t.error && t.error !== "authorization_pending" && t.error !== "slow_down") {
-      console.error(`\n✕ ${t.error}${t.error_description ? `: ${t.error_description}` : ""}`);
-      process.exit(1);
+      throw new CliError(`${t.error}${t.error_description ? `: ${t.error_description}` : ""}`, { code: "login_failed" });
     }
   }
-  console.error("\n✕ login timed out, run `liebstoeckel login` again.");
-  process.exit(1);
+  throw new CliError("login timed out", { code: "login_failed", hint: "run `liebstoeckel login` again" });
 }
 
 export const loginCommand = defineCommand({
   meta: { name: "login", description: "sign in to liebstoeckel cloud (device flow), coming soon" },
   args: { api: CLOUD_ARGS.api },
-  run: ({ args }) => runLogin((args.api ?? process.env.LIEBSTOECKEL_API ?? "").replace(/\/+$/, "")),
+  run: ({ args }) => reporting(false, () => runLogin((args.api ?? process.env.LIEBSTOECKEL_API ?? "").replace(/\/+$/, ""))),
 });
 
 export const pushCommand = defineCommand({
@@ -160,8 +161,12 @@ export const pushCommand = defineCommand({
     dir: { type: "string", description: "deck source folder for --source (default: .)", valueHint: "deck" },
     org: CLOUD_ARGS.org,
     api: CLOUD_ARGS.api,
+    json: JSON_ARG,
   },
-  run: ({ args }) => runPush(args),
+  run: ({ args }) => {
+    const json = wantsJson(args.json);
+    return reporting(json, () => runPush(args, json));
+  },
 });
 
 async function runPush(args: {
@@ -173,26 +178,22 @@ async function runPush(args: {
   dir?: string;
   org?: string;
   api?: string;
-}): Promise<void> {
+}, json: boolean): Promise<void> {
   const creds = await loadCreds();
   const org = resolveOrg(args, creds?.org);
   // With no path, push the built deck in ./dist ((internal ADR)), matching `liebstoeckel build`.
   const file = args.deck ?? defaultDeckHtml();
   if (!file) {
-    console.error(
-      "usage: liebstoeckel push [deck.html] [--title <t>] [--name <key>] [--new] [--org <slug>] [--api <host>]\n" +
-        "  (no path → the built deck in ./dist; run `liebstoeckel build` first)",
+    throw usageError(
+      "no deck to push: pass a deck .html, or build one into ./dist first",
+      "liebstoeckel build, then liebstoeckel push (or: liebstoeckel push <deck.html>)",
     );
-    process.exit(1);
   }
   const api = (args.api ?? creds?.api ?? "").replace(/\/+$/, "");
   if (!creds || !api) notLoggedIn();
 
   const path = resolve(file);
-  if (!(await Bun.file(path).exists())) {
-    console.error(`✕ no such file: ${file}`);
-    process.exit(1);
-  }
+  if (!(await Bun.file(path).exists())) throw new CliError(`no such file: ${file}`, { code: "not_found" });
   const html = await Bun.file(path).text();
   const deckName = args.name ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
   // Deck key ((internal ADR)): re-push upserts by it. `--new` forces a fresh deck by
@@ -214,17 +215,8 @@ async function runPush(args: {
   if (org) headers["x-org-slug"] = org;
 
   const res = await fetch(`${api}/api/v1/decks`, { method: "POST", headers, body: html });
-  if (res.status === 401) {
-    console.error("✕ session expired, run `liebstoeckel login` again.");
-    process.exit(1);
-  }
-  if (res.status === 403) {
-    console.error(`✕ you're not a member of org "${org}". Run \`liebstoeckel orgs\` to see your teams.`);
-    process.exit(1);
-  }
   if (!res.ok) {
-    console.error(`✕ upload failed: ${res.status} ${await res.text()}`);
-    process.exit(1);
+    throw await httpFailure(res, "upload failed", `you're not a member of org "${org}"; run \`liebstoeckel orgs\` to see your teams`);
   }
   const { deck, version, isNew } = (await res.json()) as {
     deck: { id: string; title: string };
@@ -232,34 +224,49 @@ async function runPush(args: {
     isNew: boolean;
   };
   const what = isNew ? "created" : `updated to v${version}`;
-  console.log(`\n✓ pushed "${deck.title}" (${what})${org ? ` in ${org}` : ""}, view it at ${api}\n`);
-  if (args.source) await pushSource(resolve(args.dir ?? "."), deck.id, { api, token: creds.token, org });
+  // In JSON mode the progress lines go to stderr; the one result document is stdout's.
+  const say = json ? console.error : console.log;
+  say(`\n✓ pushed "${deck.title}" (${what})${org ? ` in ${org}` : ""}, view it at ${api}\n`);
+  const source = args.source ? await pushSource(resolve(args.dir ?? "."), deck.id, { api, token: creds.token, org }, json) : undefined;
+  const ok = source ? source.ok : true;
+  if (json) {
+    console.log(
+      JSON.stringify({ ok, deck: { id: deck.id, title: deck.title }, version, isNew, key: deckKey, org: org ?? null, api, ...(source ? { source } : {}) }),
+    );
+  }
+  if (!ok) process.exit(1);
 }
+
+type SourcePushResult =
+  | { ok: true; changed: boolean; commit?: string }
+  | { ok: false; conflicts: { path: string; kind: string }[] };
 
 /** `push --source`: link the folder to the deck's live source (first time)
  *  and upload the local files as an import based on the last sync. */
-async function pushSource(deckDir: string, deckId: string, cloud: { api: string; token: string; org?: string }) {
+async function pushSource(
+  deckDir: string,
+  deckId: string,
+  cloud: { api: string; token: string; org?: string },
+  json: boolean,
+): Promise<SourcePushResult> {
   const src = await import("./source");
   const previous = src.readSyncState(deckDir);
   const state =
     previous && previous.deckId === deckId
       ? previous
       : { deckId, api: cloud.api, org: cloud.org, base: null, committed: null };
-  try {
-    const access = await src.sourceAccess(cloud, deckId, true);
-    const outcome = await src.pushSourceFiles(deckDir, state, access, "Push from the CLI");
-    if (outcome.ok) {
-      console.log(outcome.changed ? `✓ sources uploaded (${outcome.commit.slice(0, 8)})` : "✓ sources already up to date");
-      return;
-    }
-    console.error("✕ the live deck changed the same lines as your local files:");
-    for (const c of outcome.conflicts) console.error(`  ${c.path} (${c.kind})`);
-    console.error("  run `liebstoeckel pull` to merge, resolve the markers, then push again.");
-    process.exit(1);
-  } catch (err) {
-    console.error(`✕ ${err instanceof Error ? err.message : String(err)}`);
-    process.exit(1);
+  const access = await src.sourceAccess(cloud, deckId, true);
+  const outcome = await src.pushSourceFiles(deckDir, state, access, "Push from the CLI");
+  if (outcome.ok) {
+    (json ? console.error : console.log)(
+      outcome.changed ? `✓ sources uploaded (${outcome.commit.slice(0, 8)})` : "✓ sources already up to date",
+    );
+    return { ok: true, changed: outcome.changed, ...(outcome.changed ? { commit: outcome.commit } : {}) };
   }
+  console.error("✕ the live deck changed the same lines as your local files:");
+  for (const c of outcome.conflicts) console.error(`  ${c.path} (${c.kind})`);
+  console.error("  run `liebstoeckel pull` to merge, resolve the markers, then push again.");
+  return { ok: false, conflicts: outcome.conflicts.map((c) => ({ path: c.path, kind: c.kind })) };
 }
 
 /** Shared preamble of the source-sync commands: deck folder, state, access. */
@@ -268,23 +275,20 @@ async function sourceContext(args: { dir?: string; api?: string; org?: string })
   const deckDir = resolve(args.dir ?? ".");
   const state = src.readSyncState(deckDir);
   if (!state) {
-    console.error("✕ this folder is not linked to a cloud deck; run `liebstoeckel push --source` first");
-    process.exit(1);
+    throw new CliError("this folder is not linked to a cloud deck", {
+      code: "not_linked",
+      hint: "run `liebstoeckel push --source` first",
+    });
   }
   const cloud = await src.cloudFromCreds(args, state);
   if (!cloud) notLoggedIn();
-  try {
-    const access = await src.sourceAccess(cloud, state.deckId, false);
-    return { src, deckDir, state, access };
-  } catch (err) {
-    console.error(`✕ ${err instanceof Error ? err.message : String(err)}`);
-    process.exit(1);
-  }
+  const access = await src.sourceAccess(cloud, state.deckId, false);
+  return { src, deckDir, state, access };
 }
 
 const SOURCE_ARGS = {
   dir: { type: "string" as const, description: "deck folder (default: .)", valueHint: "deck" },
-  json: { type: "boolean" as const, description: "machine-readable output" },
+  json: JSON_ARG,
   org: CLOUD_ARGS.org,
   api: CLOUD_ARGS.api,
 };
@@ -292,12 +296,13 @@ const SOURCE_ARGS = {
 export const pullCommand = defineCommand({
   meta: { name: "pull", description: "merge the live cloud deck's source edits into this folder, coming soon" },
   args: SOURCE_ARGS,
-  async run({ args }) {
-    const { src, deckDir, state, access } = await sourceContext(args);
-    try {
+  run({ args }) {
+    const json = wantsJson(args.json);
+    return reporting(json, async () => {
+      const { src, deckDir, state, access } = await sourceContext(args);
       const result = await src.pullDeck(deckDir, state, access);
-      if (args.json) {
-        console.log(JSON.stringify(result));
+      if (json) {
+        console.log(JSON.stringify({ ok: result.kind !== "conflict", ...result }));
       } else if (result.kind === "in-sync") {
         console.log("✓ already in sync");
       } else if (result.kind === "conflict") {
@@ -311,59 +316,57 @@ export const pullCommand = defineCommand({
         console.log(result.kind === "merged" ? "✓ merged and uploaded" : "✓ pulled");
       }
       if (result.kind === "conflict") process.exit(1);
-    } catch (err) {
-      console.error(`✕ ${err instanceof Error ? err.message : String(err)}`);
-      process.exit(1);
-    }
+    });
   },
 });
 
 const syncStatusCommand = defineCommand({
   meta: { name: "status", description: "who changed what in the live deck since your last `sync commit`" },
   args: SOURCE_ARGS,
-  async run({ args }) {
-    const { src, state, access } = await sourceContext(args);
-    const history = await src.fetchHistory(access);
-    const since = src.checkpointsBetween(history, state.committed, null);
-    const head = since.at(-1)?.commit ?? state.committed;
-    let changed: string[] = [];
-    if (head && head !== state.committed) {
-      const [from, to] = await Promise.all([
-        state.committed ? src.fetchFiles(access, state.committed) : Promise.resolve({ commit: null, files: {} as Record<string, string> }),
-        src.fetchFiles(access, head),
-      ]);
-      const paths = new Set([...Object.keys(from.files), ...Object.keys(to.files)]);
-      changed = [...paths].filter((p) => from.files[p] !== to.files[p]).sort();
-    }
-    if (args.json) {
-      console.log(JSON.stringify({ deckId: state.deckId, base: state.base, committed: state.committed, checkpoints: since, changed }));
-      return;
-    }
-    if (since.length === 0) {
-      console.log("nothing new since your last `sync commit`");
-      return;
-    }
-    for (const c of since) {
-      const who = c.authors.map((a) => a.name).join(", ");
-      console.log(`${new Date(c.time).toISOString().slice(0, 16).replace("T", " ")}  ${c.message}  (${who})`);
-    }
-    if (changed.length > 0) console.log(`\nfiles changed: ${changed.join(", ")}`);
+  run({ args }) {
+    const json = wantsJson(args.json);
+    return reporting(json, async () => {
+      const { src, state, access } = await sourceContext(args);
+      const history = await src.fetchHistory(access);
+      const since = src.checkpointsBetween(history, state.committed, null);
+      const head = since.at(-1)?.commit ?? state.committed;
+      let changed: string[] = [];
+      if (head && head !== state.committed) {
+        const [from, to] = await Promise.all([
+          state.committed ? src.fetchFiles(access, state.committed) : Promise.resolve({ commit: null, files: {} as Record<string, string> }),
+          src.fetchFiles(access, head),
+        ]);
+        const paths = new Set([...Object.keys(from.files), ...Object.keys(to.files)]);
+        changed = [...paths].filter((p) => from.files[p] !== to.files[p]).sort();
+      }
+      if (json) {
+        console.log(JSON.stringify({ deckId: state.deckId, base: state.base, committed: state.committed, checkpoints: since, changed }));
+        return;
+      }
+      if (since.length === 0) {
+        console.log("nothing new since your last `sync commit`");
+        return;
+      }
+      for (const c of since) {
+        const who = c.authors.map((a) => a.name).join(", ");
+        console.log(`${new Date(c.time).toISOString().slice(0, 16).replace("T", " ")}  ${c.message}  (${who})`);
+      }
+      if (changed.length > 0) console.log(`\nfiles changed: ${changed.join(", ")}`);
+    });
   },
 });
 
 const syncCommitCommand = defineCommand({
   meta: { name: "commit", description: "commit this deck folder, crediting the other live editors" },
   args: SOURCE_ARGS,
-  async run({ args }) {
-    const { src, deckDir, state, access } = await sourceContext(args);
-    try {
+  run({ args }) {
+    const json = wantsJson(args.json);
+    return reporting(json, async () => {
+      const { src, deckDir, state, access } = await sourceContext(args);
       const result = await src.syncCommit(deckDir, state, access);
-      if (args.json) console.log(JSON.stringify(result));
+      if (json) console.log(JSON.stringify(result));
       else console.log(result.committed ? `✓ committed\n\n${result.message}` : "nothing to commit in this folder");
-    } catch (err) {
-      console.error(`✕ ${err instanceof Error ? err.message : String(err)}`);
-      process.exit(1);
-    }
+    });
   },
 });
 
@@ -379,14 +382,7 @@ interface OrgList {
 
 async function fetchOrgs(api: string, token: string): Promise<OrgList> {
   const res = await fetch(`${api}/api/v1/orgs`, { headers: { authorization: `Bearer ${token}` } });
-  if (res.status === 401) {
-    console.error("✕ session expired, run `liebstoeckel login` again.");
-    process.exit(1);
-  }
-  if (!res.ok) {
-    console.error(`✕ could not list orgs: ${res.status} ${await res.text()}`);
-    process.exit(1);
-  }
+  if (!res.ok) throw await httpFailure(res, "could not list orgs");
   return (await res.json()) as OrgList;
 }
 
@@ -402,37 +398,43 @@ async function requireCreds(apiArg?: string) {
 const orgsUseCommand = defineCommand({
   meta: { name: "use", description: "set the default org for `push`" },
   args: { slug: { type: "positional", required: false, description: "org slug", valueHint: "slug" }, api: CLOUD_ARGS.api },
-  async run({ args }) {
-    const { creds, api } = await requireCreds(args.api);
-    if (!args.slug) {
-      console.error("usage: liebstoeckel orgs use <slug>");
-      process.exit(1);
-    }
-    const { orgs } = await fetchOrgs(api, creds.token);
-    const match = orgs.find((o) => o.slug === args.slug);
-    if (!match) {
-      console.error(`✕ no org "${args.slug}", you're a member of: ${orgs.map((o) => o.slug).join(", ")}`);
-      process.exit(1);
-    }
-    await saveCreds({ ...creds, org: match.personal ? undefined : match.slug });
-    console.log(`\n✓ pushes now go to ${match.name} (${match.slug})\n`);
+  run({ args }) {
+    return reporting(false, async () => {
+      const { creds, api } = await requireCreds(args.api);
+      if (!args.slug) throw usageError("no org given: liebstoeckel orgs use <slug>");
+      const { orgs } = await fetchOrgs(api, creds.token);
+      const match = orgs.find((o) => o.slug === args.slug);
+      if (!match) {
+        throw new CliError(`no org "${args.slug}"`, { code: "not_found", hint: `you're a member of: ${orgs.map((o) => o.slug).join(", ")}` });
+      }
+      await saveCreds({ ...creds, org: match.personal ? undefined : match.slug });
+      console.log(`\n✓ pushes now go to ${match.name} (${match.slug})\n`);
+    });
   },
 });
 
 const orgsListCommand = defineCommand({
   meta: { name: "list", description: "list your workspaces" },
-  args: { api: CLOUD_ARGS.api },
-  async run({ args }) {
-    const { creds, api } = await requireCreds(args.api);
-    const { active, orgs } = await fetchOrgs(api, creds.token);
-    const def = creds.org;
-    console.log("\n  your workspaces:\n");
-    for (const o of orgs) {
-      const marker = (def ? o.slug === def : o.personal) ? "→" : " ";
-      const tags = o.personal ? "  (personal)" : "";
-      console.log(`   ${marker} ${o.slug.padEnd(24)} ${o.name}${tags}`);
-    }
-    console.log(`\n  plan: ${active.plan}   → = default for \`push\` (change: liebstoeckel orgs use <slug>)\n`);
+  args: { api: CLOUD_ARGS.api, json: JSON_ARG },
+  run({ args }) {
+    const json = wantsJson(args.json);
+    return reporting(json, async () => {
+      const { creds, api } = await requireCreds(args.api);
+      const { active, orgs } = await fetchOrgs(api, creds.token);
+      const def = creds.org;
+      if (json) {
+        // `default` is the org `push` targets without --org (null = personal).
+        console.log(JSON.stringify({ active, orgs, default: def ?? null }));
+        return;
+      }
+      console.log("\n  your workspaces:\n");
+      for (const o of orgs) {
+        const marker = (def ? o.slug === def : o.personal) ? "→" : " ";
+        const tags = o.personal ? "  (personal)" : "";
+        console.log(`   ${marker} ${o.slug.padEnd(24)} ${o.name}${tags}`);
+      }
+      console.log(`\n  plan: ${active.plan}   → = default for \`push\` (change: liebstoeckel orgs use <slug>)\n`);
+    });
   },
 });
 
@@ -455,29 +457,38 @@ interface CloudDeck {
 /** `liebstoeckel decks [--org <slug>]`, list the active org's decks + views. */
 export const decksCommand = defineCommand({
   meta: { name: "decks", description: "list your cloud decks (with view counts), coming soon" },
-  args: { org: CLOUD_ARGS.org, api: CLOUD_ARGS.api },
-  run: ({ args }) => runDecks(args),
+  args: { org: CLOUD_ARGS.org, api: CLOUD_ARGS.api, json: JSON_ARG },
+  run: ({ args }) => {
+    const json = wantsJson(args.json);
+    return reporting(json, () => runDecks(args, json));
+  },
 });
 
-async function runDecks(args: { org?: string; api?: string }): Promise<void> {
+async function runDecks(args: { org?: string; api?: string }, json: boolean): Promise<void> {
   const { creds, api } = await requireCreds(args.api);
   const org = resolveOrg(args, creds?.org);
   const headers: Record<string, string> = { authorization: `Bearer ${creds.token}` };
   if (org) headers["x-org-slug"] = org;
   const res = await fetch(`${api}/api/v1/decks`, { headers });
-  if (res.status === 401) {
-    console.error("✕ session expired, run `liebstoeckel login` again.");
-    process.exit(1);
-  }
-  if (res.status === 403) {
-    console.error(`✕ you're not a member of org "${org}".`);
-    process.exit(1);
-  }
-  if (!res.ok) {
-    console.error(`✕ could not list decks: ${res.status} ${await res.text()}`);
-    process.exit(1);
-  }
+  if (!res.ok) throw await httpFailure(res, "could not list decks", `you're not a member of org "${org}"`);
   const { decks } = (await res.json()) as { decks: CloudDeck[] };
+  if (json) {
+    console.log(
+      JSON.stringify({
+        org: org ?? null,
+        decks: decks.map((d) => ({
+          id: d.id,
+          title: d.title,
+          version: d.version,
+          shared: d.shared,
+          shareSlug: d.shareSlug,
+          views: d.views,
+          uniqueViews: d.uniqueViews,
+        })),
+      }),
+    );
+    return;
+  }
   if (!decks.length) {
     console.log(`\n  no decks${org ? ` in ${org}` : ""} yet, push one with: liebstoeckel push\n`);
     return;
@@ -541,39 +552,27 @@ const brandPushCommand = defineCommand({
     org: CLOUD_ARGS.org,
     api: CLOUD_ARGS.api,
   },
-  async run({ args }) {
-    const { api, token, org } = await brandApi(args);
-    const file = args.file;
-    if (!file) {
-      console.error("usage: liebstoeckel brand push <brand.ts|tokens.json> [--name <key>] [--default] [--org <slug>]");
-      process.exit(1);
-    }
-    const path = resolve(file);
-    if (!(await Bun.file(path).exists())) {
-      console.error(`✕ no such file: ${file}`);
-      process.exit(1);
-    }
-    let parsed: unknown;
-    if (/\.json$/i.test(path)) parsed = await Bun.file(path).json();
-    else parsed = (await import(path)).default; // a defineTheme(...) module
-    const tokens = themeToTokens(parsed);
-    const name =
-      args.name ??
-      (parsed as { name?: string })?.name ??
-      basename(file).replace(/\.(ts|tsx|js|json)$/i, "");
-    const res = await fetch(`${api}/api/v1/orgs/brands/${encodeURIComponent(name)}`, {
-      method: "PUT",
-      headers: { ...brandHeaders(token, org), "content-type": "application/json" },
-      body: JSON.stringify({ tokens, default: !!args.default }),
+  run({ args }) {
+    return reporting(false, async () => {
+      const { api, token, org } = await brandApi(args);
+      const file = args.file;
+      if (!file) throw usageError("no brand file given: liebstoeckel brand push <brand.ts|tokens.json> [--name <key>] [--default]");
+      const path = resolve(file);
+      if (!(await Bun.file(path).exists())) throw new CliError(`no such file: ${file}`, { code: "not_found" });
+      let parsed: unknown;
+      if (/\.json$/i.test(path)) parsed = await Bun.file(path).json();
+      else parsed = (await import(path)).default; // a defineTheme(...) module
+      const tokens = themeToTokens(parsed);
+      const name =
+        args.name ??
+        (parsed as { name?: string })?.name ??
+        basename(file).replace(/\.(ts|tsx|js|json)$/i, "");
+      const res = await fetch(`${api}/api/v1/orgs/brands/${encodeURIComponent(name)}`, {
+        method: "PUT",
+        headers: { ...brandHeaders(token, org), "content-type": "application/json" },
+        body: JSON.stringify({ tokens, default: !!args.default }),
     });
-    if (res.status === 403) {
-      console.error("✕ forbidden, managing brands needs an admin/owner role on a paid org.");
-      process.exit(1);
-    }
-    if (!res.ok) {
-      console.error(`✕ push failed: ${res.status} ${await res.text()}`);
-      process.exit(1);
-    }
+    if (!res.ok) throw await httpFailure(res, "push failed", "forbidden: managing brands needs an admin or owner role on a paid org");
     console.log(`\n✓ pushed brand "${name}"${args.default ? " (default)" : ""}${org ? ` to ${org}` : ""}`);
     // Warn about fonts the catalog can't ship a webfont for ((internal ADR)); they fall
     // back to system fonts on pull unless the deck supplies its own @font-face.
@@ -588,6 +587,7 @@ const brandPushCommand = defineCommand({
       }
     }
     console.log();
+    });
   },
 });
 
@@ -600,57 +600,63 @@ const brandPullCommand = defineCommand({
     org: CLOUD_ARGS.org,
     api: CLOUD_ARGS.api,
   },
-  async run({ args }) {
-    const { api, token, org } = await brandApi(args);
-    let name = args.name;
-    const dir = args.dir ?? ".";
-    if (!name) {
-      const def = (await fetchBrands(api, token, org)).find((b) => b.isDefault);
-      if (!def) {
-        console.error("✕ no default brand set, run `liebstoeckel brand list` or pass a name.");
-        process.exit(1);
+  run({ args }) {
+    return reporting(false, async () => {
+      const { api, token, org } = await brandApi(args);
+      let name = args.name;
+      const dir = args.dir ?? ".";
+      if (!name) {
+        const def = (await fetchBrands(api, token, org)).find((b) => b.isDefault);
+        if (!def) throw new CliError("no default brand set", { code: "not_found", hint: "run `liebstoeckel brand list` or pass a name" });
+        name = def.name;
       }
-      name = def.name;
-    }
-    // The brand IS a registry item, resolve it through the @org transport and
-    // write it as owned source, exactly like `add @org/<name>` ((internal ADR)).
-    const { httpTransport, resolveScaffold } = await import("./add");
-    const transport = httpTransport(`${api}/api/v1/orgs/registry`, brandHeaders(token, org), "@org");
-    const plan = await resolveScaffold(transport, [name]);
-    const deckDir = resolve(dir);
-    for (const f of plan.files) await Bun.write(join(deckDir, f.target), f.content);
-    console.log(`\n✓ pulled brand "${name}" → ${plan.files.map((f) => f.target).join(", ")}\n`);
-    // The brand's catalog fonts ((internal ADR)) ride along as npm deps; install them so the
-    // deck bundles the webfont at build (the brand file `import`s the package).
-    const deps = plan.npmDependencies;
-    const noInstall = args.install === false;
-    if (deps.length && !noInstall) {
-      const { $ } = await import("bun");
-      console.log(`   installing fonts: bun add --ignore-scripts ${deps.join(" ")}`);
-      // pin the interpreter; --ignore-scripts per the registry trust model ((internal ADR))
-      await $`${bunBin} add --ignore-scripts ${deps}`.cwd(deckDir);
-      console.log(`   ✓ fonts installed\n`);
-    } else if (deps.length) {
-      console.log(`   → install its fonts: bun add --ignore-scripts ${deps.join(" ")}\n`);
-    }
-    console.log(`   wire it in main.tsx:\n     import ${camel(name)} from "./brands/${name}";`);
-    console.log(`     <Present brands={["${name}"]} brandThemes={[${camel(name)}]} … />\n`);
+      // The brand IS a registry item, resolve it through the @org transport and
+      // write it as owned source, exactly like `add @org/<name>`.
+      const { httpTransport, resolveScaffold } = await import("./add");
+      const transport = httpTransport(`${api}/api/v1/orgs/registry`, brandHeaders(token, org), "@org");
+      const plan = await resolveScaffold(transport, [name]);
+      const deckDir = resolve(dir);
+      for (const f of plan.files) await Bun.write(join(deckDir, f.target), f.content);
+      console.log(`\n✓ pulled brand "${name}" → ${plan.files.map((f) => f.target).join(", ")}\n`);
+      // The brand's catalog fonts ride along as npm deps; install them so the
+      // deck bundles the webfont at build (the brand file `import`s the package).
+      const deps = plan.npmDependencies;
+      const noInstall = args.install === false;
+      if (deps.length && !noInstall) {
+        const { $ } = await import("bun");
+        console.log(`   installing fonts: bun add --ignore-scripts ${deps.join(" ")}`);
+        // pin the interpreter; --ignore-scripts per the registry trust model
+        await $`${bunBin} add --ignore-scripts ${deps}`.cwd(deckDir);
+        console.log(`   ✓ fonts installed\n`);
+      } else if (deps.length) {
+        console.log(`   → install its fonts: bun add --ignore-scripts ${deps.join(" ")}\n`);
+      }
+      console.log(`   wire it in main.tsx:\n     import ${camel(name)} from "./brands/${name}";`);
+      console.log(`     <Present brands={["${name}"]} brandThemes={[${camel(name)}]} … />\n`);
+    });
   },
 });
 
 const brandListCommand = defineCommand({
   meta: { name: "list", description: "list the org's shared brands" },
-  args: { org: CLOUD_ARGS.org, api: CLOUD_ARGS.api },
-  async run({ args }) {
-    const { api, token, org } = await brandApi(args);
-    const brands = await fetchBrands(api, token, org);
-    if (!brands.length) {
-      console.log(`\n  no brands${org ? ` in ${org}` : ""} yet, push one: liebstoeckel brand push ./brand.ts --default\n`);
-      return;
-    }
-    console.log(`\n  brands${org ? ` in ${org}` : ""}:\n`);
-    for (const b of brands) console.log(`   ${b.isDefault ? "→" : " "} ${b.name}`);
-    console.log(`\n  → = default (applied by \`liebstoeckel new\`). Pull one: liebstoeckel brand pull <name>\n`);
+  args: { org: CLOUD_ARGS.org, api: CLOUD_ARGS.api, json: JSON_ARG },
+  run({ args }) {
+    const json = wantsJson(args.json);
+    return reporting(json, async () => {
+      const { api, token, org } = await brandApi(args);
+      const brands = await fetchBrands(api, token, org);
+      if (json) {
+        console.log(JSON.stringify({ org: org ?? null, brands }));
+        return;
+      }
+      if (!brands.length) {
+        console.log(`\n  no brands${org ? ` in ${org}` : ""} yet, push one: liebstoeckel brand push ./brand.ts --default\n`);
+        return;
+      }
+      console.log(`\n  brands${org ? ` in ${org}` : ""}:\n`);
+      for (const b of brands) console.log(`   ${b.isDefault ? "→" : " "} ${b.name}`);
+      console.log(`\n  → = default (applied by \`liebstoeckel new\`). Pull one: liebstoeckel brand pull <name>\n`);
+    });
   },
 });
 
@@ -663,18 +669,7 @@ export const brandCommand = defineCommand({
 
 async function fetchBrands(api: string, token: string, org?: string): Promise<BrandRow[]> {
   const res = await fetch(`${api}/api/v1/orgs/brands`, { headers: brandHeaders(token, org) });
-  if (res.status === 401) {
-    console.error("✕ session expired, run `liebstoeckel login` again.");
-    process.exit(1);
-  }
-  if (res.status === 403) {
-    console.error("✕ the org registry is a paid feature for this workspace.");
-    process.exit(1);
-  }
-  if (!res.ok) {
-    console.error(`✕ could not list brands: ${res.status} ${await res.text()}`);
-    process.exit(1);
-  }
+  if (!res.ok) throw await httpFailure(res, "could not list brands", "the org registry is a paid feature for this workspace");
   return (await res.json() as { brands: BrandRow[] }).brands;
 }
 

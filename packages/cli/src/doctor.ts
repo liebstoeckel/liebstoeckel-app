@@ -13,6 +13,7 @@ import {
 } from "@liebstoeckel/dev-server/serve-plugins";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { CliError, fail, wantsJson } from "./output";
 
 /** Resolve a Chrome/Chromium path through the same order builds use, or null. */
 function findChromium(): string | null {
@@ -83,10 +84,12 @@ export function installChromiumArgs(): string[] {
 
 /** Install Playwright's Chromium (the capturer launches via playwright-core).
  *  Streams progress; returns success. */
-async function installChromium(): Promise<boolean> {
+async function installChromium(json: boolean): Promise<boolean> {
   const proc = Bun.spawn(installChromiumArgs(), {
     stdin: "inherit",
-    stdout: "inherit",
+    // In JSON mode stdout is reserved for the one result document, so the
+    // installer's progress goes to stderr (fd 2).
+    stdout: json ? 2 : "inherit",
     stderr: "inherit",
   });
   return (await proc.exited) === 0;
@@ -103,19 +106,22 @@ export const doctorCommand = defineCommand({
     dir: { type: "string", description: "deck directory to check for scaffold migrations (default: cwd)" },
   },
   async run({ args }) {
-    const json = !!args.json || !process.stdout.isTTY;
+    const json = wantsJson(args.json);
 
     if (args["install-chromium"]) {
       // Skip if a usable browser is already resolvable, so a re-run is a no-op.
       let path = findChromium();
       if (!path) {
         if (!json) console.error("Installing Chromium via Playwright…");
-        const ok = await installChromium();
+        const ok = await installChromium(json);
         if (!ok) {
-          const msg = "Chromium install failed (try `bunx playwright install chromium` and check the output).";
-          if (json) console.log(JSON.stringify({ ok: false, error: msg }));
-          else console.error(msg);
-          process.exit(1);
+          fail(
+            json,
+            new CliError("Chromium install failed", {
+              code: "install_failed",
+              hint: "try `bunx playwright install chromium` and check its output",
+            }),
+          );
         }
         path = findChromium();
       }

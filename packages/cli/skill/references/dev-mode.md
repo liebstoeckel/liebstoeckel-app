@@ -53,20 +53,25 @@ liebstoeckel dev poll --reply <batchId> done \
 
 List only entry ids you fully applied; entries you omit return to the user's
 open list. On failure: `liebstoeckel dev poll --reply <batchId> error "reason"`.
-A second reply for a batch that is already resolved is refused with
-`batch_already_resolved`; treat that as success, do not retry.
+A second reply for a batch that is already resolved is refused with code
+`batch_already_resolved` (exit 1); treat that as success, do not retry.
 
 ## When a poll or reply fails
 
-Every failure prints one JSON object with `error` and usually a `hint`; follow
-the hint rather than retrying blindly.
+Every failure prints one JSON object on stdout,
+`{ "ok": false, "error": "<sentence>", "code": "<id>", "hint"?: "..." }`, and
+exits non-zero (2 for a malformed command line). Branch on `code` and follow the
+hint rather than retrying blindly.
 
 - `no_dev_server`: no server is running (or its record is stale after a kill).
   Tell the user; do not start one unasked.
 - `unauthorized` (a 401): the server restarted and minted a new token. The
   loop is over until the user restarts it; see Recovery.
-- `forbidden`: the server rejected the request's `Host` header; poll from the
+- `forbidden_host`: the server rejected the request's `Host` header; poll from the
   machine that runs `dev`, through localhost.
+- `poll_failed`: any other failure of the poll request; `error` says what.
+- `invalid_reply`, `invalid_data_json`: your `--reply` command line was
+  malformed (exit 2); fix it and reply once.
 - `unknown_reply_id`: the batch id is not one this server knows; check the id
   in the event you received.
 - `applied_id_not_in_batch`, `error_reply_requires_message`,

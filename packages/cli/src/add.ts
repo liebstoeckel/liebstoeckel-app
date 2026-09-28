@@ -8,6 +8,7 @@ import {
   type RegistryItem,
 } from "@liebstoeckel/registry/schema";
 import { bunBin } from "./bun";
+import { CliError, fail, usageError, wantsJson } from "./output";
 
 /**
  * `liebstoeckel add`, scaffold registry items into a deck as owned source
@@ -269,20 +270,23 @@ async function runAdd(args: {
   install?: boolean;
   json?: boolean;
 }): Promise<void> {
+  // JSON when asked, or when piped (an agent), pretty only on an interactive TTY.
+  const json = wantsJson(args.json);
   const refs = stripCategory(args._);
   if (refs.length === 0) {
-    console.error(
-      "usage: liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--no-install]",
+    fail(
+      json,
+      usageError(
+        "nothing to add: liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--no-install]",
+        "list the items: liebstoeckel registry list",
+      ),
     );
-    process.exit(1);
   }
 
   const deckDir = resolve(args.dir ?? ".");
   const dry = !!args.dry;
   const force = !!args.force;
   const noInstall = args.install === false;
-  // JSON when asked, or when piped (an agent), pretty only on an interactive TTY ((internal ADR)).
-  const json = !!args.json || !process.stdout.isTTY;
 
   try {
     const config = await loadConfig(deckDir);
@@ -363,8 +367,6 @@ async function runAdd(args: {
       console.log();
     }
   } catch (e) {
-    if (json) console.log(JSON.stringify({ error: (e as Error).message }));
-    else console.error(`✕ ${(e as Error).message}`);
-    process.exit(1);
+    fail(json, e instanceof CliError ? e : new CliError((e as Error).message, { code: "add_failed" }));
   }
 }

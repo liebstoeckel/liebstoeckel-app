@@ -298,7 +298,7 @@ export const newCommand = defineCommand({
     const name = args.name;
     if (!name) {
       console.error("usage: liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand]");
-      process.exit(1);
+      process.exit(2); // a usage error (exit codes: 0 ok, 1 failure, 2 usage)
     }
     try {
       const { dir, files } = await scaffold(name, {

@@ -18,6 +18,68 @@ liebstoeckel --version
 Every command has its own `--help` listing its arguments, options, and defaults.
 The short alias `lst` is interchangeable with `liebstoeckel` (e.g. `lst build`).
 
+## Machine output (`--json`)
+
+Commands that list something, report a status, or return a result you act on have a
+**JSON mode**, so a script or an AI agent never has to parse prose. The same rules hold
+for every one of them.
+
+- **When.** JSON mode is on with `--json`, and by default whenever stdout is not a
+  terminal (piped, redirected, run by an agent or in CI). Pass `--no-json` to get the
+  human output in a pipe. `dev` is the exception: it is a server, and prints its startup
+  line as JSON only with an explicit `--json`. `dev poll` always prints JSON.
+- **One document.** In JSON mode stdout carries exactly one JSON document, whether the
+  command succeeds or fails. Progress lines, warnings and the output of tools the command
+  runs go to stderr.
+- **Errors.** A failure is one object with a stable `code` to branch on, a readable
+  `error`, and often a `hint` with the next step:
+
+  ```json
+  { "ok": false, "error": "not logged in", "code": "not_logged_in", "hint": "…" }
+  ```
+
+  A failure that is also a result keeps its result shape with `"ok": false`: a failing
+  `build --check` still lists its `diagnostics`, and a `pull` with conflicts lists them.
+- **Exit codes.** `0` success, `1` failure, `2` usage error (an unknown option, a
+  missing or invalid argument).
+- **Unknown options are refused** on every command, before it does anything, with exit
+  code `2` and the closest option it does take:
+
+  ```text
+  ✕ unknown option --josn for `liebstoeckel decks`
+    did you mean --json? (see `liebstoeckel decks --help`)
+  ```
+
+| Command | JSON mode |
+| --- | --- |
+| `add`, `registry list`/`view`, `build`, `pack`, `licenses`, `doctor` | yes |
+| `push`, `pull`, `sync status`/`commit`, `orgs` (`orgs list`), `decks`, `brand list` | yes |
+| `dev` | startup line with `--json` |
+| `dev poll` | always |
+| `new`, `eject`, `skill`, `thumbs`, `export`, `orgs use`, `brand push`/`pull` | no: they write files or change a setting and print what they did |
+| `live`, `relay`, `login`, `update` | no: servers, an interactive sign-in, and `bun`'s own output |
+
+### Error codes
+
+| `code` | From | Meaning, and what to do |
+| --- | --- | --- |
+| `unknown_option` | any command | an option the command does not take (exit 2); the hint names the closest one |
+| `usage` | any command | a missing or invalid argument (exit 2); the hint shows the usage |
+| `not_found` | `registry view`, `push`, `licenses`, cloud commands | the item, file or org does not exist |
+| `not_a_deck` | `pack`, `dev` | the folder has no `index.html`; pass `--dir <deck>` |
+| `untrusted_deck` | `build`, `licenses` | the deck has not been trusted on this machine. Building runs its code, so a human decides; an agent should ask, not approve it on its own |
+| `build_failed` | `build` | the build threw; `error` has the message |
+| `no_notices` | `licenses` | the built `.html` carries no license notices; run it on the deck source instead |
+| `add_failed`, `pack_failed`, `install_failed` | `add`, `pack`, `doctor --install-chromium` | the step failed; `error` has the message |
+| `not_logged_in` | cloud commands | no credentials; liebstoeckel cloud is coming soon |
+| `session_expired` | cloud commands | run `liebstoeckel login` again |
+| `forbidden` | cloud commands | your role or plan does not allow this; `error` says which |
+| `not_linked` | `pull`, `sync` | the folder is not linked to a cloud deck; `push --source` first |
+| `request_failed` | cloud commands | the control plane answered with an error; `error` has the status |
+| `failed` | any command | an unexpected error; `error` has the message |
+| `no_dev_server`, `unauthorized`, `forbidden_host`, `poll_failed`, `invalid_reply`, `invalid_data_json`, and the dev server's reply codes | `dev poll` | see [`dev poll`](#dev-poll) |
+| `port_in_use`, `live_failed` | `dev --json` | the port is taken; the live mirror could not start |
+
 ## `new`
 
 Scaffold a new deck. It materializes in the **current directory** as `./<name>`;
@@ -181,7 +243,7 @@ scraping prose:
 ```
 
 `thumbnails` is `null` (with a `thumbnailsSkipped` reason) when no Chromium is available.
-A refused untrusted build emits `{ "ok": false, "error": "untrusted deck", "hint": "…" }`
+A refused untrusted build emits `{ "ok": false, "error": "untrusted deck", "code": "untrusted_deck", "hint": "…" }`
 and exits non-zero. Trusting a deck you didn't write means agreeing to run its build-time
 code on your machine — a human decision; an AI agent should surface it rather than approve
 on its own. A human who trusts the deck approves it with `--trust` (or `LIEBSTOECKEL_TRUST_BUILD=1`).
@@ -222,7 +284,11 @@ The deck defaults to the **current directory**; pass it as `[dir]` or `--dir <de
 liebstoeckel pack [dir]                  # print the file list (defaults to cwd)
 liebstoeckel pack [dir] -o deck.tgz      # write a gzip tarball (bun add-compatible)
 liebstoeckel pack [dir] --allow-secret   # override the secret gate
+liebstoeckel pack [dir] --json           # { dir, files, out } (default when piped)
 ```
+
+With `--json` (or piped) the result is `{ "dir": "/abs/deck", "files": ["index.html", …], "out": null }`,
+where `out` is the absolute path of the `-o` tarball when one was written.
 
 ## `licenses`
 
@@ -286,7 +352,7 @@ liebstoeckel dev poll --reply <batchId> done --data '{"applied":["<id>"],"files"
 | `--dir <deck>` | deck directory (default: current directory) |
 | `--port N` | port (default: 3000) |
 | `--host <addr>` | bind hostname (default `127.0.0.1`) |
-| `--json` | machine-readable startup info |
+| `--json` | machine-readable startup info: `{ ok, url, port, pluginProblems? }`, or the error object (`not_a_deck`, `port_in_use`, …) |
 
 ### `dev poll`
 
@@ -302,7 +368,13 @@ Replies are `done` with a JSON result or `error "reason"`.
 | `--reply <id>` | reply to the event with this id instead of waiting; pair with a positional `done` or `error "reason"` |
 | `--data <json>` | the JSON result for a `done` reply: `{"applied": [annotationIds], "files": [paths], "notes": [strings]}` |
 
-Without a running dev server it prints `{"error":"no_dev_server"}` and exits 1.
+Every failure is one JSON object on stdout, `{ "ok": false, "error", "code", "hint"? }`:
+`no_dev_server` when no dev server runs for the deck (or its record is stale),
+`unauthorized` when the server restarted with a new token, `forbidden_host` when it
+rejected the `Host` header, `poll_failed` for anything else, and `invalid_reply` /
+`invalid_data_json` (exit 2) for a malformed `--reply` command line. A refused reply
+carries the dev server's own code, e.g. `batch_already_resolved` for a second reply to
+the same batch (safe to treat as done), `unknown_reply_id` or `applied_id_not_in_batch`.
 
 The first run adds a small inert loader tag to the deck's `index.html`. It
 only activates under `dev`, where it loads the bridge script that connects the
@@ -659,6 +731,16 @@ the deck's built-in thumbnails.
 | `--new` | create a separate deck instead of updating the matching one |
 | `--org <slug>` | push into this organization (default: the one set by `orgs use`, else personal) |
 | `--api <url>` | override the stored control-plane host |
+| `--json` | machine-readable result (default when piped); progress goes to stderr |
+
+With `--json`:
+
+```json
+{ "ok": true, "deck": { "id": "…", "title": "My deck" }, "version": 3, "isNew": false, "key": "my-deck", "org": null, "api": "https://…" }
+```
+
+With `--source` it adds `source`: `{ "ok": true, "changed": true, "commit": "…" }`, or
+`{ "ok": false, "conflicts": [{ "path", "kind" }] }` (then `ok` is false and the exit code 1).
 
 ### `orgs`
 
@@ -668,7 +750,12 @@ List the organizations (personal workspace + teams) you belong to, and choose wh
 ```bash
 liebstoeckel orgs                        # list workspaces; → marks the push default
 liebstoeckel orgs use acme               # make "acme" the default for push
+liebstoeckel orgs --json                 # { active, orgs, default } (default when piped)
 ```
+
+`orgs --json` (the same as `orgs list --json`) returns `active` (`{ slug, name, role,
+personal, plan }`), `orgs` (`[{ slug, name, personal }]`) and `default`, the slug `push`
+targets without `--org` (`null` = your personal workspace).
 
 Teams, members, roles (`owner` / `admin` / `member`), and invitations are managed in the
 dashboard's **Team** page; the CLI only needs to pick which org a deck lands in.
@@ -703,6 +790,7 @@ its own `@font-face`.
 | `--dir <deck>` | (pull) the deck to write `brands/<name>.ts` into (default: cwd) |
 | `--no-install` | (pull) write the files but don't `bun add` the brand's font packages |
 | `--org <slug>` | the organization to act on |
+| `--json` | (list) `{ org, brands: [{ name, isDefault, tokens }] }` (default when piped) |
 
 ### `decks`
 
@@ -711,7 +799,28 @@ List your cloud decks in an organization, with view counts.
 ```bash
 liebstoeckel decks                       # decks in your default workspace
 liebstoeckel decks --org acme            # decks in a team you belong to
+liebstoeckel decks --json                # machine-readable (default when piped)
 ```
+
+With `--json`: `{ "org": null, "decks": [{ "id", "title", "version", "shared", "shareSlug", "views", "uniqueViews" }] }`
+(`org` is the slug listed, `null` for your personal workspace).
 
 `--org` works the same on every cloud command (`push`, `decks`, …): explicit `--org`
 wins, else the default from `orgs use`, else your personal workspace.
+
+### `pull` and `sync`
+
+Live source sync for a deck folder linked with `push --source`: `pull` merges the cloud
+deck's edits into the folder, `sync status` lists who changed what since your last
+`sync commit`, and `sync commit` records the folder as a commit crediting the other
+editors. All three take `--dir <deck>`, `--org`, `--api` and `--json`.
+
+```bash
+liebstoeckel pull                        # merge the live edits into this folder
+liebstoeckel sync status --json          # { deckId, base, committed, checkpoints, changed }
+liebstoeckel sync commit --json          # { committed, message, checkpoint }
+```
+
+`pull --json` returns `{ ok, kind, written, conflicts, head }`, where `kind` is
+`in-sync`, `pulled`, `merged` or `conflict`; with conflicts `ok` is false and the exit
+code 1. A folder that is not linked yet fails with code `not_linked`.

@@ -12,7 +12,7 @@ trusted automatically; a deck you did **not** create here (cloned, downloaded, h
 over) is **untrusted**, and a non-interactive build of it fails fast:
 
 ```json
-{ "ok": false, "error": "untrusted deck", "hint": "…re-run with --trust…" }
+{ "ok": false, "error": "untrusted deck", "code": "untrusted_deck", "hint": "…a decision for a human…" }
 ```
 
 **You MUST NOT silence this yourself.** Never pass `--trust` or set

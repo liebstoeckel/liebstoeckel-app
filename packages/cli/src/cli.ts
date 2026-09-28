@@ -6,7 +6,7 @@ import { looksLikeDeck } from "./targeting";
 // uniform deck targeting, (internal ADR): agent-readable surface). Heavy command modules
 // are imported lazily, a subCommand is a `() => import(...)` thunk, so e.g. `build`
 // never loads the live server and `live` never loads the bundler until invoked.
-const rootCommand = defineCommand({
+export const rootCommand = defineCommand({
   meta,
   subCommands: {
     new: () => import("./new").then((m) => m.newCommand),
@@ -26,14 +26,16 @@ const rootCommand = defineCommand({
     // shown as-is, with the stack under LIEBSTOECKEL_DEBUG.
     dev: () =>
       import("@liebstoeckel/dev-server/cli").then((m) => m.devCommand).catch((err: unknown) =>
-        defineCommand({
+        // Accepts any option: the real `dev` options are unknown here, and the
+        // load failure is the message worth showing.
+        Object.assign(defineCommand({
           meta: { name: "dev", description: "dev mode (hot reload + the annotation sidebar beside the deck)" },
           run() {
             console.error(devLoadFailureMessage(err));
             if (process.env.LIEBSTOECKEL_DEBUG && err instanceof Error && err.stack) console.error(err.stack);
             process.exit(1);
           },
-        }),
+        }), { acceptsAnyOption: true }),
       ),
     live: () => import("@liebstoeckel/live-server/cli").then((m) => m.liveCommand),
     relay: () => import("@liebstoeckel/present-relay/cli").then((m) => m.relayCommand),
@@ -88,6 +90,31 @@ async function meta() {
 /** The subcommand names that win over the `liebstoeckel <deck>` → `live` shorthand. */
 const KNOWN_COMMANDS = new Set(Object.keys((rootCommand.subCommands as Record<string, unknown>) ?? {}));
 
+/** Exit 2 on any option the routed command does not declare (with a close
+ *  match when there is one). JSON error document on stdout when the command
+ *  has a JSON mode and it is on, prose on stderr otherwise. */
+async function refuseUnknownOptions(rawArgs: string[]): Promise<void> {
+  if (rawArgs.includes("--help") || rawArgs.includes("-h")) return;
+  const { findUnknownOptions } = await import("./options");
+  const { unknown, leaf } = await findUnknownOptions(rootCommand, rawArgs);
+  if (unknown.length === 0) return;
+  const { CliError, fail, wantsJson } = await import("./output");
+  const first = unknown[0]!;
+  // `dev poll` only speaks JSON; `dev` (a server) prints JSON only when asked.
+  const route = leaf.path.join(" ");
+  const flag = rawArgs.includes("--json") ? true : rawArgs.includes("--no-json") ? false : undefined;
+  const json = route === "dev poll" || ("json" in leaf.args && (route === "dev" ? flag === true : wantsJson(flag)));
+  const names = unknown.map((u) => u.option).join(", ");
+  fail(
+    json,
+    new CliError(`unknown option${unknown.length > 1 ? "s" : ""} ${names} for \`${first.command}\``, {
+      code: "unknown_option",
+      hint: first.suggestion ? `did you mean ${first.suggestion}? (see \`${first.command} --help\`)` : `see \`${first.command} --help\``,
+      exit: 2,
+    }),
+  );
+}
+
 async function main() {
   const argv = process.argv.slice(2);
 
@@ -106,6 +133,23 @@ async function main() {
     // never block a command on config
   }
 
+  // Shorthand: `liebstoeckel <deck>` → `liebstoeckel live <deck>`. citty's subcommand
+  // router throws on an unknown leading positional, so resolve the shorthand here by
+  // injecting `live` before handing off (an unknown non-deck token still falls through
+  // to citty's "Unknown command" usage error).
+  const firstPositional = argv.find((a) => !a.startsWith("-"));
+  let rawArgs = argv;
+  if (firstPositional && !KNOWN_COMMANDS.has(firstPositional) && looksLikeDeck(firstPositional)) {
+    rawArgs = ["live", ...argv];
+  }
+  // Bare invocation → show the command surface (citty would otherwise error).
+  if (rawArgs.length === 0) rawArgs = ["--help"];
+
+  // Refuse options the command does not declare, before anything with a side
+  // effect runs (the update notice, the skill self-heal, the command itself):
+  // citty would drop them silently, and a dropped `--json` changes the output.
+  await refuseUnknownOptions(rawArgs);
+
   // Best-effort, stderr-only (see update.ts): a cached "new CLI version" note
   // (off for --json/pipes/CI), and the skill self-heal, which rewrites a stale
   // installed skill in place (all modes; the installed skill is a pure function
@@ -119,18 +163,6 @@ async function main() {
   } catch {
     // neither may ever break a command
   }
-
-  // Shorthand: `liebstoeckel <deck>` → `liebstoeckel live <deck>`. citty's subcommand
-  // router throws on an unknown leading positional, so resolve the shorthand here by
-  // injecting `live` before handing off (an unknown non-deck token still falls through
-  // to citty's "Unknown command" usage error).
-  const firstPositional = argv.find((a) => !a.startsWith("-"));
-  let rawArgs = argv;
-  if (firstPositional && !KNOWN_COMMANDS.has(firstPositional) && looksLikeDeck(firstPositional)) {
-    rawArgs = ["live", ...argv];
-  }
-  // Bare invocation → show the command surface (citty would otherwise error).
-  if (rawArgs.length === 0) rawArgs = ["--help"];
 
   await runMain(rootCommand, { rawArgs });
 }

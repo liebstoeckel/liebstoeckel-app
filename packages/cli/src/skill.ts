@@ -183,8 +183,8 @@ export async function applySkill(
     targets =
       !tArg || tArg === "all" ? ALL_TARGETS : (tArg.split(",").filter((t): t is Target => (ALL_TARGETS as string[]).includes(t)));
     if (targets.length === 0) {
-      console.error(`unknown --target "${tArg}", use one or more of: ${ALL_TARGETS.join(", ")}, or all`);
-      process.exit(1);
+      console.error(`✕ unknown --target "${tArg}", use one or more of: ${ALL_TARGETS.join(", ")}, or all`);
+      process.exit(2); // a usage error (exit codes: 0 ok, 1 failure, 2 usage)
     }
   }
 

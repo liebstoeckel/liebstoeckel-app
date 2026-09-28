@@ -9,6 +9,24 @@ import { runAutoPatches } from "@liebstoeckel/cli/migrations";
 import { existsSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 
+/** The CLI's error document: one JSON object on stdout, `code` is what an agent
+ *  branches on. Exit 1 for a failure, 2 for a usage mistake. */
+function failJson(code: string, error: string, hint?: string, exit: 1 | 2 = 1): never {
+  console.log(JSON.stringify({ ok: false, error, code, ...(hint ? { hint } : {}) }));
+  process.exit(exit);
+}
+
+/** A poll failure that already knows its code. */
+class PollError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly hint?: string,
+  ) {
+    super(message);
+  }
+}
+
 // Agent-facing poll client: one-shot long poll or a reply. Each HTTP request
 // stays under undici's fixed 300s header timeout; the loop below synthesizes a
 // longer wait from shorter requests.
@@ -21,9 +39,17 @@ async function pollOnce(base: string, token: string, totalTimeoutMs: number): Pr
     if (remaining <= 0) return { type: "timeout" };
     const slice = Math.min(Math.max(remaining, 1_000), PER_REQUEST_TIMEOUT_MS);
     const res = await fetch(`${base}/__dev/poll?token=${token}&timeout=${slice}`);
-    if (res.status === 401) throw new Error("unauthorized: the dev server token changed; restart `liebstoeckel dev`");
-    if (res.status === 403) throw new Error("forbidden: the dev server rejected the Host header; dial it by localhost or the --host it was bound to");
-    if (!res.ok) throw new Error(`poll failed: ${res.status} ${res.statusText}`);
+    if (res.status === 401) {
+      throw new PollError("unauthorized", "the dev server token changed", "the dev server restarted; the loop is over until `liebstoeckel dev` runs again");
+    }
+    if (res.status === 403) {
+      throw new PollError(
+        "forbidden_host",
+        "the dev server rejected the Host header",
+        "poll from the machine that runs `liebstoeckel dev`, by localhost or the --host it was bound to",
+      );
+    }
+    if (!res.ok) throw new PollError("poll_failed", `poll failed: ${res.status} ${res.statusText}`);
     const event = (await res.json()) as { type?: string };
     if (event?.type === "timeout" && Date.now() < deadline) continue;
     return event;
@@ -41,10 +67,7 @@ export const devPollCommand = defineCommand({
   async run({ args }) {
     const deckDir = resolve(args.dir ?? ".");
     const info = readServerInfo(deckDir);
-    if (!info) {
-      console.error(JSON.stringify({ error: "no_dev_server", hint: "start one with: liebstoeckel dev" }));
-      process.exit(1);
-    }
+    if (!info) failJson("no_dev_server", `no dev server is running for ${deckDir}`, "start one with: liebstoeckel dev");
     // Dial what the server bound: loopback by default, or the interface named
     // by --host (a server bound to a LAN address is not reachable on 127.0.0.1).
     const dialHost = !info.hostname || info.hostname === "0.0.0.0" ? "127.0.0.1" : info.hostname;
@@ -55,16 +78,19 @@ export const devPollCommand = defineCommand({
       const positionals = Array.isArray(raw) ? (raw as string[]) : typeof raw === "string" && raw ? [raw] : [];
       const status = positionals[0];
       if (status !== "done" && status !== "error") {
-        console.error(JSON.stringify({ error: "invalid_reply", hint: "usage: dev poll --reply <id> done --data '<json>' | --reply <id> error \"reason\"" }));
-        process.exit(1);
+        failJson(
+          "invalid_reply",
+          "a reply needs a status: done or error",
+          "usage: dev poll --reply <id> done --data '<json>' | --reply <id> error \"reason\"",
+          2,
+        );
       }
       let data: unknown;
       if (args.data) {
         try {
           data = JSON.parse(args.data);
         } catch (err) {
-          console.error(JSON.stringify({ error: "invalid_data_json", message: err instanceof Error ? err.message : String(err) }));
-          process.exit(1);
+          failJson("invalid_data_json", `--data is not valid JSON: ${err instanceof Error ? err.message : String(err)}`, undefined, 2);
         }
       }
       const message = status === "error" ? positionals.slice(1).join(" ") : undefined;
@@ -73,10 +99,11 @@ export const devPollCommand = defineCommand({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: info.token, id: args.reply, type: status, data, message }),
       });
-      const body = await res.json().catch(() => ({}));
+      const body = (await res.json().catch(() => ({}))) as { error?: unknown; hint?: unknown };
       if (!res.ok) {
-        console.error(JSON.stringify(body));
-        process.exit(1);
+        // Named fields only: the server's id becomes the code, its hint stays the hint.
+        const code = typeof body.error === "string" ? body.error : "reply_failed";
+        failJson(code, `the dev server refused the reply (${code})`, typeof body.hint === "string" ? body.hint : undefined);
       }
       console.log(JSON.stringify(body));
       return;
@@ -86,18 +113,13 @@ export const devPollCommand = defineCommand({
     try {
       console.log(JSON.stringify(await pollOnce(base, info.token, totalTimeout)));
     } catch (err) {
+      if (err instanceof PollError) failJson(err.code, err.message, err.hint);
       const message = err instanceof Error ? err.message : String(err);
       // A connection refusal means the server.json is stale (the server was
       // killed without cleaning up), not that the token changed.
       const refused = /ECONNREFUSED|Unable to connect|ConnectionRefused/i.test(message);
-      console.error(
-        JSON.stringify(
-          refused
-            ? { error: "no_dev_server", hint: "the recorded dev server is not running; start one with: liebstoeckel dev" }
-            : { error: "poll_failed", message },
-        ),
-      );
-      process.exit(1);
+      if (refused) failJson("no_dev_server", "the recorded dev server is not running", "start one with: liebstoeckel dev");
+      failJson("poll_failed", message);
     }
   },
 });
@@ -123,10 +145,13 @@ export const devCommand = defineCommand({
     if (rawArgs?.[0] === "poll") return;
     const deckDir = resolve(args.dir ?? ".");
     const indexPath = join(deckDir, "index.html");
-    if (!existsSync(indexPath)) {
-      console.error(`No index.html in ${deckDir}; run from a deck or pass --dir.`);
-      process.exit(1);
-    }
+    // With --json the startup outcome is one JSON document on stdout, failures included.
+    const startupFail = (code: string, message: string, hint?: string, exit: 1 | 2 = 1): never => {
+      if (args.json) failJson(code, message, hint, exit);
+      console.error(hint ? `${message}. ${hint}` : message);
+      process.exit(exit);
+    };
+    if (!existsSync(indexPath)) startupFail("not_a_deck", `No index.html in ${deckDir}`, "Run from a deck or pass --dir.");
     // Bun reads the deck's bunfig.toml ([serve.static] plugins: Tailwind, MDX)
     // from the process cwd at startup, so serving a --dir deck from elsewhere
     // would silently lose the HTML pipeline's plugins. Re-exec with cwd set.
@@ -170,10 +195,7 @@ export const devCommand = defineCommand({
       console.error(`⚠ migration needed (${h.id}): ${h.reason}; apply it per the skill guide ${h.reference}, or opt out via package.json liebstoeckel.migrationOptOut`);
     }
     const port = args.port === undefined ? 3000 : Number(args.port);
-    if (!Number.isInteger(port) || port < 0 || port > 65535) {
-      console.error(`Invalid --port ${args.port}`);
-      process.exit(1);
-    }
+    if (!Number.isInteger(port) || port < 0 || port > 65535) startupFail("usage", `Invalid --port ${args.port}`, undefined, 2);
     // Catch up and connect before serving, so the first page load already
     // shows the live files.
     let live: { stop(): void } | null = null;
@@ -182,8 +204,7 @@ export const devCommand = defineCommand({
       try {
         live = await startLive(deckDir, (line) => console.error(`⇄ ${line}`));
       } catch (err) {
-        console.error(`✕ ${err instanceof Error ? err.message : String(err)}`);
-        process.exit(1);
+        startupFail("live_failed", err instanceof Error ? err.message : String(err));
       }
     }
     // Set when the server stops on purpose (a signal, or `/__dev/stop`), so
@@ -203,8 +224,7 @@ export const devCommand = defineCommand({
       const message = err instanceof Error ? err.message : String(err);
       const code = (err as { code?: unknown })?.code;
       if (code === "EADDRINUSE" || /EADDRINUSE|in use/i.test(message)) {
-        console.error(`Port ${port} is already in use (another dev server?). Pick another with --port, or stop the other process.`);
-        process.exit(1);
+        startupFail("port_in_use", `Port ${port} is already in use (another dev server?)`, "Pick another with --port, or stop the other process.");
       }
       throw err;
     }

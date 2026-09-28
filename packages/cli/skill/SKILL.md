@@ -57,7 +57,11 @@ you write content and wire data. Drive everything through the CLI via bash.
 
 **Always prefer the CLI's `--json` output** (it's the machine contract) and **run
 `liebstoeckel build --check` in a loop until it passes** before declaring done — that
-is your correctness signal.
+is your correctness signal. In JSON mode (on by default when you pipe the output)
+stdout is exactly one JSON document, failures included: a failure is
+`{ "ok": false, "error", "code", "hint"? }`, so branch on `code` and follow `hint`.
+Exit code 2 means you passed an option or argument the command does not take (the
+hint names the closest one; never guess flags).
 
 ## Create a deck from a source document
 
