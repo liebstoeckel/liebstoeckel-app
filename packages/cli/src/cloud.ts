@@ -13,13 +13,13 @@ import { CliError, bodyExcerpt, reporting, usageError, wantsJson } from "./outpu
 const CLIENT_ID = "liebstoeckel-cli";
 
 /** Shared `--api` / `--org` args for the cloud commands. */
-const CLOUD_ARGS = {
+export const CLOUD_ARGS = {
   api: { type: "string" as const, description: "control-plane host (or LIEBSTOECKEL_API)", valueHint: "https://app-host" },
   org: { type: "string" as const, description: "organization slug", valueHint: "slug" },
 };
 
 /** The shared `--json` option of the cloud commands that report a result. */
-const JSON_ARG = { type: "boolean" as const, description: "machine-readable JSON output (default when piped)" };
+export const JSON_ARG = { type: "boolean" as const, description: "machine-readable JSON output (default when piped)" };
 
 /** Failure for a cloud command that has no API to talk to. The hosted control
  *  plane is not generally available yet, so OSS users see "coming soon" instead
@@ -33,7 +33,7 @@ function notLoggedIn(): never {
 
 /** The failure for a non-2xx control-plane answer. `forbidden` says what a 403
  *  means for this call; the server's body is cut short, it is only a clue. */
-async function httpFailure(res: Response, what: string, forbidden?: string): Promise<CliError> {
+export async function httpFailure(res: Response, what: string, forbidden?: string): Promise<CliError> {
   if (res.status === 401) {
     return new CliError("session expired", { code: "session_expired", hint: "run `liebstoeckel login` again" });
   }
@@ -157,6 +157,7 @@ export const pushCommand = defineCommand({
     title: { type: "string", description: "override the deck title", valueHint: "t" },
     name: { type: "string", description: "deck key for re-push upsert", valueHint: "key" },
     new: { type: "boolean", description: "force a fresh deck (new key)" },
+    folder: { type: "string", description: 'folder for a new deck, created if missing (e.g. "Sales/Q4")', valueHint: "path" },
     source: { type: "boolean", description: "also upload the deck's source files for live editing, coming soon" },
     dir: { type: "string", description: "deck source folder for --source (default: .)", valueHint: "deck" },
     org: CLOUD_ARGS.org,
@@ -174,6 +175,7 @@ async function runPush(args: {
   title?: string;
   name?: string;
   new?: boolean;
+  folder?: string;
   source?: boolean;
   dir?: string;
   org?: string;
@@ -213,25 +215,48 @@ async function runPush(args: {
   const titleOverride = args.title;
   if (titleOverride) headers["x-deck-title"] = encodeURIComponent(titleOverride);
   if (org) headers["x-org-slug"] = org;
+  // Only a new deck takes the folder; the server creates what is missing. The
+  // path is URL-encoded like the title, since folder names can be any Unicode.
+  const folder = args.folder?.trim() || undefined;
+  if (folder) headers["x-deck-folder"] = encodeURIComponent(folder);
 
   const res = await fetch(`${api}/api/v1/decks`, { method: "POST", headers, body: html });
   if (!res.ok) {
     throw await httpFailure(res, "upload failed", `you're not a member of org "${org}"; run \`liebstoeckel orgs\` to see your teams`);
   }
-  const { deck, version, isNew } = (await res.json()) as {
+  const { deck, version, isNew, folderIgnored } = (await res.json()) as {
     deck: { id: string; title: string };
     version: number;
     isNew: boolean;
+    folderIgnored?: boolean;
   };
   const what = isNew ? "created" : `updated to v${version}`;
   // In JSON mode the progress lines go to stderr; the one result document is stdout's.
   const say = json ? console.error : console.log;
-  say(`\n✓ pushed "${deck.title}" (${what})${org ? ` in ${org}` : ""}, view it at ${api}\n`);
+  const where = isNew && folder ? ` in folder "${folder}"` : "";
+  say(`\n✓ pushed "${deck.title}" (${what})${where}${org ? ` in ${org}` : ""}, view it at ${api}\n`);
+  if (folder && !isNew) {
+    // Moving is explicit, so a re-push never undoes someone else's reorganizing.
+    say(`  note: this deck already exists, so --folder was ignored and it stays where it is.`);
+    say(`  to move it: liebstoeckel decks move ${deckKey} --to ${JSON.stringify(folder)}${org ? ` --org ${org}` : ""}\n`);
+  }
   const source = args.source ? await pushSource(resolve(args.dir ?? "."), deck.id, { api, token: creds.token, org }, json) : undefined;
   const ok = source ? source.ok : true;
   if (json) {
     console.log(
-      JSON.stringify({ ok, deck: { id: deck.id, title: deck.title }, version, isNew, key: deckKey, org: org ?? null, api, ...(source ? { source } : {}) }),
+      JSON.stringify({
+        ok,
+        deck: { id: deck.id, title: deck.title },
+        version,
+        isNew,
+        key: deckKey,
+        org: org ?? null,
+        api,
+        // The folder a new deck was put in; null when none was asked for or it was ignored.
+        folder: isNew && folder ? folder : null,
+        folderIgnored: !!folder && !isNew && folderIgnored !== false,
+        ...(source ? { source } : {}),
+      }),
     );
   }
   if (!ok) process.exit(1);
@@ -388,7 +413,7 @@ async function fetchOrgs(api: string, token: string): Promise<OrgList> {
 
 /** Auth preamble shared by the org/deck/brand commands: load creds, resolve the
  *  API host (`--api` > stored), and bail with the "coming soon" notice if absent. */
-async function requireCreds(apiArg?: string) {
+export async function requireCreds(apiArg?: string) {
   const creds = await loadCreds();
   const api = (apiArg ?? creds?.api ?? "").replace(/\/+$/, "");
   if (!creds || !api) notLoggedIn();
@@ -443,64 +468,6 @@ export const orgsCommand = defineCommand({
   subCommands: { list: orgsListCommand, use: orgsUseCommand },
   default: "list",
 });
-
-interface CloudDeck {
-  id: string;
-  title: string;
-  version: number;
-  shared: boolean;
-  shareSlug: string | null;
-  views: number;
-  uniqueViews: number;
-}
-
-/** `liebstoeckel decks [--org <slug>]`, list the active org's decks + views. */
-export const decksCommand = defineCommand({
-  meta: { name: "decks", description: "list your cloud decks (with view counts), coming soon" },
-  args: { org: CLOUD_ARGS.org, api: CLOUD_ARGS.api, json: JSON_ARG },
-  run: ({ args }) => {
-    const json = wantsJson(args.json);
-    return reporting(json, () => runDecks(args, json));
-  },
-});
-
-async function runDecks(args: { org?: string; api?: string }, json: boolean): Promise<void> {
-  const { creds, api } = await requireCreds(args.api);
-  const org = resolveOrg(args, creds?.org);
-  const headers: Record<string, string> = { authorization: `Bearer ${creds.token}` };
-  if (org) headers["x-org-slug"] = org;
-  const res = await fetch(`${api}/api/v1/decks`, { headers });
-  if (!res.ok) throw await httpFailure(res, "could not list decks", `you're not a member of org "${org}"`);
-  const { decks } = (await res.json()) as { decks: CloudDeck[] };
-  if (json) {
-    console.log(
-      JSON.stringify({
-        org: org ?? null,
-        decks: decks.map((d) => ({
-          id: d.id,
-          title: d.title,
-          version: d.version,
-          shared: d.shared,
-          shareSlug: d.shareSlug,
-          views: d.views,
-          uniqueViews: d.uniqueViews,
-        })),
-      }),
-    );
-    return;
-  }
-  if (!decks.length) {
-    console.log(`\n  no decks${org ? ` in ${org}` : ""} yet, push one with: liebstoeckel push\n`);
-    return;
-  }
-  console.log(`\n  decks${org ? ` in ${org}` : ""}:\n`);
-  for (const d of decks) {
-    const share = d.shared ? "shared" : "private";
-    const ver = `v${d.version}`.padStart(4);
-    console.log(`   ${d.title.slice(0, 36).padEnd(36)} ${ver}  ${String(d.views).padStart(5)} views  ${share}`);
-  }
-  console.log();
-}
 
 // ── brand registry ((internal ADR)): the org is an authenticated registry; brands are
 // items pulled into decks as owned source (brands/<name>.ts), baked at build. ──

@@ -36,7 +36,13 @@ const INVENTORY: Record<string, "json" | "always-json" | "explicit-json" | strin
   "sync commit": "json",
   "orgs list": "json",
   "orgs use": "changes a setting",
-  decks: "json",
+  "decks list": "json",
+  "decks move": "json",
+  "decks delete": "json",
+  "folders list": "json",
+  "folders create": "json",
+  "folders rename": "json",
+  "folders delete": "json",
   "brand list": "json",
   "brand push": "uploads a file",
   "brand pull": "writes files and runs bun add",
@@ -257,7 +263,10 @@ describe("cloud commands", () => {
     writeCreds(`http://127.0.0.1:${server.port}`);
 
     const decks = oneDoc(await run(["decks", "--json"]));
-    expect(decks).toEqual({ org: null, decks: [{ id: "d1", title: "Talk", version: 2, shared: false, shareSlug: null, views: 3, uniqueViews: 2 }] });
+    expect(decks).toEqual({
+      org: null,
+      decks: [{ id: "d1", key: null, title: "Talk", folderId: null, folder: null, version: 2, shared: false, shareSlug: null, views: 3, uniqueViews: 2 }],
+    });
     const orgs = oneDoc(await run(["orgs"]));
     expect(orgs.default).toBeNull();
     expect(orgs.orgs[0].slug).toBe("me");
@@ -275,6 +284,93 @@ describe("cloud commands", () => {
     status = 500;
     const failed = expectError(await run(["decks"]), "request_failed");
     expect(failed.error).not.toContain("test-token");
+    clearCreds();
+  }, T);
+});
+
+describe("deck library: folders, moves and deletes", () => {
+  test("push --folder, decks list/move/delete and folders against a control plane", async () => {
+    const folders = [
+      { id: "f1", parentId: null, name: "Sales", path: "Sales" },
+      { id: "f2", parentId: "f1", name: "Q4", path: "Sales/Q4" },
+    ];
+    const decks = [
+      { id: "d1", deckKey: "pitch", title: "Pitch", version: 1, shared: false, shareSlug: null, views: 0, uniqueViews: 0, folderId: "f2" },
+      { id: "d2", deckKey: "theirs", title: "Their talk", version: 1, shared: true, shareSlug: "s", views: 1, uniqueViews: 1, folderId: null },
+    ];
+    const seen: Array<{ method: string; path: string; body: any; headers: Record<string, string> }> = [];
+    server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      async fetch(req) {
+        const { pathname } = new URL(req.url);
+        const text = await req.text();
+        const body = text && req.headers.get("content-type")?.includes("json") ? JSON.parse(text) : null;
+        seen.push({ method: req.method, path: pathname, body, headers: Object.fromEntries(req.headers) });
+        if (req.method === "POST" && pathname === "/api/v1/decks") {
+          const isNew = req.headers.get("x-deck-key") !== "pitch";
+          return Response.json({ deck: { id: isNew ? "d9" : "d1", title: "Talk" }, version: 1, isNew, folderIgnored: !isNew && !!req.headers.get("x-deck-folder") });
+        }
+        if (pathname === "/api/v1/decks") return Response.json({ decks });
+        if (pathname === "/api/v1/folders" && req.method === "GET") return Response.json({ folders });
+        if (pathname === "/api/v1/folders" && req.method === "POST") {
+          const parent = folders.find((f) => f.id === body.parentId);
+          return Response.json({ folder: { id: `n-${body.name}`, parentId: body.parentId, name: body.name, path: parent ? `${parent.path}/${body.name}` : body.name } }, { status: 201 });
+        }
+        if (pathname === "/api/v1/decks/move") {
+          if (body.deckIds.includes("d2")) {
+            return Response.json(
+              { error: "Nothing was changed: some of these decks are not yours to manage.", code: "forbidden", refused: [{ id: "d2", reason: "forbidden" }] },
+              { status: 403 },
+            );
+          }
+          return Response.json({ ok: true, moved: body.deckIds.length, folderId: body.folderId });
+        }
+        if (pathname === "/api/v1/decks/delete") return Response.json({ ok: true, deleted: body.deckIds.length });
+        return new Response("not found", { status: 404 });
+      },
+    });
+    writeCreds(`http://127.0.0.1:${server.port}`);
+
+    const list = oneDoc(await run(["decks", "list"]));
+    expect(list.decks[0]).toMatchObject({ id: "d1", key: "pitch", folderId: "f2", folder: "Sales/Q4" });
+    expect(list.decks[1]).toMatchObject({ key: "theirs", folder: null });
+
+    // A new deck carries the folder (URL-encoded); an existing one says it was ignored.
+    const html = join(work, "fresh", "dist", "fresh.html");
+    mkdirSync(join(work, "fresh", "dist"), { recursive: true });
+    writeFileSync(html, "<!doctype html><title>Fresh</title>");
+    expect(oneDoc(await run(["push", html, "--folder", "Vertrieb/Q4 – Plan"]))).toMatchObject({ isNew: true, folder: "Vertrieb/Q4 – Plan", folderIgnored: false });
+    expect(decodeURIComponent(seen.at(-1)!.headers["x-deck-folder"]!)).toBe("Vertrieb/Q4 – Plan");
+    const again = await run(["push", html, "--name", "pitch", "--folder", "Elsewhere"]);
+    expect(oneDoc(again)).toMatchObject({ isNew: false, folder: null, folderIgnored: true });
+    expect(again.stderr).toContain("decks move pitch");
+
+    // Moves: by key into a path matched regardless of case, to the root, refused as a whole.
+    expect(oneDoc(await run(["decks", "move", "pitch", "--to", "sales"]))).toEqual({ ok: true, moved: 1, folder: "Sales", folderId: "f1", decks: ["d1"] });
+    expect(seen.at(-1)!.body).toEqual({ deckIds: ["d1"], folderId: "f1" });
+    expect(oneDoc(await run(["decks", "move", "d1", "--to", "/"]))).toMatchObject({ ok: true, folder: null, folderId: null });
+    const refused = expectError(await run(["decks", "move", "pitch", "theirs", "--to", "Sales/Q4"]), "forbidden");
+    expect(refused.refused).toEqual([{ id: "d2", reason: "forbidden" }]);
+    expect(refused.hint).toContain('"Their talk": not yours to manage');
+    expectError(await run(["decks", "move", "pitch", "--to", "Nope"]), "folder_not_found");
+    expectError(await run(["decks", "move", "ghost", "--to", "/"]), "not_found");
+    // An option before the subcommand still reaches it.
+    await run(["decks", "--org", "acme", "move", "pitch", "--to", "/"]);
+    expect(seen.at(-1)!.headers["x-org-slug"]).toBe("acme");
+
+    // Deleting asks first; piped, it needs --yes and deletes nothing without it.
+    const before = seen.length;
+    const unconfirmed = expectError(await run(["decks", "delete", "pitch"]), "confirmation_required", 2);
+    expect(unconfirmed.hint).toContain("--yes");
+    expect(seen.slice(before).some((r) => r.path === "/api/v1/decks/delete")).toBe(false);
+    expect(oneDoc(await run(["decks", "delete", "pitch", "d2", "--yes"]))).toEqual({ ok: true, deleted: 2, decks: ["d1", "d2"] });
+
+    // Folders: a tree, mkdir -p creation, idempotent when it exists.
+    expect(oneDoc(await run(["folders"])).folders.map((f: { path: string }) => f.path)).toEqual(["Sales", "Sales/Q4"]);
+    expect(oneDoc(await run(["folders", "create", "Sales/Q4/Leads"]))).toEqual({ ok: true, created: true, folder: { id: "n-Leads", path: "Sales/Q4/Leads" } });
+    expect(seen.at(-1)!.body).toEqual({ parentId: "f2", name: "Leads" });
+    expect(oneDoc(await run(["folders", "create", "sales/q4"]))).toMatchObject({ ok: true, created: false });
     clearCreds();
   }, T);
 });

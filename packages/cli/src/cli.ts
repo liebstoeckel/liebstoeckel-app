@@ -50,7 +50,8 @@ export const rootCommand = defineCommand({
     pull: () => import("./cloud").then((m) => m.pullCommand),
     sync: () => import("./cloud").then((m) => m.syncCommand),
     orgs: () => import("./cloud").then((m) => m.orgsCommand),
-    decks: () => import("./cloud").then((m) => m.decksCommand),
+    decks: () => import("./library").then((m) => m.decksCommand),
+    folders: () => import("./library").then((m) => m.foldersCommand),
     brand: () => import("./cloud").then((m) => m.brandCommand),
   },
 });

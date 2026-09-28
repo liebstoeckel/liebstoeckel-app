@@ -14,12 +14,15 @@ export class CliError extends Error {
   readonly code: string;
   readonly hint?: string;
   readonly exit: 1 | 2;
-  constructor(message: string, opts: { code: string; hint?: string; exit?: 1 | 2 }) {
+  /** Extra fields for the JSON error document, e.g. which items refused a bulk request. */
+  readonly details?: Record<string, unknown>;
+  constructor(message: string, opts: { code: string; hint?: string; exit?: 1 | 2; details?: Record<string, unknown> }) {
     super(message);
     this.name = "CliError";
     this.code = opts.code;
     this.hint = opts.hint;
     this.exit = opts.exit ?? 1;
+    this.details = opts.details;
   }
 }
 
@@ -31,10 +34,13 @@ export interface ErrorDoc {
   error: string;
   code: string;
   hint?: string;
+  [extra: string]: unknown;
 }
 
 export function errorDoc(err: unknown): ErrorDoc {
-  if (err instanceof CliError) return { ok: false, error: err.message, code: err.code, ...(err.hint ? { hint: err.hint } : {}) };
+  if (err instanceof CliError) {
+    return { ...err.details, ok: false, error: err.message, code: err.code, ...(err.hint ? { hint: err.hint } : {}) };
+  }
   return { ok: false, error: err instanceof Error ? err.message : String(err), code: "failed" };
 }
 

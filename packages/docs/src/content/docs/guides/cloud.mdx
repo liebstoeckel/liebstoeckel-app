@@ -89,6 +89,32 @@ Manage all of this on the dashboard's **Team** page:
 - **Change roles** or **remove** members.
 - **Leave** a team you no longer need (your personal workspace always stays).
 
+## Folders
+
+With more decks, group them in **folders**. Folders nest like a file system, and a deck
+lives in exactly one place: a folder, or the **root**, where every deck starts unless you
+choose otherwise. Folders are purely for order: everyone in the workspace still sees every
+deck, and who may manage a deck does not change.
+
+```bash
+liebstoeckel push --folder "Sales/Q4"         # a new deck goes there; missing folders are created
+liebstoeckel decks                            # each deck with its key and folder
+liebstoeckel decks move pitch --to "Sales/Q4" # move one or more decks (by key or id)
+liebstoeckel folders                          # the folder tree
+liebstoeckel folders delete "Sales/Q4"        # its decks move up to "Sales"; none is deleted
+```
+
+- **Pushing again never moves a deck.** `--folder` only places a *new* deck; for a deck that
+  already exists it is ignored with a note, so a teammate's push can't undo your filing.
+  Moving is always explicit.
+- **Who can do what:** any member creates and renames folders, deletes an empty one, and
+  moves the decks they may manage (their own; owners and admins: any). Deleting a folder
+  that still holds decks or subfolders is for owners and admins, who choose where the
+  content goes (by default the parent folder).
+- **Bulk moves and deletes are all or nothing:** if one deck is not yours to manage,
+  nothing changes and you're told which deck stopped it. `decks delete` asks before
+  deleting; pass `--yes` in scripts.
+
 ## Share a deck publicly
 
 Any deck can be published to a time-limited public link served on a separate domain, with
@@ -258,4 +284,4 @@ moves to the free plan: your decks stay, the free limits apply, and saved live r
 deleted as described above. The confirmation before you cancel says how many past sessions
 that affects.
 
-<LinkCard title="CLI reference: login · push · orgs · decks" href="/reference/cli/#login" />
+<LinkCard title="CLI reference: login · push · orgs · decks · folders" href="/reference/cli/#login" />

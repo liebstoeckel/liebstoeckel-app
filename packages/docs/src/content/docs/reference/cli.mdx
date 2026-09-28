@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: "The umbrella liebstoeckel command: new, add, registry, build, eject, pack, licenses, dev, live, relay, thumbs, export, skill, update, doctor, login, push, orgs, decks, brand."
+description: "The umbrella liebstoeckel command: new, add, registry, build, eject, pack, licenses, dev, live, relay, thumbs, export, skill, update, doctor, login, push, orgs, decks, folders, brand."
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -53,7 +53,7 @@ for every one of them.
 | Command | JSON mode |
 | --- | --- |
 | `add`, `registry list`/`view`, `build`, `pack`, `licenses`, `doctor` | yes |
-| `push`, `pull`, `sync status`/`commit`, `orgs` (`orgs list`), `decks`, `brand list` | yes |
+| `push`, `pull`, `sync status`/`commit`, `orgs` (`orgs list`), `decks` (`list`/`move`/`delete`), `folders` (`list`/`create`/`rename`/`delete`), `brand list` | yes |
 | `dev` | startup line with `--json` |
 | `dev poll` | always |
 | `new`, `eject`, `skill`, `thumbs`, `export`, `orgs use`, `brand push`/`pull` | no: they write files or change a setting and print what they did |
@@ -75,6 +75,12 @@ for every one of them.
 | `session_expired` | cloud commands | run `liebstoeckel login` again |
 | `forbidden` | cloud commands | your role or plan does not allow this; `error` says which |
 | `not_linked` | `pull`, `sync` | the folder is not linked to a cloud deck; `push --source` first |
+| `confirmation_required` | `decks delete` | deleting needs a yes (exit 2); pass `--yes` when no one can answer the prompt |
+| `folder_not_found` | `decks move`, `folders` | no folder at that path; the hint names the `folders create` command |
+| `folder_exists` | `folders rename`, `folders delete` | a sibling already has that name (names are unique regardless of case) |
+| `folder_not_empty` | `folders delete` | the folder still holds decks or folders; only an owner or admin can delete it, or move its content out first |
+| `folder_cycle` | `folders delete` | the content cannot move into the folder being deleted |
+| `invalid_name` | `folders` | a folder name is empty, over 100 characters, or holds a `/` |
 | `request_failed` | cloud commands | the control plane answered with an error; `error` has the status |
 | `failed` | any command | an unexpected error; `error` has the message |
 | `no_dev_server`, `unauthorized`, `forbidden_host`, `poll_failed`, `invalid_reply`, `invalid_data_json`, and the dev server's reply codes | `dev poll` | see [`dev poll`](#dev-poll) |
@@ -680,8 +686,8 @@ command, in every mode (see [`skill`](#skill)).
 The remaining commands talk to **liebstoeckel cloud**, the hosted control plane.
 
 <Aside type="caution" title="Coming soon">
-liebstoeckel cloud is not generally available yet. `login`, `push`, `orgs`, `decks`, and
-`brand` ship in the CLI today, but without a hosted service to sign in to they exit with
+liebstoeckel cloud is not generally available yet. `login`, `push`, `orgs`, `decks`,
+`folders`, and `brand` ship in the CLI today, but without a hosted service to sign in to they exit with
 a "coming soon" notice. They work against a private control-plane deployment via
 `--api` / `LIEBSTOECKEL_API`. See the [Cloud & teams guide](/guides/cloud/).
 </Aside>
@@ -712,6 +718,7 @@ liebstoeckel build                       # produces ./dist/<deck-slug>.html
 liebstoeckel push                        # no path → that built deck in ./dist
 liebstoeckel push --org acme             # push into a team you belong to
 liebstoeckel push ./dist/my-deck.html --title "My deck"   # explicit path + title override
+liebstoeckel push --folder "Sales/Q4"    # a new deck goes into that folder
 ```
 
 **Re-push = a new version.** `push` identifies a deck by a stable **key** (the deck
@@ -729,6 +736,7 @@ the deck's built-in thumbnails.
 | `--title <title>` | override the title (default: the deck's embedded `<title>`, then its key) |
 | `--name <key>` | the deck key to upsert (default: the deck folder name) |
 | `--new` | create a separate deck instead of updating the matching one |
+| `--folder <path>` | put a **new** deck into this folder (e.g. `"Sales/Q4"`), creating missing folders; ignored, with a note, for a deck that already exists |
 | `--org <slug>` | push into this organization (default: the one set by `orgs use`, else personal) |
 | `--api <url>` | override the stored control-plane host |
 | `--json` | machine-readable result (default when piped); progress goes to stderr |
@@ -736,8 +744,13 @@ the deck's built-in thumbnails.
 With `--json`:
 
 ```json
-{ "ok": true, "deck": { "id": "…", "title": "My deck" }, "version": 3, "isNew": false, "key": "my-deck", "org": null, "api": "https://…" }
+{ "ok": true, "deck": { "id": "…", "title": "My deck" }, "version": 3, "isNew": false, "key": "my-deck", "org": null, "api": "https://…", "folder": null, "folderIgnored": false }
 ```
+
+`folder` is the folder a new deck was put in (`null` without `--folder`). A re-push never
+moves a deck: moving is explicit (`decks move`), so a teammate's push can't undo someone
+else's filing. `folderIgnored` is `true` when `--folder` was given for a deck that already
+exists; the prose output then prints the `decks move` command that would move it.
 
 With `--source` it adds `source`: `{ "ok": true, "changed": true, "commit": "…" }`, or
 `{ "ok": false, "conflicts": [{ "path", "kind" }] }` (then `ok` is false and the exit code 1).
@@ -794,19 +807,93 @@ its own `@font-face`.
 
 ### `decks`
 
-List your cloud decks in an organization, with view counts.
+List, move and delete your cloud decks in an organization. `decks` alone is `decks list`.
 
 ```bash
-liebstoeckel decks                       # decks in your default workspace
+liebstoeckel decks                       # decks in your default workspace, with key and folder
 liebstoeckel decks --org acme            # decks in a team you belong to
-liebstoeckel decks --json                # machine-readable (default when piped)
+liebstoeckel decks move pitch q3-review --to "Sales/Q4"   # by deck key or id
+liebstoeckel decks move pitch --to /     # back to the root
+liebstoeckel decks delete old-talk       # asks first; lists what goes
+liebstoeckel decks delete old-talk draft --yes            # no prompt (agents, scripts)
 ```
 
-With `--json`: `{ "org": null, "decks": [{ "id", "title", "version", "shared", "shareSlug", "views", "uniqueViews" }] }`
-(`org` is the slug listed, `null` for your personal workspace).
+Decks are named by their **key** (shown by `decks list`, the name `push` upserts by) or
+their **id**. Folders are named by path, `/` being the root; a path matches regardless of
+case. `move` does not create folders: an unknown path fails with `folder_not_found` and a
+hint to run `folders create` first.
 
-`--org` works the same on every cloud command (`push`, `decks`, …): explicit `--org`
-wins, else the default from `orgs use`, else your personal workspace.
+**Moves and deletes are all or nothing.** You can move or delete a deck you created; owners
+and admins can move or delete any deck. If any named deck is not yours to manage, nothing
+changes, and the error lists each deck that stopped it. Deleting cannot be undone: the
+deck's share and preview links stop working and its live results go with it. On a terminal
+`delete` asks for a yes; without one (piped, or with `--json`) it needs `--yes` and
+otherwise fails with `confirmation_required` (exit 2).
+
+| Flag | Meaning |
+| --- | --- |
+| `--to <path>` | (move) the target folder, `/` for the root |
+| `--yes` | (delete) delete without asking |
+| `--org <slug>` | the organization to act on |
+| `--json` | machine-readable output (default when piped) |
+
+With `--json`:
+
+```jsonc
+// decks list
+{ "org": null, "decks": [{ "id", "key", "title", "folderId", "folder", "version", "shared", "shareSlug", "views", "uniqueViews" }] }
+// decks move
+{ "ok": true, "moved": 2, "folder": "Sales/Q4", "folderId": "…", "decks": ["…", "…"] }
+// decks delete
+{ "ok": true, "deleted": 2, "decks": ["…", "…"] }
+// a refused move or delete (exit 1)
+{ "ok": false, "error": "Nothing was changed: …", "code": "forbidden", "refused": [{ "id": "…", "reason": "forbidden" }], "hint": "…" }
+```
+
+`folder` is the deck's folder path, `null` for the root; `org` is the slug listed, `null`
+for your personal workspace. A `refused` entry's `reason` is `forbidden` (not yours to
+manage) or `not_found`.
+
+### `folders`
+
+Organize an organization's decks in nested folders. Folders are purely organizational:
+everyone in the org still sees every deck, and who may manage a deck does not change.
+`folders` alone is `folders list`.
+
+```bash
+liebstoeckel folders                     # the folder tree
+liebstoeckel folders create "Sales/Q4"   # creates missing parents too; fine if it exists
+liebstoeckel folders rename "Sales/Q4" "Q4 2026"
+liebstoeckel folders delete "Sales/Q4"   # its decks and subfolders move up to "Sales"
+liebstoeckel folders delete Sales --to /  # …or somewhere else ("/" is the root)
+```
+
+Folder names are unique among their siblings regardless of case, can't contain `/`, and
+are at most 100 characters. Any member can create and rename folders and delete an empty
+one. Deleting a folder that still holds decks or subfolders is for **owners and admins**,
+and it never deletes a deck: its content moves to its parent, or to `--to <path>`.
+
+| Flag | Meaning |
+| --- | --- |
+| `--to <path>` | (delete) where the folder's content goes (default: its parent; `/` for the root) |
+| `--org <slug>` | the organization to act on |
+| `--json` | machine-readable output (default when piped) |
+
+With `--json`:
+
+```jsonc
+// folders list
+{ "org": null, "folders": [{ "id", "parentId", "name", "path" }] }
+// folders create
+{ "ok": true, "created": true, "folder": { "id": "…", "path": "Sales/Q4" } }
+// folders rename
+{ "ok": true, "folder": { "id": "…", "path": "Sales/Q4 2026" } }
+// folders delete
+{ "ok": true, "deleted": "Sales/Q4", "movedDecks": 3, "movedFolders": 1, "to": "Sales" }
+```
+
+`--org` works the same on every cloud command (`push`, `decks`, `folders`, …): explicit
+`--org` wins, else the default from `orgs use`, else your personal workspace.
 
 ### `pull` and `sync`
 
