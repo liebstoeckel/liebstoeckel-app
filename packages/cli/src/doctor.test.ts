@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { playwrightCoreVersion } from "@liebstoeckel/thumbnails";
-import { buildReport, diagnosticExitCode, installChromiumArgs } from "./doctor";
+import { buildReport, diagnosticExitCode, installChromiumArgs, pluginProblemLines } from "./doctor";
 import { bunBin } from "./bun";
 import { runAutoPatches, type MigrationStatus } from "./migrations";
 
@@ -84,7 +84,11 @@ describe("doctor --json migrations surface", () => {
   });
 
   /** Run the real CLI (network checks off, HOME sandboxed) and parse stdout. */
-  function doctorJson(deckDir: string): { migrations: MigrationStatus[]; migrationWarnings: string[] } {
+  function doctorJson(deckDir: string): {
+    migrations: MigrationStatus[];
+    migrationWarnings: string[];
+    pluginProblems: Array<{ plugin: string; message: string }>;
+  } {
     const res = Bun.spawnSync([process.execPath, join(import.meta.dir, "cli.ts"), "doctor", "--json", "--dir", deckDir], {
       env: { ...process.env, LIEBSTOECKEL_NO_UPDATE_CHECK: "1", HOME: tmp! },
     });
@@ -131,5 +135,41 @@ describe("doctor --json migrations surface", () => {
     expect(out.migrationWarnings.join("\n")).toContain("typo-id");
 
     expect(doctorJson(tmp).migrations).toEqual([]);
+  });
+
+  test("an unresolvable [serve.static] plugin is reported in --json; a deck without plugins reports none", () => {
+    tmp = mkdtempSync(join(tmpdir(), "pi-doctor-"));
+    const deck = join(tmp, "deck");
+    mkdirSync(deck, { recursive: true });
+    writeFileSync(join(deck, "package.json"), JSON.stringify({ name: "deck" }));
+    writeFileSync(join(deck, "index.html"), `<html><head></head><body><div id="root"></div></body></html>`);
+
+    expect(doctorJson(deck).pluginProblems).toEqual([]);
+
+    writeFileSync(join(deck, "bunfig.toml"), `[serve.static]\nplugins = ["bun-plugin-does-not-exist-xyz"]\n`);
+    const out = doctorJson(deck);
+    expect(out.pluginProblems).toHaveLength(1);
+    expect(out.pluginProblems[0]!.plugin).toBe("bun-plugin-does-not-exist-xyz");
+    expect(out.pluginProblems[0]!.message).toContain("cannot be found");
+
+    // outside a deck nothing is checked
+    expect(doctorJson(tmp).pluginProblems).toEqual([]);
+  });
+});
+
+describe("pluginProblemLines", () => {
+  test("one line per problem, each naming the plugin and the fix", () => {
+    const lines = pluginProblemLines("/decks/q3", [
+      { plugin: "bun-plugin-tailwind", message: "cannot be found from /decks/q3" },
+      { plugin: "bunfig.toml", message: "is not valid TOML: bad" },
+    ]);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain('bunfig.toml plugin "bun-plugin-tailwind" cannot be found from /decks/q3');
+    expect(lines[0]).toContain("run `bun install` in /decks/q3");
+    expect(lines[1]).toStartWith("✗ bunfig.toml is not valid TOML");
+  });
+
+  test("no problems, no lines", () => {
+    expect(pluginProblemLines("/decks/q3", [])).toEqual([]);
   });
 });

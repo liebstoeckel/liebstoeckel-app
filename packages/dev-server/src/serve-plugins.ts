@@ -48,11 +48,21 @@ export function checkServePlugins(deckDir: string): PluginProblem[] {
   return problems;
 }
 
+/** One problem as a sentence fragment, e.g. `bunfig.toml plugin "x" cannot be found from /deck`. */
+export function describePluginProblem(p: PluginProblem): string {
+  return p.plugin === "bunfig.toml" ? `bunfig.toml ${p.message}` : `bunfig.toml plugin "${p.plugin}" ${p.message}`;
+}
+
+/** The fix for any plugin problem, without a trailing period. */
+export function pluginProblemFix(deckDir: string): string {
+  return `run \`bun install\` in ${deckDir} (or correct [serve.static] plugins in bunfig.toml)`;
+}
+
 /** One line per problem plus the fix, for the terminal. */
 export function formatPluginProblems(deckDir: string, problems: PluginProblem[]): string[] {
   return [
-    ...problems.map((p) => (p.plugin === "bunfig.toml" ? `bunfig.toml ${p.message}` : `bunfig.toml plugin "${p.plugin}" ${p.message}`)),
-    `the deck page shows an error until this is fixed: run \`bun install\` in ${deckDir} (or correct [serve.static] plugins in bunfig.toml); the page picks it up without a restart`,
+    ...problems.map(describePluginProblem),
+    `the deck page shows an error until this is fixed: ${pluginProblemFix(deckDir)}; the page picks it up without a restart`,
   ];
 }
 

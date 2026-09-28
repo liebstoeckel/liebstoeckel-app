@@ -5,6 +5,12 @@ import { loadConfig, saveConfig, CONFIG_FILE } from "./config";
 import { cliVersion } from "./skill";
 import { cachedLatestVersion, isNewer } from "./update";
 import { neededMigrations, type MigrationStatus } from "./migrations";
+import {
+  checkServePlugins,
+  describePluginProblem,
+  pluginProblemFix,
+  type PluginProblem,
+} from "@liebstoeckel/dev-server/serve-plugins";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -56,6 +62,14 @@ export function buildReport(parts: {
  *  thumbnails without it), so a missing browser reports but does not fail. */
 export function diagnosticExitCode(report: DoctorReport): number {
   return report.bun.ok ? 0 : 1;
+}
+
+/** Prose lines for bundler plugins that do not resolve: one per problem, each
+ *  with the fix, so an author (or their agent) learns it before `dev` does. */
+export function pluginProblemLines(deckDir: string, problems: PluginProblem[]): string[] {
+  return problems.map(
+    (p) => `✗ ${describePluginProblem(p)}; the dev server cannot serve the deck until you ${pluginProblemFix(deckDir)}`,
+  );
 }
 
 /** The shell-out that installs Playwright's Chromium. Pinned two ways: the Bun
@@ -128,13 +142,16 @@ export const doctorCommand = defineCommand({
     const { migrations, warnings: migrationWarnings } = inDeck
       ? neededMigrations(deckDir)
       : { migrations: [] as MigrationStatus[], warnings: [] as string[] };
+    // Bundler plugins from the deck's bunfig.toml, resolved the way `dev` does
+    // at startup (resolve only, never import).
+    const pluginProblems: PluginProblem[] = inDeck ? checkServePlugins(deckDir) : [];
 
     // On a miss, show where we actually looked: turns "not found" from a dead
     // end into something a user (or agent) can act on.
     const probed = report.chromium.ok ? undefined : systemChromiumCandidates();
 
     if (json) {
-      console.log(JSON.stringify({ ...report, migrations, migrationWarnings, storedChromium: stored ?? null, ...(probed ? { probedCandidates: probed } : {}) }));
+      console.log(JSON.stringify({ ...report, migrations, migrationWarnings, pluginProblems, storedChromium: stored ?? null, ...(probed ? { probedCandidates: probed } : {}) }));
     } else {
       const ok = (b: boolean) => (b ? "✓" : "✗");
       console.error(`${ok(report.bun.ok)} Bun ${report.bun.version} (needs ${report.bun.required})`);
@@ -153,6 +170,7 @@ export const doctorCommand = defineCommand({
           ? `↑ CLI ${report.cli.version} (${report.cli.latestKnown} is available, run \`liebstoeckel update\`)`
           : `${ok(true)} CLI ${report.cli.version}${report.cli.latestKnown ? " (latest known)" : ""}`,
       );
+      for (const line of pluginProblemLines(deckDir, pluginProblems)) console.error(line);
       for (const w of migrationWarnings) console.error(`⚠ ${w}`);
       for (const m of migrations) {
         if (!m.needed) continue;

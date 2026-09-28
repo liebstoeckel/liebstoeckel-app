@@ -512,7 +512,7 @@ liebstoeckel doctor --install-chromium  # download Playwright's Chromium, record
 | --- | --- |
 | `--install-chromium` | Install Playwright's Chromium if none resolves, then record its path in `~/.config/liebstoeckel/config.json` so every later build/export reuses it |
 | `--json` | Machine-readable output (default when piped) |
-| `--dir <deck>` | Deck to check for scaffold migrations (default: the current directory) |
+| `--dir <deck>` | Deck to check for scaffold migrations and bundler plugins (default: the current directory) |
 
 `doctor` resolves Chromium the same way builds do (see [Chromium setup](/guides/chromium/#resolution-order)): an existing system Chrome is found automatically, so often nothing needs installing. Only `export`/`thumbs` require a browser; `build` skips thumbnails without one. When no browser is found, the human output lists every probed location, and `--json` adds them as `probedCandidates`.
 
@@ -521,6 +521,19 @@ lookup, so `doctor` stays network-free): `--json` carries
 `cli: { version, latestKnown, updateAvailable }`. Agents can gate on
 `updateAvailable` and suggest [`liebstoeckel update`](#update); `latestKnown` is
 `null` when no check has completed yet (for example offline).
+
+### Bundler plugins
+
+Inside a deck (or with `--dir <deck>`), `doctor` also resolves the bundler
+plugins listed under `[serve.static] plugins` in the deck's `bunfig.toml`
+(Tailwind, MDX), the same check `liebstoeckel dev` runs at startup. Each plugin
+that cannot be found gets one line naming it, with the fix: run `bun install` in
+the deck, or correct the plugin list. `--json` carries the same data as
+`pluginProblems`, an array of `{ plugin, message }` that is empty when every
+plugin resolves or the deck has no `bunfig.toml`. A `bunfig.toml` that is not
+valid TOML shows up as one entry with `plugin: "bunfig.toml"`. An unresolved
+plugin does not change the exit code, which stays non-zero only for a Bun
+version that does not fit.
 
 ### Scaffold migrations
 

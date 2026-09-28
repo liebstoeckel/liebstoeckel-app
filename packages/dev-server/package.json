@@ -47,7 +47,8 @@
     "./bridge": "./src/bridge.ts",
     "./ui": "./src/ui.ts",
     "./sync": "./src/sync.ts",
-    "./live-mirror": "./src/live-mirror.ts"
+    "./live-mirror": "./src/live-mirror.ts",
+    "./serve-plugins": "./src/serve-plugins.ts"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.2.8",

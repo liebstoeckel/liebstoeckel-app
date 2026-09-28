@@ -24,6 +24,10 @@ license: MPL-2.0
   `@liebstoeckel/*` packages and/or a global CLI install, then refreshes this skill).
   Don't run it unprompted — it changes the deck's dependencies. A stale copy of this
   skill needs no action: the CLI refreshes it automatically.
+- **Bundler plugins** — `liebstoeckel doctor --json` (in the deck, or with `--dir`)
+  also reports `pluginProblems: [{ plugin, message }]`: `[serve.static]` plugins in the
+  deck's `bunfig.toml` that do not resolve. The dev server cannot serve the deck until
+  they do; run `bun install` in the deck (or fix the plugin name) and re-check.
 - **Scaffold migrations** — `liebstoeckel doctor --json` (run in the deck, or with
   `--dir <deck>`) also reports `migrations: [...]`. For an entry with `needed: true`,
   read the skill file named by its `reference` (e.g.
