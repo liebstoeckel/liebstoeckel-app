@@ -89,6 +89,27 @@ Manage all of this on the dashboard's **Team** page:
 - **Change roles** or **remove** members.
 - **Leave** a team you no longer need (your personal workspace always stays).
 
+### Deleting a workspace
+
+An **owner** can delete a workspace, a team or their personal one, at the foot of the
+**Team** page. Admins and members can't. You confirm by typing the workspace's name.
+
+- **While a paid plan runs, deletion is refused.** Cancel the plan on the **Billing** page
+  first; once the plan has ended, you can delete the workspace.
+- **It is gone for everyone at once.** Members lose access, its share links, previews and
+  live links stop working, running live sessions end, and pushes or API calls to it are
+  refused. Every member gets an email saying who deleted it and until when it can be
+  restored.
+- **Owners can restore it for 14 days**, from the workspace switcher (deleted workspaces
+  are listed there with their deadline) or from the link in their email. Everything comes
+  back as it was, except live sessions that were running, which stay ended.
+- **After 14 days everything in it is removed for good**: its decks with every version,
+  share and preview links, live sessions and their saved results, brands, members,
+  invitations and billing records. Until then the data is still held, so it can be
+  restored.
+- **Your account stays.** If it was your only workspace, you stay signed in and can start
+  a new one, or restore the old one while that's still possible.
+
 ## Folders
 
 With more decks, group them in **folders**. Folders nest like a file system, and a deck
@@ -191,7 +212,8 @@ can hold is whatever a participant writes into a question.
   can do this. If a participant asks for their question to be removed, this is how
   the presenter does it.
 - **Deleting a deck** deletes its live sessions and their saved results too. When an
-  organization is deleted, its live results are deleted with it.
+  organization is deleted, its live results are deleted with it once its 14-day restore
+  window has passed (see [Deleting a workspace](#deleting-a-workspace)).
 - **Moving to the free plan** applies the free rule to past sessions as well: their saved
   results are deleted shortly after the change. Copy anything you want to keep before you
   downgrade.
