@@ -113,3 +113,98 @@ describe("Hub snapshot/seed round-trip (re-provision continuity, (internal ticke
     b.destroy();
   });
 });
+
+describe("Hub, refused audience updates", () => {
+  const scope = { pluginFields: new Map([["poll", new Set(["votes"])]]), wholeRoots: new Set<string>() };
+
+  /** An enforced hub with the presenter's poll already in it, and a viewer joined. */
+  function setup(rate?: { capacity: number; refillPerSec: number }) {
+    const hub = new Hub({ audience: { scope, rate } });
+    const presenter = new Y.Doc();
+    presenter.getMap("plugin:poll").set("question", "Best?");
+    presenter.getMap("nav").set("slide", 1);
+    hub.join(() => {}).recv(Y.encodeStateAsUpdate(presenter));
+    const drops: Array<[string, boolean]> = [];
+    const toViewer: Uint8Array[] = [];
+    const peer = hub.join((d) => toViewer.push(d), "audience", {
+      onDrop: (reason, { tombstoned }) => drops.push([reason, tombstoned]),
+    });
+    const viewer = new Y.Doc();
+    Y.applyUpdate(viewer, toViewer[0]!);
+    const frames: Uint8Array[] = [];
+    viewer.on("update", (u: Uint8Array) => frames.push(u));
+    const votes = () => (hub.doc.getMap("plugin:poll").get("votes") as Y.Map<string> | undefined)?.toJSON();
+    const vote = (k: string, v: string) =>
+      viewer.transact(() => {
+        const poll = viewer.getMap("plugin:poll");
+        let m = poll.get("votes") as Y.Map<string> | undefined;
+        if (!m) poll.set("votes", (m = new Y.Map()));
+        m.set(k, v);
+      });
+    return { hub, peer, viewer, frames, drops, votes, vote };
+  }
+
+  test("a rate drop reports `rate` and ignores the peer until it reconnects; the resync then applies", () => {
+    const { hub, peer, viewer, frames, drops, votes, vote } = setup({ capacity: 1, refillPerSec: 0 });
+    vote("a", "A");
+    vote("b", "B");
+    peer.recv(frames[0]!);
+    peer.recv(frames[1]!); // over the limit
+    expect(drops).toEqual([["rate", false]]);
+    expect(votes()).toEqual({ a: "A" });
+    // on the same connection nothing more is read
+    vote("c", "C");
+    peer.recv(frames[2]!);
+    expect(votes()).toEqual({ a: "A" });
+    // the reconnect resends the whole state in one update
+    peer.leave();
+    const again = hub.join(() => {}, "audience");
+    again.recv(Y.encodeStateAsUpdate(viewer));
+    expect(votes()).toEqual({ a: "A", b: "B", c: "C" });
+  });
+
+  test("an out-of-scope write is never applied, and the viewer's later votes still arrive", () => {
+    const { hub, peer, viewer, frames, drops, votes, vote } = setup();
+    vote("a", "A");
+    viewer.getMap("nav").set("slide", 99); // presenter-only
+    vote("a", "B");
+    for (const f of frames) peer.recv(f);
+    expect(drops).toEqual([["scope", true]]);
+    expect(hub.doc.getMap("nav").get("slide")).toBe(1);
+    expect(votes()).toEqual({ a: "B" });
+    expect(hub.doc.store.pendingStructs).toBeNull();
+    // a resync after a reconnect stays refused for the presenter-only part
+    const again = hub.join(() => {}, "audience");
+    again.recv(Y.encodeStateAsUpdate(viewer));
+    expect(hub.doc.getMap("nav").get("slide")).toBe(1);
+  });
+
+  test("placeholders are never placed over another peer's clocks", () => {
+    const { hub, viewer, frames, votes, vote } = setup();
+    vote("a", "A");
+    const first = hub.join(() => {}, "audience");
+    first.recv(frames[0]!); // `first` brought the viewer's client id in
+    // a second connection sends a refused write under that id: dropped, no placeholder
+    viewer.getMap("nav").set("slide", 99);
+    const drops: boolean[] = [];
+    const other = hub.join(() => {}, "audience", { onDrop: (_r, { tombstoned }) => drops.push(tombstoned) });
+    other.recv(frames[1]!);
+    expect(drops).toEqual([false]);
+    // the relay's clock for that id did not move past what `first` sent
+    expect(Y.getState(hub.doc.store, viewer.clientID)).toBe(Y.parseUpdateMeta(frames[0]!).to.get(viewer.clientID)!);
+    expect(votes()).toEqual({ a: "A" });
+  });
+
+  test("an update that would wait for missing clocks is refused, so nothing is parked unchecked", () => {
+    const { hub, peer, viewer, frames, drops } = setup();
+    viewer.getMap("nav").set("slide", 50); // refused, not sent yet
+    viewer.getMap("nav").set("slide", 60); // would sit behind the gap
+    peer.recv(frames[1]!);
+    expect(drops).toEqual([["scope", false]]);
+    expect(hub.doc.store.pendingStructs).toBeNull();
+    peer.recv(frames[0]!);
+    expect(drops).toEqual([["scope", false], ["scope", true]]);
+    expect(hub.doc.getMap("nav").get("slide")).toBe(1);
+    expect(hub.doc.store.pendingStructs).toBeNull();
+  });
+});

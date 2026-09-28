@@ -13,6 +13,9 @@ export const CLOSE = {
   PROTOCOL_TOO_OLD: 4005,
   /** The object is gone for good (a live talk that ended); do not reconnect. */
   ENDED: 4006,
+  /** The server dropped one of this client's updates (the audience rate limit), so
+   *  its later updates could not apply; reconnect and send the full state again. */
+  DROPPED: 4007,
 } as const;
 
 /** Close codes after which a client should reconnect immediately, without

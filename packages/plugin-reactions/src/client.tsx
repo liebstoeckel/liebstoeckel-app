@@ -42,6 +42,18 @@ function Floater({ r }: { r: Reaction }) {
   );
 }
 
+/** Delete the reactions that aged out or exceed the cap, in one update rather than
+ *  one per reaction: a live relay rate-limits each audience member's updates, and a
+ *  room's worth of reactions expiring in the same second would otherwise spend the
+ *  whole allowance at once. */
+export function pruneReactions(state: PluginState<ReactionsState>, snapshot: ReactionsState, now: number): void {
+  const stale = new Set([...expired(snapshot, now), ...overCapIds(snapshot, MAX_ENTRIES)]);
+  if (stale.size === 0) return;
+  const prune = () => stale.forEach((id) => state.recordDelete("reactions", id));
+  if (state.root.doc) state.root.doc.transact(prune);
+  else prune();
+}
+
 /** The live floaters + the prune loop that keeps the doc bounded. Caller positions
  *  it (anchored bottom-center inside a card, or deck-wide in the global overlay). */
 function FloatLayer({ snapshot, state }: { snapshot: ReactionsState; state: PluginState<ReactionsState> }) {
@@ -49,9 +61,7 @@ function FloatLayer({ snapshot, state }: { snapshot: ReactionsState; state: Plug
   const live = recent(snapshot, Date.now());
   useEffect(() => {
     const tick = () => {
-      const now = Date.now();
-      for (const id of expired(snapshot, now)) state.recordDelete("reactions", id);
-      for (const id of overCapIds(snapshot, MAX_ENTRIES)) state.recordDelete("reactions", id);
+      pruneReactions(state, snapshot, Date.now());
       force((n) => n + 1);
     };
     const h = setInterval(tick, 1000);

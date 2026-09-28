@@ -261,6 +261,73 @@ describe("connectLive close codes and protocol version", () => {
     conn.close();
   });
 
+  test("a dropped update: reconnects at once and resends the whole state, without a hint", async () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 5000, reconnectMaxMs: 5000 });
+    const states: LiveState[] = [];
+    conn.onState((s) => states.push(s));
+    created[0]!.open();
+    conn.doc.getMap("plugin:reactions").set("r1", "x");
+    created[0]!.serverClose(LIVE_CLOSE.DROPPED, "rate");
+    await Bun.sleep(400);
+    expect(created.length).toBe(2);
+    created[1]!.open();
+    const resent = new Y.Doc();
+    Y.applyUpdate(resent, created[1]!.sent[0]!);
+    expect(resent.getMap("plugin:reactions").get("r1")).toBe("x");
+    expect(states.some((st) => st.sending)).toBe(false);
+    conn.close();
+  });
+
+  test("dropped again within the window: shows the sending hint and backs off instead of looping", async () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", {
+      WS,
+      staleMs: 0,
+      reconnectBaseMs: 150,
+      reconnectMaxMs: 5000,
+      dropWindowMs: 10_000,
+      sendingHintMs: 100,
+    });
+    const states: LiveState[] = [];
+    conn.onState((s) => states.push(s));
+    created[0]!.open();
+    created[0]!.serverClose(LIVE_CLOSE.DROPPED, "rate");
+    await Bun.sleep(300);
+    created[1]!.open();
+    created[1]!.serverClose(LIVE_CLOSE.DROPPED, "rate");
+    expect(states.at(-1)).toEqual({ status: "reconnecting", sending: true });
+    await Bun.sleep(50);
+    expect(created.length).toBe(2); // not at once
+    await Bun.sleep(250);
+    expect(created.length).toBe(3); // after the backoff
+    created[2]!.open();
+    expect(states.at(-1)).toEqual({ status: "connected", sending: true });
+    // a third drop in a row waits twice as long
+    created[2]!.serverClose(LIVE_CLOSE.DROPPED, "rate");
+    await Bun.sleep(200);
+    expect(created.length).toBe(3);
+    await Bun.sleep(250);
+    expect(created.length).toBe(4);
+    created[3]!.open();
+    await Bun.sleep(150);
+    expect(states.at(-1)).toEqual({ status: "connected", sending: undefined });
+    conn.close();
+  });
+
+  test("a viewer uses a fresh client id on each connection; a presenter keeps its id", async () => {
+    for (const role of ["viewer", "presenter"] as const) {
+      const { created, WS } = factory();
+      const conn = connectLive({ ...info, role }, "p", { WS, staleMs: 0 });
+      created[0]!.open();
+      const first = conn.doc.clientID;
+      created[0]!.serverClose(LIVE_CLOSE.RESTARTING);
+      if (role === "viewer") expect(conn.doc.clientID).not.toBe(first);
+      else expect(conn.doc.clientID).toBe(first);
+      conn.close();
+    }
+  });
+
   test("a plain drop backs off", async () => {
     const { created, WS } = factory();
     const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 5000, reconnectMaxMs: 5000 });

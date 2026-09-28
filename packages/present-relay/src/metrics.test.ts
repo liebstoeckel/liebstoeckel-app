@@ -69,8 +69,8 @@ describe("relay metric set", () => {
 
 describe("closeReason", () => {
   test("names the servers' close codes, a client's close, and everything else", () => {
-    expect([4006, 4004, 4003, 4005, 1000, 1001, 1006, 1011, 0].map(closeReason)).toEqual([
-      "ended", "moved", "restarting", "too_old", "client", "client", "abnormal", "abnormal", "abnormal",
+    expect([4006, 4004, 4003, 4005, 4007, 1000, 1001, 1006, 1011, 0].map(closeReason)).toEqual([
+      "ended", "moved", "restarting", "too_old", "dropped", "client", "client", "abnormal", "abnormal", "abnormal",
     ]);
   });
 

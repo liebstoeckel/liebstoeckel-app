@@ -123,8 +123,10 @@ export class Registry {
 
 /** Why a socket closed, as a bounded label: the close codes the servers send, a close
  *  by the client, or anything else (a dropped network, a crash). */
-export function closeReason(code: number): "ended" | "moved" | "restarting" | "too_old" | "client" | "abnormal" {
+export function closeReason(code: number): "ended" | "moved" | "restarting" | "too_old" | "dropped" | "client" | "abnormal" {
   switch (code) {
+    case 4007:
+      return "dropped";
     case 4006:
       return "ended";
     case 4004:
@@ -158,10 +160,16 @@ export function createRelayMetrics(version = "unknown") {
     snapshotSeed: r.register(new Counter("liebstoeckel_relay_snapshot_seed_total", "Snapshot re-seed on create, by result")),
     sessionFenced: r.register(new Counter("liebstoeckel_relay_session_fenced_total", "Sessions stopped because a newer placement or an end was found in storage, by result")),
     wsOpens: r.register(new Counter("liebstoeckel_relay_ws_opens_total", "WebSocket opens, by role")),
-    wsCloses: r.register(new Counter("liebstoeckel_relay_ws_closes_total", "WebSocket closes, by role and reason (ended|moved|restarting|too_old|client|abnormal)")),
+    wsCloses: r.register(new Counter("liebstoeckel_relay_ws_closes_total", "WebSocket closes, by role and reason (ended|moved|restarting|too_old|dropped|client|abnormal)")),
     wsConnections: r.register(new Gauge("liebstoeckel_relay_ws_connections", "Open WebSocket connections, by role")),
     audienceCapRejects: r.register(new Counter("liebstoeckel_relay_audience_cap_rejections_total", "WS rejected: audience cap reached")),
     protocolRejects: r.register(new Counter("liebstoeckel_relay_protocol_rejections_total", "WS closed: the client's live protocol is too old")),
+    audienceDrops: r.register(
+      new Counter(
+        "liebstoeckel_relay_audience_drops_total",
+        "Audience updates refused, by reason (rate|scope) and outcome (resync: connection closed so the client resends; placeholder: the refused range was filled so later updates apply; muted: neither was possible)",
+      ),
+    ),
     grantDenials: r.register(new Counter("liebstoeckel_relay_grant_denials_total", "Deck/sync requests denied (bad/expired grant)")),
     wsFrames: r.register(new Counter("liebstoeckel_relay_ws_frames_total", "Yjs WS frames, by direction")),
     wsBytes: r.register(new Counter("liebstoeckel_relay_ws_bytes_total", "Yjs WS bytes, by direction")),

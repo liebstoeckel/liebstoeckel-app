@@ -168,11 +168,17 @@ function changedUnitsWithinBounds(before: Map<string, unknown>, after: Map<strin
   return true;
 }
 
+/** Does the doc hold updates it could not apply yet? */
+function hasPending(doc: Y.Doc): boolean {
+  return doc.store.pendingStructs !== null || doc.store.pendingDs !== null;
+}
+
 /**
  * Would applying `update` (received from an audience peer) change anything **outside**
- * the audience write-scope, or carry an out-of-bounds value inside it? Returns true if
- * the update is allowed, false if it must be dropped. Pure: it clones `liveState` and
- * never touches the live doc. Fails closed on any decode error.
+ * the audience write-scope, carry an out-of-bounds value inside it, or leave anything
+ * waiting that the doc cannot apply yet? Returns true if the update is allowed, false if
+ * it must be dropped. Pure: it clones `liveState` and never touches the live doc. Fails
+ * closed on any decode error.
  *
  * `liveState` is the relay's current `Y.encodeStateAsUpdate(hub.doc)`.
  */
@@ -182,7 +188,12 @@ export function authorizeAudienceUpdate(liveState: Uint8Array, update: Uint8Arra
     Y.applyUpdate(clone, liveState);
     const before = projectProtected(clone, scope);
     const unitsBefore = audienceUnits(clone, scope);
+    const pendingBefore = hasPending(clone);
     Y.applyUpdate(clone, update);
+    // An update that cannot apply yet (a clock gap, or a reference to something the doc
+    // lacks) changes nothing now, but it would wait in the doc and join it unchecked once
+    // the gap closes. Refuse it: a real client only builds on what it has received.
+    if (!pendingBefore && hasPending(clone)) return false;
     const after = projectProtected(clone, scope);
     if (before !== after) return false; // touched a presenter-only field → drop
     // Scope is fine; now bound the values written into the allowed fields so a single

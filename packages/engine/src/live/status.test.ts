@@ -16,4 +16,13 @@ describe("liveStatusVisible", () => {
     expect(liveStatusVisible({ status: "ended" }, "viewer")).toBe(true);
     expect(liveStatusVisible({ status: "outdated" }, "viewer")).toBe(true);
   });
+
+  test("everyone sees the sending hint, until the talk ends", () => {
+    for (const role of ["viewer", "presenter"]) {
+      expect(liveStatusVisible({ status: "reconnecting", sending: true }, role)).toBe(true);
+      expect(liveStatusVisible({ status: "connected", sending: true }, role)).toBe(true);
+    }
+    expect(liveStatusVisible({ status: "ended", sending: true }, "viewer")).toBe(true);
+    expect(liveStatusVisible({ status: "connected", sending: undefined }, "viewer")).toBe(false);
+  });
 });

@@ -207,3 +207,21 @@ describe("tokenBucket", () => {
     expect(b.tryConsume(1000)).toBe(false);
   });
 });
+
+describe("authorizeAudienceUpdate, updates that cannot apply yet", () => {
+  test("refuses an in-scope update that would wait behind a missing one", () => {
+    const base = makeBase();
+    const live = Y.encodeStateAsUpdate(base);
+    const viewer = new Y.Doc();
+    Y.applyUpdate(viewer, live);
+    const frames: Uint8Array[] = [];
+    viewer.on("update", (u: Uint8Array) => frames.push(u));
+    const votes = viewer.getMap("plugin:poll").get("votes") as Y.Map<string>;
+    votes.set("p1", "red");
+    votes.set("p1", "blue");
+    // in order, both are fine
+    expect(authorizeAudienceUpdate(live, frames[0]!, scope)).toBe(true);
+    // the second alone depends on the first, which the relay does not have
+    expect(authorizeAudienceUpdate(live, frames[1]!, scope)).toBe(false);
+  });
+});

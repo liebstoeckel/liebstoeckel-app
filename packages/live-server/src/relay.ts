@@ -6,6 +6,7 @@ import {
   type PeerRole,
   type TokenBucket,
 } from "@liebstoeckel/plugin-sdk/authorize";
+import { newRanges, tombstoneUpdate } from "./tombstone";
 
 export type Send = (data: Uint8Array) => void;
 
@@ -16,6 +17,23 @@ export interface Peer {
   /** detach this peer */
   leave(): void;
 }
+
+/** Why the relay refused an audience peer's update. */
+export type DropReason = "rate" | "scope";
+
+export interface JoinOptions {
+  /** Called when one of this peer's updates is refused. `rate`: the peer's later
+   *  updates cannot apply until it sends its full state again, so the caller should
+   *  close the connection (the client reconnects and resyncs) and the peer ignores
+   *  every further update until then. `scope`: the refused range was filled with a
+   *  placeholder (`tombstoned`) so the peer's later updates still apply, or, when that
+   *  was not safe, simply dropped; a resync would be refused the same way, so there is
+   *  nothing to close for. */
+  onDrop?: (reason: DropReason, info: { tombstoned: boolean }) => void;
+}
+
+/** Most client ids one peer can own: a real client uses one per connection. */
+const MAX_OWNED_CLIENTS = 64;
 
 export interface AudiencePolicy {
   /** which doc areas an audience peer may write ((internal ADR)). */
@@ -94,7 +112,7 @@ export class Hub {
     }
   }
 
-  join(send: Send, role: PeerRole = "presenter"): Peer {
+  join(send: Send, role: PeerRole = "presenter", opts: JoinOptions = {}): Peer {
     const key = Symbol("peer");
     this.peers.set(key, send);
     // hand the newcomer the full current state (late-join replay)
@@ -108,17 +126,54 @@ export class Hub {
       enforced && this.audience!.rate
         ? tokenBucket(this.audience!.rate.capacity, this.audience!.rate.refillPerSec)
         : undefined;
+    // Yjs client ids this peer brought into the doc. Only their clocks may be filled
+    // with placeholders after a refused write: doing that for an id another peer uses
+    // would make the relay skip that peer's next real writes.
+    const owned = new Set<number>();
+    // After a rate drop the peer's later updates cannot apply until it resyncs.
+    let awaitingResync = false;
+
+    const claim = (update: Uint8Array) => {
+      const { from } = Y.parseUpdateMeta(update);
+      for (const [client, clock] of from) {
+        if (owned.size >= MAX_OWNED_CLIENTS) return;
+        if (clock === 0 && Y.getState(this.doc.store, client) === 0) owned.add(client);
+      }
+    };
+
+    /** Fill a refused update's new clock ranges with placeholders, if they all belong
+     *  to this peer. Returns whether it did. */
+    const tombstone = (update: Uint8Array): boolean => {
+      claim(update);
+      const state = Y.decodeStateVector(Y.encodeStateVector(this.doc));
+      const ranges = newRanges(update, state);
+      // Each range must continue the id's clock exactly: a placeholder after a gap would
+      // wait in the doc, and could later let parked content in unchecked.
+      if (ranges.some((r) => !owned.has(r.client) || r.clock !== (state.get(r.client) ?? 0))) return false;
+      if (ranges.length > 0) Y.applyUpdate(this.doc, tombstoneUpdate(ranges), key);
+      return true;
+    };
 
     return {
       key,
       recv: (data) => {
+        if (awaitingResync) return;
         // a malformed/garbage frame must never crash the relay or other peers
         try {
           if (enforced) {
-            if (bucket && !bucket.tryConsume(Date.now())) return; // rate-limited → drop
-            if (!authorizeAudienceUpdate(Y.encodeStateAsUpdate(this.doc), data, this.audience!.scope)) {
-              return; // out-of-scope write → drop, never applied/broadcast
+            if (bucket && !bucket.tryConsume(Date.now())) {
+              // rate-limited → drop, and have the client resend everything once it
+              // reconnects (its later updates would otherwise wait for this one forever)
+              awaitingResync = true;
+              opts.onDrop?.("rate", { tombstoned: false });
+              return;
             }
+            if (!authorizeAudienceUpdate(Y.encodeStateAsUpdate(this.doc), data, this.audience!.scope)) {
+              // out-of-scope or out-of-bounds write → never applied or broadcast
+              opts.onDrop?.("scope", { tombstoned: tombstone(data) });
+              return;
+            }
+            claim(data);
           }
           Y.applyUpdate(this.doc, data, key);
         } catch {

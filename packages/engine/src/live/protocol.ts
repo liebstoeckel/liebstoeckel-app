@@ -18,6 +18,9 @@ export const LIVE_CLOSE = {
   PROTOCOL_TOO_OLD: 4005,
   /** The talk ended; do not reconnect. */
   ENDED: 4006,
+  /** One of this client's updates was dropped (the audience rate limit); reconnect
+   *  and send the full state again so the later ones arrive. */
+  DROPPED: 4007,
 } as const;
 
 /** Where a live connection stands, for status displays. */
@@ -36,6 +39,9 @@ export interface LiveState {
   status: LiveStatus;
   /** the server's explanation, for `outdated` */
   message?: string;
+  /** the server keeps refusing this client's updates for coming too fast; it is
+   *  resending them, a little slower */
+  sending?: boolean;
 }
 
 /** `url` with this client's protocol version. */

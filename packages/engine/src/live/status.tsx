@@ -9,17 +9,23 @@ const TEXT: Record<Exclude<LiveState["status"], "connected">, string> = {
 
 /** Whether a role sees this state: presenters see every problem with the live
  *  connection; the audience only what will not fix itself (a brief reconnect
- *  during a server restart should not flash on every phone in the room). */
+ *  during a server restart should not flash on every phone in the room), and the
+ *  `sending` hint, since it is about what that person just did. */
 export function liveStatusVisible(state: LiveState | undefined, role: string | undefined): boolean {
-  if (!state || state.status === "connected") return false;
+  if (!state) return false;
+  if (state.sending && state.status !== "ended" && state.status !== "outdated") return true;
+  if (state.status === "connected") return false;
   if (role === "viewer") return state.status === "ended" || state.status === "outdated";
   return true;
 }
 
 /** The live connection's state as a small pill, when it is not simply connected. */
 export function LiveStatusBadge({ state, role, className = "" }: { state?: LiveState; role?: string; className?: string }) {
-  if (!state || !liveStatusVisible(state, role) || state.status === "connected") return null;
+  if (!state || !liveStatusVisible(state, role)) return null;
   const fatal = state.status === "ended" || state.status === "outdated";
+  // Updates the server refused for coming too fast are resent after a short pause.
+  const label = !fatal && state.sending ? "Sending" : state.status === "connected" ? null : TEXT[state.status];
+  if (label === null) return null;
   return (
     <div
       role="status"
@@ -32,7 +38,7 @@ export function LiveStatusBadge({ state, role, className = "" }: { state?: LiveS
           {TEXT.outdated}
         </button>
       ) : (
-        TEXT[state.status]
+        label
       )}
     </div>
   );

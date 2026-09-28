@@ -33,6 +33,19 @@ export interface ConnectOptions {
    *  as much jitter) instead of backing off, for `quickRetryWindowMs`. */
   quickRetryMs?: number;
   quickRetryWindowMs?: number;
+  /** After the server dropped one of our updates (close 4007) the client reconnects at
+   *  once and resends its state. Another such close within this window (ms) means it
+   *  keeps happening: show the `sending` hint and back off instead. */
+  dropWindowMs?: number;
+  /** Shortest time the `sending` hint stays up, so it does not flicker (ms). */
+  sendingHintMs?: number;
+}
+
+/** A fresh Yjs client id (Yjs itself uses a random uint32). */
+function newClientId(): number {
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return a[0]!;
 }
 
 /** Connect a Yjs doc to the live server over WebSocket, with auto-reconnect and a
@@ -51,6 +64,14 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   const connectTimeoutMs = opts.connectTimeoutMs ?? 10_000;
   let attemptAt = 0;
   const quickWindowMs = opts.quickRetryWindowMs ?? 30_000;
+  const dropWindowMs = opts.dropWindowMs ?? 15_000;
+  const sendingHintMs = opts.sendingHintMs ?? 2000;
+  /** When the server last closed us for a dropped update, and how many such closes
+   *  came in a row, each within `dropWindowMs` of the one before. */
+  let lastDropAt = -Infinity;
+  let dropStreak = 0;
+  let sendingSince = 0;
+  let sendingTimer: ReturnType<typeof setTimeout> | undefined;
   /** Until when failed reconnects retry quickly: the server announced it is coming back. */
   let quickUntil = 0;
   const onUnrecoverable =
@@ -67,10 +88,12 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   const stateCbs: Array<(s: LiveState) => void> = [];
   let state: LiveState = { status: "connecting" };
   const setState = (next: LiveState) => {
-    if (next.status === state.status && next.message === state.message) return;
+    if (next.status === state.status && next.message === state.message && next.sending === state.sending) return;
     state = next;
     stateCbs.forEach((cb) => cb(state));
   };
+  /** Keep the `sending` hint on the state while it is up. */
+  const withHint = (next: LiveState): LiveState => (sendingSince ? { ...next, sending: true } : next);
 
   let ws: WebSocket | null = null;
   let closed = false;
@@ -84,9 +107,17 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   };
   doc.on("update", onUpdate);
 
-  const schedule = (atOnce = false) => {
+  const schedule = (atOnce = false, delayMs?: number) => {
     if (closed) return;
-    setState({ status: "reconnecting" });
+    // A viewer's writes on the next connection go out under a new Yjs client id. The
+    // relay only fills the clocks of ids a connection brought in itself when it refuses
+    // a write, so writes under a fresh id never stay stuck behind a refused one.
+    if (info.role === "viewer") doc.clientID = newClientId();
+    setState(withHint({ status: "reconnecting" }));
+    if (delayMs !== undefined) {
+      timer = setTimeout(open, delayMs);
+      return;
+    }
     // A restart or a move is planned: the session is up again on a server within
     // moments, so reconnect now (a little jitter spreads a whole audience), and while
     // it is being placed again keep retrying about every half second rather than
@@ -157,7 +188,17 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
         /* ignore */
       }
       emit(true);
-      setState({ status: "connected" });
+      setState(withHint({ status: "connected" }));
+      // The resync just went out: take the `sending` hint down once it has shown long
+      // enough not to flicker.
+      if (sendingSince) {
+        if (sendingTimer) clearTimeout(sendingTimer);
+        sendingTimer = setTimeout(() => {
+          if (ws !== sock || sock.readyState !== sock.OPEN) return;
+          sendingSince = 0;
+          setState({ ...state, sending: undefined });
+        }, Math.max(0, sendingSince + sendingHintMs - Date.now()));
+      }
     });
     sock.addEventListener("message", (e: MessageEvent) => {
       lastMsgAt = Date.now(); // any frame (update or keepalive) proves liveness
@@ -181,6 +222,21 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
         setState({ status: "outdated", message: e?.reason || "This page is out of date. Reload it to reconnect." });
         return;
       }
+      if (code === LIVE_CLOSE.DROPPED) {
+        // One of our updates was refused, so the server cannot apply our later ones
+        // until we send everything again: reconnect at once, which resends it all. If
+        // it keeps happening, say so and back off rather than reconnect in a loop.
+        const now = Date.now();
+        dropStreak = now - lastDropAt < dropWindowMs ? dropStreak + 1 : 0;
+        lastDropAt = now;
+        if (dropStreak === 0) {
+          schedule(true);
+          return;
+        }
+        if (!sendingSince) sendingSince = now;
+        schedule(false, Math.min(baseMs * 2 ** (dropStreak - 1), maxMs));
+        return;
+      }
       schedule(code === LIVE_CLOSE.RESTARTING || code === LIVE_CLOSE.MOVED || code === LIVE_CLOSE.GRANT_EXPIRED);
     });
     sock.addEventListener("error", () => {
@@ -197,6 +253,8 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   function stop() {
     closed = true;
     if (timer) clearTimeout(timer);
+    if (sendingTimer) clearTimeout(sendingTimer);
+    sendingSince = 0;
     if (watchdog) clearInterval(watchdog);
   }
 
@@ -214,6 +272,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
     close() {
       closed = true;
       if (timer) clearTimeout(timer);
+      if (sendingTimer) clearTimeout(sendingTimer);
       if (watchdog) clearInterval(watchdog);
       doc.off("update", onUpdate);
       try {

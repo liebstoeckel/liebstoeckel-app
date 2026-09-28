@@ -641,11 +641,23 @@ export function createRelay(opts: RelayOptions): RelayServer {
         if (socket.data.role === "audience") s.audienceCount++;
         metrics.wsOpens.inc({ role: socket.data.role });
         metrics.wsConnections.inc({ role: socket.data.role });
-        socket.data.peer = s.hub.join((d) => {
-          metrics.wsFrames.inc({ dir: "out" });
-          metrics.wsBytes.inc({ dir: "out" }, d.byteLength);
-          socket.send(d);
-        }, socket.data.role);
+        socket.data.peer = s.hub.join(
+          (d) => {
+            metrics.wsFrames.inc({ dir: "out" });
+            metrics.wsBytes.inc({ dir: "out" }, d.byteLength);
+            socket.send(d);
+          },
+          socket.data.role,
+          {
+            // A rate-limited update leaves the viewer's later ones stuck until it sends
+            // its full state again: close so the client reconnects and resyncs.
+            onDrop(reason, { tombstoned }) {
+              const outcome = reason === "rate" ? "resync" : tombstoned ? "placeholder" : "muted";
+              metrics.audienceDrops.inc({ reason, outcome });
+              if (reason === "rate") socket.close(CLOSE.DROPPED, "rate");
+            },
+          },
+        );
       },
       message(socket, msg) {
         if (typeof msg === "string") return;
