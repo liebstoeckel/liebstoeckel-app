@@ -31,6 +31,8 @@ const showComments = Astro.locals.starlightRoute.entry.data.template !== "splash
         <h2>Project</h2>
         <a href={APEX} rel="noopener">liebstoeckel.app</a>
         <a href={GITHUB} rel="noopener">GitHub</a>
+        {/* same origin: the forms service is routed under /forms on the docs host */}
+        <a href="/forms/feedback?area=docs">Send feedback</a>
       </div>
       <div class="foot-col">
         <h2>Legal</h2>
