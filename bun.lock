@@ -149,6 +149,8 @@
         "@tailwindcss/vite": "^4.3.0",
         "@tanstack/react-router": "1.170.15",
         "@tanstack/react-start": "1.168.25",
+        "altcha": "3.2.3",
+        "altcha-lib": "2.5.0",
         "better-auth": "1.7.3",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
