@@ -538,12 +538,12 @@ describe("connectLive: session state and resume token", () => {
     sock().serverClose(1006);
     await Bun.sleep(30);
     expect(created[1]!.url).not.toContain("r=");
-    const token = "0123456789abcdef".repeat(2);
+    const given = "c".repeat(32); // a well-formed token (hex, 32 chars)
     created[1]!.open();
-    created[1]!.deliverText(JSON.stringify({ t: "resume", token }));
+    created[1]!.deliverText(JSON.stringify({ t: "resume", token: given }));
     created[1]!.serverClose(1006);
     await Bun.sleep(30);
-    expect(created[2]!.url).toContain(`r=${token}`);
+    expect(created[2]!.url).toContain(`r=${given}`);
     conn.close();
   });
 });

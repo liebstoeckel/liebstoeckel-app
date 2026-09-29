@@ -236,7 +236,7 @@ describe("viewers' Yjs client ids (protocol 3 resume token)", () => {
     await settle(30);
     // a stranger with a made-up token cannot bring it in either
     const stranger = await s.viewer(3, `&p=alice&r=${"0".repeat(32)}`);
-    stranger.ws.send(Y.encodeStateAsUpdate(v.doc));
+    stranger.ws.send(new Uint8Array(Y.encodeStateAsUpdate(v.doc)));
     await settle();
     // (its delete set still applies: deleting an entry is something any viewer may do)
     expect((await votesOf(s.presenter)).alice).not.toBe("B");
@@ -247,7 +247,7 @@ describe("viewers' Yjs client ids (protocol 3 resume token)", () => {
     expect(resumeOf(back)).toBe(token);
     const resync = new Y.Doc();
     Y.applyUpdate(resync, Y.encodeStateAsUpdate(v.doc));
-    back.ws.send(Y.encodeStateAsUpdate(resync));
+    back.ws.send(new Uint8Array(Y.encodeStateAsUpdate(resync)));
     await settle();
     expect(await votesOf(s.presenter)).toEqual({ alice: "B" });
     expect(back.texts().filter((m) => m.t !== "resume")).toEqual([]);
@@ -262,13 +262,13 @@ describe("viewers' Yjs client ids (protocol 3 resume token)", () => {
       const send = (w: WebSocket, change: (d: Y.Doc) => void) => {
         const sv = Y.encodeStateVector(doc);
         change(doc);
-        w.send(Y.encodeStateAsUpdate(doc, sv));
+        w.send(new Uint8Array(Y.encodeStateAsUpdate(doc, sv)));
       };
       send(first.ws, vote("bob", "A"));
       await settle();
       first.ws.close();
       const again = await s.viewer(version, "&p=bob");
-      again.ws.send(Y.encodeStateAsUpdate(doc)); // its resync, same client id
+      again.ws.send(new Uint8Array(Y.encodeStateAsUpdate(doc))); // its resync, same client id
       send(again.ws, vote("bob", "B"));
       await settle();
       expect(await votesOf(s.presenter)).toEqual({ bob: "B" });
