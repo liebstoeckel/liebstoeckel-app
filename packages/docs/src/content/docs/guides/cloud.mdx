@@ -319,7 +319,48 @@ views, view history with longer retention, public links without the liebstoeckel
 longer/no-expiry links, and
 larger live sessions with **persisted results**.
 Plans attach to the **organization** (one subscription per workspace). The CLI shows your
-current plan under `liebstoeckel orgs`.
+current plan under `liebstoeckel orgs`. **Pro** is for your personal workspace and **Team**
+for a team workspace, from two seats.
+
+### Assistant credits
+
+The hosted assistant spends **credits**: one credit is a tenth of a US cent of model cost,
+counted exactly per request. A deck from scratch costs about **3 credits** with today's
+model, so the Billing page and the assistant show every amount with "about N decks",
+worked out from what your own decks have cost so far.
+
+| Plan | Credits | About |
+|---|---|---|
+| Free | 15 a calendar month | 5 decks |
+| Pro | 100 per billing period | 30 decks |
+| Team | 50 per seat per billing period, one pool for the team | 15 decks per seat |
+
+A paid plan's credits renew on the day it renews, and they do not carry over. Owners and
+admins see what each member spent this period on the Billing page. When the credits run out,
+the assistant stops and says so; your deck stays as it is.
+
+**More credit**, for owners and admins of a paid plan:
+
+- **Monthly credit add-on**: Credits S (500 a month, 5 EUR), M (1,100, 10 EUR) or L (2,400,
+  20 EUR), on the same subscription as the plan. A larger size starts at once: you pay the
+  difference for the rest of the period and get the difference in credits.
+- **One-off credit**: 200 credits for 2 EUR, as many blocks as the workspace's limit
+  allows. They are yours at once, until the end of the billing period, and the amount is
+  added to your next bill. An owner sets the limit per billing period on the Billing page
+  (10 EUR unless changed). One-off credit cannot be added while the plan is set to end.
+
+The assistant's out-of-credit card offers one-off credit first and a larger add-on second.
+
+### Changing seats or the add-on
+
+More seats and a larger add-on start at once and are charged for the rest of the period. The
+confirmation shows the amount before anything is charged; amounts too small for the payment
+provider to charge go through free.
+
+**Fewer seats, a smaller add-on or none** start with your **next bill**. Until then you keep
+what you paid for: the seats (and the invitations they allow) and this period's credits. The
+Billing page shows the change as scheduled, with its date, and **Undo** takes it back before
+then. Seats never go below the people in the team plus open invitations.
 
 ### Cancelling a plan
 
