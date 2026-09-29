@@ -9,7 +9,11 @@ const counter = definePlugin<{ n: number }>({
   id: "counter",
   state: schema({ n: t.number }),
   client: {
-    Slide: (p: ClientProps<{ n: number }>) => <div>live:{p.snapshot.n}:{p.role}</div>,
+    Slide: (p: ClientProps<{ n: number }>) => (
+      <div>
+        live:{p.snapshot.n}:{p.role}:{String(p.synced)}
+      </div>
+    ),
     fallback: ({ snapshot }) => <div>offline:{snapshot.n}</div>,
   },
 });
@@ -44,7 +48,32 @@ describe("<Plugin>", () => {
         <Plugin id="counter" />
       </LiveProvider>,
     );
-    expect(html).toContain("live:7:presenter");
+    expect(html).toContain("live:7:presenter:true");
+  });
+
+  test("passes `synced` and holds writes back until the session state arrives", () => {
+    const doc = new Y.Doc();
+    let synced = false;
+    const cbs: Array<() => void> = [];
+    const gate = {
+      get synced() {
+        return synced;
+      },
+      onSynced: (cb: () => void) => (cbs.push(cb), () => {}),
+    };
+    const html = renderToStaticMarkup(
+      <LiveProvider value={ctx({ live: true, doc, synced: false, gate })}>
+        <Plugin id="counter" />
+      </LiveProvider>,
+    );
+    expect(html).toContain("live:0:viewer:false");
+    // the engine builds plugin state with the gate: a write waits for the state
+    const st = pluginState(doc, "counter", counter.state, "", gate);
+    st.set("n", 3);
+    expect(st.snapshot().n).toBe(0);
+    synced = true;
+    cbs.forEach((cb) => cb());
+    expect(st.snapshot().n).toBe(3);
   });
 
   test("unknown plugin id renders nothing", () => {

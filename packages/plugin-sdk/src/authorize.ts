@@ -53,6 +53,16 @@ function scopeForRoot(scope: AudienceScope, rootKey: string): ReadonlySet<string
   return null;
 }
 
+/** May an audience peer write under `field` of the doc root `root`? `field` is the key
+ *  in the root (null for a sequence root). Used to tell, from a stored doc, which Yjs
+ *  clients only ever wrote what the audience may write. */
+export function audienceMayWrite(scope: AudienceScope, root: string, field: string | null): boolean {
+  const allowed = scopeForRoot(scope, root);
+  if (allowed === null) return false;
+  if (allowed === "*") return true;
+  return field !== null && allowed.has(field);
+}
+
 // Universal bounds on the *values* an audience peer may write into its allowed fields.
 // Scope alone (which field changed) is not enough: a peer can write any JSON into an
 // allowed field, and an oversized string, pathological nesting, or a runaway number of

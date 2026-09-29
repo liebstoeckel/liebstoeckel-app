@@ -80,7 +80,13 @@ const props = (): ClientProps<MyState> => {
 test("Slide renders", () => {
   expect(renderToStaticMarkup(<plugin.client.Slide {...props()} />)).toContain("…");
 });
+
+test("Slide says it is connecting before the session state arrives", () => {
+  expect(renderToStaticMarkup(<plugin.client.Slide {...props()} synced={false} />)).toContain("connecting");
+});
 ```
+
+To test what your plugin writes before the session state arrives, pass `pluginState` a gate as its fifth argument, `{ synced, onSynced(cb) }`: writes wait until you call the callbacks, the way the engine holds them until the server's state is in.
 
 ## Server effects
 

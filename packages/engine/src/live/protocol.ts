@@ -4,17 +4,19 @@
 // engine), so a live-server test keeps the two equal.
 
 /** The live protocol this client speaks, sent as `v` on the socket URL. */
-export const LIVE_PROTOCOL = 2;
+export const LIVE_PROTOCOL = 3;
 
 /** Why a server refused an audience write (see the live server's protocol). */
 export type RefusalReason = "busy" | "full" | "invalid";
 
 /** Control messages servers send as text frames to protocol 2 clients. After `reset`
- *  the next binary frame is the whole session state, which replaces the client's doc. */
+ *  the next binary frame is the whole session state, which replaces the client's doc.
+ *  `resume` (protocol 3) is a secret the client sends back as `r` when it reconnects. */
 export type LiveNotice =
   | { t: "refused"; reason: RefusalReason; roots: string[] }
   | { t: "reset" }
-  | { t: "refusing"; reason: Exclude<RefusalReason, "invalid"> | null };
+  | { t: "refusing"; reason: Exclude<RefusalReason, "invalid"> | null }
+  | { t: "resume"; token: string };
 
 const REASONS: readonly string[] = ["busy", "full", "invalid"];
 
@@ -36,6 +38,9 @@ export function parseNotice(text: string): LiveNotice | null {
   if (m.t === "reset") return { t: "reset" };
   if (m.t === "refusing" && (m.reason === null || m.reason === "busy" || m.reason === "full")) {
     return { t: "refusing", reason: m.reason };
+  }
+  if (m.t === "resume" && typeof m.token === "string" && /^[0-9a-f]{16,128}$/.test(m.token)) {
+    return { t: "resume", token: m.token };
   }
   return null;
 }

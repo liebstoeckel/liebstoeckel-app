@@ -54,6 +54,7 @@ export function Present(props: DeckProps) {
   const [doc, setDoc] = useState<Y.Doc>(() => conn?.doc ?? new Y.Doc());
   const [connection, setConnection] = useState<LiveState | undefined>(undefined);
   const [refusals, setRefusals] = useState<ReadonlyMap<string, Refusal> | undefined>(undefined);
+  const [synced, setSynced] = useState(() => conn?.synced ?? true);
   useEffect(() => {
     if (!conn) return;
     // A viewer's doc is replaced when the server refuses one of its writes.
@@ -61,6 +62,8 @@ export function Present(props: DeckProps) {
     conn.onDoc(setDoc);
     conn.onRefusals(setRefusals);
     conn.onState(setConnection);
+    // Plugins see the session state only once it has arrived; their writes wait for it.
+    return conn.onSynced(() => setSynced(true));
   }, [conn]);
 
   // A plugin with global surfaces + a presenter console (e.g. Q&A) can be used without an
@@ -85,6 +88,8 @@ export function Present(props: DeckProps) {
     audienceInputKeptDays: info?.audienceInputKeptDays,
     connection: info ? connection : undefined,
     refusals: info ? refusals : undefined,
+    synced: conn ? synced : true,
+    gate: conn ?? undefined,
     plugins: registry,
   };
 

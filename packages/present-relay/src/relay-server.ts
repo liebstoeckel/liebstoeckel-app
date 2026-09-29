@@ -19,6 +19,7 @@ import {
   CLOSE,
   LIVE_PROTOCOL,
   NOTICES_SINCE,
+  RESUME_SINCE,
   TOO_OLD_REASON,
   negotiateVersion,
   type LiveNotice,
@@ -135,6 +136,8 @@ interface RelaySession {
   fence?: ReturnType<typeof setInterval>;
   /** open sockets, closed with a reason when the session goes away */
   sockets: Set<ServerWebSocket<WSData>>;
+  /** resume tokens handed to this session's viewers (protocol 3+) */
+  resumeTokens: Set<string>;
   /** Audience writes are being refused for being full or the relay being short of
    *  memory; presenters are told, and told again when they are taken. */
   refusing?: { reason: "busy" | "full"; quiet?: ReturnType<typeof setTimeout> };
@@ -170,6 +173,11 @@ type WSData = {
   version: number;
   /** a presenter by grant (not the runner): gets the `refusing` notices */
   presenter: boolean;
+  /** viewers: who this client is across reconnects, for the Yjs client ids it may
+   *  write (the resume token on protocol 3+, the participant id before) */
+  owner?: string;
+  /** viewers on protocol 3+: the resume token to send when the socket opens */
+  resume?: string;
   /** when this viewer last got the session state after a refusal, and the pending one */
   resetAt?: number;
   resetTimer?: ReturnType<typeof setTimeout>;
@@ -529,6 +537,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       snapshotKey: state ? undefined : snapshotKey,
       state,
       sockets: new Set(),
+      resumeTokens: new Set(),
     };
     const unref = (t: unknown) => (t as { unref?: () => void }).unref?.();
     rs.ttl = setTimeout(() => void dropSession(rs), ttlMs);
@@ -720,14 +729,31 @@ export function createRelay(opts: RelayOptions): RelayServer {
       // A browser cannot read the body of a refused upgrade, so an old client is let
       // in and then closed with a code that tells it why.
       const negotiated = negotiateVersion(url.searchParams.get("v"), LIVE_PROTOCOL);
+      const version = negotiated.ok ? negotiated.version : 0;
       const data: WSData = {
         sessionId: s.id,
         peer: null,
         role,
         tooOld: !negotiated.ok,
-        version: negotiated.ok ? negotiated.version : 0,
+        version,
         presenter: relRole === "presenter",
       };
+      // Which Yjs client ids a viewer may write follows who it is across reconnects. A
+      // current client takes a fresh id per connection and proves it is the same client
+      // with the resume token it was given; an older one keeps its id and only has its
+      // participant id, which is not secret (see the Hub).
+      if (role === "audience") {
+        if (version >= RESUME_SINCE) {
+          const r = url.searchParams.get("r");
+          const token = r && s.resumeTokens.has(r) ? r : hex();
+          s.resumeTokens.add(token);
+          data.resume = token;
+          data.owner = `r:${token}`;
+        } else {
+          const p = url.searchParams.get("p");
+          if (p) data.owner = `p:${p}`;
+        }
+      }
       return srv.upgrade(req, { data }) ? undefined : new Response("upgrade failed", { status: 400 });
     }
 
@@ -785,6 +811,11 @@ export function createRelay(opts: RelayOptions): RelayServer {
           },
           socket.data.role,
           {
+            owner: socket.data.owner,
+            claimSeeded: socket.data.version < RESUME_SINCE,
+            onForeign() {
+              metrics.audienceDrops.inc({ reason: "foreign", outcome: "removed" });
+            },
             // A rate-limited update leaves the viewer's later ones stuck until it sends
             // its full state again: close so the client reconnects and resyncs.
             onDrop(reason, { tombstoned, fieldFull, roots, adds }) {
@@ -804,6 +835,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
             },
           },
         );
+        if (socket.data.resume) notify(socket, { t: "resume", token: socket.data.resume });
       },
       message(socket, msg) {
         if (typeof msg === "string") return;

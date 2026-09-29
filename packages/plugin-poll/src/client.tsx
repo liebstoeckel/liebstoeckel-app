@@ -37,20 +37,22 @@ function Results({ snapshot, theme }: ClientProps<PollState>) {
 function PollSlide(p: ClientProps<PollState>) {
   useSeed(p);
   const { snapshot, state, participantId, role, ui } = p;
+  // until the session state arrives the snapshot is empty: "0 votes" would read as lost votes
+  const connecting = p.synced === false;
   const mine = myVote(snapshot, participantId);
   const ResultsView = (ui.Results as unknown as typeof Results) ?? Results;
   const vote = (option: string) => {
-    if (!snapshot.closed) state.recordSet("votes", participantId, option);
+    if (!snapshot.closed && !connecting) state.recordSet("votes", participantId, option);
   };
   return (
     <Card style={{ width: "100%", maxWidth: 460 }}>
-      <Eyebrow>Live poll · {totalVotes(snapshot)} votes</Eyebrow>
+      <Eyebrow>Live poll · {connecting ? "connecting…" : `${totalVotes(snapshot)} votes`}</Eyebrow>
       <div style={{ fontFamily: "var(--brand-font-heading, serif)", fontSize: "1.9rem", fontWeight: 600, marginBottom: "1.1rem" }}>
         {snapshot.question || "…"}
       </div>
       <Stack gap="0.55rem">
         {snapshot.options.map((o) => (
-          <Button key={o} active={mine === o} disabled={snapshot.closed} onClick={() => vote(o)}>
+          <Button key={o} active={mine === o} disabled={snapshot.closed || connecting} onClick={() => vote(o)}>
             {o}
           </Button>
         ))}
@@ -77,6 +79,13 @@ function PollSlide(p: ClientProps<PollState>) {
  *  voting on the audience screen ((internal ADR)). */
 function PollConsole(p: ClientProps<PollState>) {
   const { snapshot, state, role } = p;
+  if (p.synced === false) {
+    return (
+      <Card>
+        <Eyebrow>Results · connecting…</Eyebrow>
+      </Card>
+    );
+  }
   return (
     <Card>
       <Eyebrow>Results · {totalVotes(snapshot)} votes{snapshot.closed ? " · closed" : ""}</Eyebrow>

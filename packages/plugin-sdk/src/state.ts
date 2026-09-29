@@ -31,11 +31,27 @@ function toJS(v: unknown): unknown {
   return v;
 }
 
+/** Tells a plugin's state whether the live doc holds the session's state yet. A live
+ *  client starts with an empty doc and gets the whole session state from the server
+ *  right after it connects. A write before that lands on the empty doc: seeding
+ *  defaults, or the first entry of a record field, creates a fresh map where the session
+ *  already has one, and Yjs may let the fresh one win, so the votes or questions in the
+ *  session's map disappear for everyone. While `synced` is false the state holds its
+ *  writes back and runs them, in order, once the session state has arrived. */
+export interface SyncGate {
+  readonly synced: boolean;
+  /** Call `cb` once the state has arrived (at once if it already has). Returns an
+   *  unsubscribe. */
+  onSynced(cb: () => void): () => void;
+}
+
 export interface PluginState<T> {
   readonly root: Y.Map<unknown>;
   /** Current state as plain JS (missing fields filled from schema defaults). */
   snapshot(): T;
-  /** Seed defaults (+ optional overrides) only if the state is empty. */
+  /** Seed defaults (+ optional overrides) only if the state is empty. Before the live
+   *  session state has arrived this (like every write) is held back, and the emptiness
+   *  check runs against the session's real state once it is there. */
   ensureDefaults(initial?: Partial<T>): void;
   /** Replace a whole top-level field. */
   set<K extends keyof T>(key: K, value: T[K]): void;
@@ -46,8 +62,29 @@ export interface PluginState<T> {
   subscribe(cb: (snap: T) => void): () => void;
 }
 
-export function pluginState<T>(doc: Y.Doc, id: string, schema: Schema<T>, instance = ""): PluginState<T> {
+export function pluginState<T>(
+  doc: Y.Doc,
+  id: string,
+  schema: Schema<T>,
+  instance = "",
+  gate?: SyncGate,
+): PluginState<T> {
   const root = doc.getMap<unknown>(instanceStateKey(id, instance));
+
+  // Writes made before the session state arrived, run in order once it has.
+  let held: Array<() => void> | null = null;
+  const write = (fn: () => void) => {
+    if (!gate || gate.synced) return fn();
+    if (!held) {
+      held = [];
+      gate.onSynced(() => {
+        const run = held ?? [];
+        held = null;
+        for (const f of run) f();
+      });
+    }
+    held.push(fn);
+  };
 
   const snapshot = (): T => {
     const base = schema.default() as Record<string, unknown>;
@@ -63,30 +100,36 @@ export function pluginState<T>(doc: Y.Doc, id: string, schema: Schema<T>, instan
     root,
     snapshot,
     ensureDefaults(initial) {
-      if (root.size > 0) return;
-      const init = { ...(schema.default() as Record<string, unknown>), ...(initial ?? {}) };
-      doc.transact(() => {
-        for (const [k, v] of Object.entries(init)) root.set(k, toY(v));
+      write(() => {
+        if (root.size > 0) return;
+        const init = { ...(schema.default() as Record<string, unknown>), ...(initial ?? {}) };
+        doc.transact(() => {
+          for (const [k, v] of Object.entries(init)) root.set(k, toY(v));
+        });
       });
     },
     set(key, value) {
-      doc.transact(() => root.set(key as string, toY(value)));
+      write(() => doc.transact(() => root.set(key as string, toY(value))));
     },
     recordSet(field, key, value) {
-      doc.transact(() => {
-        let m = root.get(field as string);
-        if (!(m instanceof Y.Map)) {
-          m = new Y.Map();
-          root.set(field as string, m);
-        }
-        (m as Y.Map<unknown>).set(key, toY(value));
-      });
+      write(() =>
+        doc.transact(() => {
+          let m = root.get(field as string);
+          if (!(m instanceof Y.Map)) {
+            m = new Y.Map();
+            root.set(field as string, m);
+          }
+          (m as Y.Map<unknown>).set(key, toY(value));
+        }),
+      );
     },
     recordDelete(field, key) {
-      doc.transact(() => {
-        const m = root.get(field as string);
-        if (m instanceof Y.Map) m.delete(key);
-      });
+      write(() =>
+        doc.transact(() => {
+          const m = root.get(field as string);
+          if (m instanceof Y.Map) m.delete(key);
+        }),
+      );
     },
     subscribe(cb) {
       const handler = () => cb(snapshot());

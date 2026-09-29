@@ -1,6 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
 import { Hub } from "./relay";
+import { tombstoneUpdate } from "./tombstone";
 
 describe("Hub (Yjs relay)", () => {
   test("newcomers get full state; updates broadcast to others, not the sender", () => {
@@ -127,6 +128,7 @@ describe("Hub, refused audience updates", () => {
     const drops: Array<[string, boolean]> = [];
     const toViewer: Uint8Array[] = [];
     const peer = hub.join((d) => toViewer.push(d), "audience", {
+      owner: "viewer-1",
       onDrop: (reason, { tombstoned }) => drops.push([reason, tombstoned]),
     });
     const viewer = new Y.Doc();
@@ -156,9 +158,9 @@ describe("Hub, refused audience updates", () => {
     vote("c", "C");
     peer.recv(frames[2]!);
     expect(votes()).toEqual({ a: "A" });
-    // the reconnect resends the whole state in one update
+    // the reconnect (the same client, so the same owner) resends the whole state in one update
     peer.leave();
-    const again = hub.join(() => {}, "audience");
+    const again = hub.join(() => {}, "audience", { owner: "viewer-1" });
     again.recv(Y.encodeStateAsUpdate(viewer));
     expect(votes()).toEqual({ a: "A", b: "B", c: "C" });
   });
@@ -174,7 +176,7 @@ describe("Hub, refused audience updates", () => {
     expect(votes()).toEqual({ a: "B" });
     expect(hub.doc.store.pendingStructs).toBeNull();
     // a resync after a reconnect stays refused for the presenter-only part
-    const again = hub.join(() => {}, "audience");
+    const again = hub.join(() => {}, "audience", { owner: "viewer-1" });
     again.recv(Y.encodeStateAsUpdate(viewer));
     expect(hub.doc.getMap("nav").get("slide")).toBe(1);
   });
@@ -184,12 +186,20 @@ describe("Hub, refused audience updates", () => {
     vote("a", "A");
     const first = hub.join(() => {}, "audience");
     first.recv(frames[0]!); // `first` brought the viewer's client id in
-    // a second connection sends a refused write under that id: dropped, no placeholder
+    // a second connection sends a refused write under that id: the id is not its own, so
+    // the write is removed before the check, and no placeholder goes over those clocks
     viewer.getMap("nav").set("slide", 99);
     const drops: boolean[] = [];
-    const other = hub.join(() => {}, "audience", { onDrop: (_r, { tombstoned }) => drops.push(tombstoned) });
+    let foreign = 0;
+    const other = hub.join(() => {}, "audience", {
+      onDrop: (_r, { tombstoned }) => drops.push(tombstoned),
+      onForeign: () => foreign++,
+    });
     other.recv(frames[1]!);
-    expect(drops).toEqual([false]);
+    expect(foreign).toBe(1);
+    // what is left (it deletes the presenter's old value) is refused as out of scope
+    expect(drops).toEqual([true]);
+    expect(hub.doc.getMap("nav").get("slide")).toBe(1);
     // the relay's clock for that id did not move past what `first` sent
     expect(Y.getState(hub.doc.store, viewer.clientID)).toBe(Y.parseUpdateMeta(frames[0]!).to.get(viewer.clientID)!);
     expect(votes()).toEqual({ a: "A" });
@@ -243,7 +253,8 @@ describe("Hub, a large audience", () => {
       (v.getMap("plugin:poll").get("votes") as Y.Map<string>).set(`viewer-${i}`, i % 2 ? "red" : "blue");
       return Y.encodeStateAsUpdate(v, sv);
     });
-    const peers = Array.from({ length: 8 }, () => hub.join(() => {}, "audience"));
+    // a connection brings in at most 64 client ids: 50 viewers per connection
+    const peers = Array.from({ length: voters / 50 }, () => hub.join(() => {}, "audience"));
     const time = (from: number, to: number) => {
       const t = performance.now();
       for (let i = from; i < to; i++) peers[i % peers.length]!.recv(frames[i]!);
@@ -369,5 +380,168 @@ describe("Hub: what a refusal says", () => {
       // the deleted entry is the refused one, which the hub only holds as a placeholder
       { reason: "full", roots: [], adds: false },
     ]);
+  });
+});
+
+describe("Hub: an audience peer writes only on its own Yjs client ids", () => {
+  const scope = { pluginFields: new Map([["poll", new Set(["votes"])]]), wholeRoots: new Set<string>() };
+
+  /** An enforced hub with the presenter's poll in it. */
+  function setup() {
+    const hub = new Hub({ audience: { scope } });
+    const presenter = new Y.Doc();
+    presenter.getMap("plugin:poll").set("votes", new Y.Map());
+    presenter.getMap("nav").set("slide", 1);
+    const presenterPeer = hub.join(() => {}, "presenter");
+    presenterPeer.recv(Y.encodeStateAsUpdate(presenter));
+    const votes = () => (hub.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).toJSON();
+    /** A viewer: its own doc and connection, sending each change as it is made. */
+    const viewer = (owner?: string, extra: Parameters<Hub["join"]>[2] = {}) => {
+      const doc = new Y.Doc();
+      Y.applyUpdate(doc, Y.encodeStateAsUpdate(hub.doc));
+      let foreign = 0;
+      const drops: string[] = [];
+      const peer = hub.join(() => {}, "audience", {
+        owner,
+        onForeign: () => foreign++,
+        onDrop: (r) => drops.push(r),
+        ...extra,
+      });
+      const vote = (k: string, v: string) => {
+        const sv = Y.encodeStateVector(doc);
+        (doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set(k, v);
+        peer.recv(Y.encodeStateAsUpdate(doc, sv));
+      };
+      return { doc, peer, vote, foreign: () => foreign, drops };
+    };
+    return { hub, presenter, presenterPeer, votes, viewer };
+  }
+
+  // The probe from the ticket: placeholders over another viewer's next clocks made the
+  // relay skip that viewer's next real write as already known.
+  test("placeholders over another viewer's next clocks are removed; that viewer's next vote arrives", () => {
+    const { hub, votes, viewer } = setup();
+    const a = viewer("p:a");
+    a.vote("a", "A");
+    const b = viewer("p:b");
+    const next = Y.getState(hub.doc.store, a.doc.clientID);
+    b.peer.recv(tombstoneUpdate([{ client: a.doc.clientID, clock: next, length: 50 }]));
+    expect(b.foreign()).toBe(1);
+    expect(Y.getState(hub.doc.store, a.doc.clientID)).toBe(next);
+    a.vote("a", "B");
+    expect(votes()).toEqual({ a: "B" });
+    expect(a.drops).toEqual([]);
+  });
+
+  test("content under another viewer's or the presenter's id is removed; their own writes still arrive", () => {
+    const { hub, presenter, presenterPeer, votes, viewer } = setup();
+    const a = viewer("p:a");
+    a.vote("a", "A");
+    // b copies a's doc and writes as a's client id, then as the presenter's
+    const b = viewer("p:b");
+    for (const victim of [a.doc.clientID, presenter.clientID]) {
+      const forged = new Y.Doc();
+      Y.applyUpdate(forged, Y.encodeStateAsUpdate(hub.doc));
+      forged.clientID = victim;
+      const sv = Y.encodeStateVector(forged);
+      (forged.getMap("plugin:poll").get("votes") as Y.Map<string>).set("b", "forged");
+      b.peer.recv(Y.encodeStateAsUpdate(forged, sv));
+    }
+    expect(b.foreign()).toBe(2);
+    expect(votes()).toEqual({ a: "A" });
+    a.vote("a", "B");
+    const sv = Y.encodeStateVector(presenter);
+    presenter.getMap("nav").set("slide", 2);
+    presenterPeer.recv(Y.encodeStateAsUpdate(presenter, sv));
+    expect(votes()).toEqual({ a: "B" });
+    expect(hub.doc.getMap("nav").get("slide")).toBe(2);
+  });
+
+  test("the same client reconnecting (same owner) continues its old id; its resync delivers what the relay missed", () => {
+    const { votes, viewer } = setup();
+    const a = viewer("r:token-a");
+    a.vote("a", "A");
+    // a vote made while the connection was dying: the relay never got it
+    (a.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("a", "B");
+    a.peer.leave();
+    const again = viewer("r:token-a");
+    again.peer.recv(Y.encodeStateAsUpdate(a.doc)); // the resync
+    expect(votes()).toEqual({ a: "B" });
+    expect(again.foreign()).toBe(0);
+    expect(again.drops).toEqual([]);
+    // and it keeps working, with no refusal loop
+    const sv = Y.encodeStateVector(a.doc);
+    (a.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("a", "C");
+    again.peer.recv(Y.encodeStateAsUpdate(a.doc, sv));
+    expect(votes()).toEqual({ a: "C" });
+    expect(again.drops).toEqual([]);
+  });
+
+  test("an old client (keeps its id, known by its participant) keeps working across reconnects", () => {
+    const { votes, viewer } = setup();
+    const a = viewer("p:old", { claimSeeded: true });
+    a.vote("a", "A");
+    a.peer.leave();
+    const again = viewer("p:old", { claimSeeded: true });
+    again.doc.clientID = a.doc.clientID;
+    Y.applyUpdate(again.doc, Y.encodeStateAsUpdate(a.doc));
+    again.peer.recv(Y.encodeStateAsUpdate(again.doc));
+    again.vote("a", "B");
+    expect(votes()).toEqual({ a: "B" });
+    expect(again.foreign()).toBe(0);
+    expect(again.drops).toEqual([]);
+  });
+
+  test("a resync that carries another client's writes the relay lacks keeps its own part", () => {
+    const { votes, viewer } = setup();
+    const c = viewer("r:c");
+    c.vote("c", "C1");
+    // c's next vote reached b, but not the relay (lost in a crash, say)
+    const sv = Y.encodeStateVector(c.doc);
+    (c.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("c", "C2");
+    const lost = Y.encodeStateAsUpdate(c.doc, sv);
+    const b = viewer("r:b");
+    Y.applyUpdate(b.doc, lost);
+    (b.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("b", "B");
+    b.peer.recv(Y.encodeStateAsUpdate(b.doc)); // b's resync
+    expect(b.foreign()).toBe(1); // c's part removed, without a refusal
+    expect(b.drops).toEqual([]);
+    // (the deletion of c's earlier vote that came with it is kept: a delete set does not
+    // say whose update made it, and c's own resync brings the rest)
+    expect(votes().b).toBe("B");
+    // c's own resync delivers it
+    c.peer.recv(Y.encodeStateAsUpdate(c.doc));
+    expect(votes()).toEqual({ c: "C2", b: "B" });
+  });
+
+  test("after a reseed an old client may continue its id, but no one may take the presenter's", () => {
+    const { hub, presenter, votes, viewer } = setup();
+    const old = viewer("p:old", { claimSeeded: true });
+    old.vote("o", "A");
+    // the relay restarts: a new hub seeded from the stored state, owners forgotten
+    const next = new Hub({ audience: { scope } });
+    next.seed(hub.snapshot());
+    const join = (owner: string, claimSeeded: boolean) => {
+      let foreign = 0;
+      const peer = next.join(() => {}, "audience", { owner, claimSeeded, onForeign: () => foreign++ });
+      return { peer, foreign: () => foreign };
+    };
+    // an attacker (claiming to be an old client) tries the presenter's next clocks
+    const mallory = join("p:mallory", true);
+    mallory.peer.recv(tombstoneUpdate([{ client: presenter.clientID, clock: Y.getState(next.doc.store, presenter.clientID), length: 9 }]));
+    expect(mallory.foreign()).toBe(1);
+    // a current client (resume token, never claims seeded ids) cannot take the old one's id
+    const current = join("r:x", false);
+    current.peer.recv(tombstoneUpdate([{ client: old.doc.clientID, clock: Y.getState(next.doc.store, old.doc.clientID), length: 9 }]));
+    expect(current.foreign()).toBe(1);
+    // the old client reconnects and votes again under its id
+    const back = join("p:old", true);
+    const sv = Y.encodeStateVector(old.doc);
+    (old.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("o", "B");
+    back.peer.recv(Y.encodeStateAsUpdate(old.doc, sv));
+    expect(back.foreign()).toBe(0);
+    expect((next.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).toJSON()).toEqual({ o: "B" });
+    expect(votes()).toEqual({ o: "A" });
+    next.destroy();
   });
 });

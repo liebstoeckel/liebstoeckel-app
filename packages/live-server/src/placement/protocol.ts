@@ -31,11 +31,18 @@ export function isFatalClose(code: number): boolean {
 
 /** The live-talk protocol (decks in the browser, the relay's create API) the
  *  servers speak: the browser sends `v`, the control plane `x-live-protocol`. */
-export const LIVE_PROTOCOL: SupportedVersions = { min: 1, max: 2 };
+export const LIVE_PROTOCOL: SupportedVersions = { min: 1, max: 3 };
 
 /** The first protocol version whose clients take {@link LiveNotice}s. Older clients
  *  never get one, so what they receive stays exactly what it was. */
 export const NOTICES_SINCE = 2;
+
+/** The first protocol version whose viewers get a `resume` token and send it back as
+ *  `r` when they reconnect. They take a fresh Yjs client id on every connection, so the
+ *  token is what lets a reconnect deliver writes the last connection did not get to
+ *  send. Older clients keep their id across reconnects and are recognised by their
+ *  participant id instead. */
+export const RESUME_SINCE = 3;
 
 /** Why the relay refused an audience write, as a client hears it. `busy`: the relay is
  *  short of memory and takes no audience writes for now; `full`: the field the write
@@ -50,11 +57,15 @@ export type RefusalReason = "busy" | "full" | "invalid";
  *    the whole session state, which replaces the client's doc, so the viewer's screen
  *    shows what the presenter has (the refused write, and anything built on it, gone).
  *  - `refusing`, to presenters: audience writes are being refused (`busy` or `full`),
- *    or, with `reason: null`, are taken again. */
+ *    or, with `reason: null`, are taken again.
+ *  - `resume`, to a viewer on protocol 3 and up when it connects: a secret the client
+ *    sends back as `r` when it reconnects, so the relay knows the Yjs client ids of its
+ *    earlier connections are its own. */
 export type LiveNotice =
   | { t: "refused"; reason: RefusalReason; roots: string[] }
   | { t: "reset" }
-  | { t: "refusing"; reason: Exclude<RefusalReason, "invalid"> | null };
+  | { t: "refusing"; reason: Exclude<RefusalReason, "invalid"> | null }
+  | { t: "resume"; token: string };
 
 /** A close reason must fit 123 bytes; the full message goes where there is room. */
 export const TOO_OLD_REASON = "This page is out of date. Reload it to reconnect.";

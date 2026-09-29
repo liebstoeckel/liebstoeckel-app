@@ -51,15 +51,18 @@ state.snapshot();                       // current value as plain JS (defaults f
 state.set("closed", true);              // replace a whole top-level field
 state.recordSet("votes", pid, "Yes");   // set one entry of a top-level record field
 state.recordDelete("votes", pid);       // remove one entry
-state.ensureDefaults({ … });            // seed defaults once, only if state is empty
+state.ensureDefaults({ … });            // seed defaults once, only if state is empty (waits for the live state)
 const off = state.subscribe((snap) => …);   // observe deep changes; returns unsubscribe
 ```
 
 ## Client surfaces (`client`)
 
 `ClientProps<T>` is passed to every client component:
-`{ doc, state, snapshot, role, live, participantId, theme, ui, props, instance }`
+`{ doc, state, snapshot, role, live, participantId, theme, ui, props, instance, refusal, synced }`
 (`role` is `"presenter" | "viewer"`; `props` is the author's `<Plugin props={…}>`).
+`synced` is `false` between joining a live session and receiving its state: `snapshot`
+is only the defaults then, and writes through `state` wait until the state is there.
+Show "connecting…" rather than empty results while it is `false`.
 
 | field          | renders when / what                                                      |
 |----------------|--------------------------------------------------------------------------|

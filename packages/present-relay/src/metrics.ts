@@ -167,7 +167,7 @@ export function createRelayMetrics(version = "unknown") {
     audienceDrops: r.register(
       new Counter(
         "liebstoeckel_relay_audience_drops_total",
-        "Audience updates refused, by reason (rate|scope|full: the relay was short of memory) and outcome (resync: connection closed so the client resends; placeholder: the refused range was filled so later updates apply; muted: neither was possible)",
+        "Audience updates refused, by reason (rate|scope|full: the relay was short of memory|foreign: content on another client's Yjs ids) and outcome (resync: connection closed so the client resends; placeholder: the refused range was filled so later updates apply; muted: neither was possible; removed: the foreign part was taken out and the rest checked as usual)",
       ),
     ),
     grantDenials: r.register(new Counter("liebstoeckel_relay_grant_denials_total", "Deck/sync requests denied (bad/expired grant)")),

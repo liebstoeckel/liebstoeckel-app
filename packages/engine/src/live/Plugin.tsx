@@ -9,6 +9,7 @@ import {
   type PluginDef,
   type Refusal,
   type Role,
+  type SyncGate,
   type ThemeTokens,
 } from "@liebstoeckel/plugin-sdk";
 import { mergeUi } from "./ui";
@@ -31,6 +32,10 @@ export interface LiveContextValue {
   connection?: LiveState;
   /** this viewer's refused writes by doc root (live only) */
   refusals?: ReadonlyMap<string, Refusal>;
+  /** live only: whether the session state has arrived yet (absent means it has) */
+  synced?: boolean;
+  /** live only: holds plugin state writes back until the session state has arrived */
+  gate?: SyncGate;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   plugins: Record<string, PluginDef<any>>;
 }
@@ -53,7 +58,10 @@ export function usePluginProps(
   props: Record<string, unknown> = {},
   instance = "",
 ): ClientProps<unknown> {
-  const state = useMemo(() => pluginState(ctx.doc, id, def.state, instance), [ctx.doc, id, def, instance]);
+  const state = useMemo(
+    () => pluginState(ctx.doc, id, def.state, instance, ctx.gate),
+    [ctx.doc, id, def, instance, ctx.gate],
+  );
   const [snap, setSnap] = useState<unknown>(() => state.snapshot());
   useEffect(() => {
     setSnap(state.snapshot());
@@ -72,6 +80,7 @@ export function usePluginProps(
     props,
     instance,
     refusal: ctx.refusals?.get(instanceStateKey(id, instance)),
+    synced: ctx.synced ?? true,
   };
 }
 
@@ -97,9 +106,9 @@ export function Plugin({
   const ctx = useContext(LiveCtx);
   const def = ctx?.plugins[id];
   const state = useMemo(
-    () => (ctx && def ? pluginState(ctx.doc, id, def.state, instance) : null),
+    () => (ctx && def ? pluginState(ctx.doc, id, def.state, instance, ctx.gate) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ctx?.doc, id, def, instance],
+    [ctx?.doc, id, def, instance, ctx?.gate],
   );
   const [snap, setSnap] = useState<unknown>(() => state?.snapshot());
   const [open, setOpen] = useState(false);
@@ -160,6 +169,7 @@ export function Plugin({
           props={props}
           instance={instance}
           refusal={ctx.refusals?.get(instanceStateKey(id, instance))}
+          synced={ctx.synced ?? true}
         />
       </PluginBoundary>
     </LayoutGroup>

@@ -4,6 +4,13 @@ import type { Refusal } from "@liebstoeckel/plugin-sdk";
 import { LIVE_CLOSE, type LiveState, parseNotice, withLiveProtocol } from "./protocol";
 
 export interface LiveConnection {
+  /** Whether the doc holds the session state yet: false until the server's first state
+   *  frame has been applied, then true for good (reconnects keep the doc). Writes to the
+   *  empty doc before that race the session's real state. */
+  readonly synced: boolean;
+  /** Call `cb` once the session state has arrived (at once if it has). Returns an
+   *  unsubscribe. */
+  onSynced(cb: () => void): () => void;
   /** The shared doc. A viewer's doc is replaced when the server refuses one of its
    *  writes (see {@link onDoc}); read it through here, not once. */
   readonly doc: Y.Doc;
@@ -124,6 +131,19 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   let resets = 0;
   const sep = info.ws.includes("?") ? "&" : "?";
   const url = withLiveProtocol(`${info.ws}${sep}p=${encodeURIComponent(participant)}`);
+  /** The server's resume token (viewers): sent back on reconnect so the server knows the
+   *  client ids of the earlier connections are this client's, and takes the writes the
+   *  resync carries on them. */
+  let resume: string | undefined;
+  let synced = false;
+  let syncedCbs: Array<() => void> = [];
+  const markSynced = () => {
+    if (synced) return;
+    synced = true;
+    const cbs = syncedCbs;
+    syncedCbs = [];
+    cbs.forEach((cb) => cb());
+  };
   const statusCbs: Array<(c: boolean) => void> = [];
   const emit = (c: boolean) => statusCbs.forEach((cb) => cb(c));
   const stateCbs: Array<(s: LiveState) => void> = [];
@@ -262,7 +282,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   function open() {
     if (closed) return;
     attemptAt = Date.now();
-    const sock = new WS(url);
+    const sock = new WS(resume ? `${url}&r=${resume}` : url);
     ws = sock;
     sock.binaryType = "arraybuffer";
     sock.addEventListener("open", () => {
@@ -297,12 +317,14 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
         if (notice?.t === "refused") refused(notice.reason, notice.roots);
         else if (notice?.t === "reset") resetNext = true;
         else if (notice?.t === "refusing") setState({ ...state, refusing: notice.reason ?? undefined });
+        else if (notice?.t === "resume") resume = notice.token;
         return;
       }
       const bytes = new Uint8Array(e.data as ArrayBuffer);
       if (resetNext) {
         resetNext = false;
         reset(bytes);
+        markSynced();
         // Each replacement writes under a new client id, and the server only lets one
         // connection bring in so many: start a fresh connection before running out.
         if (++resets >= maxResets) abandon(sock);
@@ -313,6 +335,8 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
       } catch {
         /* ignore malformed frame */
       }
+      // the first binary frame on a connection is the server's whole state
+      markSynced();
     });
     sock.addEventListener("close", (e?: CloseEvent) => {
       if (ws !== sock) return; // an older socket closing late
@@ -369,6 +393,19 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   open();
 
   return {
+    get synced() {
+      return synced;
+    },
+    onSynced(cb) {
+      if (synced) {
+        cb();
+        return () => {};
+      }
+      syncedCbs.push(cb);
+      return () => {
+        syncedCbs = syncedCbs.filter((c) => c !== cb);
+      };
+    },
     get doc() {
       return doc;
     },

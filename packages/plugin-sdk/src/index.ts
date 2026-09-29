@@ -1,6 +1,6 @@
 export { t, schema, type Schema, type Infer } from "./schema";
 export type { ThemeTokens } from "./theme";
-export { pluginState, type PluginState } from "./state";
+export { pluginState, type PluginState, type SyncGate } from "./state";
 export {
   instanceStateKey,
   registerPluginInstance,

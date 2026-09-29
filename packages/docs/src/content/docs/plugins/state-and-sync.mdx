@@ -76,6 +76,18 @@ useEffect(() => {
 
 `ensureDefaults` is a no-op once the state is non-empty, so it's safe to run on every presenter render.
 
+## Before the session state arrives
+
+A page that joins a live session starts with an empty shared state and gets the session's state from the server a moment after it connects. Until then, `snapshot` holds only your schema's defaults: no votes, no questions. Writing into that empty state would race the session's real one (seeding defaults could replace the votes already cast), so the engine holds every write made through `state` back until the session state has arrived, then makes them in order. `ensureDefaults` then checks against the real state, and a `recordSet` adds to the existing record.
+
+Your plugin gets a `synced` prop, `false` in that moment and `true` otherwise (always `true` outside a live session). Show a "connecting" state while it is `false` rather than empty results, which a presenter reloading their tab would read as lost votes:
+
+```tsx
+if (p.synced === false) return <Card><Eyebrow>Results · connecting…</Eyebrow></Card>;
+```
+
+Writes that go around `state` (directly on `doc`) are not held back; keep them for data only your plugin writes.
+
 ## Ephemeral state
 
 For transient effects (e.g. reactions floating up), store entries in a record keyed by `crypto.randomUUID()` and **prune** old ones on a timer with `recordDelete`, plus a per-participant rate limit. This converges across clients and keeps the doc small without needing a separate awareness channel.

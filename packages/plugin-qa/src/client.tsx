@@ -236,7 +236,7 @@ function Composer({
 
 /** The live, springy, ranked queue. Moderation buttons appear only for `role==="presenter"`.
  *  Bounded + internally scrolling so it never overflows the fixed slide canvas ((internal ADR)). */
-function Queue({ fill, ...p }: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId" | "role"> & { fill?: boolean }) {
+function Queue({ fill, ...p }: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId" | "role" | "synced"> & { fill?: boolean }) {
   const { snapshot, state, participantId, role } = p;
   const { toggleVote } = useQaActions(p);
   const ranked = rankedQuestions(snapshot);
@@ -257,7 +257,7 @@ function Queue({ fill, ...p }: Pick<ClientProps<QaState>, "snapshot" | "state" |
       </AnimatePresence>
       {ranked.length === 0 && (
         <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
-          No questions yet, be the first.
+          {p.synced === false ? "Connecting…" : "No questions yet, be the first."}
         </div>
       )}
     </Stack>
@@ -329,7 +329,7 @@ function QaPanel(p: GlobalProps<QaState>) {
           refusal={p.refusal}
         />
       </div>
-      <Queue snapshot={p.snapshot} state={p.state} participantId={p.participantId} role="viewer" />
+      <Queue snapshot={p.snapshot} state={p.state} participantId={p.participantId} role="viewer" synced={p.synced} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import * as Y from "yjs";
 import {
   AudienceGate,
+  audienceMayWrite,
   tokenBucket,
   type AudienceScope,
   type PeerRole,
@@ -46,6 +47,17 @@ export interface JoinOptions {
   onDrop?: (reason: DropReason, info: DropInfo) => void;
   /** Called after one of this (enforced) peer's updates was accepted and applied. */
   onAccept?: () => void;
+  /** Who this audience peer is across reconnects, for the Yjs client ids it may write
+   *  (see {@link Hub}). Peers with the same `owner` may continue each other's ids; with
+   *  none, only this connection may continue the ids it brings in. */
+  owner?: string;
+  /** Let this audience peer continue an id that was in the stored state the session was
+   *  seeded from (a relay restart or move forgets who brought which id in). Only for
+   *  clients that keep their id across reconnects (protocol 1 and 2). */
+  claimSeeded?: boolean;
+  /** Called when an update from this audience peer carried content on Yjs client ids it
+   *  may not write, which was removed before the update was checked. */
+  onForeign?: () => void;
 }
 
 /** Most roots named for one refused update. */
@@ -103,8 +115,40 @@ export function describeUpdate(update: Uint8Array, doc: Y.Doc): { roots: string[
   return { roots: [...out], adds };
 }
 
-/** Most client ids one peer can own: a real client uses one per connection. */
+/** Most client ids one connection can bring in: a real client uses one per connection,
+ *  plus one per doc replacement after a refusal. */
 const MAX_OWNED_CLIENTS = 64;
+
+/** A state vector clock that covers any real clock: diffing against it removes a client. */
+const ALL_CLOCKS = Number.MAX_SAFE_INTEGER;
+
+/** Split the Yjs clients in a stored doc into those that only ever wrote what the
+ *  audience may write and the rest (the presenter's, the runner's, the relay's own).
+ *  An item's place is its root and the key it sits under in that root; an item whose
+ *  place cannot be read counts as not audience-writable. */
+export function classifyClients(doc: Y.Doc, scope: AudienceScope): { audience: number[]; trusted: number[] } {
+  const audience: number[] = [];
+  const trusted: number[] = [];
+  for (const [client, structs] of doc.store.clients) {
+    let onlyAudience = true;
+    for (const s of structs) {
+      if (!(s instanceof Y.Item)) continue;
+      let top: Y.Item = s;
+      for (let depth = 0; depth < 64; depth++) {
+        const parent = top.parent as Y.AbstractType<unknown> | null;
+        if (!(parent instanceof Y.AbstractType) || !parent._item) break;
+        top = parent._item;
+      }
+      const root = top.parent;
+      if (!(root instanceof Y.AbstractType) || root._item || !audienceMayWrite(scope, Y.findRootTypeKey(root), top.parentSub)) {
+        onlyAudience = false;
+        break;
+      }
+    }
+    (onlyAudience ? audience : trusted).push(client);
+  }
+  return { audience, trusted };
+}
 
 export interface AudiencePolicy {
   /** which doc areas an audience peer may write ((internal ADR)). */
@@ -159,11 +203,24 @@ export class Hub {
   private queuedFrom = new Set<unknown>();
   private flushTimer?: ReturnType<typeof setTimeout>;
   private lastSentAt = -Infinity;
+  /** Which audience owner brought each Yjs client id in (see `join`). An audience update
+   *  may add clocks only on ids its owner brought in, or on a fresh id it then brings in
+   *  itself. Anything else would let one peer fill another's next clocks, and the relay
+   *  would then skip that client's real writes as already known. */
+  private readonly owners = new Map<number, string | symbol>();
+  /** Ids trusted peers write (presenter, runner, the relay itself): never an audience's. */
+  private readonly trusted = new Set<number>();
+  /** Ids from the stored state the session was seeded from that only hold audience
+   *  content and no one has continued yet. */
+  private readonly seeded = new Set<number>();
 
   constructor(opts: HubOptions = {}) {
     this.audience = opts.audience;
     this.coalesceMs = opts.coalesceMs && opts.coalesceMs > 0 ? opts.coalesceMs : 0;
-    if (opts.audience) this.gate = new AudienceGate(this.doc, opts.audience.scope, opts.audience.caps);
+    if (opts.audience) {
+      this.gate = new AudienceGate(this.doc, opts.audience.scope, opts.audience.caps);
+      this.trusted.add(this.doc.clientID); // server-plugin writes
+    }
     this.doc.on("update", (update: Uint8Array, origin: unknown) => {
       if (this.coalesceMs === 0) return this.broadcast(update, origin);
       const now = Date.now();
@@ -231,6 +288,24 @@ export class Hub {
     } catch {
       /* ignore bad seed */
     }
+    if (!this.audience) return;
+    // Who brought which id in is not stored. Ids that hold anything the audience may not
+    // write are the presenter's or the runner's; the others may be continued by the old
+    // clients that keep their id across reconnects (`claimSeeded`).
+    const { audience, trusted } = classifyClients(this.doc, this.audience.scope);
+    for (const c of trusted) this.trusted.add(c);
+    for (const c of audience) if (!this.trusted.has(c) && !this.owners.has(c)) this.seeded.add(c);
+  }
+
+  /** Mark the ids a trusted peer's update adds clocks to as trusted, unless an audience
+   *  peer brought them in (a presenter's resync carries the audience's structs too). */
+  private trust(update: Uint8Array): void {
+    const { to } = Y.parseUpdateMeta(update);
+    for (const [client, end] of to) {
+      if (end <= Y.getState(this.doc.store, client)) continue;
+      if (this.owners.has(client) || this.seeded.has(client)) continue;
+      this.trusted.add(client);
+    }
   }
 
   join(send: Send, role: PeerRole = "presenter", opts: JoinOptions = {}): Peer {
@@ -247,31 +322,63 @@ export class Hub {
       enforced && this.audience!.rate
         ? tokenBucket(this.audience!.rate.capacity, this.audience!.rate.refillPerSec)
         : undefined;
-    // Yjs client ids this peer brought into the doc. Only their clocks may be filled
-    // with placeholders after a refused write: doing that for an id another peer uses
-    // would make the relay skip that peer's next real writes.
-    const owned = new Set<number>();
+    // Who this peer is for the ids it may write: the owner the caller named (the same
+    // client across reconnects), else this connection alone.
+    const owner: string | symbol = opts.owner ?? key;
+    // ids this connection brought in, bounded
+    let claims = 0;
     // After a rate drop the peer's later updates cannot apply until it resyncs.
     let awaitingResync = false;
 
-    const claim = (update: Uint8Array) => {
-      const { from } = Y.parseUpdateMeta(update);
-      for (const [client, clock] of from) {
-        if (owned.size >= MAX_OWNED_CLIENTS) return;
-        if (clock === 0 && Y.getState(this.doc.store, client) === 0) owned.add(client);
+    /** May this peer add clocks to `client`? `claim`: it may, and the id is not its yet
+     *  (a fresh id, or for an old client one from the stored state). */
+    const standing = (client: number): "own" | "claim" | "foreign" => {
+      if (this.trusted.has(client)) return "foreign";
+      const by = this.owners.get(client);
+      if (by !== undefined) return by === owner ? "own" : "foreign";
+      if (Y.getState(this.doc.store, client) === 0) return "claim";
+      if (opts.claimSeeded && this.seeded.has(client)) return "claim";
+      return "foreign";
+    };
+
+    /** Drop the structs on ids this peer may not write from `update`. Returns the update
+     *  to check, and the ids it would bring in. */
+    const ownPart = (update: Uint8Array): { update: Uint8Array; claimed: number[] } => {
+      const { to } = Y.parseUpdateMeta(update);
+      const foreign = new Map<number, number>();
+      const claimed: number[] = [];
+      for (const [client, end] of to) {
+        if (end <= Y.getState(this.doc.store, client)) continue; // nothing new on it
+        let st = standing(client);
+        if (st === "claim" && claims + claimed.length >= MAX_OWNED_CLIENTS) st = "foreign";
+        if (st === "foreign") foreign.set(client, ALL_CLOCKS);
+        else if (st === "claim") claimed.push(client);
+      }
+      if (foreign.size === 0) return { update, claimed };
+      opts.onForeign?.();
+      return { update: Y.diffUpdate(update, Y.encodeStateVector(foreign)), claimed };
+    };
+
+    /** Record the ids an applied update (or its placeholder) brought in as this peer's. */
+    const bind = (claimed: number[]) => {
+      for (const client of claimed) {
+        if (this.owners.has(client)) continue;
+        this.owners.set(client, owner);
+        this.seeded.delete(client);
+        claims++;
       }
     };
 
-    /** Fill a refused update's new clock ranges with placeholders, if they all belong
-     *  to this peer. Returns whether it did. */
-    const tombstone = (update: Uint8Array): boolean => {
-      claim(update);
+    /** Fill a refused update's new clock ranges with placeholders. `update` holds only
+     *  ids this peer may write (see `ownPart`). Returns whether it did. */
+    const tombstone = (update: Uint8Array, claimed: number[]): boolean => {
       const state = Y.decodeStateVector(Y.encodeStateVector(this.doc));
       const ranges = newRanges(update, state);
       // Each range must continue the id's clock exactly: a placeholder after a gap would
       // wait in the doc, and could later let parked content in unchecked.
-      if (ranges.some((r) => !owned.has(r.client) || r.clock !== (state.get(r.client) ?? 0))) return false;
+      if (ranges.some((r) => r.clock !== (state.get(r.client) ?? 0))) return false;
       if (ranges.length > 0) Y.applyUpdate(this.doc, tombstoneUpdate(ranges), key);
+      bind(claimed.filter((c) => ranges.some((r) => r.client === c)));
       return true;
     };
 
@@ -289,23 +396,25 @@ export class Hub {
               opts.onDrop?.("rate", { tombstoned: false, roots: [], adds: false });
               return;
             }
+            const own = ownPart(data);
             if (this.audience!.admit && !this.audience!.admit()) {
-              const seen = describeUpdate(data, this.doc);
-              opts.onDrop?.("full", { tombstoned: tombstone(data), ...seen });
+              const seen = describeUpdate(own.update, this.doc);
+              opts.onDrop?.("full", { tombstoned: tombstone(own.update, own.claimed), ...seen });
               return;
             }
-            if (!this.gate!.check(data)) {
+            if (!this.gate!.check(own.update)) {
               // out-of-scope or out-of-bounds write → never applied or broadcast
-              const seen = describeUpdate(data, this.doc);
+              const seen = describeUpdate(own.update, this.doc);
               const fieldFull = this.gate!.lastRefusal === "cap";
-              opts.onDrop?.("scope", { tombstoned: tombstone(data), fieldFull, ...seen });
+              opts.onDrop?.("scope", { tombstoned: tombstone(own.update, own.claimed), fieldFull, ...seen });
               return;
             }
-            claim(data);
-            this.gate!.apply(data, key);
+            this.gate!.apply(own.update, key);
+            bind(own.claimed);
             opts.onAccept?.();
             return;
           }
+          if (this.audience) this.trust(data);
           Y.applyUpdate(this.doc, data, key);
         } catch {
           /* ignore bad update */

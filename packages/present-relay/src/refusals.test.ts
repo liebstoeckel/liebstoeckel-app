@@ -71,7 +71,8 @@ async function start(opts: Partial<Parameters<typeof createRelay>[0]> = {}) {
   await settle();
   return {
     presenter,
-    viewer: (v: number | null = 2) => connect(`${base}?t=${viewerToken}${v === null ? "" : `&v=${v}`}`),
+    viewer: (v: number | null = 2, extra = "") =>
+      connect(`${base}?t=${viewerToken}${v === null ? "" : `&v=${v}`}${extra}`),
   };
 }
 
@@ -197,6 +198,81 @@ describe("refused audience writes: what the relay sends", () => {
       old.write(vote("p2", "B")); // over the cap
       await settle();
       expect(old.frames).toEqual([]);
+      await relay!.stop();
+      relay = null;
+    }
+  });
+});
+
+describe("viewers' Yjs client ids (protocol 3 resume token)", () => {
+  const resumeOf = (v: { texts: () => Record<string, unknown>[] }) =>
+    v.texts().find((m) => m.t === "resume")?.token as string | undefined;
+  /** The session's votes, as a presenter joining now gets them. */
+  const votesOf = async (presenter: { ws: WebSocket }) => {
+    const peek = await connect(presenter.ws.url);
+    peek.ws.close();
+    return (peek.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).toJSON();
+  };
+
+  test("a protocol 3 viewer gets a resume token; older ones do not", async () => {
+    const s = await start();
+    const v3 = await s.viewer(3);
+    const v2 = await s.viewer(2);
+    await settle(30);
+    expect(resumeOf(v3)).toMatch(/^[0-9a-f]{32}$/);
+    expect(v2.texts()).toEqual([]);
+  });
+
+  test("with its token, a reconnect delivers a vote the last connection never sent; a guessed token gets nothing", async () => {
+    const s = await start();
+    const v = await s.viewer(3, "&p=alice");
+    await settle(30);
+    const token = resumeOf(v)!;
+    v.write(vote("alice", "A"));
+    await settle();
+    // a vote made on the dying connection, never sent: it is in the doc under the old id
+    (v.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("alice", "B");
+    v.ws.close();
+    await settle(30);
+    // a stranger with a made-up token cannot bring it in either
+    const stranger = await s.viewer(3, `&p=alice&r=${"0".repeat(32)}`);
+    stranger.ws.send(Y.encodeStateAsUpdate(v.doc));
+    await settle();
+    // (its delete set still applies: deleting an entry is something any viewer may do)
+    expect((await votesOf(s.presenter)).alice).not.toBe("B");
+    expect(resumeOf(stranger)).not.toBe(token);
+    // the client itself, back with its token and a fresh client id, resyncs
+    const back = await s.viewer(3, `&p=alice&r=${token}`);
+    await settle(30);
+    expect(resumeOf(back)).toBe(token);
+    const resync = new Y.Doc();
+    Y.applyUpdate(resync, Y.encodeStateAsUpdate(v.doc));
+    back.ws.send(Y.encodeStateAsUpdate(resync));
+    await settle();
+    expect(await votesOf(s.presenter)).toEqual({ alice: "B" });
+    expect(back.texts().filter((m) => m.t !== "resume")).toEqual([]);
+  });
+
+  test("an old deck's viewer (keeps its client id) keeps working after it reconnects", async () => {
+    for (const version of [null, 2]) {
+      const s = await start();
+      const doc = new Y.Doc();
+      const first = await s.viewer(version, "&p=bob");
+      Y.applyUpdate(doc, Y.encodeStateAsUpdate(first.doc));
+      const send = (w: WebSocket, change: (d: Y.Doc) => void) => {
+        const sv = Y.encodeStateVector(doc);
+        change(doc);
+        w.send(Y.encodeStateAsUpdate(doc, sv));
+      };
+      send(first.ws, vote("bob", "A"));
+      await settle();
+      first.ws.close();
+      const again = await s.viewer(version, "&p=bob");
+      again.ws.send(Y.encodeStateAsUpdate(doc)); // its resync, same client id
+      send(again.ws, vote("bob", "B"));
+      await settle();
+      expect(await votesOf(s.presenter)).toEqual({ bob: "B" });
+      expect(again.texts()).toEqual([]);
       await relay!.stop();
       relay = null;
     }

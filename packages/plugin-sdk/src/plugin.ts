@@ -39,6 +39,12 @@ export interface ClientProps<T> {
    *  shows what the presenter has, so a refused vote reads as not cast; show the viewer
    *  a short message. Cleared when the viewer writes to this instance again. */
   refusal?: Refusal;
+  /** Whether the live session's state has arrived. A live client starts with an empty
+   *  state and gets the session's from the server right after it connects; until then
+   *  `snapshot` holds only the schema defaults (no votes, no questions), and writes are
+   *  held back and made once the state is there. Show a "connecting" state rather than
+   *  empty results while this is false. Always true outside a live session. */
+  synced?: boolean;
 }
 
 /** Why the live server refused a viewer's write. `busy`: the server is short of memory

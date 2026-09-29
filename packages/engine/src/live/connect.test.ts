@@ -413,10 +413,10 @@ describe("connectLive: refused writes (protocol 2 notices)", () => {
     return { conn, created, sock: () => created[created.length - 1]! };
   };
 
-  test("asks for protocol 2", () => {
+  test("asks for protocol 3", () => {
     const { sock } = setup();
-    expect(LIVE_PROTOCOL).toBe(2);
-    expect(sock().url).toContain("v=2");
+    expect(LIVE_PROTOCOL).toBe(3);
+    expect(sock().url).toContain("v=3");
   });
 
   test("`refused` then `reset` + state: the doc is replaced by the server's, the viewer is told, no reconnect", () => {
@@ -494,6 +494,56 @@ describe("connectLive: refused writes (protocol 2 notices)", () => {
     sock().deliver(state);
     await Bun.sleep(40);
     expect(created.length).toBe(2);
+    conn.close();
+  });
+});
+
+describe("connectLive: session state and resume token", () => {
+  const setup = () => {
+    const created: MockWS[] = [];
+    const WS = function (url: string) {
+      const s = new MockWS(url);
+      created.push(s);
+      return s;
+    } as unknown as typeof WebSocket;
+    const conn = connectLive(info, "p1", { WS, staleMs: 0, reconnectBaseMs: 5 });
+    created[0]!.open();
+    return { conn, created, sock: () => created[created.length - 1]! };
+  };
+
+  test("synced once the first state frame is applied, not on a text frame, and it stays so over reconnects", async () => {
+    const { conn, created, sock } = setup();
+    let calls = 0;
+    conn.onSynced(() => calls++);
+    expect(conn.synced).toBe(false);
+    sock().deliverText(JSON.stringify({ t: "resume", token: "ab".repeat(16) }));
+    expect(conn.synced).toBe(false);
+    sock().deliver(Y.encodeStateAsUpdate(new Y.Doc()));
+    expect(conn.synced).toBe(true);
+    expect(calls).toBe(1);
+    sock().serverClose(1006);
+    await Bun.sleep(30);
+    expect(created.length).toBe(2);
+    expect(conn.synced).toBe(true);
+    let late = 0;
+    conn.onSynced(() => late++); // already synced: at once
+    expect(late).toBe(1);
+    conn.close();
+  });
+
+  test("sends the resume token back when it reconnects; ignores a malformed one", async () => {
+    const { conn, created, sock } = setup();
+    expect(sock().url).not.toContain("r=");
+    sock().deliverText(JSON.stringify({ t: "resume", token: "not a token!" }));
+    sock().serverClose(1006);
+    await Bun.sleep(30);
+    expect(created[1]!.url).not.toContain("r=");
+    const token = "0123456789abcdef".repeat(2);
+    created[1]!.open();
+    created[1]!.deliverText(JSON.stringify({ t: "resume", token }));
+    created[1]!.serverClose(1006);
+    await Bun.sleep(30);
+    expect(created[2]!.url).toContain(`r=${token}`);
     conn.close();
   });
 });
