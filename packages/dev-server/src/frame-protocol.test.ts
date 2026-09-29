@@ -14,6 +14,9 @@ describe("decoders", () => {
     expect(decodeFrameMessage({ type: "lst:mode", mode: "erase" })).toBeNull();
     expect(decodeFrameMessage({ type: "lst:captured", id: "c1", draft, screenshot: null })).toMatchObject({ type: "lst:captured", id: "c1" });
     expect(decodeFrameMessage({ type: "lst:captured", id: "c1", draft, screenshot: "data:" })).toBeNull();
+    expect(decodeFrameMessage({ type: "lst:log", level: "warn", message: "[liebstoeckel] x" })).toEqual({ type: "lst:log", level: "warn", message: "[liebstoeckel] x" });
+    expect(decodeFrameMessage({ type: "lst:log", level: "info", message: "x" })).toBeNull();
+    expect(decodeFrameMessage({ type: "lst:log", level: "error", message: "x".repeat(4001) })).toBeNull();
     expect(decodeFrameMessage({ type: "evil" })).toBeNull();
     expect(decodeFrameMessage("lst:hello")).toBeNull();
   });

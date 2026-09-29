@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { bootInstructions } from "./instructions";
 import { createLocalBackend, ensureDevGitignore, readServerInfo, removeServerInfo, writeServerInfo } from "./local-backend";
-import { createDevProtocol } from "./protocol";
-import { checkServePlugins, pluginErrorPage, type PluginProblem } from "./serve-plugins";
+import { createDevProtocol, type DeckLogEntry } from "./protocol";
+import { checkServePlugins, pluginErrorPage, pluginProblemFix, type PluginProblem } from "./serve-plugins";
 
 // The dev-mode server: serves the dev shell (sidebar + the deck in a frame) at
 // /, the deck itself at /deck through Bun's dev pipeline (HMR, Fast Refresh),
@@ -26,6 +26,9 @@ export interface DevServerOptions {
   apiOnly?: boolean;
   /** Called once the server has stopped itself (a `/__dev/stop` request). */
   onStop?: () => void;
+  /** A `[liebstoeckel]` warning or error the open deck reported, once per
+   *  repeat window; also queued for `dev poll` as a `deck_log` event. */
+  onDeckLog?: (entry: DeckLogEntry) => void;
 }
 
 export interface DevServer {
@@ -38,6 +41,11 @@ export interface DevServer {
   pluginProblems: PluginProblem[];
   stop: () => void;
 }
+
+// How often the bundler plugins are resolved again while one is missing, so an
+// agent that ran `bun install` hears on `dev poll` that it worked without
+// anyone opening the page. Resolving only, so this is cheap.
+const PLUGIN_RECHECK_MS = 2_000;
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1", "0.0.0.0"]);
 
@@ -73,11 +81,14 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
       deckDir,
       token,
       onStop: () => {
+        if (recheckTimer) clearInterval(recheckTimer);
+        recheckTimer = null;
         removeServerInfo(deckDir, process.pid);
         server.stop(true);
         opts.onStop?.();
       },
     }),
+    { onDeckLog: opts.onDeckLog },
   );
 
   // The deck itself rides Bun's dev pipeline via a dynamic HTML import, which
@@ -104,10 +115,44 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     routes[`${deckRoute(token)}/`] = mod.default;
     deckMounted = true;
   }
+  /** Tell a polling agent where the plugins stand: the problems and the fix,
+   *  or that they resolve again. */
+  function announcePlugins(): void {
+    const ok = pluginProblems.length === 0;
+    protocol.notify({ type: "plugin_status", ok, problems: pluginProblems, ...(ok ? {} : { fix: pluginProblemFix(deckDir) }) });
+  }
+  const problemsKey = (problems: PluginProblem[]) => JSON.stringify(problems);
+  let recheckTimer: ReturnType<typeof setInterval> | null = null;
+  /** Resolve the plugins again while the deck is not mounted; mount it once
+   *  they all resolve and announce any change to `dev poll`. */
+  async function recheckPlugins(): Promise<void> {
+    if (deckMounted) return;
+    const before = problemsKey(pluginProblems);
+    pluginProblems = checkServePlugins(deckDir);
+    if (pluginProblems.length === 0) {
+      mounting ??= mountDeck().then(() => {
+        // The same fetch goes back in, so the Host check, the shell and
+        // the protocol stay as they were; only the deck route is added.
+        server.reload({ routes: routes as never, fetch: handle, development: { hmr: true, console: true } } as never);
+      });
+      await mounting;
+    }
+    if (problemsKey(pluginProblems) !== before) announcePlugins();
+    if (deckMounted && recheckTimer) {
+      clearInterval(recheckTimer);
+      recheckTimer = null;
+    }
+  }
   if (!opts.apiOnly) {
     if (!existsSync(join(deckDir, "index.html"))) throw new Error(`No index.html in ${deckDir}`);
     pluginProblems = checkServePlugins(deckDir);
     if (pluginProblems.length === 0) await mountDeck();
+    else {
+      announcePlugins();
+      recheckTimer = setInterval(() => void recheckPlugins().catch(() => {}), PLUGIN_RECHECK_MS);
+      // Never the reason the process stays up.
+      recheckTimer.unref?.();
+    }
   }
 
   const server = Bun.serve({
@@ -136,17 +181,7 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
       return new Response(bridgeJs, { headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" } });
     }
     if (!opts.apiOnly && (p === statusPath || (!deckMounted && (p === deckRoute(token) || p === `${deckRoute(token)}/`)))) {
-      if (!deckMounted) {
-        pluginProblems = checkServePlugins(deckDir);
-        if (pluginProblems.length === 0) {
-          mounting ??= mountDeck().then(() => {
-            // The same fetch goes back in, so the Host check, the shell and
-            // the protocol stay as they were; only the deck route is added.
-            server.reload({ routes: routes as never, fetch: handle, development: { hmr: true, console: true } } as never);
-          });
-          await mounting;
-        }
-      }
+      await recheckPlugins();
       if (p === statusPath) {
         return Response.json({ ok: pluginProblems.length === 0, problems: pluginProblems }, { headers: { "Cache-Control": "no-store" } });
       }
@@ -185,7 +220,11 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     token,
     url: `http://${hostname === "0.0.0.0" ? "localhost" : hostname}:${server.port}`,
     pluginProblems,
-    stop: () => protocol.stop(),
+    stop: () => {
+      if (recheckTimer) clearInterval(recheckTimer);
+      recheckTimer = null;
+      protocol.stop();
+    },
   };
 }
 

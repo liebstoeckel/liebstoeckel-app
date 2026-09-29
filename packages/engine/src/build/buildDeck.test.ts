@@ -141,7 +141,9 @@ describe("bundleDeck", () => {
           join(dir, "entry.tsx"),
           `import { createRoot } from "react-dom/client";\n` +
             `import { warnIfBrandsMissing } from "../../brandCheck.ts";\n` +
+            `import { devWarn } from "../../devLog.ts";\n` +
             `warnIfBrandsMissing(["nocturn"]);\n` +
+            `devWarn("[liebstoeckel] still logged in a build");\n` +
             `const Slide = ({ items }: { items: string[] }) => <ul>{items.map((i) => <li key={i}>{i}</li>)}</ul>;\n` +
             `createRoot(document.getElementById("root")!).render(<Slide items={["a", "b"]} />);\n`,
         );
@@ -162,6 +164,10 @@ describe("bundleDeck", () => {
         // The brand-name check is authoring feedback: its body and message stay out.
         expect(html).not.toContain("is not defined, so the deck renders");
         expect(html).not.toContain("Did you mean");
+        // The record the dev-mode bridge reads is development-only too; the console line stays.
+        expect(html).toContain("still logged in a build");
+        expect(html).not.toContain("__LIEBSTOECKEL_DEV_LOG__");
+        expect(html).not.toContain("liebstoeckel:dev-log");
       } finally {
         if (prev === undefined) delete process.env.NODE_ENV;
         else process.env.NODE_ENV = prev;

@@ -219,6 +219,9 @@ export const devCommand = defineCommand({
         onStop: () => {
           stopping = true;
         },
+        // What the open deck warns about, so an author who only watches the
+        // terminal (or an agent reading it) sees it too.
+        onDeckLog: ({ level, message }) => console.error(`${level === "error" ? "✕" : "⚠"} deck: ${message}`),
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

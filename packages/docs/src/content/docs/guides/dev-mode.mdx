@@ -110,6 +110,25 @@ sidebar state. Comments read as design direction ("make
 this heading calmer"); strokes read by shape: a loop means *this thing*, an
 arrow means direction or movement, a cross means *remove*.
 
+## Deck warnings in the terminal
+
+The deck warns about some authoring mistakes while it runs: a brand name in
+`brands` that has no theme behind it, or a `<Plugin>` whose plugin is not in
+`<Present plugins>`. In dev mode these warnings also reach the `dev` terminal
+and the agent, not only the browser console:
+
+```text
+⚠ deck: brand "nocturn" is not defined, so the deck renders without theme tokens. Did you mean "nocturne"? …
+```
+
+A polling agent receives the same text as a `deck_log` event (see
+[`dev poll`](/reference/cli/#dev-poll)). The warnings come from the deck
+running in a browser, so they arrive while the dev page (the URL `dev` prints,
+with the sidebar) is open; the plain `/deck` page on its own does not forward
+them. The same warning is reported once, then again only if it comes back
+after half a minute (after a fix that did not hold, say), however often the
+page reloads in between.
+
 ## Housekeeping
 
 - Dev-mode state lives in `.liebstoeckel/dev/` inside the deck (annotations,
@@ -144,7 +163,9 @@ running; the sidebar, the agent loop and a `--live` mirror are not affected.
 Run `bun install` in the deck folder (or fix the plugin name in
 `bunfig.toml`); the deck frame notices within a few seconds and loads the deck,
 no restart needed. With `--json`, the startup line lists the missing plugins
-under `pluginProblems`.
+under `pluginProblems`. A polling agent gets a `plugin_status` event with the
+missing plugins and the fix, and a second one with `ok: true` once they
+resolve, even with no browser open.
 
 **The terminal says the dev server stopped unexpectedly.** Bun ended the
 process, and the error above that line says why. With `--live`, the mirror

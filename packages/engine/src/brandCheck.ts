@@ -1,4 +1,5 @@
 import { brands as builtInBrands, type Theme } from "@liebstoeckel/theme";
+import { devWarn } from "./devLog";
 
 /** The brand a deck gets when it names none: the house brand, which the theme
  *  styles always ship. A name with no `[data-brand]` block behind it would leave
@@ -72,7 +73,7 @@ export function warnIfBrandsMissing(names: readonly string[], brandThemes: reado
         const message = missingBrandMessage(name, known);
         if (!message) continue;
         warned.add(name);
-        console.warn(message);
+        devWarn(message);
       }
     };
     // Stylesheets can still be attaching on first mount (the dev server injects

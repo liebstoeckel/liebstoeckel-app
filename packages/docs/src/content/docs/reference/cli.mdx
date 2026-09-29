@@ -368,6 +368,17 @@ liebstoeckel dev poll --reply <batchId> done --data '{"applied":["<id>"],"files"
 carries an `_instructions` field telling the agent exactly what to do next.
 Replies are `done` with a JSON result or `error "reason"`.
 
+| Event `type` | What it is | Reply |
+| --- | --- | --- |
+| `apply` | a batch of annotations and slide requests the user sent | once, `done` or `error` |
+| `deck_log` | a warning or error the open deck logged: `level` (`warn` or `error`) and `message` | none |
+| `plugin_status` | the deck's bundler plugins: `ok`, `problems` (`{plugin, message}`), and `fix` while some do not resolve | none |
+| `timeout` | nothing arrived within `--timeout` | none |
+| `exit` | the dev server stopped; stop polling | none |
+
+After any event, poll again (except after `exit`). An `apply` stays claimed by you
+until you reply; the other events are delivered once and never hold anything up.
+
 | Flag | Meaning |
 | --- | --- |
 | `--dir <deck>` | deck directory (default: current directory); the running server is found through its `.liebstoeckel/dev/server.json` |

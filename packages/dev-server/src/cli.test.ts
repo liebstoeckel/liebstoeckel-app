@@ -59,6 +59,66 @@ describe("dev --dir re-exec", () => {
   }, 90_000);
 });
 
+/** One `liebstoeckel dev poll` run against the deck, parsed. */
+async function devPoll(deck: string, timeoutMs = 5_000): Promise<Record<string, unknown>> {
+  const proc = Bun.spawn([process.execPath, join(import.meta.dir, "cli.ts"), "poll", "--dir", deck, "--timeout", String(timeoutMs)], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const out = await new Response(proc.stdout).text();
+  await proc.exited;
+  return JSON.parse(out.trim().split("\n").pop()!) as Record<string, unknown>;
+}
+
+describe("deck warnings in the dev terminal and dev poll", () => {
+  test("a [liebstoeckel] warning the deck reports prints one terminal line and arrives as a deck_log event", async () => {
+    const deck = makeDeck();
+    const proc = Bun.spawn([process.execPath, join(import.meta.dir, "cli.ts"), "--port", "0", "--json"], {
+      cwd: deck,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    let out = "";
+    let err = "";
+    const drain = Promise.all([
+      (async () => {
+        for await (const chunk of proc.stdout) out += new TextDecoder().decode(chunk);
+      })(),
+      (async () => {
+        for await (const chunk of proc.stderr) err += new TextDecoder().decode(chunk);
+      })(),
+    ]);
+    try {
+      const deadline = Date.now() + 60_000;
+      let info: { url?: string } | undefined;
+      while (!info && Date.now() < deadline) {
+        const line = out.split("\n").find((l) => l.startsWith("{"));
+        if (line) info = JSON.parse(line);
+        else await Bun.sleep(100);
+      }
+      if (!info?.url) throw new Error(`no startup JSON; output:\n${out}\n${err}`);
+      const token = JSON.parse(readFileSync(serverInfoPath(deck), "utf-8")).token as string;
+      // What the sidebar sends when the deck frame reports the engine's brand check.
+      const message = '[liebstoeckel] brand "nocturn" is not defined, so the deck renders without theme tokens. Did you mean "nocturne"?';
+      const res = await fetch(`${info.url}/__dev/log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, level: "warn", message }),
+      });
+      expect(res.status).toBe(200);
+      const event = await devPoll(deck);
+      expect(event).toMatchObject({ type: "deck_log", level: "warn", message: message.replace("[liebstoeckel] ", "") });
+      expect(String(event._instructions)).toStartWith("No reply");
+      for (let i = 0; i < 50 && !err.includes("deck: brand"); i++) await Bun.sleep(100);
+      expect(err).toContain('⚠ deck: brand "nocturn" is not defined');
+    } finally {
+      proc.kill();
+      await proc.exited;
+      await drain.catch(() => {});
+    }
+  }, 90_000);
+});
+
 describe("dev with a bundler plugin that does not resolve", () => {
   test("serves an error page for the deck, stays up, and mounts the deck once the plugin appears", async () => {
     const deck = makeDeck();
@@ -90,6 +150,10 @@ describe("dev with a bundler plugin that does not resolve", () => {
       expect(info.pluginProblems?.map((p) => p.plugin)).toEqual(["./plugins/missing-plugin.ts"]);
       expect(err).toContain('plugin "./plugins/missing-plugin.ts"');
       expect(err).toContain("bun install");
+      // An agent on `dev poll` hears it too, with the fix.
+      const status = await devPoll(deck);
+      expect(status).toMatchObject({ type: "plugin_status", ok: false, problems: [{ plugin: "./plugins/missing-plugin.ts" }] });
+      expect(String(status.fix)).toContain("bun install");
 
       const token = JSON.parse(readFileSync(serverInfoPath(deck), "utf-8")).token as string;
       const page = await fetch(`${info.url}/deck/${token}/`);
@@ -103,6 +167,8 @@ describe("dev with a bundler plugin that does not resolve", () => {
       // Fix the install: the status turns ok and the deck route serves the deck.
       mkdirSync(join(deck, "plugins"), { recursive: true });
       writeFileSync(join(deck, "plugins", "missing-plugin.ts"), "export default { name: 'noop', setup() {} };\n");
+      // No browser needed: a waiting poll resolves the plugins again and reports it.
+      expect(await devPoll(deck)).toMatchObject({ type: "plugin_status", ok: true, problems: [] });
       expect(await (await fetch(`${info.url}/deck/${token}/__plugins`)).json()).toMatchObject({ ok: true });
       const deckPage = await fetch(`${info.url}/deck/${token}/`);
       expect(deckPage.status).toBe(200);

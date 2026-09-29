@@ -118,6 +118,7 @@ export function memoryTransport(seed: AnnotationEntry[] = [], opts: { agentPolli
       }
       emit({ type: "batch_reverted", batchId, restored: ["slides/01-title.mdx"], failures: [], reopenedBatches: [batchId] });
     },
+    async reportLog() {},
     subscribe(onMessage) {
       listeners.add(onMessage);
       queueMicrotask(() => onMessage({ type: "connected", agentPolling }));

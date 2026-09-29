@@ -148,7 +148,8 @@ reload plus the dev shell with the annotation sidebar) and enter the poll loop:
 as JSON, and exits. Apply the annotations to the slide source (hot reload shows the
 edit; do **not** run `build`), reply with `dev poll --reply <batchId> done --data
 '<json>'`, and poll again. Every event carries an `_instructions` field: follow it —
-it is the authoritative next step. Full contract, harness policy, and the reply
+it is the authoritative next step. Deck warnings (`deck_log`) and bundler-plugin
+state (`plugin_status`) arrive on the same poll and take no reply. Full contract, harness policy, and the reply
 shape: `references/dev-mode.md`.
 
 ## Brand a deck (custom theme / fonts)

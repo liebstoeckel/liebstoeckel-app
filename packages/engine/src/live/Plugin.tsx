@@ -5,6 +5,7 @@ import { pluginState, registerPluginInstance, type ClientProps, type PluginDef, 
 import { mergeUi } from "./ui";
 import { GlowTap, BreakoutSheet, useBreakoutEligible } from "./breakout";
 import { PluginBoundary } from "./PluginBoundary";
+import { devWarn } from "../devLog";
 import type { LiveState } from "./protocol";
 
 export interface LiveContextValue {
@@ -110,8 +111,8 @@ export function Plugin({
   // leaving a baffling blank slide. Warn so the mistake explains itself.
   useEffect(() => {
     if (ctx && !def) {
-      console.warn(
-        `[liebstoeckel] <Plugin id="${id}"> is not registered — add its plugin to ` +
+      devWarn(
+        `[liebstoeckel] <Plugin id="${id}"> is not registered. Add its plugin to ` +
           `<Present plugins={[…]}> or it renders nothing.`,
       );
     }

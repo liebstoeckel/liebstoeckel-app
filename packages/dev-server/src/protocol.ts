@@ -40,6 +40,29 @@ const PRESENCE_GRACE_MS = 20_000;
 const SSE_HEARTBEAT_MS = 30_000;
 const STOP_FLUSH_MS = 100;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+// Notices wait for an agent that may never come; beyond this many the oldest go.
+const MAX_NOTICES = 50;
+// A deck message is one console line; anything longer is cut, not refused.
+const MAX_LOG_CHARS = 4000;
+const MAX_LOG_BODY_BYTES = 16 * 1024;
+// Several frames and tabs, or a burst of hot reloads, report the same message
+// within moments; after this long a message counts as new again, so a problem
+// that comes back after a fix is heard again.
+const DEFAULT_LOG_REPEAT_MS = 30_000;
+// Distinct deck messages remembered for that window; the oldest go first.
+const MAX_SEEN_LOGS = 200;
+
+/** Deck text as one safe line for a terminal and a JSON event: control
+ *  characters (ANSI escapes included) become spaces, the `[liebstoeckel]` tag
+ *  goes (the event type already says where it came from), and the length is
+ *  capped. Exported for tests. */
+export function cleanDeckMessage(raw: string): string {
+  return raw
+    .replace(/[\u0000-\u001f\u007f-\u009f]+/g, " ")
+    .replace(/^\s*\[liebstoeckel\]\s*/, "")
+    .trim()
+    .slice(0, MAX_LOG_CHARS);
+}
 
 /** What the protocol needs from its host. Internal for now: the shape follows
  *  the local backend and may move once a second backend exists. */
@@ -75,6 +98,20 @@ export interface DevBackend {
   onStop?(): void;
 }
 
+/** One `[liebstoeckel]` warning or error the running deck reported. */
+export interface DeckLogEntry {
+  level: "warn" | "error";
+  message: string;
+}
+
+/** An informational poll event: delivered to one poll, never leased, never
+ *  replied to, so it cannot hold up a batch (Send and Revert only look at
+ *  leased work). */
+export interface NoticeEvent {
+  type: "deck_log" | "plugin_status";
+  [key: string]: unknown;
+}
+
 export interface DevProtocol {
   /** Handle a request; null when the path is not a /__dev route. */
   handleDevRequest(req: Request): Promise<Response | null>;
@@ -82,6 +119,9 @@ export interface DevProtocol {
   agentPolling(): boolean;
   /** Whether an agent holds a leased batch it has not replied to yet. */
   agentBusy(): boolean;
+  /** Queue an informational event for the next `dev poll` (the host's own
+   *  state, such as bundler plugins that do not resolve). */
+  notify(event: NoticeEvent): void;
   stop(): void;
 }
 
@@ -90,6 +130,11 @@ export interface DevProtocolOptions {
   leaseMs?: number;
   /** How long presence outlives an agent's reply before it counts as offline. */
   presenceGraceMs?: number;
+  /** A deck warning or error that was queued for the agent (the local server
+   *  prints it to the dev terminal). The message is already cleaned. */
+  onDeckLog?(entry: DeckLogEntry): void;
+  /** How long an identical deck message is not reported again. */
+  logRepeatMs?: number;
 }
 
 type Poll = { resolve: (event: unknown) => void; timer: ReturnType<typeof setTimeout> };
@@ -109,6 +154,12 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
 
   let store = backend.loadStore();
   const pending: Array<PendingEvent> = [];
+  // Informational events, in arrival order; `seq` is shared with `pending` so
+  // a poll gets whichever arrived first.
+  const notices: Array<{ event: Record<string, unknown>; seq: number }> = [];
+  // Message key -> when it was last reported; insertion order is recency.
+  const seenLogs = new Map<string, number>();
+  const logRepeatMs = opts.logRepeatMs ?? DEFAULT_LOG_REPEAT_MS;
   let polls: Poll[] = [];
   const sseClients = new Set<ReadableStreamDefaultController<Uint8Array>>();
   let seq = 1;
@@ -186,12 +237,24 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
     }, Math.max(0, next - Date.now() + 5));
   }
 
+  /** The next event a poll gets, oldest first: a leasable batch (leased now)
+   *  or a notice (removed now, it is delivered exactly once). */
+  function takeNext(): Record<string, unknown> | null {
+    const entry = selectAvailable(pending, Date.now());
+    const notice = notices[0];
+    if (notice && (!entry || notice.seq < entry.seq)) {
+      notices.shift();
+      return withInstructions(notice.event);
+    }
+    return entry ? withInstructions(claim(entry, leaseMs, Date.now())) : null;
+  }
+
   function flushPolls(): void {
     while (polls.length > 0) {
-      const entry = selectAvailable(pending, Date.now());
-      if (!entry) break;
+      const next = takeNext();
+      if (!next) break;
       const poll = polls[0]!;
-      poll.resolve(withInstructions(claim(entry, leaseMs, Date.now())));
+      poll.resolve(next);
     }
     scheduleLeaseFlush();
     broadcastAgentPollingIfChanged();
@@ -200,6 +263,13 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
   function withInstructions(event: Record<string, unknown>): Record<string, unknown> {
     const _instructions = instructionsForEvent(event as { type: string });
     return _instructions ? { ...event, _instructions } : event;
+  }
+
+  function notify(event: NoticeEvent): void {
+    if (stopped) return;
+    notices.push({ event: { id: shortId(), ...event }, seq: seq++ });
+    if (notices.length > MAX_NOTICES) notices.splice(0, notices.length - MAX_NOTICES);
+    flushPolls();
   }
 
   function enqueue(event: PendingEvent["event"]): void {
@@ -472,9 +542,8 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       const rawTimeout = url.searchParams.get("timeout");
       const requested = rawTimeout === null ? Number.NaN : Number(rawTimeout);
       const timeoutMs = Number.isFinite(requested) ? Math.max(0, Math.min(requested, pollTimeoutMs)) : pollTimeoutMs;
-      const available = selectAvailable(pending, Date.now());
-      if (available) {
-        const event = withInstructions(claim(available, leaseMs, Date.now()));
+      const event = takeNext();
+      if (event) {
         scheduleLeaseFlush();
         broadcastAgentPollingIfChanged();
         return json(200, event);
@@ -569,6 +638,35 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
       return json(200, { ok: true });
     }
 
+    if (p === "/__dev/log" && req.method === "POST") {
+      if (Number(req.headers.get("content-length") ?? 0) > MAX_LOG_BODY_BYTES) return json(413, { error: "payload_too_large" });
+      const text = await req.text().catch(() => "");
+      if (text.length > MAX_LOG_BODY_BYTES) return json(413, { error: "payload_too_large" });
+      const body = ((): { token?: string; level?: unknown; message?: unknown } | null => {
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
+        }
+      })();
+      if (!body || typeof body !== "object") return json(400, { error: "invalid_json" });
+      if (!authorized(body)) return json(401, { error: "unauthorized" });
+      if (body.level !== "warn" && body.level !== "error") return json(400, { error: "invalid_level" });
+      const message = typeof body.message === "string" ? cleanDeckMessage(body.message) : "";
+      if (!message) return json(400, { error: "message_required" });
+      const entry: DeckLogEntry = { level: body.level, message };
+      const key = `${entry.level}:${entry.message}`;
+      const now = Date.now();
+      const last = seenLogs.get(key);
+      if (last !== undefined && now - last < logRepeatMs) return json(200, { ok: true, repeated: true });
+      seenLogs.delete(key);
+      seenLogs.set(key, now);
+      if (seenLogs.size > MAX_SEEN_LOGS) seenLogs.delete(seenLogs.keys().next().value!);
+      opts.onDeckLog?.(entry);
+      notify({ type: "deck_log", ...entry });
+      return json(200, { ok: true });
+    }
+
     if (p === "/__dev/stop") {
       if (!authorized()) return json(401, { error: "unauthorized" });
       queueMicrotask(() => stop());
@@ -592,7 +690,7 @@ export function createDevProtocol(backend: DevBackend, opts: DevProtocolOptions 
     setTimeout(() => backend.onStop?.(), STOP_FLUSH_MS);
   }
 
-  return { handleDevRequest, agentPolling, agentBusy, stop };
+  return { handleDevRequest, agentPolling, agentBusy, notify, stop };
 }
 
 // The protocol entry re-exports the pure cores a host needs beside the handler.

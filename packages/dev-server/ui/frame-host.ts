@@ -58,6 +58,10 @@ export function createFrameHost(iframe: HTMLIFrameElement, opts: FrameHostOption
       case "lst:captured":
         pendingCaptures.get(msg.id)?.(msg);
         break;
+      case "lst:log":
+        // Best effort: a lost line must never disturb the sidebar.
+        opts.transport.reportLog(msg.level, msg.message).catch(() => {});
+        break;
     }
   }
   window.addEventListener("message", onMessage);

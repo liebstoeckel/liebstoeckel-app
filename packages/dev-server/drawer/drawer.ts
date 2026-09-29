@@ -26,6 +26,7 @@ import {
   acceptInit,
   decodeHostMessage,
   initialHandshake,
+  LOG_MESSAGE_MAX,
   trusts,
 } from "../src/frame-protocol";
 
@@ -76,6 +77,26 @@ function boot(): void {
   } catch {
     // no channel: goto is a no-op
   }
+
+  // ---------------------------------------------------------------- deck log
+
+  // The engine records its authoring warnings (an unknown brand, an
+  // unregistered plugin) on the page, because it may log them before this
+  // script has loaded. Take what is recorded, listen for the rest, and hand
+  // each to the parent once the handshake is done; the sidebar sends them to
+  // the dev server, which prints them and queues them for `dev poll`.
+  type DeckLog = { level: "warn" | "error"; message: string };
+  const unsentLogs: DeckLog[] = [];
+  const forwardLog = (entry: unknown) => {
+    const e = entry as Partial<DeckLog> | null;
+    if (!e || (e.level !== "warn" && e.level !== "error") || typeof e.message !== "string" || !e.message) return;
+    const log: DeckLog = { level: e.level, message: e.message.slice(0, LOG_MESSAGE_MAX) };
+    if (handshake.state === "ready") post({ type: "lst:log", ...log });
+    else if (unsentLogs.length < 50) unsentLogs.push(log);
+  };
+  const recorded = (window as unknown as { __LIEBSTOECKEL_DEV_LOG__?: unknown }).__LIEBSTOECKEL_DEV_LOG__;
+  if (Array.isArray(recorded)) for (const entry of recorded) forwardLog(entry);
+  window.addEventListener("liebstoeckel:dev-log", (event) => forwardLog((event as CustomEvent).detail));
 
   // ---------------------------------------------------------------- overlay
 
@@ -305,6 +326,7 @@ function boot(): void {
         post({ type: "lst:slide", index: currentSlide() });
         post({ type: "lst:mode", mode });
         emitDraft();
+        for (const log of unsentLogs.splice(0)) post({ type: "lst:log", ...log });
       }
       return;
     }

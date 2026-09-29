@@ -66,6 +66,8 @@ export interface DevTransport {
   setStatus(id: string, status: "dismissed" | "open"): Promise<void>;
   dispatch(): Promise<{ batchId: string; agentPolling: boolean }>;
   revert(batchId: string): Promise<void>;
+  /** Hand a warning or error the deck logged to the dev server (terminal and agent). */
+  reportLog(level: "warn" | "error", message: string): Promise<void>;
   /** Returns an unsubscribe. */
   subscribe(onMessage: (msg: Record<string, unknown>) => void): () => void;
 }

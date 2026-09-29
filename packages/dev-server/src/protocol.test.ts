@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type DevBackend, createDevProtocol } from "./protocol";
+import { type DevBackend, cleanDeckMessage, createDevProtocol } from "./protocol";
 import type { RestoreResult } from "./snapshot";
 import { type AnnotationStore, emptyStore } from "./store";
 
@@ -615,5 +615,91 @@ describe("hardening", () => {
     await p.handleDevRequest(post("/__dev/poll", { id: b2.batchId, type: "done", data: { applied: [bId], files: [], notes: [] } }));
     expect((await p.handleDevRequest(post("/__dev/revert", { batchId: b1.batchId })))!.status).toBe(200);
     p.stop();
+  });
+});
+
+describe("deck log and notices", () => {
+  test("a deck warning is cleaned, handed to the host once per window, and polled once without a reply", async () => {
+    const logged: Array<{ level: string; message: string }> = [];
+    let now = 1_000_000;
+    const realNow = Date.now;
+    Date.now = () => now;
+    try {
+      const p = createDevProtocol(memoryBackend(), { onDeckLog: (e) => logged.push(e), logRepeatMs: 30_000 });
+      const raw = '[liebstoeckel] brand "nocturn" is not defined\u001b[31m, so\nthe deck renders without theme tokens.';
+      expect((await p.handleDevRequest(post("/__dev/log", { level: "warn", message: raw }, "nope")))!.status).toBe(401);
+      expect((await p.handleDevRequest(post("/__dev/log", { level: "info", message: "x" })))!.status).toBe(400);
+      expect((await p.handleDevRequest(post("/__dev/log", { level: "warn", message: "  " })))!.status).toBe(400);
+      expect((await p.handleDevRequest(post("/__dev/log", { level: "warn", message: raw })))!.status).toBe(200);
+      // A reload repeats it at once: neither the terminal nor the agent hears it twice.
+      expect(await body<{ repeated?: boolean }>(await p.handleDevRequest(post("/__dev/log", { level: "warn", message: raw })))).toMatchObject({ repeated: true });
+      const cleaned = 'brand "nocturn" is not defined [31m, so the deck renders without theme tokens.';
+      expect(logged).toEqual([{ level: "warn", message: cleaned }]);
+
+      const event = await body<{ id: string; type: string; level: string; message: string; _instructions: string }>(
+        await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=0")),
+      );
+      expect(event).toMatchObject({ type: "deck_log", level: "warn", message: cleaned });
+      expect(event.id).toMatch(/^[a-f0-9]{8}$/);
+      // The page's text never becomes part of the instructions.
+      expect(event._instructions).toStartWith("No reply");
+      expect(event._instructions).not.toContain("nocturn");
+      // Delivered once, not leased: nobody is busy and the next poll is empty.
+      expect(p.agentBusy()).toBe(false);
+      expect((await body<{ type: string }>(await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=0")))).type).toBe("timeout");
+
+      // After the window the same problem counts as new (it came back after a fix).
+      now += 30_001;
+      await p.handleDevRequest(post("/__dev/log", { level: "warn", message: raw }));
+      expect(logged).toHaveLength(2);
+      p.stop();
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  test("an oversized log body is refused", async () => {
+    const p = createDevProtocol(memoryBackend());
+    const res = await p.handleDevRequest(post("/__dev/log", { level: "error", message: "x".repeat(20_000) }));
+    expect(res!.status).toBe(413);
+    p.stop();
+  });
+
+  test("notices and batches arrive in order, and a waiting notice never blocks Send", async () => {
+    const p = createDevProtocol(memoryBackend(), { leaseMs: 60_000 });
+    p.notify({ type: "plugin_status", ok: false, problems: [{ plugin: "bun-plugin-tailwind", message: "cannot be found" }], fix: "run bun install" });
+    await p.handleDevRequest(post("/__dev/annotations", { slideIndex: 0, comments: [{ x: 0, y: 0, text: "t" }] }));
+    // The staged notice is not a batch: dispatch goes through.
+    const dispatched = await body<{ batchId: string }>(await p.handleDevRequest(post("/__dev/dispatch", {})));
+    expect(dispatched.batchId).toBeString();
+    await p.handleDevRequest(post("/__dev/log", { level: "error", message: "[liebstoeckel] later" }));
+
+    const first = await body<{ type: string; ok: boolean; _instructions: string }>(await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=0")));
+    expect(first).toMatchObject({ type: "plugin_status", ok: false });
+    expect(first._instructions).toContain("fix");
+    const second = await body<{ type: string; id: string }>(await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=0")));
+    expect(second).toMatchObject({ type: "apply", id: dispatched.batchId });
+    // The batch is leased; the notice behind it still reaches the next poll.
+    const third = await body<{ type: string; message: string }>(await p.handleDevRequest(get("/__dev/poll?token=tok&timeout=0")));
+    expect(third).toMatchObject({ type: "deck_log", message: "later" });
+    // A notice needs no reply; replying to the batch still works as before.
+    const reply = await p.handleDevRequest(post("/__dev/poll", { id: dispatched.batchId, type: "error", message: "gave up" }));
+    expect(reply!.status).toBe(200);
+    p.stop();
+  });
+
+  test("a parked poll receives a notice the moment it is queued", async () => {
+    const p = createDevProtocol(memoryBackend());
+    const parked = p.handleDevRequest(get("/__dev/poll?token=tok&timeout=5000"));
+    p.notify({ type: "plugin_status", ok: true, problems: [] });
+    const event = await body<{ type: string; ok: boolean; _instructions: string }>(await parked);
+    expect(event).toMatchObject({ type: "plugin_status", ok: true });
+    expect(event._instructions).toContain("resolve again");
+    p.stop();
+  });
+
+  test("cleanDeckMessage drops control characters and the tag, and caps the length", () => {
+    expect(cleanDeckMessage("[liebstoeckel] a\u0007b\u009bc")).toBe("a b c");
+    expect(cleanDeckMessage("x".repeat(5000))).toHaveLength(4000);
   });
 });

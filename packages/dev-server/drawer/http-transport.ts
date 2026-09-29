@@ -142,6 +142,9 @@ export function httpTransport(token: string): DevTransport {
     async revert(batchId) {
       await post("/__dev/revert", { batchId });
     },
+    async reportLog(level, message) {
+      await post("/__dev/log", { level, message });
+    },
     subscribe,
   };
 }

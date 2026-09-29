@@ -28,7 +28,9 @@ export type FrameMessage =
   | { type: "lst:slide"; index: number }
   | { type: "lst:draft"; draft: DraftPayload }
   | { type: "lst:mode"; mode: OverlayMode }
-  | { type: "lst:captured"; id: string; draft: DraftPayload; screenshot: Blob | null };
+  | { type: "lst:captured"; id: string; draft: DraftPayload; screenshot: Blob | null }
+  /** A `[liebstoeckel]` warning or error the deck logged, for the dev terminal and the agent. */
+  | { type: "lst:log"; level: "warn" | "error"; message: string };
 
 /** Parent -> frame. */
 export type HostMessage =
@@ -48,6 +50,8 @@ function isPoint(p: unknown): p is [number, number] {
 }
 
 const HINT_MAX = 512;
+/** Longest deck log line carried to the parent; the server caps it again. */
+export const LOG_MESSAGE_MAX = 4000;
 
 /** The optional element hint under a comment: a small, bounded shape. Anything
  *  bigger or differently shaped is refused so junk from a (hosted, opaque)
@@ -99,6 +103,10 @@ export function decodeFrameMessage(data: unknown): FrameMessage | null {
     case "lst:captured":
       return typeof m.id === "string" && isDraftPayload(m.draft) && (m.screenshot === null || m.screenshot instanceof Blob)
         ? { type: "lst:captured", id: m.id, draft: m.draft, screenshot: m.screenshot }
+        : null;
+    case "lst:log":
+      return (m.level === "warn" || m.level === "error") && typeof m.message === "string" && m.message.length > 0 && m.message.length <= LOG_MESSAGE_MAX
+        ? { type: "lst:log", level: m.level, message: m.message }
         : null;
     default:
       return null;
