@@ -56,6 +56,13 @@ export interface HubOptions {
    *  touch anything outside the scope are dropped, not applied. Absent → no
    *  enforcement (every peer may write, the local/LAN trusted model, (internal ADR)). */
   audience?: AudiencePolicy;
+  /** If set, updates that follow each other within this many ms go out as one merged
+   *  frame per peer at the end of the window, instead of one frame per update per peer.
+   *  The first update after a quiet window still goes out at once, so a lone change (a
+   *  slide change) is not delayed. With a large audience voting, sending every vote to
+   *  every viewer on its own is what the relay spends most of its time on. 0/undefined =
+   *  every update at once. */
+  coalesceMs?: number;
 }
 
 // A valid Yjs update for an empty doc: applying it is a no-op (no structs), but
@@ -74,14 +81,27 @@ export class Hub {
   /** Checks audience writes against a shadow of the doc, at the cost of the write, not
    *  of the whole session. */
   private readonly gate?: AudienceGate;
+  private readonly coalesceMs: number;
+  /** Updates waiting for the end of the current window, and who sent them. */
+  private queued: Uint8Array[] = [];
+  private queuedFrom = new Set<unknown>();
+  private flushTimer?: ReturnType<typeof setTimeout>;
+  private lastSentAt = -Infinity;
 
   constructor(opts: HubOptions = {}) {
     this.audience = opts.audience;
+    this.coalesceMs = opts.coalesceMs && opts.coalesceMs > 0 ? opts.coalesceMs : 0;
     if (opts.audience) this.gate = new AudienceGate(this.doc, opts.audience.scope);
     this.doc.on("update", (update: Uint8Array, origin: unknown) => {
-      for (const [key, send] of this.peers) {
-        if (key !== origin) this.deliver(key, send, update);
+      if (this.coalesceMs === 0) return this.broadcast(update, origin);
+      const now = Date.now();
+      if (this.flushTimer === undefined && now - this.lastSentAt >= this.coalesceMs) {
+        this.lastSentAt = now;
+        return this.broadcast(update, origin);
       }
+      this.queued.push(update);
+      this.queuedFrom.add(origin);
+      this.flushTimer ??= setTimeout(() => this.flush(), Math.max(0, this.coalesceMs - (now - this.lastSentAt)));
     });
     if (opts.keepaliveMs && opts.keepaliveMs > 0) {
       this.keepalive = setInterval(() => {
@@ -90,6 +110,26 @@ export class Hub {
       // don't keep the process alive just for keepalives
       (this.keepalive as { unref?: () => void }).unref?.();
     }
+  }
+
+  /** Send one update to every peer except the one it came from. */
+  private broadcast(update: Uint8Array, origin: unknown): void {
+    for (const [key, send] of this.peers) {
+      if (key !== origin) this.deliver(key, send, update);
+    }
+  }
+
+  /** Send the window's updates as one merged frame. It goes to every peer, the senders
+   *  included (applying an update twice changes nothing), unless one peer sent them all. */
+  private flush(): void {
+    this.flushTimer = undefined;
+    if (this.queued.length === 0) return;
+    const merged = this.queued.length === 1 ? this.queued[0]! : Y.mergeUpdates(this.queued);
+    const only = this.queuedFrom.size === 1 ? [...this.queuedFrom][0] : undefined;
+    this.queued = [];
+    this.queuedFrom.clear();
+    this.lastSentAt = Date.now();
+    this.broadcast(merged, only);
   }
 
   /** Send to one peer; a failing send (dead/closing socket) drops that peer
@@ -203,6 +243,7 @@ export class Hub {
 
   destroy(): void {
     if (this.keepalive) clearInterval(this.keepalive);
+    if (this.flushTimer) clearTimeout(this.flushTimer);
     this.gate?.destroy();
     this.peers.clear();
     this.doc.destroy();

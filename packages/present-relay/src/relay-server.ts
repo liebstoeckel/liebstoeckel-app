@@ -56,6 +56,9 @@ export interface RelayOptions {
   maxFrameBytes?: number;
   /** keepalive period for each session Hub */
   keepaliveMs?: number;
+  /** Updates within this many ms of each other reach each peer as one merged frame
+   *  (the first after a quiet spell goes out at once). 0 sends every update on its own. */
+  broadcastCoalesceMs?: number;
   /** object storage for session snapshots ((internal ADR)). Sessions created with an
    *  `x-snapshot-key` header are seeded from it on create and snapshotted to it on a
    *  timer + on end; absent → no persistence (the trusted/transient relay). */
@@ -149,6 +152,7 @@ const DEFAULTS = {
   maxFrameBytes: 4 * 1024 * 1024,
   // Well inside the live client's watchdog, so a hung relay is left within about 35 s.
   keepaliveMs: 10_000,
+  broadcastCoalesceMs: 50,
   snapshotMs: 20_000,
   logFlushMs: 1_500,
   fenceMs: 10_000,
@@ -370,6 +374,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     }
     const hub = new Hub({
       keepaliveMs: cfg.keepaliveMs,
+      coalesceMs: cfg.broadcastCoalesceMs,
       audience: enforce ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate, admit: hasRoom } : undefined,
     });
     // Re-seed from the stored state: the previous epoch's, or (a session placed

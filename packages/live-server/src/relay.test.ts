@@ -261,3 +261,64 @@ describe("Hub, a large audience", () => {
     hub.destroy();
   }, 60_000);
 });
+
+describe("Hub, coalesced broadcasts", () => {
+  test("a burst reaches a peer as few merged frames, a lone update at once", async () => {
+    const hub = new Hub({ coalesceMs: 30 });
+    const got: Uint8Array[] = [];
+    hub.join((d) => got.push(d)); // an observer
+    const writer = hub.join(() => {});
+    const src = new Y.Doc();
+    const frames: Uint8Array[] = [];
+    src.on("update", (u: Uint8Array) => frames.push(u));
+    const before = got.length;
+    src.getMap("m").set("first", 0);
+    writer.recv(frames[0]!);
+    expect(got.length).toBe(before + 1); // the first after a quiet spell: at once
+    for (let i = 1; i <= 20; i++) {
+      src.getMap("m").set(`k${i}`, i);
+      writer.recv(frames[i]!);
+    }
+    expect(got.length).toBe(before + 1); // the burst waits for the window
+    await Bun.sleep(80);
+    expect(got.length).toBe(before + 2); // one merged frame
+    const mirror = new Y.Doc();
+    for (const f of got) Y.applyUpdate(mirror, f);
+    expect(Object.keys(mirror.getMap("m").toJSON()).length).toBe(21);
+    hub.destroy();
+  });
+
+  test("a merged frame from one sender skips that sender, a mixed one goes to all", async () => {
+    const hub = new Hub({ coalesceMs: 30 });
+    const toA: Uint8Array[] = [];
+    const toB: Uint8Array[] = [];
+    const a = hub.join((d) => toA.push(d));
+    const b = hub.join((d) => toB.push(d));
+    const docA = new Y.Doc();
+    const docB = new Y.Doc();
+    const fa: Uint8Array[] = [];
+    const fb: Uint8Array[] = [];
+    docA.on("update", (u: Uint8Array) => fa.push(u));
+    docB.on("update", (u: Uint8Array) => fb.push(u));
+    docA.getMap("m").set("a0", 1);
+    a.recv(fa[0]!); // at once, to b only
+    docA.getMap("m").set("a1", 1);
+    a.recv(fa[1]!);
+    docA.getMap("m").set("a2", 1);
+    a.recv(fa[2]!);
+    await Bun.sleep(80);
+    const [aCount, bCount] = [toA.length, toB.length];
+    expect(aCount).toBe(1); // only its join state
+    expect(bCount).toBe(3); // join state, the first write, the merged pair
+    docA.getMap("m").set("a3", 1);
+    a.recv(fa[3]!); // quiet again: at once
+    docA.getMap("m").set("a4", 1);
+    a.recv(fa[4]!);
+    docB.getMap("m").set("b0", 1);
+    b.recv(fb[0]!);
+    await Bun.sleep(80);
+    expect(toA.length).toBe(aCount + 1); // the mixed window reaches a too
+    hub.destroy();
+  });
+});
+
