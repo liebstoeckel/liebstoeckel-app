@@ -159,7 +159,10 @@ describe("epoch-fenced session state", () => {
 
   test("an end marked in storage stops an owner the control plane could not reach", async () => {
     const storage = memStorage();
-    const { relay, base } = start(storage);
+    // No log flush during the test: the vote must reach storage through the final
+    // snapshot the owner writes when its fence check finds the end, whichever of the
+    // two timers would have fired first under load.
+    const { relay, base } = start(storage, { logFlushMs: 1_000_000 });
     await place(base, 1);
     const sock = await socket(relay, base);
     vote(relay, 4);
@@ -191,9 +194,10 @@ describe("epoch-fenced session state", () => {
       vote(relay, i);
       await Bun.sleep(50);
     }
+    // Under load the last change may not be flushed yet after the sleep: wait for it.
+    await until(async () => votesIn(await latestState(storage, "org1", "s1")) === 5);
     const snaps = storage.keys(1).filter((k) => k.endsWith(".snap"));
     expect(snaps.length).toBeLessThanOrEqual(3);
-    expect(votesIn(await latestState(storage, "org1", "s1"))).toBe(5);
   });
 
   test("a relay with a liveness lease reports its holder with each session and in /stats", async () => {

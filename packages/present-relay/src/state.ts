@@ -156,13 +156,17 @@ export class SessionState {
     }
   }
 
-  /** Whether this process still owns the session: no key under a higher epoch. */
+  /** Whether this process still owns the session: no key under a higher epoch.
+   *  A replaced owner stops writing at once, another pod owns the state now. An
+   *  ended one may still write its final snapshot under its own epoch (the caller
+   *  does, then stops), so changes made since the last log flush are not lost. */
   async fence(): Promise<FenceResult> {
     const keys = await sessionKeys(this.opts.storage, this.opts.org, this.opts.session);
     const higher = keys.filter((k) => k.epoch > this.opts.epoch);
     if (higher.length === 0) return "owner";
+    if (higher.some((k) => k.ext === END) && !higher.some((k) => k.ext === SNAP || k.ext === LOG)) return "ended";
     this.stopped = true;
-    return higher.some((k) => k.ext === END) && !higher.some((k) => k.ext === SNAP || k.ext === LOG) ? "ended" : "replaced";
+    return "replaced";
   }
 
   /** Stop writing for good (replaced, ended or dropped without a final write). */

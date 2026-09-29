@@ -61,7 +61,9 @@ Some browser-dependent tests need Chromium and skip cleanly when it is absent.
 A test file that launches Chromium is named `*.browser.test.ts`: `bun run test`
 runs those in a bun test process of their own (`bun run test:browser` runs just
 them), since spawning Chromium late in one long-lived test process can fail. A
-check in the thumbnails package fails when such a file lacks the suffix.
+check in the thumbnails package fails when such a file lacks the suffix. The
+browser tests run even when the first process fails, and `bun run test` fails
+if either did.
 
 ## Conventions
 
