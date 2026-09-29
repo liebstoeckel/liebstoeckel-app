@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { liveStatusVisible } from "./status";
+import { liveStatusVisible, refusingText } from "./status";
 
 describe("liveStatusVisible", () => {
   test("presenters see every state but connected", () => {
@@ -24,5 +24,15 @@ describe("liveStatusVisible", () => {
     }
     expect(liveStatusVisible({ status: "ended", sending: true }, "viewer")).toBe(true);
     expect(liveStatusVisible({ status: "connected", sending: undefined }, "viewer")).toBe(false);
+  });
+});
+
+describe("refusingText (presenter banner)", () => {
+  test("plain words per reason, only while connected", () => {
+    expect(refusingText({ status: "connected", refusing: "full" })).toContain("this session is full");
+    expect(refusingText({ status: "connected", refusing: "busy" })).toContain("the live server is busy");
+    expect(refusingText({ status: "connected" })).toBeNull();
+    expect(refusingText({ status: "reconnecting", refusing: "full" })).toBeNull();
+    expect(refusingText(undefined)).toBeNull();
   });
 });

@@ -1,7 +1,16 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { AnimatePresence, LayoutGroup } from "motion/react";
 import type * as Y from "yjs";
-import { pluginState, registerPluginInstance, type ClientProps, type PluginDef, type Role, type ThemeTokens } from "@liebstoeckel/plugin-sdk";
+import {
+  instanceStateKey,
+  pluginState,
+  registerPluginInstance,
+  type ClientProps,
+  type PluginDef,
+  type Refusal,
+  type Role,
+  type ThemeTokens,
+} from "@liebstoeckel/plugin-sdk";
 import { mergeUi } from "./ui";
 import { GlowTap, BreakoutSheet, useBreakoutEligible } from "./breakout";
 import { PluginBoundary } from "./PluginBoundary";
@@ -20,6 +29,8 @@ export interface LiveContextValue {
   audienceInputKeptDays?: number;
   /** the live connection's state (live only) */
   connection?: LiveState;
+  /** this viewer's refused writes by doc root (live only) */
+  refusals?: ReadonlyMap<string, Refusal>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   plugins: Record<string, PluginDef<any>>;
 }
@@ -60,6 +71,7 @@ export function usePluginProps(
     ui: mergeUi({}, {}),
     props,
     instance,
+    refusal: ctx.refusals?.get(instanceStateKey(id, instance)),
   };
 }
 
@@ -147,6 +159,7 @@ export function Plugin({
           ui={mergeUi({}, components)}
           props={props}
           instance={instance}
+          refusal={ctx.refusals?.get(instanceStateKey(id, instance))}
         />
       </PluginBoundary>
     </LayoutGroup>

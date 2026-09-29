@@ -4,7 +4,41 @@
 // engine), so a live-server test keeps the two equal.
 
 /** The live protocol this client speaks, sent as `v` on the socket URL. */
-export const LIVE_PROTOCOL = 1;
+export const LIVE_PROTOCOL = 2;
+
+/** Why a server refused an audience write (see the live server's protocol). */
+export type RefusalReason = "busy" | "full" | "invalid";
+
+/** Control messages servers send as text frames to protocol 2 clients. After `reset`
+ *  the next binary frame is the whole session state, which replaces the client's doc. */
+export type LiveNotice =
+  | { t: "refused"; reason: RefusalReason; roots: string[] }
+  | { t: "reset" }
+  | { t: "refusing"; reason: Exclude<RefusalReason, "invalid"> | null };
+
+const REASONS: readonly string[] = ["busy", "full", "invalid"];
+
+/** Read a text frame as a notice; anything else (a newer server's message, garbage) is
+ *  ignored. */
+export function parseNotice(text: string): LiveNotice | null {
+  let v: unknown;
+  try {
+    v = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!v || typeof v !== "object") return null;
+  const m = v as Record<string, unknown>;
+  if (m.t === "refused" && typeof m.reason === "string" && REASONS.includes(m.reason)) {
+    const roots = Array.isArray(m.roots) ? m.roots.filter((r): r is string => typeof r === "string").slice(0, 8) : [];
+    return { t: "refused", reason: m.reason as RefusalReason, roots };
+  }
+  if (m.t === "reset") return { t: "reset" };
+  if (m.t === "refusing" && (m.reason === null || m.reason === "busy" || m.reason === "full")) {
+    return { t: "refusing", reason: m.reason };
+  }
+  return null;
+}
 
 /** WebSocket close codes shared by the live servers. */
 export const LIVE_CLOSE = {
@@ -42,6 +76,9 @@ export interface LiveState {
   /** the server keeps refusing this client's updates for coming too fast; it is
    *  resending them, a little slower */
   sending?: boolean;
+  /** presenters: the server is refusing audience input right now, because a field is
+   *  full or because it is short of memory (`busy`) */
+  refusing?: "busy" | "full";
 }
 
 /** `url` with this client's protocol version. */

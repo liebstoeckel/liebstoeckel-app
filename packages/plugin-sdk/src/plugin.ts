@@ -34,6 +34,21 @@ export interface ClientProps<T> {
   /** instance discriminator ((internal ADR)); "" = the default slice. Lets one plugin *type*
    *  back many independent placements (e.g. two separate polls). */
   instance: string;
+  /** Set on a viewer when the live server refused this viewer's latest write to this
+   *  instance (the session is full, or the server is busy). The shared state already
+   *  shows what the presenter has, so a refused vote reads as not cast; show the viewer
+   *  a short message. Cleared when the viewer writes to this instance again. */
+  refusal?: Refusal;
+}
+
+/** Why the live server refused a viewer's write. `busy`: the server is short of memory
+ *  and takes no audience input for now, trying again later can work. `full`: the field
+ *  written to is at its entry cap, trying again will not work. `invalid`: the write was
+ *  outside what the audience may write (a bug, or the plugin changed). */
+export interface Refusal {
+  reason: "busy" | "full" | "invalid";
+  /** when the refusal arrived (ms since the epoch); a new refusal is a new object */
+  at: number;
 }
 
 export type ClientComponent<T> = ComponentType<ClientProps<T>>;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { definePlugin, type ClientProps, type GlobalProps, type PluginState } from "@liebstoeckel/plugin-sdk";
-import { Card, Eyebrow } from "@liebstoeckel/plugin-ui";
+import { Card, Eyebrow, RefusalNote } from "@liebstoeckel/plugin-ui";
 import {
   reactionsSchema,
   EMOJI,
@@ -130,6 +130,7 @@ function ReactionsSlide(p: ClientProps<ReactionsState>) {
       </div>
       <Eyebrow>React</Eyebrow>
       <EmojiPalette onEmit={emit} />
+      <RefusalNote refusal={p.refusal} what="reaction" style={{ marginTop: "0.7rem" }} />
     </Card>
   );
 }
@@ -163,6 +164,7 @@ function ReactionsPanel(p: GlobalProps<ReactionsState>) {
     <>
       <Eyebrow>React</Eyebrow>
       <EmojiPalette onEmit={emit} />
+      <RefusalNote refusal={p.refusal} what="reaction" style={{ marginTop: "0.7rem" }} />
     </>
   );
 }

@@ -42,6 +42,9 @@ class MockWS {
     const copy = new Uint8Array(bytes);
     this.emit("message", { data: copy.buffer });
   }
+  deliverText(text: string) {
+    this.emit("message", { data: text });
+  }
   private emit(type: string, e?: unknown) {
     (this.listeners[type] ?? []).forEach((cb) => cb(e));
   }
@@ -393,6 +396,104 @@ describe("connectLive and a hung server", () => {
     created[0]!.hung = true; // never opens
     await Bun.sleep(250);
     expect(created.length).toBeGreaterThanOrEqual(2);
+    conn.close();
+  });
+});
+
+describe("connectLive: refused writes (protocol 2 notices)", () => {
+  const setup = (opts: Parameters<typeof connectLive>[2] = {}) => {
+    const created: MockWS[] = [];
+    const WS = function (url: string) {
+      const s = new MockWS(url);
+      created.push(s);
+      return s;
+    } as unknown as typeof WebSocket;
+    const conn = connectLive(info, "p1", { WS, staleMs: 0, ...opts });
+    created[0]!.open();
+    return { conn, created, sock: () => created[created.length - 1]! };
+  };
+
+  test("asks for protocol 2", () => {
+    const { sock } = setup();
+    expect(LIVE_PROTOCOL).toBe(2);
+    expect(sock().url).toContain("v=2");
+  });
+
+  test("`refused` then `reset` + state: the doc is replaced by the server's, the viewer is told, no reconnect", () => {
+    const { conn, created, sock } = setup();
+    const server = new Y.Doc();
+    server.getMap("plugin:poll").set("votes", new Y.Map());
+    sock().deliver(Y.encodeStateAsUpdate(server));
+    const old = conn.doc;
+    (old.getMap("plugin:poll").get("votes") as Y.Map<string>).set("p1", "A"); // refused by the server
+    const sentBefore = sock().sent.length;
+
+    const docs: Y.Doc[] = [];
+    conn.onDoc((d) => docs.push(d));
+    let refusals = new Map() as ReadonlyMap<string, { reason: string }>;
+    conn.onRefusals((r) => (refusals = r));
+
+    sock().deliverText(JSON.stringify({ t: "refused", reason: "full", roots: ["plugin:poll"] }));
+    expect(refusals.get("plugin:poll")?.reason).toBe("full");
+    sock().deliverText(JSON.stringify({ t: "reset" }));
+    sock().deliver(Y.encodeStateAsUpdate(server));
+
+    expect(docs.length).toBe(1);
+    expect(conn.doc).toBe(docs[0]!);
+    expect(conn.doc).not.toBe(old);
+    expect(conn.doc.clientID).not.toBe(old.clientID);
+    expect((conn.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).toJSON()).toEqual({}); // vote not cast
+    expect(created.length).toBe(1); // no reconnect
+    expect(sock().sent.length).toBe(sentBefore); // replacing the doc sends nothing
+
+    // later writes go out from the new doc, and clear the message for that root
+    (conn.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("p1", "B");
+    expect(sock().sent.length).toBe(sentBefore + 1);
+    expect(refusals.has("plugin:poll")).toBe(false);
+    // the old doc is detached: a stale write there goes nowhere
+    old.getMap("plugin:poll").set("stale", 1);
+    expect(sock().sent.length).toBe(sentBefore + 1);
+  });
+
+  test("`refusing` sets the presenter state; it is cleared when the connection drops", () => {
+    const { conn, sock } = setup();
+    let state: LiveState = { status: "connecting" };
+    conn.onState((s) => (state = s));
+    sock().deliverText(JSON.stringify({ t: "refusing", reason: "busy" }));
+    expect(state.refusing).toBe("busy");
+    sock().deliverText(JSON.stringify({ t: "refusing", reason: null }));
+    expect(state.refusing).toBeUndefined();
+    sock().deliverText(JSON.stringify({ t: "refusing", reason: "full" }));
+    sock().serverClose(1006);
+    expect(state.refusing).toBeUndefined();
+    conn.close();
+  });
+
+  test("unknown or malformed text frames are ignored", () => {
+    const { conn, sock } = setup();
+    const docs: Y.Doc[] = [];
+    conn.onDoc((d) => docs.push(d));
+    let refusals = new Map() as ReadonlyMap<string, unknown>;
+    conn.onRefusals((r) => (refusals = r));
+    for (const t of ["not json", "42", "null", '{"t":"refused","reason":"nope"}', '{"t":"future"}']) sock().deliverText(t);
+    sock().deliver(Y.encodeStateAsUpdate(new Y.Doc()));
+    expect(docs.length).toBe(0);
+    expect(refusals.size).toBe(0);
+  });
+
+  test("after many doc replacements on one connection it reconnects (the server caps client ids per connection)", async () => {
+    const { conn, created, sock } = setup({ maxResetsPerConnection: 3, reconnectBaseMs: 5 });
+    const state = Y.encodeStateAsUpdate(new Y.Doc());
+    for (let i = 0; i < 2; i++) {
+      sock().deliverText(JSON.stringify({ t: "reset" }));
+      sock().deliver(state);
+    }
+    await Bun.sleep(40);
+    expect(created.length).toBe(1);
+    sock().deliverText(JSON.stringify({ t: "reset" }));
+    sock().deliver(state);
+    await Bun.sleep(40);
+    expect(created.length).toBe(2);
     conn.close();
   });
 });

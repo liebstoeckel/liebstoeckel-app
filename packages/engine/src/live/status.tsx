@@ -43,3 +43,27 @@ export function LiveStatusBadge({ state, role, className = "" }: { state?: LiveS
     </div>
   );
 }
+
+/** The presenter's words for audience input being refused, or null when it is not. */
+export function refusingText(state: LiveState | undefined): string | null {
+  if (!state?.refusing || state.status !== "connected") return null;
+  return state.refusing === "busy"
+    ? "Audience input is paused: the live server is busy. Votes and questions arrive again in a moment."
+    : "Audience input is paused: this session is full, so new votes and questions are not arriving. Close the poll or the Q&A so the audience knows.";
+}
+
+/** A presenter-only banner while the server refuses audience input. It belongs on the
+ *  presenter's own screen, never on the projected deck. */
+export function AudienceRefusingNotice({ state, className = "" }: { state?: LiveState; className?: string }) {
+  const text = refusingText(state);
+  return (
+    <div role="status" aria-live="polite" className={className}>
+      {text && (
+        <div className="flex items-center gap-3 border-b border-accent/40 bg-accent/10 px-4 py-2 text-sm text-text lg:px-8">
+          <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-accent" />
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,9 +1,18 @@
 import * as Y from "yjs";
 import type { LiveInfo } from "./detect";
-import { LIVE_CLOSE, type LiveState, withLiveProtocol } from "./protocol";
+import type { Refusal } from "@liebstoeckel/plugin-sdk";
+import { LIVE_CLOSE, type LiveState, parseNotice, withLiveProtocol } from "./protocol";
 
 export interface LiveConnection {
-  doc: Y.Doc;
+  /** The shared doc. A viewer's doc is replaced when the server refuses one of its
+   *  writes (see {@link onDoc}); read it through here, not once. */
+  readonly doc: Y.Doc;
+  /** Called with the new doc when the server refused one of this viewer's writes and
+   *  sent the session state that replaces the doc. The old doc is destroyed afterwards. */
+  onDoc(cb: (doc: Y.Doc) => void): void;
+  /** This viewer's refused writes by doc root (e.g. `plugin:poll`), called at once and
+   *  on every change. An entry stays until the viewer writes to that root again. */
+  onRefusals(cb: (refusals: ReadonlyMap<string, Refusal>) => void): void;
   onStatus(cb: (connected: boolean) => void): void;
   /** The detailed state (reconnecting, ended, outdated), called with the current
    *  state at once and on every change. */
@@ -39,6 +48,26 @@ export interface ConnectOptions {
   dropWindowMs?: number;
   /** Shortest time the `sending` hint stays up, so it does not flicker (ms). */
   sendingHintMs?: number;
+  /** After this many doc replacements on one connection, reconnect: the server lets
+   *  one connection bring in a limited number of client ids, and each replacement
+   *  writes under a new one. */
+  maxResetsPerConnection?: number;
+}
+
+/** The doc roots a transaction changed, by name. */
+function changedRoots(doc: Y.Doc, tr: Y.Transaction): Set<string> {
+  const out = new Set<string>();
+  for (const type of tr.changed.keys()) {
+    let t = type as Y.AbstractType<unknown>;
+    while (t._item) t = t._item.parent as Y.AbstractType<unknown>;
+    for (const [name, root] of doc.share) {
+      if (root === t) {
+        out.add(name);
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 /** A fresh Yjs client id (Yjs itself uses a random uint32). */
@@ -66,6 +95,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   const quickWindowMs = opts.quickRetryWindowMs ?? 30_000;
   const dropWindowMs = opts.dropWindowMs ?? 15_000;
   const sendingHintMs = opts.sendingHintMs ?? 2000;
+  const maxResets = opts.maxResetsPerConnection ?? 16;
   /** When the server last closed us for a dropped update, and how many such closes
    *  came in a row, each within `dropWindowMs` of the one before. */
   let lastDropAt = -Infinity;
@@ -80,7 +110,18 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
       if (typeof location !== "undefined") location.reload();
     });
   let escalated = false;
-  const doc = new Y.Doc();
+  let doc = new Y.Doc();
+  const docCbs: Array<(d: Y.Doc) => void> = [];
+  let refusals: ReadonlyMap<string, Refusal> = new Map();
+  const refusalCbs: Array<(r: ReadonlyMap<string, Refusal>) => void> = [];
+  const setRefusals = (next: ReadonlyMap<string, Refusal>) => {
+    refusals = next;
+    refusalCbs.forEach((cb) => cb(refusals));
+  };
+  /** Set by a `reset` notice: the next binary frame is the state that replaces the doc. */
+  let resetNext = false;
+  /** Doc replacements on the current connection. */
+  let resets = 0;
   const sep = info.ws.includes("?") ? "&" : "?";
   const url = withLiveProtocol(`${info.ws}${sep}p=${encodeURIComponent(participant)}`);
   const statusCbs: Array<(c: boolean) => void> = [];
@@ -88,7 +129,13 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   const stateCbs: Array<(s: LiveState) => void> = [];
   let state: LiveState = { status: "connecting" };
   const setState = (next: LiveState) => {
-    if (next.status === state.status && next.message === state.message && next.sending === state.sending) return;
+    if (
+      next.status === state.status &&
+      next.message === state.message &&
+      next.sending === state.sending &&
+      next.refusing === state.refusing
+    )
+      return;
     state = next;
     stateCbs.forEach((cb) => cb(state));
   };
@@ -105,7 +152,47 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   const onUpdate = (update: Uint8Array, origin: unknown) => {
     if (origin !== "remote" && ws && ws.readyState === ws.OPEN) ws.send(new Uint8Array(update));
   };
+  // A refusal stays shown until the viewer writes to the same place again.
+  const onTransaction = (tr: Y.Transaction) => {
+    if (refusals.size === 0 || tr.origin === "remote") return;
+    const touched = changedRoots(tr.doc, tr);
+    if (![...touched].some((r) => refusals.has(r))) return;
+    const next = new Map(refusals);
+    for (const r of touched) next.delete(r);
+    setRefusals(next);
+  };
   doc.on("update", onUpdate);
+  doc.on("afterTransaction", onTransaction);
+
+  /** Replace the doc with the session state the server sent after refusing one of our
+   *  writes. The old doc still shows the refused write (and anything built on it, which
+   *  the server turned into placeholders too), so it cannot be fixed in place; the new
+   *  doc holds exactly what the presenter has and writes under a fresh client id. */
+  function reset(state: Uint8Array) {
+    const next = new Y.Doc();
+    try {
+      Y.applyUpdate(next, state, "remote");
+    } catch {
+      next.destroy();
+      return;
+    }
+    const old = doc;
+    old.off("update", onUpdate);
+    old.off("afterTransaction", onTransaction);
+    doc = next;
+    doc.on("update", onUpdate);
+    doc.on("afterTransaction", onTransaction);
+    docCbs.forEach((cb) => cb(doc));
+    old.destroy();
+  }
+
+  /** Remember a refused write per root, for the viewer's message. */
+  function refused(reason: Refusal["reason"], roots: string[]) {
+    const at = Date.now();
+    const next = new Map(refusals);
+    for (const root of roots) next.set(root, { reason, at });
+    setRefusals(next);
+  }
 
   const schedule = (atOnce = false, delayMs?: number) => {
     if (closed) return;
@@ -179,6 +266,8 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
     ws = sock;
     sock.binaryType = "arraybuffer";
     sock.addEventListener("open", () => {
+      resetNext = false;
+      resets = 0;
       attempt = 0;
       quickUntil = 0;
       lastMsgAt = Date.now();
@@ -188,6 +277,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
         /* ignore */
       }
       emit(true);
+      // a presenter hears again whether audience input is being refused
       setState(withHint({ status: "connected" }));
       // The resync just went out: take the `sending` hint down once it has shown long
       // enough not to flicker.
@@ -202,8 +292,24 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
     });
     sock.addEventListener("message", (e: MessageEvent) => {
       lastMsgAt = Date.now(); // any frame (update or keepalive) proves liveness
+      if (typeof e.data === "string") {
+        const notice = parseNotice(e.data);
+        if (notice?.t === "refused") refused(notice.reason, notice.roots);
+        else if (notice?.t === "reset") resetNext = true;
+        else if (notice?.t === "refusing") setState({ ...state, refusing: notice.reason ?? undefined });
+        return;
+      }
+      const bytes = new Uint8Array(e.data as ArrayBuffer);
+      if (resetNext) {
+        resetNext = false;
+        reset(bytes);
+        // Each replacement writes under a new client id, and the server only lets one
+        // connection bring in so many: start a fresh connection before running out.
+        if (++resets >= maxResets) abandon(sock);
+        return;
+      }
       try {
-        Y.applyUpdate(doc, new Uint8Array(e.data as ArrayBuffer), "remote");
+        Y.applyUpdate(doc, bytes, "remote");
       } catch {
         /* ignore malformed frame */
       }
@@ -211,6 +317,8 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
     sock.addEventListener("close", (e?: CloseEvent) => {
       if (ws !== sock) return; // an older socket closing late
       emit(false);
+      // the server says again on the next connection if it is still refusing
+      if (state.refusing) setState({ ...state, refusing: undefined });
       const code = e?.code ?? 0;
       if (code === LIVE_CLOSE.ENDED) {
         stop();
@@ -261,7 +369,16 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   open();
 
   return {
-    doc,
+    get doc() {
+      return doc;
+    },
+    onDoc(cb) {
+      docCbs.push(cb);
+    },
+    onRefusals(cb) {
+      refusalCbs.push(cb);
+      cb(refusals);
+    },
     onStatus(cb) {
       statusCbs.push(cb);
     },
@@ -275,6 +392,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
       if (sendingTimer) clearTimeout(sendingTimer);
       if (watchdog) clearInterval(watchdog);
       doc.off("update", onUpdate);
+      doc.off("afterTransaction", onTransaction);
       try {
         ws?.close();
       } catch {

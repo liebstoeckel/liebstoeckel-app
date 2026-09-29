@@ -322,3 +322,52 @@ describe("Hub, coalesced broadcasts", () => {
   });
 });
 
+
+describe("Hub: what a refusal says", () => {
+  const scope = { pluginFields: new Map([["poll", new Set(["votes"])]]), wholeRoots: new Set<string>() };
+
+  /** A viewer doc synced from the hub, whose changes go to the hub through `peer`. */
+  function viewer(hub: Hub, opts: Parameters<Hub["join"]>[2]) {
+    const doc = new Y.Doc();
+    const peer = hub.join((d) => Y.applyUpdate(doc, d, "remote"), "audience", opts);
+    doc.on("update", (u: Uint8Array, origin: unknown) => origin !== "remote" && peer.recv(u));
+    return doc;
+  }
+
+  test("names the roots touched, tells a full field from a scope drop, reports accepted writes", () => {
+    const hub = new Hub({ audience: { scope: scope as never, caps: { tallyEntries: 1 } } });
+    hub.doc.getMap("plugin:poll").set("votes", new Y.Map());
+    const drops: Array<{ reason: string; fieldFull?: boolean; roots: string[]; adds: boolean }> = [];
+    let accepted = 0;
+    const doc = viewer(hub, { onDrop: (reason, info) => drops.push({ reason, ...info }), onAccept: () => accepted++ });
+    const votes = () => doc.getMap("plugin:poll").get("votes") as Y.Map<string>;
+
+    votes().set("p1", "A"); // accepted, fills the field
+    expect(accepted).toBe(1);
+    votes().set("p2", "B"); // a nested map item: the root is found through the doc
+    doc.getMap("deck").set("index", 3); // out of scope
+    expect(drops.map(({ reason, fieldFull, roots, adds }) => ({ reason, fieldFull, roots, adds }))).toEqual([
+      { reason: "scope", fieldFull: true, roots: ["plugin:poll"], adds: true },
+      { reason: "scope", fieldFull: false, roots: ["deck"], adds: true },
+    ]);
+  });
+
+  test("a memory stop drops as `full`; a deletion-only update says it adds nothing", () => {
+    // B replaces an accepted entry, so its item names no parent: it is found through A
+    let room = true;
+    const hub = new Hub({ audience: { scope: scope as never, admit: () => room } });
+    hub.doc.getMap("plugin:poll").set("votes", new Y.Map());
+    const drops: Array<{ reason: string; roots: string[]; adds: boolean }> = [];
+    const doc = viewer(hub, { onDrop: (reason, { roots, adds }) => drops.push({ reason, roots, adds }) });
+    const votes = () => doc.getMap("plugin:poll").get("votes") as Y.Map<string>;
+    votes().set("p1", "A");
+    room = false;
+    votes().set("p1", "B"); // replaces an existing entry: found through its left neighbour
+    votes().delete("p1");
+    expect(drops).toEqual([
+      { reason: "full", roots: ["plugin:poll"], adds: true },
+      // the deleted entry is the refused one, which the hub only holds as a placeholder
+      { reason: "full", roots: [], adds: false },
+    ]);
+  });
+});

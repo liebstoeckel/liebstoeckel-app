@@ -113,7 +113,16 @@ export const relayCommand = defineCommand({
         })
       : null;
     liveness?.start();
-    const relay = createRelay({ accountTokens: tokens, port, publicBaseUrl, storage, holder: liveness ? identity : undefined });
+    // Test clusters only: a small per-field entry cap, to see what a full field looks like.
+    const entryCap = Number(process.env.PRESENT_RELAY_AUDIENCE_ENTRY_CAP ?? "") || undefined;
+    const relay = createRelay({
+      accountTokens: tokens,
+      port,
+      publicBaseUrl,
+      storage,
+      holder: liveness ? identity : undefined,
+      audienceEntryCap: entryCap,
+    });
     const base = publicBaseUrl?.replace(/\/$/, "") ?? `http://localhost:${relay.port}`;
 
     console.log(`\n▶  liebstoeckel relay listening on :${relay.port}`);

@@ -489,3 +489,32 @@ describe("same answers as the whole-doc check", () => {
     expect(refused).toBeGreaterThan(200);
   });
 });
+
+describe("AudienceGate: why it refused, and lower caps for testing", () => {
+  const scope: AudienceScope = { pluginFields: new Map([["poll", new Set(["votes"])]]), wholeRoots: new Set() };
+  const vote = (live: Y.Doc, pid: string) => {
+    const d = new Y.Doc();
+    Y.applyUpdate(d, Y.encodeStateAsUpdate(live));
+    const sv = Y.encodeStateVector(d);
+    (d.getMap("plugin:poll").get("votes") as Y.Map<string>).set(pid, "A");
+    return Y.encodeStateAsUpdate(d, sv);
+  };
+
+  test("`cap` when a field is full, `scope` otherwise; caps never go above the defaults", () => {
+    const live = new Y.Doc();
+    live.getMap("plugin:poll").set("votes", new Y.Map());
+    const gate = new AudienceGate(live, scope, { tallyEntries: 1, entries: 10 ** 9 });
+    const first = vote(live, "p1");
+    expect(gate.check(first)).toBe(true);
+    gate.apply(first);
+    expect(gate.check(vote(live, "p2"))).toBe(false);
+    expect(gate.lastRefusal).toBe("cap");
+
+    const d = new Y.Doc();
+    d.getMap("deck").set("index", 1);
+    expect(gate.check(Y.encodeStateAsUpdate(d))).toBe(false);
+    expect(gate.lastRefusal).toBe("scope");
+    expect((gate as unknown as { caps: { entries: number } }).caps.entries).toBe(MAX_AUDIENCE_ENTRIES);
+    gate.destroy();
+  });
+});

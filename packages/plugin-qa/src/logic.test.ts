@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
 import { pluginState } from "@liebstoeckel/plugin-sdk";
-import { qaSchema, voteKey, voteCount, hasVoted, rankedQuestions, keptHint, type QaState } from "./logic";
+import { qaSchema, voteKey, voteCount, hasVoted, rankedQuestions, keptHint, sentQuestionFate, type QaState } from "./logic";
 
 const make = (over: Partial<QaState> = {}): QaState => ({
   questions: {},
@@ -126,5 +126,28 @@ describe("keptHint", () => {
   test("says nothing when the session keeps nothing", () => {
     expect(keptHint(undefined)).toBeNull();
     expect(keptHint(0)).toBeNull();
+  });
+});
+
+describe("sentQuestionFate (a refused question goes back into the ask box)", () => {
+  const sent = { text: "Why?", ts: 1000 };
+  const withQ = (text: string, ts: number): QaState => ({
+    ...qaSchema.default(),
+    questions: { q1: { text, author: "viewer-abcd", ts } },
+  });
+
+  test("arrived once the shared state holds it", () => {
+    expect(sentQuestionFate(sent, withQ("Why?", 1000), undefined)).toBe("arrived");
+    expect(sentQuestionFate(sent, withQ("Why?", 1000), 2000)).toBe("arrived");
+  });
+
+  test("refused when a refusal came after sending and the state lacks it", () => {
+    expect(sentQuestionFate(sent, qaSchema.default(), 1500)).toBe("refused");
+  });
+
+  test("pending without a refusal, or with one from before it was sent", () => {
+    expect(sentQuestionFate(sent, qaSchema.default(), undefined)).toBe("pending");
+    expect(sentQuestionFate(sent, qaSchema.default(), 900)).toBe("pending");
+    expect(sentQuestionFate(sent, withQ("Other", 1000), undefined)).toBe("pending");
   });
 });

@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import type { Refusal } from "@liebstoeckel/plugin-sdk";
 
 // Primitives style against brand CSS variables directly (var(--brand-*)), so they
 // inherit the active brand under [data-brand] without depending on Tailwind class
@@ -206,6 +207,41 @@ export function Eyebrow({ children }: { children?: ReactNode }) {
       }}
     >
       {children}
+    </div>
+  );
+}
+
+/** The viewer's words for a refused write: what did not arrive, why, and whether trying
+ *  again can help. `what` names the thing, e.g. "vote" or "question". */
+export function refusalMessage(what: string, reason: Refusal["reason"]): string {
+  if (reason === "busy") return `Your ${what} didn't reach the presenter. The live server is busy, try again in a moment.`;
+  if (reason === "full") return `Your ${what} didn't reach the presenter: the session is full.`;
+  return `Your ${what} didn't reach the presenter.`;
+}
+
+/** A short line telling a viewer their last write was refused (the `refusal` client
+ *  prop). The live region is always there, so a screen reader announces the message
+ *  when it appears; it renders nothing visible without a refusal. */
+export function RefusalNote({ refusal, what, style }: { refusal?: Refusal; what: string; style?: CSSProperties }) {
+  return (
+    <div role="status" aria-live="polite" data-testid="refusal-note">
+      {refusal && (
+        <div
+          style={{
+            color: v("text", "#f3f1ea"),
+            fontFamily: v("font-body", "sans-serif"),
+            fontSize: "0.85rem",
+            lineHeight: 1.35,
+            padding: "0.55rem 0.75rem",
+            borderRadius: "0.6rem",
+            border: `1px solid color-mix(in srgb, ${v("accent", "#62e8ff")} 45%, transparent)`,
+            background: `color-mix(in srgb, ${v("accent", "#62e8ff")} 10%, transparent)`,
+            ...style,
+          }}
+        >
+          {refusalMessage(what, refusal.reason)}
+        </div>
+      )}
     </div>
   );
 }

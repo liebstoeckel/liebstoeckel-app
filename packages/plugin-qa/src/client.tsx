@@ -1,8 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { definePlugin, type ClientProps, type GlobalProps } from "@liebstoeckel/plugin-sdk";
-import { Button, Card, Eyebrow, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
-import { qaSchema, hasVoted, voteCount, voteKey, rankedQuestions, keptHint, type QaState, type RankedQuestion } from "./logic";
+import { definePlugin, type ClientProps, type GlobalProps, type Refusal } from "@liebstoeckel/plugin-sdk";
+import { Button, Card, Eyebrow, RefusalNote, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
+import {
+  qaSchema,
+  hasVoted,
+  voteCount,
+  voteKey,
+  rankedQuestions,
+  keptHint,
+  sentQuestionFate,
+  type QaState,
+  type RankedQuestion,
+  type SentQuestion,
+} from "./logic";
 
 const v = (name: string, fallback: string) => `var(--brand-${name}, ${fallback})`;
 
@@ -122,12 +133,22 @@ function CtrlButton({ glyph, title, onClick, active = false }: { glyph: string; 
   );
 }
 
+/** Questions this tab sent and has not yet seen arrive, by instance. Kept outside any
+ *  component: the ask box of the panel unmounts when its sheet closes, and a refused
+ *  question must still go back into the box when it opens again. */
+const sentQuestions = new Map<string, SentQuestion>();
+/** The refusal (by its time) that sent a question back, by instance, so the message
+ *  says "question" rather than "upvote". */
+const questionRefusedAt = new Map<string, number>();
+
 /** Submit a question / toggle a vote, the audience actions, shared by every surface. */
-function useQaActions(p: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId">) {
+function useQaActions(p: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId"> & { instance?: string }) {
   const submit = (text: string) => {
     const t = text.trim();
     if (!t) return;
-    p.state.recordSet("questions", crypto.randomUUID(), { text: t, author: `viewer-${p.participantId.slice(0, 4)}`, ts: Date.now() });
+    const ts = Date.now();
+    sentQuestions.set(p.instance ?? "", { text: t, ts });
+    p.state.recordSet("questions", crypto.randomUUID(), { text: t, author: `viewer-${p.participantId.slice(0, 4)}`, ts });
   };
   const toggleVote = (qid: string) => {
     const key = voteKey(qid, p.participantId);
@@ -139,16 +160,44 @@ function useQaActions(p: Pick<ClientProps<QaState>, "snapshot" | "state" | "part
 
 /** The ask box. Clears itself on submit. When the hosting session keeps questions
  *  after it ends, a line above the input says so and for how long: above, not below,
- *  so the on-screen keyboard of a phone never covers it. */
-function Composer({ onSubmit, autoFocus, keptDays }: { onSubmit: (text: string) => void; autoFocus?: boolean; keptDays?: number }) {
+ *  so the on-screen keyboard of a phone never covers it. When the live server refused
+ *  the viewer's question, it goes back into the box (unless a new one is being typed)
+ *  and a message above the input says why; the same message covers a refused upvote. */
+function Composer({
+  onSubmit,
+  autoFocus,
+  keptDays,
+  snapshot,
+  instance = "",
+  refusal,
+}: {
+  onSubmit: (text: string) => void;
+  autoFocus?: boolean;
+  keptDays?: number;
+  snapshot: QaState;
+  instance?: string;
+  refusal?: Refusal;
+}) {
   const [draft, setDraft] = useState("");
   const go = () => {
     onSubmit(draft);
     setDraft("");
   };
+  useEffect(() => {
+    const sent = sentQuestions.get(instance);
+    if (!sent) return;
+    const fate = sentQuestionFate(sent, snapshot, refusal?.at);
+    if (fate === "pending") return;
+    sentQuestions.delete(instance);
+    if (fate === "arrived" || !refusal) return;
+    questionRefusedAt.set(instance, refusal.at);
+    setDraft((d) => (d.trim() ? d : sent.text));
+  }, [refusal, snapshot, instance]);
   const hint = keptHint(keptDays);
+  const what = refusal && questionRefusedAt.get(instance) === refusal.at ? "question" : "upvote";
   return (
     <div>
+      <RefusalNote refusal={refusal} what={what} style={{ marginBottom: "0.45rem" }} />
       {hint && (
         <div
           data-testid="qa-kept-hint"
@@ -232,7 +281,7 @@ function QaSlide(p: ClientProps<QaState>) {
         {prompt}
       </div>
       <div style={{ marginBottom: "1.3rem" }}>
-        <Composer onSubmit={submit} keptDays={p.audienceInputKeptDays} />
+        <Composer onSubmit={submit} keptDays={p.audienceInputKeptDays} snapshot={p.snapshot} instance={p.instance} refusal={p.refusal} />
       </div>
       <Queue {...p} />
     </Card>
@@ -272,7 +321,14 @@ function QaPanel(p: GlobalProps<QaState>) {
     <div style={{ width: "100%", maxWidth: 480 }}>
       <Eyebrow>Ask the room</Eyebrow>
       <div style={{ margin: "0.4rem 0 0.9rem" }}>
-        <Composer onSubmit={submit} autoFocus keptDays={p.audienceInputKeptDays} />
+        <Composer
+          onSubmit={submit}
+          autoFocus
+          keptDays={p.audienceInputKeptDays}
+          snapshot={p.snapshot}
+          instance={p.instance}
+          refusal={p.refusal}
+        />
       </div>
       <Queue snapshot={p.snapshot} state={p.state} participantId={p.participantId} role="viewer" />
     </div>

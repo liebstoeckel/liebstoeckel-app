@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
-import { Bar, Button, Card, Eyebrow, Stack } from "@liebstoeckel/plugin-ui";
+import { Bar, Button, Card, Eyebrow, RefusalNote, Stack } from "@liebstoeckel/plugin-ui";
 import { pollSchema, tally, totalVotes, myVote, leader, type PollState } from "./logic";
 
 // Seed the question/options from author props once (presenter owns init).
@@ -55,6 +55,8 @@ function PollSlide(p: ClientProps<PollState>) {
           </Button>
         ))}
       </Stack>
+      {/* a refused vote already reads as not cast (the state is the presenter's); say why */}
+      <RefusalNote refusal={p.refusal} what="vote" style={{ marginTop: "0.8rem" }} />
       <div style={{ marginTop: "1.4rem" }}>
         <ResultsView {...p} />
       </div>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as Y from "yjs";
 import { useTheme } from "@liebstoeckel/plugin-ui";
 import { themeToCss, type Theme } from "@liebstoeckel/theme";
-import { registerPluginInstance, type PluginDef } from "@liebstoeckel/plugin-sdk";
+import { registerPluginInstance, type PluginDef, type Refusal } from "@liebstoeckel/plugin-sdk";
 import { Deck, type DeckProps } from "./Deck";
 import { BackdropProvider } from "./backdrop";
 import { PresenterView } from "./PresenterView";
@@ -51,9 +51,17 @@ export function Present(props: DeckProps) {
     [props.plugins],
   );
   const conn = useMemo(() => (info ? connectLive(info, participant) : null), [info, participant]);
-  const doc = useMemo(() => conn?.doc ?? new Y.Doc(), [conn]);
+  const [doc, setDoc] = useState<Y.Doc>(() => conn?.doc ?? new Y.Doc());
   const [connection, setConnection] = useState<LiveState | undefined>(undefined);
-  useEffect(() => conn?.onState(setConnection), [conn]);
+  const [refusals, setRefusals] = useState<ReadonlyMap<string, Refusal> | undefined>(undefined);
+  useEffect(() => {
+    if (!conn) return;
+    // A viewer's doc is replaced when the server refuses one of its writes.
+    setDoc(conn.doc);
+    conn.onDoc(setDoc);
+    conn.onRefusals(setRefusals);
+    conn.onState(setConnection);
+  }, [conn]);
 
   // A plugin with global surfaces + a presenter console (e.g. Q&A) can be used without an
   // on-slide placement, so register its default instance in the doc index, otherwise the
@@ -76,6 +84,7 @@ export function Present(props: DeckProps) {
     viewerUrl: info?.viewer,
     audienceInputKeptDays: info?.audienceInputKeptDays,
     connection: info ? connection : undefined,
+    refusals: info ? refusals : undefined,
     plugins: registry,
   };
 

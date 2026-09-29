@@ -31,7 +31,30 @@ export function isFatalClose(code: number): boolean {
 
 /** The live-talk protocol (decks in the browser, the relay's create API) the
  *  servers speak: the browser sends `v`, the control plane `x-live-protocol`. */
-export const LIVE_PROTOCOL: SupportedVersions = { min: 1, max: 1 };
+export const LIVE_PROTOCOL: SupportedVersions = { min: 1, max: 2 };
+
+/** The first protocol version whose clients take {@link LiveNotice}s. Older clients
+ *  never get one, so what they receive stays exactly what it was. */
+export const NOTICES_SINCE = 2;
+
+/** Why the relay refused an audience write, as a client hears it. `busy`: the relay is
+ *  short of memory and takes no audience writes for now; `full`: the field the write
+ *  adds to is at its entry cap; `invalid`: the write was outside what the audience may
+ *  write, or out of bounds. */
+export type RefusalReason = "busy" | "full" | "invalid";
+
+/** Control messages a server sends as WebSocket text frames (JSON), protocol 2 and up.
+ *  - `refused`, to the viewer whose write was refused. `roots` names the doc roots the
+ *    write touched (e.g. `plugin:poll`), for the viewer's message.
+ *  - `reset`, to that viewer, soon after: the next binary frame on the same socket is
+ *    the whole session state, which replaces the client's doc, so the viewer's screen
+ *    shows what the presenter has (the refused write, and anything built on it, gone).
+ *  - `refusing`, to presenters: audience writes are being refused (`busy` or `full`),
+ *    or, with `reason: null`, are taken again. */
+export type LiveNotice =
+  | { t: "refused"; reason: RefusalReason; roots: string[] }
+  | { t: "reset" }
+  | { t: "refusing"; reason: Exclude<RefusalReason, "invalid"> | null };
 
 /** A close reason must fit 123 bytes; the full message goes where there is room. */
 export const TOO_OLD_REASON = "This page is out of date. Reload it to reconnect.";

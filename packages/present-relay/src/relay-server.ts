@@ -15,7 +15,14 @@ import { mintGrant, verifyGrant } from "./grant";
 import { closeReason, createRelayMetrics } from "./metrics";
 import { containerMemoryLimit, memoryRoom, MEMORY_CEILING_SHARE } from "./memory";
 import { withSpan, SpanKind, ctxFromHeaders } from "./tracing";
-import { CLOSE, LIVE_PROTOCOL, TOO_OLD_REASON, negotiateVersion } from "@liebstoeckel/live-server/placement/protocol";
+import {
+  CLOSE,
+  LIVE_PROTOCOL,
+  NOTICES_SINCE,
+  TOO_OLD_REASON,
+  negotiateVersion,
+  type LiveNotice,
+} from "@liebstoeckel/live-server/placement/protocol";
 import type { ServerWebSocket } from "bun";
 import { SessionState, type StateStorage } from "./state";
 
@@ -75,6 +82,16 @@ export interface RelayOptions {
    *  full of large sessions refuses writes instead of being killed with all of them.
    *  Defaults to 85% of the container's memory limit; 0 turns it off. */
   audienceMemoryCeiling?: number;
+  /** Replaces the memory check that decides whether audience writes are taken (tests). */
+  admitAudience?: () => boolean;
+  /** Lower per-field entry caps for audience writes, to try out a full field on a test
+   *  cluster. Never above the built-in caps. */
+  audienceEntryCap?: number;
+  /** How long after the last refused audience write presenters hear that writes are
+   *  taken again (ms). */
+  refusingQuietMs?: number;
+  /** Shortest gap between two session states sent to one viewer after refusals (ms). */
+  resetMinGapMs?: number;
   /** image tag for the `liebstoeckel_relay_build_info` metric ((internal ADR)). */
   version?: string;
   /** The holder identity of this process's liveness lease (hosted). Reported with
@@ -118,7 +135,18 @@ interface RelaySession {
   fence?: ReturnType<typeof setInterval>;
   /** open sockets, closed with a reason when the session goes away */
   sockets: Set<ServerWebSocket<WSData>>;
+  /** Audience writes are being refused for being full or the relay being short of
+   *  memory; presenters are told, and told again when they are taken. */
+  refusing?: { reason: "busy" | "full"; quiet?: ReturnType<typeof setTimeout> };
 }
+
+/** How long after the last refused audience write presenters are told writes are taken
+ *  again, unless an accepted write says so earlier (after a memory stop). */
+export const REFUSING_QUIET_MS = 10_000;
+
+/** Shortest gap between two session states sent to one viewer after refusals. The state
+ *  is the whole doc, and a memory stop is the worst moment to build it for every tap. */
+export const RESET_MIN_GAP_MS = 2_000;
 
 export interface RelayServer {
   port: number;
@@ -133,7 +161,19 @@ export interface RelayServer {
   stop(): Promise<void>;
 }
 
-type WSData = { sessionId: string; peer: Peer | null; role: PeerRole; tooOld?: boolean };
+type WSData = {
+  sessionId: string;
+  peer: Peer | null;
+  role: PeerRole;
+  tooOld?: boolean;
+  /** the negotiated live protocol version */
+  version: number;
+  /** a presenter by grant (not the runner): gets the `refusing` notices */
+  presenter: boolean;
+  /** when this viewer last got the session state after a refusal, and the pending one */
+  resetAt?: number;
+  resetTimer?: ReturnType<typeof setTimeout>;
+};
 
 const hex = (bytes = 16): string => {
   const a = new Uint8Array(bytes);
@@ -201,7 +241,15 @@ export function createRelay(opts: RelayOptions): RelayServer {
   if (!opts.accountTokens.length) throw new Error("createRelay: at least one account token is required");
   const sessions = new Map<string, RelaySession>();
   const limit = containerMemoryLimit();
-  const hasRoom = memoryRoom(cfg.audienceMemoryCeiling ?? (limit ? Math.floor(limit * MEMORY_CEILING_SHARE) : undefined));
+  const hasRoom =
+    cfg.admitAudience ??
+    memoryRoom(cfg.audienceMemoryCeiling ?? (limit ? Math.floor(limit * MEMORY_CEILING_SHARE) : undefined));
+  const refusingQuietMs = cfg.refusingQuietMs ?? REFUSING_QUIET_MS;
+  const resetMinGapMs = cfg.resetMinGapMs ?? RESET_MIN_GAP_MS;
+  const audienceCaps =
+    cfg.audienceEntryCap && cfg.audienceEntryCap > 0
+      ? { entries: cfg.audienceEntryCap, tallyEntries: cfg.audienceEntryCap }
+      : undefined;
   let snapshotFailures = 0;
   // Process start time, reported in /stats so the reconciler can tell when a pod has
   // RESTARTED (same name, fresh memory) and re-provision sessions it lost, not just when
@@ -250,11 +298,77 @@ export function createRelay(opts: RelayOptions): RelayServer {
    *  (results survive); `moved` stores nothing, another pod owns the session now.
    *  Every socket is closed with the matching code, so clients act at once instead
    *  of waiting for a watchdog, and the audience count follows. */
+  /** Send a control message, to clients that take them. */
+  const notify = (socket: ServerWebSocket<WSData>, notice: LiveNotice): void => {
+    if (socket.data.version < NOTICES_SINCE) return;
+    try {
+      socket.send(JSON.stringify(notice));
+    } catch {
+      /* closing */
+    }
+  };
+
+  /** Send a viewer the whole session state to replace its doc with. */
+  const sendReset = (socket: ServerWebSocket<WSData>, s: RelaySession): void => {
+    socket.data.resetTimer = undefined;
+    socket.data.resetAt = Date.now();
+    if (!s.sockets.has(socket)) return;
+    const state = s.hub.snapshot();
+    notify(socket, { t: "reset" });
+    metrics.wsFrames.inc({ dir: "out" });
+    metrics.wsBytes.inc({ dir: "out" }, state.byteLength);
+    try {
+      socket.send(state);
+    } catch {
+      /* closing */
+    }
+  };
+
+  /** Tell a viewer its write was refused, then send it the whole session state: its own
+   *  tab still shows the write, and the client replaces its doc with this state so it
+   *  shows what the presenter has. The state goes at most every RESET_MIN_GAP_MS per
+   *  viewer (later refusals within the gap share one). A refused update that only
+   *  deletes gets neither: the viewer did not add anything that could be missing, and a
+   *  plugin's own housekeeping (expired reactions) would otherwise cost a whole state
+   *  per viewer per second during a memory stop. A client too old for notices gets
+   *  nothing new. */
+  const tellRefused = (
+    socket: ServerWebSocket<WSData>,
+    reason: "busy" | "full" | "invalid",
+    info: { roots: string[]; adds: boolean },
+    s: RelaySession,
+  ): void => {
+    if (socket.data.version < NOTICES_SINCE || !info.adds) return;
+    notify(socket, { t: "refused", reason, roots: info.roots });
+    if (socket.data.resetTimer) return;
+    const wait = (socket.data.resetAt ?? -Infinity) + resetMinGapMs - Date.now();
+    if (wait <= 0) return sendReset(socket, s);
+    socket.data.resetTimer = setTimeout(() => sendReset(socket, s), wait);
+  };
+
+  /** Presenters see a notice while audience writes are refused for being full or for a
+   *  memory stop. It goes away once writes are taken again: at the next accepted write
+   *  after a memory stop, or after a quiet spell with no refusal. */
+  const setRefusing = (s: RelaySession, reason: "busy" | "full" | null): void => {
+    if (s.refusing?.quiet) clearTimeout(s.refusing.quiet);
+    const changed = (s.refusing?.reason ?? null) !== reason;
+    if (reason === null) {
+      s.refusing = undefined;
+    } else {
+      const quiet = setTimeout(() => setRefusing(s, null), refusingQuietMs);
+      (quiet as { unref?: () => void }).unref?.();
+      s.refusing = { reason, quiet };
+    }
+    if (!changed) return;
+    for (const socket of s.sockets) if (socket.data.presenter) notify(socket, { t: "refusing", reason });
+  };
+
   const dropSession = async (s: RelaySession, reason: "ended" | "moved" | "restarting" = "ended"): Promise<void> => {
     if (s.ttl) clearTimeout(s.ttl);
     if (s.snap) clearInterval(s.snap);
     if (s.log) clearInterval(s.log);
     if (s.fence) clearInterval(s.fence);
+    if (s.refusing?.quiet) clearTimeout(s.refusing.quiet);
     if (sessions.get(s.id) === s) sessions.delete(s.id);
     if (reason === "moved") s.state?.stop();
     else await persist(s);
@@ -375,7 +489,9 @@ export function createRelay(opts: RelayOptions): RelayServer {
     const hub = new Hub({
       keepaliveMs: cfg.keepaliveMs,
       coalesceMs: cfg.broadcastCoalesceMs,
-      audience: enforce ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate, admit: hasRoom } : undefined,
+      audience: enforce
+        ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate, admit: hasRoom, caps: audienceCaps }
+        : undefined,
     });
     // Re-seed from the stored state: the previous epoch's, or (a session placed
     // before epochs, or unfenced) the single snapshot key.
@@ -603,8 +719,15 @@ export function createRelay(opts: RelayOptions): RelayServer {
       }
       // A browser cannot read the body of a refused upgrade, so an old client is let
       // in and then closed with a code that tells it why.
-      const tooOld = !negotiateVersion(url.searchParams.get("v"), LIVE_PROTOCOL).ok;
-      const data: WSData = { sessionId: s.id, peer: null, role, tooOld };
+      const negotiated = negotiateVersion(url.searchParams.get("v"), LIVE_PROTOCOL);
+      const data: WSData = {
+        sessionId: s.id,
+        peer: null,
+        role,
+        tooOld: !negotiated.ok,
+        version: negotiated.ok ? negotiated.version : 0,
+        presenter: relRole === "presenter",
+      };
       return srv.upgrade(req, { data }) ? undefined : new Response("upgrade failed", { status: 400 });
     }
 
@@ -651,6 +774,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         }
         s.sockets.add(socket);
         if (socket.data.role === "audience") s.audienceCount++;
+        if (s.refusing && socket.data.presenter) notify(socket, { t: "refusing", reason: s.refusing.reason });
         metrics.wsOpens.inc({ role: socket.data.role });
         metrics.wsConnections.inc({ role: socket.data.role });
         socket.data.peer = s.hub.join(
@@ -663,10 +787,20 @@ export function createRelay(opts: RelayOptions): RelayServer {
           {
             // A rate-limited update leaves the viewer's later ones stuck until it sends
             // its full state again: close so the client reconnects and resyncs.
-            onDrop(reason, { tombstoned }) {
+            onDrop(reason, { tombstoned, fieldFull, roots, adds }) {
               const outcome = reason === "rate" ? "resync" : tombstoned ? "placeholder" : "muted";
               metrics.audienceDrops.inc({ reason, outcome });
-              if (reason === "rate") socket.close(CLOSE.DROPPED, "rate");
+              if (reason === "rate") {
+                socket.close(CLOSE.DROPPED, "rate");
+                return;
+              }
+              const said = reason === "full" ? "busy" : fieldFull ? "full" : "invalid";
+              tellRefused(socket, said, { roots, adds }, s);
+              if (said !== "invalid") setRefusing(s, said);
+            },
+            onAccept() {
+              // a memory stop is over once a write gets through; a full field is not
+              if (s.refusing?.reason === "busy") setRefusing(s, null);
             },
           },
         );
@@ -680,6 +814,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         socket.data.peer?.recv(bytes);
       },
       close(socket, code) {
+        if (socket.data.resetTimer) clearTimeout(socket.data.resetTimer);
         socket.data.peer?.leave();
         metrics.wsCloses.inc({ role: socket.data.role, reason: closeReason(code) });
         metrics.wsConnections.dec({ role: socket.data.role });

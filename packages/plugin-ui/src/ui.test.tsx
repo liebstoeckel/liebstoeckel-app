@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readTheme } from "./useTheme";
-import { Bar, Button, Card, ScrollArea } from "./primitives";
+import { Bar, Button, Card, ScrollArea, refusalMessage } from "./primitives";
 
 describe("readTheme", () => {
   test("returns brand fallbacks when no document", () => {
@@ -35,5 +35,13 @@ describe("primitives render", () => {
   test("ScrollArea honours a custom maxHeight", () => {
     const html = renderToStaticMarkup(<ScrollArea maxHeight="200px">x</ScrollArea>);
     expect(html).toContain("max-height:200px");
+  });
+});
+
+describe("refusalMessage", () => {
+  test("names the thing, and only suggests trying again when that can help", () => {
+    expect(refusalMessage("vote", "busy")).toBe("Your vote didn't reach the presenter. The live server is busy, try again in a moment.");
+    expect(refusalMessage("question", "full")).toBe("Your question didn't reach the presenter: the session is full.");
+    expect(refusalMessage("reaction", "invalid")).toBe("Your reaction didn't reach the presenter.");
   });
 });

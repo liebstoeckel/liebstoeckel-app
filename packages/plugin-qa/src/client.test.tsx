@@ -55,4 +55,13 @@ describe("qa client renders", () => {
     expect(renderToStaticMarkup(<qa.client.Slide {...clientProps("viewer")} />)).not.toContain("qa-kept-hint");
     expect(renderToStaticMarkup(<qa.client.Slide {...clientProps("viewer", 0)} />)).not.toContain("qa-kept-hint");
   });
+
+  test("a refusal shows a plain message above the ask box, and nothing without one", () => {
+    const refused = renderToStaticMarkup(<qa.client.Slide {...clientProps()} refusal={{ reason: "full", at: 1 }} />);
+    expect(refused).toContain("didn&#x27;t reach the presenter: the session is full.");
+    expect(refused.indexOf("refusal-note")).toBeLessThan(refused.indexOf("<input"));
+    const busy = renderToStaticMarkup(<qa.client.Slide {...clientProps()} refusal={{ reason: "busy", at: 1 }} />);
+    expect(busy).toContain("The live server is busy, try again in a moment.");
+    expect(renderToStaticMarkup(<qa.client.Slide {...clientProps()} />)).not.toContain("reach the presenter");
+  });
 });

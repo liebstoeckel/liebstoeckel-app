@@ -61,6 +61,19 @@ over. Viewers see only what does not fix itself: the end of the talk, or **Out o
 reload** when the page is older than the server it talks to supports (a reload loads a
 current one).
 
+### When a session is full
+
+Through the relay, audience input has limits (see [limits on audience
+writes](/plugins/state-and-sync/#limits-on-audience-writes)), and the relay pauses it
+while it is short of memory. When a vote, question or reaction is refused, the viewer
+sees it undone on their screen and a short message saying it didn't reach the
+presenter, and why: the session is full, or the live server is busy and they can try
+again in a moment. A refused question goes back into their ask box.
+
+While input is being refused, the presenter view shows a banner: **Audience input is
+paused**, with the reason. It goes away once audience input arrives again. The banner
+is only on the presenter's screen, never on the projected slides.
+
 ## Where code runs
 
 <Aside type="caution" title="Decks are trusted">

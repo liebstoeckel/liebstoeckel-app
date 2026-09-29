@@ -21,4 +21,5 @@ export {
   type GlobalProps,
   type GlobalComponent,
   type PanelController,
+  type Refusal,
 } from "./plugin";

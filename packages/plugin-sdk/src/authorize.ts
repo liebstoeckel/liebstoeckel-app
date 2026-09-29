@@ -209,6 +209,10 @@ interface Place {
  * type, which is recorded and checked as a whole; the second changes nothing anyone sees.
  */
 export class AudienceGate {
+  /** Why the last {@link check} that returned false refused: `cap` when a field the
+   *  update adds to would be over its entry cap (the field is full), `scope` for anything
+   *  else (outside the scope, out of bounds, or unable to apply yet). */
+  lastRefusal: "cap" | "scope" = "scope";
   private shadow = new Y.Doc();
   private dirty = true;
   /** Set while {@link apply} writes an accepted update into the live doc. */
@@ -223,10 +227,21 @@ export class AudienceGate {
     }
   };
 
+  /** Entry caps for a field an update adds to: `entries` for a field holding objects
+   *  (and nested containers), `tallyEntries` for one holding only single values. */
+  private readonly caps: { entries: number; tallyEntries: number };
+
   constructor(
     private readonly live: Y.Doc,
     private readonly scope: AudienceScope,
+    /** Lower entry caps, for testing what happens when a field is full. Never raises
+     *  them above the defaults. */
+    caps?: { entries?: number; tallyEntries?: number },
   ) {
+    this.caps = {
+      entries: Math.min(caps?.entries ?? MAX_AUDIENCE_ENTRIES, MAX_AUDIENCE_ENTRIES),
+      tallyEntries: Math.min(caps?.tallyEntries ?? MAX_AUDIENCE_TALLY_ENTRIES, MAX_AUDIENCE_TALLY_ENTRIES),
+    };
     live.on("update", this.onLive);
   }
 
@@ -240,6 +255,7 @@ export class AudienceGate {
   /** Would `update`, sent by an audience peer, be allowed? Never touches the live doc;
    *  the caller applies the update itself when this returns true. Fails closed. */
   check(update: Uint8Array): boolean {
+    this.lastRefusal = "scope";
     try {
       if (this.dirty) this.rebuild();
       const ok = this.tryOnShadow(update);
@@ -341,7 +357,10 @@ export class AudienceGate {
     }
     if (!adds) return true; // only deletions: a container never grows by them
     const { size, holdsObjects } = census(type);
-    return size <= capFor(depth, holdsObjects);
+    const cap = depth === 0 && !holdsObjects ? this.caps.tallyEntries : this.caps.entries;
+    if (size <= cap) return true;
+    this.lastRefusal = "cap";
+    return false;
   }
 
   /** A presenter-only field an update touched: allowed only if its value is the same as

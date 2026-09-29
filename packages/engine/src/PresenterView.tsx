@@ -18,7 +18,7 @@ import { PersistentProvider } from "./PersistentLayer";
 import { useCoarsePointer } from "./useCoarsePointer";
 import { normalizeSlides } from "./slides";
 import type { DeckProps } from "./Deck";
-import { LiveStatusBadge } from "./live/status";
+import { AudienceRefusingNotice, LiveStatusBadge } from "./live/status";
 import { DEFAULT_BRANDS } from "./brandCheck";
 
 function useNow(ms = 1000) {
@@ -542,6 +542,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
           )}
         </div>
       </header>
+      <AudienceRefusingNotice state={liveCtx?.connection} />
 
       {shareOverlay}
 

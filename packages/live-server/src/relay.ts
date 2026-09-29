@@ -22,6 +22,19 @@ export interface Peer {
  *  memory and takes no audience writes until it has room again. */
 export type DropReason = "rate" | "scope" | "full";
 
+/** What the relay knows about a refused update, for telling the peer. */
+export interface DropInfo {
+  /** the refused range was filled with a placeholder, so the peer's later updates apply */
+  tombstoned: boolean;
+  /** `scope` drops only: the update would have taken a field over its entry cap (the
+   *  field is full), as opposed to writing outside the scope or out of bounds */
+  fieldFull?: boolean;
+  /** the doc roots the refused update touched (e.g. `plugin:poll`), at most a few */
+  roots: string[];
+  /** the update wrote something (it was not only deletions) */
+  adds: boolean;
+}
+
 export interface JoinOptions {
   /** Called when one of this peer's updates is refused. `rate`: the peer's later
    *  updates cannot apply until it sends its full state again, so the caller should
@@ -30,7 +43,64 @@ export interface JoinOptions {
    *  with a placeholder (`tombstoned`) so the peer's later updates still apply, or, when
    *  that was not safe, simply dropped; a resync would be refused the same way, so there
    *  is nothing to close for. */
-  onDrop?: (reason: DropReason, info: { tombstoned: boolean }) => void;
+  onDrop?: (reason: DropReason, info: DropInfo) => void;
+  /** Called after one of this (enforced) peer's updates was accepted and applied. */
+  onAccept?: () => void;
+}
+
+/** Most roots named for one refused update. */
+const MAX_ROOTS = 8;
+
+/** The names of the doc roots `update` touches, read from its structs and deletions, and
+ *  whether it writes anything. An item in the update names its parent directly, through
+ *  an item of the same update, or through an item the doc already holds. Best effort:
+ *  never throws. */
+export function describeUpdate(update: Uint8Array, doc: Y.Doc): { roots: string[]; adds: boolean } {
+  const out = new Set<string>();
+  let adds = false;
+  try {
+    const { structs, ds } = Y.decodeUpdate(update);
+    adds = structs.some((s) => s instanceof Y.Item);
+    const own = new Map<string, Y.Item>();
+    for (const s of structs) if (s instanceof Y.Item) own.set(`${s.id.client}:${s.id.clock}`, s);
+    const known = (id: Y.ID | null): Y.Item | undefined => {
+      if (!id) return undefined;
+      const mine = own.get(`${id.client}:${id.clock}`);
+      if (mine) return mine;
+      if (id.clock >= Y.getState(doc.store, id.client)) return undefined;
+      const s = Y.getItem(doc.store, id);
+      return s instanceof Y.Item ? s : undefined;
+    };
+    const rootOf = (item: Y.Item | undefined, depth: number): string | undefined => {
+      if (!item || depth > 32) return undefined;
+      const parent = item.parent as unknown;
+      if (typeof parent === "string") return parent;
+      if (parent instanceof Y.AbstractType) {
+        let root = parent as Y.AbstractType<unknown>;
+        while (root._item) root = root._item.parent as Y.AbstractType<unknown>;
+        return Y.findRootTypeKey(root);
+      }
+      if (parent instanceof Y.ID) return rootOf(known(parent), depth + 1);
+      // a decoded item with a neighbour names no parent: it has its neighbour's
+      return rootOf(known(item.origin) ?? known(item.rightOrigin), depth + 1);
+    };
+    for (const s of structs) {
+      if (out.size >= MAX_ROOTS) break;
+      if (!(s instanceof Y.Item)) continue;
+      const root = rootOf(s, 0);
+      if (root !== undefined) out.add(root);
+    }
+    for (const [client, items] of ds.clients) {
+      for (const d of items) {
+        if (out.size >= MAX_ROOTS) break;
+        const root = rootOf(known(Y.createID(client, d.clock)), 0);
+        if (root !== undefined) out.add(root);
+      }
+    }
+  } catch {
+    /* a malformed update names nothing */
+  }
+  return { roots: [...out], adds };
 }
 
 /** Most client ids one peer can own: a real client uses one per connection. */
@@ -45,6 +115,8 @@ export interface AudiencePolicy {
    *  stop audience writes when its process runs short of memory, rather than be killed
    *  with every session on it. */
   admit?: () => boolean;
+  /** Lower entry caps per field, for testing a full field (see `AudienceGate`). */
+  caps?: { entries?: number; tallyEntries?: number };
 }
 
 export interface HubOptions {
@@ -91,7 +163,7 @@ export class Hub {
   constructor(opts: HubOptions = {}) {
     this.audience = opts.audience;
     this.coalesceMs = opts.coalesceMs && opts.coalesceMs > 0 ? opts.coalesceMs : 0;
-    if (opts.audience) this.gate = new AudienceGate(this.doc, opts.audience.scope);
+    if (opts.audience) this.gate = new AudienceGate(this.doc, opts.audience.scope, opts.audience.caps);
     this.doc.on("update", (update: Uint8Array, origin: unknown) => {
       if (this.coalesceMs === 0) return this.broadcast(update, origin);
       const now = Date.now();
@@ -214,20 +286,24 @@ export class Hub {
               // rate-limited → drop, and have the client resend everything once it
               // reconnects (its later updates would otherwise wait for this one forever)
               awaitingResync = true;
-              opts.onDrop?.("rate", { tombstoned: false });
+              opts.onDrop?.("rate", { tombstoned: false, roots: [], adds: false });
               return;
             }
             if (this.audience!.admit && !this.audience!.admit()) {
-              opts.onDrop?.("full", { tombstoned: tombstone(data) });
+              const seen = describeUpdate(data, this.doc);
+              opts.onDrop?.("full", { tombstoned: tombstone(data), ...seen });
               return;
             }
             if (!this.gate!.check(data)) {
               // out-of-scope or out-of-bounds write → never applied or broadcast
-              opts.onDrop?.("scope", { tombstoned: tombstone(data) });
+              const seen = describeUpdate(data, this.doc);
+              const fieldFull = this.gate!.lastRefusal === "cap";
+              opts.onDrop?.("scope", { tombstoned: tombstone(data), fieldFull, ...seen });
               return;
             }
             claim(data);
             this.gate!.apply(data, key);
+            opts.onAccept?.();
             return;
           }
           Y.applyUpdate(this.doc, data, key);

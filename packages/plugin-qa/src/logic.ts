@@ -77,3 +77,19 @@ export function keptHint(days: number | undefined): string | null {
   const span = Number.isInteger(years) ? (years === 1 ? "a year" : `${years} years`) : days === 1 ? "a day" : `${days} days`;
   return `Your question may be saved by the presenter's organisation for up to ${span}.`;
 }
+
+/** A question this viewer sent and has not yet seen in the shared state. */
+export interface SentQuestion {
+  text: string;
+  ts: number;
+}
+
+/** What became of a sent question: it `arrived` in the shared state, it was `refused`
+ *  (a refusal came in after it was sent, and the state the server sent back lacks it),
+ *  or it is still `pending`. */
+export function sentQuestionFate(sent: SentQuestion, state: QaState, refusalAt: number | undefined): "arrived" | "refused" | "pending" {
+  for (const q of Object.values(state.questions)) {
+    if (q.ts === sent.ts && q.text === sent.text) return "arrived";
+  }
+  return refusalAt !== undefined && refusalAt >= sent.ts ? "refused" : "pending";
+}
