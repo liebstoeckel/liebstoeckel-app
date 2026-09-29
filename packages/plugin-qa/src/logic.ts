@@ -84,12 +84,14 @@ export interface SentQuestion {
   ts: number;
 }
 
-/** What became of a sent question: it `arrived` in the shared state, it was `refused`
- *  (a refusal came in after it was sent, and the state the server sent back lacks it),
- *  or it is still `pending`. */
-export function sentQuestionFate(sent: SentQuestion, state: QaState, refusalAt: number | undefined): "arrived" | "refused" | "pending" {
+/** Whether a sent question was refused: a refusal came in after it was sent, and the
+ *  shared state lacks it. The page's own copy holds the question as soon as it is sent,
+ *  so its presence proves nothing until the server's state replaces that copy after the
+ *  refusal; until then (or without a refusal) it stays `pending`. */
+export function sentQuestionFate(sent: SentQuestion, state: QaState, refusalAt: number | undefined): "refused" | "pending" {
+  if (refusalAt === undefined || refusalAt < sent.ts) return "pending";
   for (const q of Object.values(state.questions)) {
-    if (q.ts === sent.ts && q.text === sent.text) return "arrived";
+    if (q.ts === sent.ts && q.text === sent.text) return "pending";
   }
-  return refusalAt !== undefined && refusalAt >= sent.ts ? "refused" : "pending";
+  return "refused";
 }

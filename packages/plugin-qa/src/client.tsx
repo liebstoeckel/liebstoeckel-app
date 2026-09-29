@@ -133,7 +133,7 @@ function CtrlButton({ glyph, title, onClick, active = false }: { glyph: string; 
   );
 }
 
-/** Questions this tab sent and has not yet seen arrive, by instance. Kept outside any
+/** The question this tab sent last, by instance, until it turns out refused. Kept outside any
  *  component: the ask box of the panel unmounts when its sheet closes, and a refused
  *  question must still go back into the box when it opens again. */
 const sentQuestions = new Map<string, SentQuestion>();
@@ -187,9 +187,8 @@ function Composer({
     const sent = sentQuestions.get(instance);
     if (!sent) return;
     const fate = sentQuestionFate(sent, snapshot, refusal?.at);
-    if (fate === "pending") return;
+    if (fate === "pending" || !refusal) return;
     sentQuestions.delete(instance);
-    if (fate === "arrived" || !refusal) return;
     questionRefusedAt.set(instance, refusal.at);
     setDraft((d) => (d.trim() ? d : sent.text));
   }, [refusal, snapshot, instance]);

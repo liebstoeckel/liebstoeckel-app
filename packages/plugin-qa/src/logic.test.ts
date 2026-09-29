@@ -136,18 +136,17 @@ describe("sentQuestionFate (a refused question goes back into the ask box)", () 
     questions: { q1: { text, author: "viewer-abcd", ts } },
   });
 
-  test("arrived once the shared state holds it", () => {
-    expect(sentQuestionFate(sent, withQ("Why?", 1000), undefined)).toBe("arrived");
-    expect(sentQuestionFate(sent, withQ("Why?", 1000), 2000)).toBe("arrived");
-  });
-
   test("refused when a refusal came after sending and the state lacks it", () => {
     expect(sentQuestionFate(sent, qaSchema.default(), 1500)).toBe("refused");
+    expect(sentQuestionFate(sent, withQ("Other", 1000), 1500)).toBe("refused");
+  });
+
+  test("pending while the page's own copy still holds it (the server's state has not replaced it yet)", () => {
+    expect(sentQuestionFate(sent, withQ("Why?", 1000), 1500)).toBe("pending");
   });
 
   test("pending without a refusal, or with one from before it was sent", () => {
     expect(sentQuestionFate(sent, qaSchema.default(), undefined)).toBe("pending");
     expect(sentQuestionFate(sent, qaSchema.default(), 900)).toBe("pending");
-    expect(sentQuestionFate(sent, withQ("Other", 1000), undefined)).toBe("pending");
   });
 });
