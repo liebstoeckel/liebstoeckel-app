@@ -43,7 +43,15 @@ RUN mkdir -p /manifests \
 FROM oven/bun:1.3.14
 WORKDIR /app
 COPY --from=manifests /manifests/ ./
-RUN bun install --frozen-lockfile --production --filter @liebstoeckel/present-relay
+# Retried: a single npm tarball download now and then fails mid-transfer, and
+# Bun does not retry on its own. Every attempt stays pinned to the lockfile
+# hashes; after the third failure the build fails with Bun's own error.
+RUN for attempt in 1 2 3; do \
+      bun install --frozen-lockfile --production --filter @liebstoeckel/present-relay && break; \
+      [ "$attempt" = 3 ] && exit 1; \
+      echo "bun install failed, retry $((attempt + 1))/3 in $((attempt * 15))s" >&2; \
+      sleep $((attempt * 15)); \
+    done
 COPY . .
 
 # Pin the listen port (CLI defaults to a random port otherwise) and disable
