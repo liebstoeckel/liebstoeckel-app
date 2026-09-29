@@ -34,7 +34,13 @@ export async function startLive(deckDir: string, log: (line: string) => void): P
     throw new LiveStartError(`your files and the live deck conflict; resolve the markers, then start again:\n${files}`);
   }
   if (pulled.kind !== "in-sync") log(`caught up with the live deck (${pulled.written.length} file(s) updated locally)`);
-  if (access.role === "read") log("read-only access: live edits reach your files, but yours are not shared");
+  if (access.role === "read") {
+    log(
+      access.readOnly
+        ? `read-only: ${access.readOnly.error} Until then, live edits reach your files, but yours are not shared.`
+        : "read-only access: live edits reach your files, but yours are not shared",
+    );
+  }
 
   const client = new SyncClient({
     url: async () => {

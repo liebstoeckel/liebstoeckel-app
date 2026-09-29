@@ -288,6 +288,43 @@ describe("cloud commands", () => {
   }, T);
 });
 
+describe("terms not accepted", () => {
+  test("push, decks move and push --source report the code, the link and a hint for a person", async () => {
+    const refusal = {
+      error: "This account has not accepted the terms of service yet. Open https://app.test/ and accept.",
+      code: "terms_not_accepted",
+      url: "https://app.test/",
+      hint: "a person has to accept the terms at https://app.test/",
+    };
+    server = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch(req) {
+        if (req.method === "GET") return Response.json({ decks: [{ id: "d1", title: "Talk" }], folders: [] });
+        return Response.json(refusal, { status: 403 });
+      },
+    });
+    writeCreds(`http://127.0.0.1:${server.port}`);
+    const html = join(work, "terms", "dist", "terms.html");
+    mkdirSync(join(work, "terms", "dist"), { recursive: true });
+    writeFileSync(html, "<!doctype html><title>Terms</title>");
+
+    for (const cmd of [["push", html], ["decks", "move", "d1", "--to", "/", "--json"]]) {
+      const doc = expectError(await run(cmd), "terms_not_accepted");
+      expect(doc.error).toBe(refusal.error);
+      expect(doc.url).toBe("https://app.test/");
+      expect(doc.hint).toContain("a person has to accept");
+    }
+    // In prose the sentence carries the link on its own.
+    const prose = await run(["push", html, "--no-json"]);
+    expect(prose.code).toBe(1);
+    expect(prose.stderr).toContain("https://app.test/");
+    server.stop(true);
+    server = undefined;
+    clearCreds();
+  }, T);
+});
+
 describe("deck library: folders, moves and deletes", () => {
   test("push --folder, decks list/move/delete and folders against a control plane", async () => {
     const folders = [

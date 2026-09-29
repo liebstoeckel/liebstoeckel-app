@@ -36,6 +36,12 @@ liebstoeckel login --api https://<your-control-plane-host>
 
 The token is stored in `~/.config/liebstoeckel/credentials.json` (mode `600`).
 
+A new account accepts the terms of service once, in the dashboard, before it can create
+or change anything. Until then, reading works (`decks`, `orgs`, `pull`), but `push`,
+moves, deletes and every other change are refused with the code `terms_not_accepted`
+and a link to the dashboard: open it, sign in with the same email, accept, and run the
+command again. `dev --live` follows the live deck read-only until then.
+
 ## Push a deck
 
 ```bash

@@ -18,6 +18,7 @@ import {
   withProtocol,
 } from "@liebstoeckel/dev-server/sync";
 import { loadCreds } from "./creds";
+import { termsFailure } from "./output";
 
 // ---- sync state -------------------------------------------------------------
 
@@ -215,6 +216,9 @@ export interface SyncAccess {
   grant: string;
   role: "edit" | "read";
   expiresAt: number;
+  /** Set when the deck would be editable but the account may not write yet,
+   *  e.g. because it has not accepted the terms: the sentence says why and how. */
+  readOnly?: { error: string; code: string; url?: string };
 }
 
 export class SyncError extends Error {
@@ -243,6 +247,8 @@ export async function sourceAccess(cloud: Cloud, deckId: string, enable: boolean
     headers,
   });
   if (!res.ok) {
+    const terms = await termsFailure(res);
+    if (terms) throw terms;
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     throw new SyncError(body.error ?? `source access failed (${res.status})`, res.status);
   }

@@ -74,6 +74,7 @@ for every one of them.
 | `not_logged_in` | cloud commands | no credentials; liebstoeckel cloud is coming soon |
 | `session_expired` | cloud commands | run `liebstoeckel login` again |
 | `forbidden` | cloud commands | your role or plan does not allow this; `error` says which |
+| `terms_not_accepted` | cloud commands that create or change something | the account has not accepted the terms of service; `url` is the dashboard, where a person signs in and accepts. An agent should show the link, not accept on the user's behalf |
 | `not_linked` | `pull`, `sync` | the folder is not linked to a cloud deck; `push --source` first |
 | `confirmation_required` | `decks delete` | deleting needs a yes (exit 2); pass `--yes` when no one can answer the prompt |
 | `folder_not_found` | `decks move`, `folders` | no folder at that path; the hint names the `folders create` command |

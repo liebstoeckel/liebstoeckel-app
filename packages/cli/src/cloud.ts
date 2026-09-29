@@ -8,7 +8,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { bunBin } from "./bun";
 import { loadCreds, saveCreds } from "./creds";
-import { CliError, bodyExcerpt, reporting, usageError, wantsJson } from "./output";
+import { CliError, bodyExcerpt, reporting, termsFailure, usageError, wantsJson } from "./output";
 
 const CLIENT_ID = "liebstoeckel-cli";
 
@@ -34,6 +34,8 @@ function notLoggedIn(): never {
 /** The failure for a non-2xx control-plane answer. `forbidden` says what a 403
  *  means for this call; the server's body is cut short, it is only a clue. */
 export async function httpFailure(res: Response, what: string, forbidden?: string): Promise<CliError> {
+  const terms = await termsFailure(res);
+  if (terms) return terms;
   if (res.status === 401) {
     return new CliError("session expired", { code: "session_expired", hint: "run `liebstoeckel login` again" });
   }

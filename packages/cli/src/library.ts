@@ -7,7 +7,7 @@
 import { defineCommand } from "citty";
 import { createInterface } from "node:readline/promises";
 import { CLOUD_ARGS, httpFailure, JSON_ARG, requireCreds, resolveOrg } from "./cloud";
-import { bodyExcerpt, CliError, reporting, usageError, wantsJson } from "./output";
+import { bodyExcerpt, CliError, reporting, termsFailure, usageError, wantsJson } from "./output";
 
 export interface CloudDeck {
   id: string;
@@ -67,6 +67,8 @@ async function cloud(args: { org?: string; api?: string }): Promise<Cloud> {
 /** A control-plane answer that says why, in its own words, for a request that
  *  has a reason to refuse (a folder or bulk request). */
 async function refusal(res: Response, what: string, cl: Cloud): Promise<CliError> {
+  const terms = await termsFailure(res);
+  if (terms) return terms;
   if (res.status === 401 || (res.status === 403 && !res.headers.get("content-type")?.includes("json"))) {
     return httpFailure(res, what, `you're not a member of org "${cl.org}"`);
   }

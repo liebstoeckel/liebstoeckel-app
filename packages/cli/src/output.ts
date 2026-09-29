@@ -85,3 +85,21 @@ export async function bodyExcerpt(res: Response, max = 300): Promise<string> {
   const text = (await res.text().catch(() => "")).replace(/\s+/g, " ").trim();
   return text.length > max ? `${text.slice(0, max)}...` : text;
 }
+
+/** The server's stable code for a write refused because the account has not
+ *  accepted the terms of service. Agents branch on it. */
+export const TERMS_NOT_ACCEPTED = "terms_not_accepted";
+
+/** The refusal the control plane sends when the account has not accepted the
+ *  terms, as a CliError that keeps the server's sentence, its link and its hint;
+ *  null for any other answer. Reads a clone, so the caller can still read `res`. */
+export async function termsFailure(res: Response): Promise<CliError | null> {
+  if (res.status !== 403) return null;
+  const body = (await res.clone().json().catch(() => null)) as { error?: unknown; code?: unknown; url?: unknown; hint?: unknown } | null;
+  if (body?.code !== TERMS_NOT_ACCEPTED || typeof body.error !== "string") return null;
+  return new CliError(body.error, {
+    code: TERMS_NOT_ACCEPTED,
+    hint: typeof body.hint === "string" ? body.hint : undefined,
+    details: typeof body.url === "string" ? { url: body.url } : undefined,
+  });
+}
