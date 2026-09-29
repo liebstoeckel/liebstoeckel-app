@@ -25,4 +25,8 @@ jobs:
       # private workspace packages recorded in the upstream lockfile.
       - run: bun install
       - run: bun run typecheck
-      - run: bun test packages
+      # The same script as local development: the browser-free tests first, then
+      # the tests that launch Chromium (`*.browser.test.*`) in a second bun test
+      # process, because spawning Chromium late in one long-lived test process
+      # can fail on file descriptors.
+      - run: bun run test

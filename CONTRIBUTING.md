@@ -49,7 +49,7 @@ step for the packages themselves; they ship raw TypeScript executed by Bun.
 
 ```bash
 bun install
-bun run test           # unit/integration tests (bun test packages)
+bun run test           # unit/integration tests, then the browser tests in a second process
 bun run typecheck      # tsc --noEmit
 bun run docs:build     # docs site, if you touched packages/docs
 
@@ -58,6 +58,10 @@ bun run showcase:dev   # data-viz example deck on http://localhost:3001
 ```
 
 Some browser-dependent tests need Chromium and skip cleanly when it is absent.
+A test file that launches Chromium is named `*.browser.test.ts`: `bun run test`
+runs those in a bun test process of their own (`bun run test:browser` runs just
+them), since spawning Chromium late in one long-lived test process can fail. A
+check in the thumbnails package fails when such a file lacks the suffix.
 
 ## Conventions
 
