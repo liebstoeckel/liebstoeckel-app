@@ -207,6 +207,12 @@ can hold is whatever a participant writes into a question.
   runs out.
 - **Pro / Team**: results are saved for **365 days** after the session ends. Each past
   session on the deck's page shows the date it is saved until.
+- **After a withdrawal**: when a paid plan ends through a withdrawal (see
+  [Withdrawing within 14 days](#withdrawing-within-14-days)), saved results are **kept for 30
+  more days** and stay readable, even though the workspace is on Free by then. Subscribe again
+  within those 30 days and nothing is lost; after them the free plan's rule applies. The
+  Billing page shows the date. An ordinary cancellation at the end of the paid month has no
+  such extra time.
 - **The audience is told.** In a Pro / Team session, the Q&A box shows a short line above
   the input: "Your question may be saved by the presenter's organisation for up to a
   year." Free sessions don't show it, since nothing is kept. The line comes from the Q&A
@@ -323,7 +329,9 @@ payment provider's portal linked from there. You can also cancel without signing
 with and, optionally, the workspace's name. A confirmation arrives by email either way.
 
 A cancelled plan runs until the end of the month you paid for; nothing more is charged. Until
-then, **Keep my plan** on the Billing page undoes the cancellation. After that the workspace
+then, **Keep my plan** on the Billing page undoes the cancellation. When the page without
+sign-in is used, every owner of the workspace, and the address the payment provider bills if it
+is a different one, also gets a mail with the end date and the way to keep the plan. After that the workspace
 moves to the free plan: your decks stay, the free limits apply, and saved live results are
 deleted as described above. The confirmation before you cancel says how many past sessions
 that affects.
@@ -345,5 +353,22 @@ days to show). Until then, **Keep my plan** on the Billing page stops it, and th
 on as before. A mail confirms when the withdrawal is carried out. If the 14 days have already
 passed, the request counts as an ordinary cancellation at the end of the paid month, and the
 confirmation says so.
+
+After a withdrawal is carried out, the workspace's saved live results are kept for **30 days**
+instead of being deleted with the move to Free, and you can still open them. Choosing Pro or
+Team again within those 30 days keeps them for good. The mails and the Billing page give the
+date.
+
+### Payments and refunds
+
+If a renewal payment does not go through, the owners and admins of the workspace get a mail
+and the Billing page says so. The plan keeps running while the payment provider tries the card
+again over the next days; update the card under **Manage payment and invoices** on the Billing
+page. If every try fails, the workspace moves to Free.
+
+A workspace has one subscription. If a second one is bought for the same workspace by
+accident (two checkouts at the same time), it is ended at once and refunded in full, and the
+owners and admins get a mail saying so. When a payment is refunded, or disputed with your bank,
+the assistant credits it bought are taken back.
 
 <LinkCard title="CLI reference: login · push · orgs · decks · folders" href="/reference/cli/#login" />
