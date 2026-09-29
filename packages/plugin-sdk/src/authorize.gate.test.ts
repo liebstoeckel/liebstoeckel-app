@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import * as Y from "yjs";
 import {
   AudienceGate,
@@ -12,6 +12,10 @@ import {
 // The audience check used to compare a JSON projection of the whole doc before and after
 // each update. The gate replaced it with an incremental check; this file keeps the old
 // check as an oracle and holds the new one to the same answers, plus the per-kind caps.
+
+// Several tests fill fields to their caps (tens of thousands of entries): on a busy CI
+// host that takes seconds, past bun's 5 s default.
+setDefaultTimeout(60_000);
 
 // ---- the previous whole-doc check, verbatim apart from its names --------------------
 
