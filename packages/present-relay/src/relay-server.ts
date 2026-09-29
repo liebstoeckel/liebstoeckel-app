@@ -13,6 +13,7 @@ import {
 import { bearer, matchAccount, safeEqual } from "./auth";
 import { mintGrant, verifyGrant } from "./grant";
 import { closeReason, createRelayMetrics } from "./metrics";
+import { containerMemoryLimit, memoryRoom, MEMORY_CEILING_SHARE } from "./memory";
 import { withSpan, SpanKind, ctxFromHeaders } from "./tracing";
 import { CLOSE, LIVE_PROTOCOL, TOO_OLD_REASON, negotiateVersion } from "@liebstoeckel/live-server/placement/protocol";
 import type { ServerWebSocket } from "bun";
@@ -67,6 +68,10 @@ export interface RelayOptions {
   fenceMs?: number;
   /** per-audience-peer write rate (enforced sessions). */
   audienceRate?: { capacity: number; refillPerSec: number };
+  /** Resident memory (bytes) at which the relay stops taking audience writes, so a pod
+   *  full of large sessions refuses writes instead of being killed with all of them.
+   *  Defaults to 85% of the container's memory limit; 0 turns it off. */
+  audienceMemoryCeiling?: number;
   /** image tag for the `liebstoeckel_relay_build_info` metric ((internal ADR)). */
   version?: string;
   /** The holder identity of this process's liveness lease (hosted). Reported with
@@ -191,6 +196,8 @@ export function createRelay(opts: RelayOptions): RelayServer {
   const cfg = { ...DEFAULTS, ...opts };
   if (!opts.accountTokens.length) throw new Error("createRelay: at least one account token is required");
   const sessions = new Map<string, RelaySession>();
+  const limit = containerMemoryLimit();
+  const hasRoom = memoryRoom(cfg.audienceMemoryCeiling ?? (limit ? Math.floor(limit * MEMORY_CEILING_SHARE) : undefined));
   let snapshotFailures = 0;
   // Process start time, reported in /stats so the reconciler can tell when a pod has
   // RESTARTED (same name, fresh memory) and re-provision sessions it lost, not just when
@@ -363,7 +370,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     }
     const hub = new Hub({
       keepaliveMs: cfg.keepaliveMs,
-      audience: enforce ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate } : undefined,
+      audience: enforce ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate, admit: hasRoom } : undefined,
     });
     // Re-seed from the stored state: the previous epoch's, or (a session placed
     // before epochs, or unfenced) the single snapshot key.

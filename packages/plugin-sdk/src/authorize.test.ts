@@ -6,6 +6,7 @@ import {
   tokenBucket,
   MAX_AUDIENCE_STRING,
   MAX_AUDIENCE_ENTRIES,
+  MAX_AUDIENCE_TALLY_ENTRIES,
 } from "./authorize";
 import type { PluginManifest } from "./manifest";
 import { registerPluginInstance } from "./instances";
@@ -149,7 +150,7 @@ describe("authorizeAudienceUpdate", () => {
     expect(
       allows((d) => {
         const votes = d.getMap("plugin:poll").get("votes") as Y.Map<unknown>;
-        for (let i = 0; i <= MAX_AUDIENCE_ENTRIES; i++) votes.set(`p${i}`, "red");
+        for (let i = 0; i <= MAX_AUDIENCE_TALLY_ENTRIES; i++) votes.set(`p${i}`, "red");
       }),
     ).toBe(false);
   });

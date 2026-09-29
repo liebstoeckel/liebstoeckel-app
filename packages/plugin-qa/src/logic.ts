@@ -43,6 +43,16 @@ export const hasVoted = (state: QaState, qid: string, pid: string): boolean =>
  * via the `answered` flag.
  */
 export function rankedQuestions(state: QaState): RankedQuestion[] {
+  // One pass over the upvotes for all questions: counting per question would walk every
+  // upvote once per question, which a phone feels in a long Q&A.
+  const counts = new Map<string, number>();
+  for (const [key, on] of Object.entries(state.votes)) {
+    if (!on) continue;
+    const bar = key.indexOf("|");
+    if (bar < 0) continue;
+    const qid = key.slice(0, bar);
+    counts.set(qid, (counts.get(qid) ?? 0) + 1);
+  }
   const rows: RankedQuestion[] = [];
   for (const [id, q] of Object.entries(state.questions)) {
     if (state.dismissed[id]) continue;
@@ -51,7 +61,7 @@ export function rankedQuestions(state: QaState): RankedQuestion[] {
       text: q.text,
       author: q.author,
       ts: q.ts,
-      votes: voteCount(state, id),
+      votes: counts.get(id) ?? 0,
       answered: state.answered[id] === true,
     });
   }

@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import {
-  authorizeAudienceUpdate,
+  AudienceGate,
   tokenBucket,
   type AudienceScope,
   type PeerRole,
@@ -18,17 +18,18 @@ export interface Peer {
   leave(): void;
 }
 
-/** Why the relay refused an audience peer's update. */
-export type DropReason = "rate" | "scope";
+/** Why the relay refused an audience peer's update. `full`: the relay is short of
+ *  memory and takes no audience writes until it has room again. */
+export type DropReason = "rate" | "scope" | "full";
 
 export interface JoinOptions {
   /** Called when one of this peer's updates is refused. `rate`: the peer's later
    *  updates cannot apply until it sends its full state again, so the caller should
    *  close the connection (the client reconnects and resyncs) and the peer ignores
-   *  every further update until then. `scope`: the refused range was filled with a
-   *  placeholder (`tombstoned`) so the peer's later updates still apply, or, when that
-   *  was not safe, simply dropped; a resync would be refused the same way, so there is
-   *  nothing to close for. */
+   *  every further update until then. `scope` and `full`: the refused range was filled
+   *  with a placeholder (`tombstoned`) so the peer's later updates still apply, or, when
+   *  that was not safe, simply dropped; a resync would be refused the same way, so there
+   *  is nothing to close for. */
   onDrop?: (reason: DropReason, info: { tombstoned: boolean }) => void;
 }
 
@@ -40,6 +41,10 @@ export interface AudiencePolicy {
   scope: AudienceScope;
   /** per-audience-peer write rate limit; omit for no limit. */
   rate?: { capacity: number; refillPerSec: number };
+  /** Asked before each audience write; false refuses it as `full`. A relay uses it to
+   *  stop audience writes when its process runs short of memory, rather than be killed
+   *  with every session on it. */
+  admit?: () => boolean;
 }
 
 export interface HubOptions {
@@ -66,9 +71,13 @@ export class Hub {
   private peers = new Map<symbol, Send>();
   private keepalive?: ReturnType<typeof setInterval>;
   private readonly audience?: AudiencePolicy;
+  /** Checks audience writes against a shadow of the doc, at the cost of the write, not
+   *  of the whole session. */
+  private readonly gate?: AudienceGate;
 
   constructor(opts: HubOptions = {}) {
     this.audience = opts.audience;
+    if (opts.audience) this.gate = new AudienceGate(this.doc, opts.audience.scope);
     this.doc.on("update", (update: Uint8Array, origin: unknown) => {
       for (const [key, send] of this.peers) {
         if (key !== origin) this.deliver(key, send, update);
@@ -168,12 +177,18 @@ export class Hub {
               opts.onDrop?.("rate", { tombstoned: false });
               return;
             }
-            if (!authorizeAudienceUpdate(Y.encodeStateAsUpdate(this.doc), data, this.audience!.scope)) {
+            if (this.audience!.admit && !this.audience!.admit()) {
+              opts.onDrop?.("full", { tombstoned: tombstone(data) });
+              return;
+            }
+            if (!this.gate!.check(data)) {
               // out-of-scope or out-of-bounds write → never applied or broadcast
               opts.onDrop?.("scope", { tombstoned: tombstone(data) });
               return;
             }
             claim(data);
+            this.gate!.apply(data, key);
+            return;
           }
           Y.applyUpdate(this.doc, data, key);
         } catch {
@@ -188,6 +203,7 @@ export class Hub {
 
   destroy(): void {
     if (this.keepalive) clearInterval(this.keepalive);
+    this.gate?.destroy();
     this.peers.clear();
     this.doc.destroy();
   }

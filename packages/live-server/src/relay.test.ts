@@ -118,8 +118,8 @@ describe("Hub, refused audience updates", () => {
   const scope = { pluginFields: new Map([["poll", new Set(["votes"])]]), wholeRoots: new Set<string>() };
 
   /** An enforced hub with the presenter's poll already in it, and a viewer joined. */
-  function setup(rate?: { capacity: number; refillPerSec: number }) {
-    const hub = new Hub({ audience: { scope, rate } });
+  function setup(rate?: { capacity: number; refillPerSec: number }, admit?: () => boolean) {
+    const hub = new Hub({ audience: { scope, rate, admit } });
     const presenter = new Y.Doc();
     presenter.getMap("plugin:poll").set("question", "Best?");
     presenter.getMap("nav").set("slide", 1);
@@ -207,4 +207,57 @@ describe("Hub, refused audience updates", () => {
     expect(hub.doc.getMap("nav").get("slide")).toBe(1);
     expect(hub.doc.store.pendingStructs).toBeNull();
   });
+
+  test("while the relay has no room, audience writes are refused as `full` and later ones still apply", () => {
+    let room = true;
+    const { frames, peer, drops, votes, vote } = setup(undefined, () => room);
+    vote("a", "A");
+    peer.recv(frames[0]!);
+    room = false;
+    vote("b", "B");
+    peer.recv(frames[1]!);
+    expect(drops).toEqual([["full", true]]);
+    expect(votes()).toEqual({ a: "A" });
+    room = true;
+    vote("c", "C");
+    peer.recv(frames[2]!);
+    expect(votes()).toEqual({ a: "A", c: "C" });
+  });
+});
+
+describe("Hub, a large audience", () => {
+  test("a few thousand voters: every vote applies, each within a few ms", () => {
+    const scope = { pluginFields: new Map([["poll", new Set(["votes"])]]), wholeRoots: new Set<string>() };
+    const hub = new Hub({ audience: { scope } });
+    const presenter = new Y.Doc();
+    presenter.getMap("plugin:poll").set("question", "Best?");
+    presenter.getMap("plugin:poll").set("votes", new Y.Map());
+    hub.join(() => {}).recv(Y.encodeStateAsUpdate(presenter));
+    const base = Y.encodeStateAsUpdate(hub.doc);
+    const voters = 4000;
+    // each viewer's first vote, built against the state it joined with
+    const frames = Array.from({ length: voters }, (_, i) => {
+      const v = new Y.Doc();
+      Y.applyUpdate(v, base);
+      const sv = Y.encodeStateVector(v);
+      (v.getMap("plugin:poll").get("votes") as Y.Map<string>).set(`viewer-${i}`, i % 2 ? "red" : "blue");
+      return Y.encodeStateAsUpdate(v, sv);
+    });
+    const peers = Array.from({ length: 8 }, () => hub.join(() => {}, "audience"));
+    const time = (from: number, to: number) => {
+      const t = performance.now();
+      for (let i = from; i < to; i++) peers[i % peers.length]!.recv(frames[i]!);
+      return (performance.now() - t) / (to - from);
+    };
+    const early = time(0, 200);
+    time(200, voters - 200);
+    const late = time(voters - 200, voters);
+    expect((hub.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).size).toBe(voters);
+    console.log(`per vote: ${early.toFixed(3)} ms early, ${late.toFixed(3)} ms at ${voters} voters`);
+    // The old whole-doc check cost ~20 ms per vote at 1000 voters and grew with the doc.
+    // What is left grows with the number of Yjs clients (one per viewer) inside Yjs
+    // itself, a few ms at this size. Loose bound, so a slow CI host does not flake.
+    expect(late).toBeLessThan(20);
+    hub.destroy();
+  }, 60_000);
 });

@@ -80,4 +80,19 @@ useEffect(() => {
 
 For transient effects (e.g. reactions floating up), store entries in a record keyed by `crypto.randomUUID()` and **prune** old ones on a timer with `recordDelete`, plus a per-participant rate limit. This converges across clients and keeps the doc small without needing a separate awareness channel.
 
+## Limits on audience writes
+
+When you present through the relay, it bounds what the audience can write into a plugin's `audienceWrites` fields, whatever the plugin's own schema allows:
+
+| What | Limit |
+| --- | --- |
+| Entries in a field that holds only single values (strings, numbers, booleans), like poll votes or Q&A upvotes | 50 000 |
+| Entries in a field that holds any object, like Q&A questions or reactions, and in any container nested inside an entry | 10 000 |
+| Length of a string or a record key | 4 096 characters |
+| Nesting depth below the field | 6 |
+
+Each instance of a plugin has its own fields, so every poll in a deck gets its own 50 000 votes. Once a field is full, the relay refuses writes that would add another entry, while changing or removing an existing entry still works. The presenter's own writes are never limited. The relay also stops taking audience writes while it is short of memory, and takes them again once it has room.
+
+To make these limits work for your plugin, key a field that grows with the audience by participant (one entry per viewer, overwritten when they change their mind), keep per-viewer values to single values where you can, and prune entries that stop mattering, as the reactions plugin does. Also count derived values, such as upvotes per question, in one pass over the record: a pass per item gets slow on a phone once a session has thousands of entries.
+
 <LinkCard title="Server plugins" href="/plugins/server-plugins/" description="When client + shared state isn't enough." />
