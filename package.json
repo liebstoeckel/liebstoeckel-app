@@ -30,15 +30,9 @@
     "test:isolated": "bun run test:browser",
     "test:isolated:failed": "bun run test:isolated; exit 1",
     "test:browser": "bun test .browser.test.",
-    "test:e2e:os": "LIEBSTOECKEL_E2E_OS_SMOKE=1 bun test packages/e2e/src/cli-os-smoke.test.ts",
-    "test:e2e:upgrade": "LIEBSTOECKEL_E2E_UPGRADE=1 bun test packages/e2e/src/cli-upgrade.test.ts",
     "docs:dev": "cd packages/docs && bun --bun astro dev --host",
     "docs:build": "cd packages/docs && bun --bun astro build",
-    "landing:dev": "cd packages/landing && bun --bun astro dev --host",
-    "landing:build": "cd packages/landing && bun --bun astro build",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
-    "qa:devmode": "bun run scripts/dev-mode-sandbox.ts",
-    "promote-prod": "bun run scripts/promote-prod.ts"
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "devDependencies": {
     "@mdx-js/mdx": "3.1.1",

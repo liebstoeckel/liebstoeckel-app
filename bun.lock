@@ -105,6 +105,7 @@
         "@liebstoeckel/deck-sync": "workspace:*",
         "@liebstoeckel/engine": "workspace:*",
         "@liebstoeckel/live-server": "workspace:*",
+        "@liebstoeckel/mail": "workspace:*",
         "@liebstoeckel/present-relay": "workspace:*",
         "@opentelemetry/api": "^1.9.1",
         "@opentelemetry/context-async-hooks": "^2.10.0",
@@ -115,11 +116,9 @@
         "@opentelemetry/semantic-conventions": "^1.41.1",
         "altcha-lib": "2.5.0",
         "better-auth": "1.7.3",
-        "nodemailer": "9.0.1",
         "pg": "8.21.0",
       },
       "devDependencies": {
-        "@types/nodemailer": "8.0.1",
         "@types/pg": "8.20.0",
       },
     },
@@ -414,9 +413,9 @@
       "dependencies": {
         "@fontsource-variable/schibsted-grotesk": "^5.2.8",
         "@liebstoeckel/corporate-design": "workspace:*",
+        "@liebstoeckel/mail": "workspace:*",
         "altcha": "3.2.3",
         "altcha-lib": "2.5.0",
-        "nodemailer": "9.0.1",
         "pg": "8.21.0",
         "react": "^19.2.7",
         "react-dom": "^19.2.7",
@@ -428,6 +427,7 @@
         "@types/pg": "8.20.0",
         "@types/react": "^19",
         "@types/smtp-server": "^3.5.13",
+        "nodemailer": "9.0.1",
         "smtp-server": "^3.19.1",
       },
     },
@@ -461,6 +461,18 @@
       },
       "peerDependencies": {
         "yjs": "^13.6.31",
+      },
+    },
+    "packages/mail": {
+      "name": "@liebstoeckel/mail",
+      "version": "0.0.0",
+      "dependencies": {
+        "nodemailer": "9.0.1",
+      },
+      "devDependencies": {
+        "@types/nodemailer": "8.0.1",
+        "@types/smtp-server": "^3.5.13",
+        "smtp-server": "^3.19.1",
       },
     },
     "packages/mcp": {
@@ -1245,6 +1257,8 @@
     "@liebstoeckel/landing-dist": ["@liebstoeckel/landing-dist@workspace:packages/landing-dist"],
 
     "@liebstoeckel/live-server": ["@liebstoeckel/live-server@workspace:packages/live-server"],
+
+    "@liebstoeckel/mail": ["@liebstoeckel/mail@workspace:packages/mail"],
 
     "@liebstoeckel/mcp": ["@liebstoeckel/mcp@workspace:packages/mcp"],
 
