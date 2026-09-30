@@ -113,6 +113,7 @@
         "@opentelemetry/resources": "^2.10.0",
         "@opentelemetry/sdk-trace-base": "^2.10.0",
         "@opentelemetry/semantic-conventions": "^1.41.1",
+        "altcha-lib": "2.5.0",
         "better-auth": "1.7.3",
         "nodemailer": "9.0.1",
         "pg": "8.21.0",

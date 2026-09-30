@@ -127,11 +127,34 @@ Open **Account** from the menu behind your avatar (top right; on a phone, the â‹
 - **Where you're signed in:** every browser and CLI session of your account. Sign out
   one of them, or choose **Sign out everywhere**, which also signs out this browser and
   the CLI and disconnects connected assistants (they ask you to connect again).
+- **Recent activity:** sign-ins (with browser and platform), sign-ins from a new device,
+  warnings about wrong codes, signing out everywhere and new passkeys, kept for 90 days.
+
+### Sign-in emails and protection
+
+We email you, from the same address as your sign-in codes, when:
+
+- your account is signed in to from a browser or device it hasn't used in the last 90
+  days (the first `liebstoeckel login` on a machine counts as one). The mail names the
+  browser and platform and the time in UTC. If it wasn't you, open **Account** and choose
+  **Sign out everywhere**.
+- several wrong sign-in codes are entered for your address within an hour. Nobody can
+  sign in without a code sent to you or one of your passkeys, so this needs no action if
+  it was you.
+
+These emails never ask you to click through to sign in or to enter a code.
+
+The sign-in page runs a short, invisible check in your browser before it sends a code
+(no cookies, nothing sent to anyone else). It needs a current browser; if it fails, reload
+the page. To keep inboxes from being flooded, an address gets at most five codes in 15
+minutes: use the newest one.
+
+A new workspace's free AI credits start once you have accepted the terms of service.
 
 ### Download your data
 
 **Download my data** prepares a zip with your account details (email, name, passkeys by
-name, sessions), every version of the terms you accepted, the workspaces you belong to
+name, sessions), your recent security activity, every version of the terms you accepted, the workspaces you belong to
 with your role, and the decks of every workspace you **own**: the current version of each
 deck, the spec it was generated from, and its sources when you edit it in the browser.
 Nothing about other people is in it. Decks in teams you are only a member of are not
