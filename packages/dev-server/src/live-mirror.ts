@@ -8,19 +8,21 @@
 // back (a stale save) is merged against the version it read, so it cannot
 // revert remote edits on lines it did not change.
 
-import { type Dirent, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as Y from "yjs";
+import { exclusionOf, listDeckSources } from "./source-files.ts";
 import {
   type CheckpointRecord,
   MAX_SOURCE_BYTES,
-  SKIP_DIRS,
   type SyncClient,
   checkpointList,
   deleteFile,
+  describeFinding,
   filesMap,
   isSyncPath,
   mergeText,
+  scanText,
   setFile,
 } from "./sync.ts";
 
@@ -55,6 +57,8 @@ export interface LiveMirrorOptions {
   /** One line per remote change or notable event. */
   log?: (line: string) => void;
   onCheckpoint?: (record: CheckpointRecord) => void;
+  /** The server rewrote the checkpoint history; `head` is its newest record. */
+  onRewrite?: (head: CheckpointRecord) => void;
 }
 
 interface Seen {
@@ -62,27 +66,10 @@ interface Seen {
   size: number;
 }
 
-/** Deck-relative source paths under `dir` (forward slashes). */
+/** Deck-relative source paths under `dir` (forward slashes): the source rules,
+ *  minus files Git ignores and credential files (see source-files.ts). */
 export function listSourcePaths(dir: string): string[] {
-  const out: string[] = [];
-  const walk = (abs: string, rel: string) => {
-    let entries: Dirent[];
-    try {
-      entries = readdirSync(abs, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const e of entries) {
-      const childRel = rel ? `${rel}/${e.name}` : e.name;
-      if (e.isDirectory()) {
-        if (!SKIP_DIRS.has(e.name)) walk(join(abs, e.name), childRel);
-      } else if (e.isFile() && isSyncPath(childRel)) {
-        out.push(childRel);
-      }
-    }
-  };
-  walk(dir, "");
-  return out.sort();
+  return listDeckSources(dir).paths;
 }
 
 export class LiveMirror {
@@ -93,7 +80,7 @@ export class LiveMirror {
   private readonly seen = new Map<string, Seen>();
   private timer: ReturnType<typeof setInterval> | null = null;
   private lastLog = new Map<string, number>();
-  private readonly warnedLarge = new Set<string>();
+  private readonly warned = new Set<string>();
   private readonly doc;
 
   constructor(private readonly opts: LiveMirrorOptions) {
@@ -120,9 +107,16 @@ export class LiveMirror {
       for (const path of paths) this.sync(path, true);
     });
     checkpointList(this.doc).observe((event) => {
-      for (const item of event.changes.added) {
-        for (const record of item.content.getContent() as CheckpointRecord[]) this.opts.onCheckpoint?.(record);
+      const added: CheckpointRecord[] = [];
+      for (const item of event.changes.added) added.push(...(item.content.getContent() as CheckpointRecord[]));
+      // Records removed: the server rewrote the history (a purge, a compaction, a
+      // name replaced) and replaced the list. Only its newest record matters.
+      if (event.changes.deleted.size > 0) {
+        const last = added.at(-1);
+        if (last) (this.opts.onRewrite ?? this.opts.onCheckpoint)?.(last);
+        return;
       }
+      for (const record of added) this.opts.onCheckpoint?.(record);
     });
     this.timer = setInterval(() => this.poll(), this.opts.pollMs ?? 300);
   }
@@ -207,12 +201,26 @@ export class LiveMirror {
   /** Reconcile one file between disk, document and the last agreed content. */
   private reconcile(path: string, remote: boolean): void {
     if (!isSyncPath(path)) return;
+    // A file this folder does not sync (ignored by Git, or a credentials file) is
+    // not the mirror's: it neither writes the live version nor deletes it.
+    const excluded = exclusionOf(this.opts.dir, path);
+    if (excluded) {
+      this.warnOnce(`${path}:excluded`, `${path}: not synced (${excluded === "gitignore" ? "ignored by .gitignore" : "looks like a credentials file"})`);
+      return;
+    }
     const disk = this.readDisk(path);
     if (disk === TOO_LARGE) {
-      if (!this.warnedLarge.has(path)) {
-        this.warnedLarge.add(path);
-        this.opts.log?.(`${path}: over ${MAX_SOURCE_BYTES / 1024} KB, not synced`);
-      }
+      this.warnOnce(`${path}:large`, `${path}: over ${MAX_SOURCE_BYTES / 1024} KB, not synced`);
+      return;
+    }
+    // A file holding what looks like a credential is held back both ways until
+    // it is fixed: never sent, and never overwritten with the live version.
+    const secret = disk === undefined ? undefined : scanText(path, disk).find((f) => f.strength === "block");
+    if (secret) {
+      this.warnOnce(
+        `${path}:secret:${secret.line}:${secret.kind}`,
+        `${describeFinding(secret)}; not synced. Remove it (use an environment variable) or add the file to .gitignore.`,
+      );
       return;
     }
     const live = filesMap(this.doc).get(path)?.toString();
@@ -262,6 +270,13 @@ export class LiveMirror {
     if (merged !== live) this.writeDoc(path, merged);
     this.remember(path, merged);
     if (remote) this.announce(path, "merged");
+  }
+
+  /** Log a line once per key (a path and what is wrong with it). */
+  private warnOnce(key: string, line: string): void {
+    if (this.warned.has(key)) return;
+    this.warned.add(key);
+    this.opts.log?.(line);
   }
 
   private remember(path: string, content: string | undefined): void {

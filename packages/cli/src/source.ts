@@ -3,7 +3,7 @@
 // and committing others' edits with their names (`sync commit`). Shared by the
 // cloud commands and `liebstoeckel dev --live`.
 
-import { type Dirent, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
@@ -12,13 +12,16 @@ import {
   type FileConflict,
   type FileTree,
   MAX_SOURCE_BYTES,
-  SKIP_DIRS,
+  findCheckpoint,
   isSyncPath,
   mergeTrees,
+  publicFindings,
+  scanTree,
   withProtocol,
 } from "@liebstoeckel/dev-server/sync";
+import { type SourceListing, listDeckSources } from "@liebstoeckel/dev-server/source-files";
 import { loadCreds } from "./creds";
-import { termsFailure } from "./output";
+import { CliError, termsFailure } from "./output";
 
 // ---- sync state -------------------------------------------------------------
 
@@ -55,35 +58,53 @@ export function writeSyncState(deckDir: string, state: SyncState): void {
 
 // ---- local files --------------------------------------------------------------
 
-/** The deck folder's source files, by the same rules the server applies. A
- *  source file over the size cap is an error, never left out: leaving it out
- *  would read as a deletion and remove it from the live deck. */
-export function readLocalTree(deckDir: string): FileTree {
+/** The deck folder's source files, by the same rules the server applies, minus
+ *  files Git ignores and credential files (see `listDeckSources`). A source file
+ *  over the size cap is an error, never left out: leaving it out would read as a
+ *  deletion and remove it from the live deck. */
+export function readLocalTree(deckDir: string, listing: SourceListing = listDeckSources(deckDir)): FileTree {
   const tree: FileTree = {};
   const tooLarge: string[] = [];
-  const walk = (abs: string, rel: string) => {
-    let entries: Dirent[];
+  for (const rel of listing.paths) {
+    let text: string;
     try {
-      entries = readdirSync(abs, { withFileTypes: true });
+      text = readFileSync(join(deckDir, rel), "utf8");
     } catch {
-      return;
+      continue;
     }
-    for (const e of entries) {
-      const childRel = rel ? `${rel}/${e.name}` : e.name;
-      if (e.isDirectory()) {
-        if (!SKIP_DIRS.has(e.name)) walk(join(abs, e.name), childRel);
-      } else if (e.isFile() && isSyncPath(childRel)) {
-        const text = readFileSync(join(abs, e.name), "utf8");
-        if (new TextEncoder().encode(text).length > MAX_SOURCE_BYTES) tooLarge.push(childRel);
-        else tree[childRel] = text;
-      }
-    }
-  };
-  walk(deckDir, "");
+    if (new TextEncoder().encode(text).length > MAX_SOURCE_BYTES) tooLarge.push(rel);
+    else tree[rel] = text;
+  }
   if (tooLarge.length > 0) {
     throw new SyncError(`source files over ${MAX_SOURCE_BYTES / 1024} KB cannot be synced: ${tooLarge.join(", ")}`);
   }
   return tree;
+}
+
+/** The server's stable code for files refused because they look like they hold
+ *  credentials, and the CLI's for the same check made before uploading. */
+export const SECRET_FOUND = "secret_found";
+
+/** Refuse to upload sources that look like they hold credentials: every file and
+ *  line in the message and in `findings` (never the value). Returns the weaker
+ *  matches, which are uploaded but worth a warning. */
+export function checkSecrets(tree: FileTree): ReturnType<typeof publicFindings> {
+  const findings = scanTree(tree);
+  const blocking = findings.filter((f) => f.strength === "block");
+  if (blocking.length > 0) {
+    const where = blocking.map((f) => `${f.path}:${f.line} (${f.kind})`).join(", ");
+    throw new CliError(`refusing to sync files that look like they hold credentials: ${where}`, {
+      code: SECRET_FOUND,
+      hint: "remove the value (read it from an environment variable instead) or add the file to .gitignore, then try again",
+      details: { findings: publicFindings(blocking) },
+    });
+  }
+  return publicFindings(findings);
+}
+
+/** Print warnings for weaker secret matches (stderr: never in the JSON document). */
+export function warnSecrets(warnings: ReturnType<typeof publicFindings>): void {
+  for (const w of warnings) console.error(`  warning: ${w.path}:${w.line} looks like ${w.kind}; synced anyway, check it is not a real credential`);
 }
 
 /** Only safe source paths, whatever a server sent. */
@@ -230,6 +251,20 @@ export class SyncError extends Error {
   }
 }
 
+/** The server's stable code for a base checkpoint it no longer has. */
+export const HISTORY_RESET = "history_reset";
+
+/** The checkpoint a folder was based on is gone: the deck's history was purged,
+ *  or compacted longer ago than old ids are kept. */
+export class HistoryReset extends SyncError {
+  constructor(
+    message: string,
+    readonly head: string | null,
+  ) {
+    super(message, 410);
+  }
+}
+
 export async function cloudFromCreds(args: { api?: string; org?: string }, state?: SyncState | null): Promise<Cloud | null> {
   const creds = await loadCreds();
   if (!creds) return null;
@@ -287,7 +322,8 @@ export interface LiveFiles {
  *  checkpoints pending edits, so `commit` names exactly the returned files. */
 export async function fetchFiles(access: SyncAccess, commit?: string): Promise<LiveFiles> {
   const q = commit ? `?commit=${encodeURIComponent(commit)}` : "?checkpoint=1";
-  const { status, body } = await syncCall<LiveFiles & { error?: string }>(access, `/files${q}`);
+  const { status, body } = await syncCall<LiveFiles & { error?: string; code?: string; head?: string | null }>(access, `/files${q}`);
+  if (status === 410 && body.code === HISTORY_RESET) throw new HistoryReset(body.error ?? "the deck's history was reset", body.head ?? null);
   if (status !== 200) throw new SyncError(body.error ?? `could not read files (${status})`, status);
   return { commit: body.commit, files: safeTree(body.files ?? {}) };
 }
@@ -299,16 +335,26 @@ export async function fetchHistory(access: SyncAccess): Promise<CheckpointRecord
 }
 
 export type ImportOutcome =
-  | { ok: true; commit: string; changed: boolean }
-  | { ok: false; conflicts: FileConflict[]; head: string | null };
+  | { ok: true; commit: string; changed: boolean; warnings?: ReturnType<typeof publicFindings>; reset?: boolean }
+  | { ok: false; conflicts: FileConflict[]; head: string | null; reset?: boolean };
 
 export async function importFiles(access: SyncAccess, base: string | null, files: FileTree, message?: string): Promise<ImportOutcome> {
-  const { status, body } = await syncCall<ImportOutcome & { reason?: string; message?: string; error?: string }>(access, "/import", {
+  const { status, body } = await syncCall<
+    ImportOutcome & { reason?: string; code?: string; message?: string; error?: string; findings?: unknown; head?: string | null }
+  >(access, "/import", {
     method: "POST",
     body: JSON.stringify({ base, files, message }),
   });
   if (status === 200) return body;
   if (status === 409) return { ok: false, conflicts: (body as { conflicts: FileConflict[] }).conflicts, head: (body as { head: string | null }).head };
+  if (status === 410 && body.code === HISTORY_RESET) throw new HistoryReset(body.message ?? "the deck's history was reset", body.head ?? null);
+  if (body.code === SECRET_FOUND) {
+    throw new CliError(body.message ?? "the server refused files that look like they hold credentials", {
+      code: SECRET_FOUND,
+      hint: "remove the value (read it from an environment variable instead) or add the file to .gitignore, then try again",
+      details: { findings: body.findings ?? [] },
+    });
+  }
   throw new SyncError(body.message ?? body.error ?? `import failed (${status})`, status);
 }
 
@@ -328,11 +374,18 @@ export interface PullResult {
   written: string[];
   conflicts: FileConflict[];
   head: string | null;
+  /** The checkpoint the folder was based on was gone (a purge or compaction), so
+   *  the folder was merged two-way against the live files: identical files as
+   *  they are, differing ones with conflict markers, nothing dropped. */
+  reset?: boolean;
+  /** Source files left out (ignored by Git, or credential files). */
+  skipped?: SourceListing["skipped"];
 }
 
 /** Bring local files and the live deck together. */
 export async function pullDeck(deckDir: string, state: SyncState, access: SyncAccess): Promise<PullResult> {
-  const local = readLocalTree(deckDir);
+  const listing = listDeckSources(deckDir);
+  const local = readLocalTree(deckDir, listing);
   const marked = filesWithMarkers(local);
   if (marked.length > 0) {
     throw new SyncError(`resolve the conflict markers first: ${marked.join(", ")}`);
@@ -340,27 +393,49 @@ export async function pullDeck(deckDir: string, state: SyncState, access: SyncAc
   // A resolved conflict: the local files now contain what `pending` brought.
   const baseCommit = state.pending ?? state.base;
   const live = await fetchFiles(access);
-  const base = baseCommit ? (await fetchFiles(access, baseCommit)).files : {};
-  const plan = planPull(base, local, live.files);
+  let base: FileTree = {};
+  let reset = false;
+  if (baseCommit) {
+    try {
+      base = (await fetchFiles(access, baseCommit)).files;
+    } catch (err) {
+      if (!(err instanceof HistoryReset)) throw err;
+      // The base is gone: merge against nothing, so files both sides have alike
+      // stay, and every difference shows as a conflict rather than one side
+      // silently winning.
+      reset = true;
+    }
+  }
+  const extra = { ...(reset ? { reset: true } : {}), ...(listing.skipped.length > 0 ? { skipped: listing.skipped } : {}) };
+  // Files this folder does not sync (ignored by Git, credential files) are not the
+  // folder's to change: the merge leaves them out, and an upload carries the live
+  // version along, so a file created in the browser is never deleted by a pull.
+  const { exclusionOf } = await import("@liebstoeckel/dev-server/source-files");
+  const excluded = (tree: FileTree) => Object.keys(tree).filter((p) => exclusionOf(deckDir, p) !== null);
+  const keepLive = Object.fromEntries(excluded(live.files).map((p) => [p, live.files[p]!]));
+  const mine = (tree: FileTree) => omit(tree, new Set(excluded(tree)));
+  const plan = planPull(mine(base), local, mine(live.files));
+  if (plan.kind === "merged" && plan.upload) plan.tree = { ...plan.tree, ...keepLive };
 
   if (plan.kind === "in-sync") {
     writeSyncState(deckDir, { ...state, base: live.commit, pending: null });
-    return { kind: "in-sync", written: [], conflicts: [], head: live.commit };
+    return { kind: "in-sync", written: [], conflicts: [], head: live.commit, ...extra };
   }
   if (plan.kind === "merged") {
-    const written = plan.writeLocal ? writeTreeChanges(deckDir, local, plan.tree) : [];
+    if (plan.upload) checkSecrets(omit(plan.tree, new Set(Object.keys(keepLive))));
+    const written = plan.writeLocal ? writeTreeChanges(deckDir, local, omit(plan.tree, new Set(Object.keys(keepLive)))) : [];
     let head = live.commit;
     if (plan.upload) {
       const imported = await importFiles(access, live.commit, plan.tree, "Merge local changes");
       if (!imported.ok) {
         // The live deck moved while we merged; the next pull picks it up.
-        writeSyncState(deckDir, { ...state, base: baseCommit, pending: null });
-        return { kind: "conflict", written, conflicts: imported.conflicts, head: imported.head };
+        writeSyncState(deckDir, { ...state, base: reset ? live.commit : baseCommit, pending: null });
+        return { kind: "conflict", written, conflicts: imported.conflicts, head: imported.head, ...extra };
       }
       head = imported.commit;
     }
     writeSyncState(deckDir, { ...state, base: head, pending: null });
-    return { kind: plan.upload ? "merged" : "pulled", written, conflicts: [], head };
+    return { kind: plan.upload ? "merged" : "pulled", written, conflicts: [], head, ...extra };
   }
 
   // Conflicts: write everything that merged, plus markers where it did not.
@@ -375,7 +450,7 @@ export async function pullDeck(deckDir: string, state: SyncState, access: SyncAc
   }
   const written = writeTreeChanges(deckDir, local, tree);
   writeSyncState(deckDir, { ...state, pending: live.commit });
-  return { kind: "conflict", written, conflicts: plan.conflicts, head: live.commit };
+  return { kind: "conflict", written, conflicts: plan.conflicts, head: live.commit, ...extra };
 }
 
 /** Upload local files as an import based on the last synced checkpoint. */
@@ -383,7 +458,29 @@ export async function pushSourceFiles(deckDir: string, state: SyncState, access:
   const local = readLocalTree(deckDir);
   const marked = filesWithMarkers(local);
   if (marked.length > 0) throw new SyncError(`resolve the conflict markers first: ${marked.join(", ")}`);
-  const outcome = await importFiles(access, state.pending ?? state.base, local, message);
+  const warnings = checkSecrets(local);
+  // Files this folder does not sync must not read as deleted: send them as they
+  // were at the base, so the merge keeps whatever the live deck has.
+  const baseCommit = state.pending ?? state.base;
+  let upload = local;
+  if (baseCommit) {
+    const { exclusionOf } = await import("@liebstoeckel/dev-server/source-files");
+    const base = await fetchFiles(access, baseCommit).catch(() => null);
+    const kept = base ? Object.entries(base.files).filter(([p]) => !(p in local) && exclusionOf(deckDir, p) !== null) : [];
+    if (kept.length > 0) upload = { ...local, ...Object.fromEntries(kept) };
+  }
+  let outcome: ImportOutcome;
+  try {
+    outcome = await importFiles(access, baseCommit, upload, message);
+  } catch (err) {
+    if (!(err instanceof HistoryReset)) throw err;
+    // The base is gone: merge against the live files as they are, two-way. Files
+    // both sides have alike, or only one side has, go through; files that differ
+    // come back as conflicts for `pull` to mark.
+    const retried = await importFiles(access, null, local, message);
+    outcome = { ...retried, reset: true };
+  }
+  if (outcome.ok && warnings.length > 0 && !outcome.warnings) outcome = { ...outcome, warnings };
   if (outcome.ok) {
     // The first push links the folder: what it uploaded is already in the
     // developer's history, so it is also where `sync commit` starts crediting.
@@ -411,9 +508,14 @@ async function git(deckDir: string, args: string[], stdin?: string): Promise<{ c
 
 /** Checkpoints after `from` up to and including `to` (oldest first). */
 export function checkpointsBetween(history: CheckpointRecord[], from: string | null, to: string | null): CheckpointRecord[] {
-  const end = to ? history.findIndex((c) => c.commit === to) : history.length - 1;
+  // An id from before a history rewrite still names its checkpoint (`was`).
+  const at = (id: string) => {
+    const found = findCheckpoint(history, id);
+    return found ? history.indexOf(found) : -1;
+  };
+  const end = to ? at(to) : history.length - 1;
   if (end < 0) return [];
-  const start = from ? history.findIndex((c) => c.commit === from) + 1 : 0;
+  const start = from ? at(from) + 1 : 0;
   return history.slice(Math.max(0, start), end + 1);
 }
 

@@ -198,6 +198,11 @@ async function runPush(args: {
 
   const path = resolve(file);
   if (!(await Bun.file(path).exists())) throw new CliError(`no such file: ${file}`, { code: "not_found" });
+  // With --source, refuse sources holding credentials before anything is uploaded.
+  if (args.source) {
+    const src = await import("./source");
+    src.checkSecrets(src.readLocalTree(resolve(args.dir ?? ".")));
+  }
   const html = await Bun.file(path).text();
   const deckName = args.name ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
   // Deck key ((internal ADR)): re-push upserts by it. `--new` forces a fresh deck by
@@ -265,8 +270,8 @@ async function runPush(args: {
 }
 
 type SourcePushResult =
-  | { ok: true; changed: boolean; commit?: string }
-  | { ok: false; conflicts: { path: string; kind: string }[] };
+  | { ok: true; changed: boolean; commit?: string; reset?: boolean; warnings?: Array<{ path: string; line: number; kind: string }>; skipped?: Array<{ path: string; reason: string }> }
+  | { ok: false; conflicts: { path: string; kind: string }[]; reset?: boolean };
 
 /** `push --source`: link the folder to the deck's live source (first time)
  *  and upload the local files as an import based on the last sync. */
@@ -283,17 +288,32 @@ async function pushSource(
       ? previous
       : { deckId, api: cloud.api, org: cloud.org, base: null, committed: null };
   const access = await src.sourceAccess(cloud, deckId, true);
+  const { listDeckSources, describeSkipped } = await import("@liebstoeckel/dev-server/source-files");
+  const skipped = listDeckSources(deckDir).skipped;
   const outcome = await src.pushSourceFiles(deckDir, state, access, "Push from the CLI");
-  if (outcome.ok) {
-    (json ? console.error : console.log)(
-      outcome.changed ? `✓ sources uploaded (${outcome.commit.slice(0, 8)})` : "✓ sources already up to date",
-    );
-    return { ok: true, changed: outcome.changed, ...(outcome.changed ? { commit: outcome.commit } : {}) };
+  const say = json ? console.error : console.log;
+  if (outcome.reset) {
+    say("  note: the deck's history was reset on the server (a history purge or the compaction of old checkpoints);");
+    say("  your files were merged against the live files as they are now.");
   }
-  console.error("✕ the live deck changed the same lines as your local files:");
+  const skippedLine = describeSkipped(skipped);
+  if (skippedLine) say(`  ${skippedLine}`);
+  if (outcome.ok) {
+    say(outcome.changed ? `✓ sources uploaded (${outcome.commit.slice(0, 8)})` : "✓ sources already up to date");
+    if (outcome.warnings?.length) src.warnSecrets(outcome.warnings);
+    return {
+      ok: true,
+      changed: outcome.changed,
+      ...(outcome.changed ? { commit: outcome.commit } : {}),
+      ...(outcome.reset ? { reset: true } : {}),
+      ...(outcome.warnings?.length ? { warnings: outcome.warnings.map(({ path, line, kind }) => ({ path, line, kind })) } : {}),
+      ...(skipped.length ? { skipped } : {}),
+    };
+  }
+  console.error(outcome.reset ? "✕ these files differ between your folder and the live deck:" : "✕ the live deck changed the same lines as your local files:");
   for (const c of outcome.conflicts) console.error(`  ${c.path} (${c.kind})`);
   console.error("  run `liebstoeckel pull` to merge, resolve the markers, then push again.");
-  return { ok: false, conflicts: outcome.conflicts.map((c) => ({ path: c.path, kind: c.kind })) };
+  return { ok: false, conflicts: outcome.conflicts.map((c) => ({ path: c.path, kind: c.kind })), ...(outcome.reset ? { reset: true } : {}) };
 }
 
 /** Shared preamble of the source-sync commands: deck folder, state, access. */
@@ -328,6 +348,14 @@ export const pullCommand = defineCommand({
     return reporting(json, async () => {
       const { src, deckDir, state, access } = await sourceContext(args);
       const result = await src.pullDeck(deckDir, state, access);
+      if (!json && result.reset) {
+        console.log("note: the deck's history was reset on the server (a history purge or the compaction of old checkpoints),");
+        console.log("so this folder was merged against the live files as they are now: files that differ got conflict markers.");
+      }
+      if (!json && result.skipped?.length) {
+        const { describeSkipped } = await import("@liebstoeckel/dev-server/source-files");
+        console.log(describeSkipped(result.skipped));
+      }
       if (json) {
         console.log(JSON.stringify({ ok: result.kind !== "conflict", ...result }));
       } else if (result.kind === "in-sync") {

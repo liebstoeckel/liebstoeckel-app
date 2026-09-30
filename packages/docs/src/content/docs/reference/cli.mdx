@@ -76,6 +76,8 @@ for every one of them.
 | `forbidden` | cloud commands | your role or plan does not allow this; `error` says which |
 | `terms_not_accepted` | cloud commands that create or change something | the account has not accepted the terms of service; `url` is the dashboard, where a person signs in and accepts. An agent should show the link, not accept on the user's behalf |
 | `not_linked` | `pull`, `sync` | the folder is not linked to a cloud deck; `push --source` first |
+| `secret_found` | `push --source`, `pull` | a source file looks like it holds a credential (a private key, a provider token); `findings` lists `{ path, line, kind }`, never the value. Remove the value (read it from an environment variable) or add the file to `.gitignore`, then run the command again. Nothing was uploaded |
+| `history_reset` | `sync status` | the checkpoint this folder was based on is gone (the deck's history was purged, or compacted long ago); run `liebstoeckel pull`, which merges against the live files as they are now |
 | `confirmation_required` | `decks delete` | deleting needs a yes (exit 2); pass `--yes` when no one can answer the prompt |
 | `folder_not_found` | `decks move`, `folders` | no folder at that path; the hint names the `folders create` command |
 | `folder_exists` | `folders rename`, `folders delete` | a sibling already has that name (names are unique regardless of case) |
@@ -766,6 +768,26 @@ exists; the prose output then prints the `decks move` command that would move it
 
 With `--source` it adds `source`: `{ "ok": true, "changed": true, "commit": "…" }`, or
 `{ "ok": false, "conflicts": [{ "path", "kind" }] }` (then `ok` is false and the exit code 1).
+`source` can also carry `reset: true` (the deck's history was reset, see below),
+`warnings: [{ path, line, kind }]` (text that might be a credential, uploaded anyway) and
+`skipped: [{ path, reason }]` (files left out, `reason` `gitignore` or `denylist`).
+
+**Which files `--source` uploads.** Text sources (`.mdx .md .tsx .ts .jsx .js .mjs .css
+.json .html .svg .toml .yaml .yml .txt`, outside `node_modules`, `dist` and the like), minus
+files your Git ignores (the `.gitignore` files from the repository root down to the deck
+folder, and any inside it) and files named like credentials (`.env*`, `*.pem`, `*.key`,
+`*secret*`, `*credential*`, `id_rsa*` and other SSH keys, `.npmrc`, `.netrc`). The same rule
+applies to `pull` and `dev --live`: such files are never uploaded, and never written from
+the live deck either.
+
+**The secret check.** Before anything is uploaded, every source file is checked for
+credentials with a set of rules like those of secret scanners: private keys and provider
+tokens with a known shape (AWS, GitHub, GitLab, Slack, Stripe, Google, OpenAI, Anthropic,
+npm, and more) stop the push with code `secret_found`, naming the file and line. Weaker signs
+(a long random string assigned to something called `password` or `token`, a JSON Web Token,
+a URL with a password) are printed as warnings and uploaded. Examples from providers'
+documentation, like `AKIAIOSFODNN7EXAMPLE`, pass. The server applies the same check to every
+import and to live edits.
 
 ### `orgs`
 
@@ -922,4 +944,15 @@ liebstoeckel sync commit --json          # { committed, message, checkpoint }
 
 `pull --json` returns `{ ok, kind, written, conflicts, head }`, where `kind` is
 `in-sync`, `pulled`, `merged` or `conflict`; with conflicts `ok` is false and the exit
-code 1. A folder that is not linked yet fails with code `not_linked`.
+code 1. A folder that is not linked yet fails with code `not_linked`. `skipped` lists files
+left out (see [which files are synced](#push)).
+
+**When the deck's history was reset.** An owner can purge a deck's editing history, and
+checkpoints older than 90 days are compacted regularly (see
+[live source editing](/guides/cloud/#live-source-editing)). A folder remembers the checkpoint
+it last matched; a checkpoint that was only compacted still works. When it is gone, `pull`
+(and the start of `dev --live`) says so, adds `reset: true` to the JSON, and merges against
+the live files as they are now: files that are the same on both sides stay, files only one
+side has are kept, and files that differ get Git's conflict markers for you to resolve,
+so nothing is lost on either side. `push --source` does the same on the server: files that
+differ come back as conflicts, and `pull` then marks them.

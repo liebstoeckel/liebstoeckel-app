@@ -48,6 +48,7 @@
     "./ui": "./src/ui.ts",
     "./sync": "./src/sync.ts",
     "./live-mirror": "./src/live-mirror.ts",
+    "./source-files": "./src/source-files.ts",
     "./serve-plugins": "./src/serve-plugins.ts"
   },
   "dependencies": {
@@ -55,6 +56,7 @@
     "@fontsource-variable/schibsted-grotesk": "^5.2.8",
     "@liebstoeckel/live-server": "workspace:^",
     "citty": "^0.2.2",
+    "ignore": "^7.0.8",
     "modern-screenshot": "^4.6.5",
     "y-protocols": "^1.0.6",
     "yjs": "^13.6.31"

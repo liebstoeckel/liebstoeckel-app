@@ -19,7 +19,13 @@ export interface CheckpointRecord {
   /** First is the commit author, the rest are credited as co-authors. */
   authors: Author[];
   message: string;
-  kind: "auto" | "save" | "import";
+  /** Why the server wrote it. `compact` and `purge` mark the single commit a
+   *  history rewrite left in place of older checkpoints. */
+  kind: "auto" | "save" | "import" | "compact" | "purge";
+  /** Ids this checkpoint had before the server rewrote the history (newest
+   *  last, a few at most), so a local copy whose base is an older id still
+   *  finds the same state. */
+  was?: string[];
 }
 
 export function filesMap(doc: Y.Doc): Y.Map<Y.Text> {
@@ -33,6 +39,12 @@ export function checkpointList(doc: Y.Doc): Y.Array<CheckpointRecord> {
 export function lastCheckpoint(doc: Y.Doc): CheckpointRecord | null {
   const list = checkpointList(doc);
   return list.length > 0 ? list.get(list.length - 1) : null;
+}
+
+/** The checkpoint known as `id`: by its commit, or by an id it had before the
+ *  history was rewritten. */
+export function findCheckpoint(records: readonly CheckpointRecord[], id: string): CheckpointRecord | null {
+  return records.find((r) => r.commit === id) ?? records.find((r) => r.was?.includes(id)) ?? null;
 }
 
 /** The current source tree. Entries that are not text are skipped. */

@@ -177,7 +177,9 @@ older than a day (otherwise sign out and in again first).
   everywhere, connected assistants lose access, and you can no longer sign in. You get an
   email with a link to restore your account.
 - **Teams:** you leave every team when your account is removed. The decks you made there
-  stay with the team and show as made by "a former member".
+  stay with the team and show as made by "a former member". In the editing history of
+  decks whose sources you edited (in any team, also ones you left earlier), your name and
+  email are replaced by a code, like the records below.
 - **Restore for 14 days** from the link in the email; it brings back your account and your
   personal workspace. Lost the email? Sign in with your address as usual: we tell you the
   account was deleted and send the link again.
@@ -372,6 +374,50 @@ the share link and view counts carry over. `--new` starts a separate deck.
 - **Pro / Team** keep **full version history** with one-click **rollback**: open a deck's
   **Versions** panel to see every version, preview one (`/d/:id?v=N`), or make an older
   version current.
+
+**Delete a version.** Owners and admins can delete a single version from the menu next to
+it in the **Versions** panel, or with `DELETE /api/v1/decks/:id/versions/:n`. Its file, its
+thumbnails and its `?v=N` link are gone for good; the deck and its other versions stay. The
+current version cannot be deleted: make another one current first (the API answers
+`409` with code `current_version`).
+
+**Deleting a deck** removes everything that belongs to it: every version, its view counts,
+live sessions and their results, its source editing history and its assistant conversation.
+
+## Live source editing
+
+A deck pushed with `liebstoeckel push --source` keeps its source files in the cloud: team
+members edit them together in the dashboard (**Edit sources**), the assistant works on
+them, and a developer mirrors them into their own folder with `liebstoeckel dev --live`
+(or merges with `pull`). See the [CLI reference](/reference/cli/#pull-and-sync).
+
+**Which files sync.** Text sources only, and never files your Git ignores or files named
+like credentials (`.env*`, `*.pem`, `*.key`, `*secret*`, `*credential*`, SSH keys,
+`.npmrc`). The CLI prints the ones it left out.
+
+**Secrets are refused.** Every upload is checked for credentials (private keys and tokens
+of well-known providers): `push --source` stops with the file and line (code
+`secret_found`) before anything is uploaded, and `dev --live` holds such a file back until
+you fix it. If a key is pasted in the dashboard editor, it is removed again at once, before
+it is saved or reaches anyone else, and the editor says where and why. Keys belong in
+environment variables, not in slides.
+
+**History.** Edits turn into checkpoints on their own (after a short pause, and on **Save
+version**), credited to whoever edited. Checkpoints older than **90 days** are combined into
+one, without the names of who made them; newer ones stay as they are, and folders based on
+a recent checkpoint keep merging normally.
+
+**Purge the history.** If a password or key ended up in a deck, take it out of the files
+first, then an owner or admin can **Purge history** on the deck page (or
+`POST /api/v1/decks/:id/history/purge` with optional `versions` and `assistantChat`). Every
+earlier state of the sources and every editor's name are removed; the deck keeps its current
+files. You can also delete chosen older versions and the assistant conversation in the same
+step. A purge cannot reach copies that already left: developers' own repositories after
+`sync commit`, and files people downloaded. Change the leaked credential too.
+
+After a purge, a developer's folder no longer finds the checkpoint it was based on. `pull`
+and `dev --live` say so and merge against the live files as they are: identical files stay,
+files that differ get conflict markers to resolve, and nothing is lost.
 
 ## View analytics
 

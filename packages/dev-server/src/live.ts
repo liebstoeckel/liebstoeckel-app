@@ -33,7 +33,11 @@ export async function startLive(deckDir: string, log: (line: string) => void): P
     const files = pulled.conflicts.map((c) => `  ${c.path} (${c.kind})`).join("\n");
     throw new LiveStartError(`your files and the live deck conflict; resolve the markers, then start again:\n${files}`);
   }
+  if (pulled.reset) log("the deck's history was reset on the server (a history purge or the compaction of old checkpoints); merged against the live files as they are now");
   if (pulled.kind !== "in-sync") log(`caught up with the live deck (${pulled.written.length} file(s) updated locally)`);
+  const { describeSkipped } = await import("./source-files.ts");
+  const skipped = describeSkipped(pulled.skipped ?? []);
+  if (skipped) log(skipped);
   if (access.role === "read") {
     log(
       access.readOnly
@@ -49,12 +53,13 @@ export async function startLive(deckDir: string, log: (line: string) => void): P
       return `${access.wsUrl}?t=${encodeURIComponent(access.grant)}`;
     },
     onNotice: (n) => {
-      if (n.type === "error") log(`live: ${n.message}`);
+      if (n.type === "error" || n.type === "removed") log(`live: ${n.message}`);
     },
     onStatus: (status) => {
       if (status === "closed") log("live: disconnected, reconnecting");
     },
-    onFatal: (message) => log(`live: stopped. ${message} Run \`liebstoeckel update\`.`),
+    onFatal: (message) =>
+      log(/deleted/i.test(message) ? `live: stopped. ${message}` : `live: stopped. ${message} Run \`liebstoeckel update\`.`),
   });
   const timeout = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new LiveStartError("could not reach the live deck")), 15_000),
@@ -77,6 +82,11 @@ export async function startLive(deckDir: string, log: (line: string) => void): P
       if (current) src.writeSyncState(deckDir, { ...current, base: record.commit, pending: null });
       const who = record.authors.map((a) => a.name).join(", ");
       log(`checkpoint ${record.commit.slice(0, 8)}: ${record.message} (${who})`);
+    },
+    onRewrite: (head) => {
+      const current = src.readSyncState(deckDir);
+      if (current) src.writeSyncState(deckDir, { ...current, base: head.commit, pending: null });
+      log(`the deck's checkpoint history was rewritten on the server (${head.kind === "purge" ? "history purged" : "older checkpoints compacted or a name replaced"}); now at ${head.commit.slice(0, 8)}`);
     },
   });
   mirror.start();

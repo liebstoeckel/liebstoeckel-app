@@ -40,4 +40,8 @@ export function decodeFrame(data: Uint8Array): { type: number; payload: Uint8Arr
 /** JSON notices the server may send as text frames. */
 export type ServerNotice =
   | { type: "error"; message: string }
-  | { type: "hello"; role: "edit" | "read"; user: { name: string; email: string } };
+  | { type: "hello"; role: "edit" | "read"; user: { name: string; email: string } }
+  /** The server took this client's last change but cut out what looked like a
+   *  credential (the file, the line and the kind; never the value), so the
+   *  editor can say so. Older clients ignore it and simply see the text go. */
+  | { type: "removed"; message: string; findings: Array<{ path: string; line: number; kind: string; strength: "block" | "warn" }> };
