@@ -4,7 +4,8 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "presentations/*"
+    "presentations/*",
+    "videos/*"
   ],
   "scripts": {
     "gen": "bun run packages/theme/src/gen.ts",

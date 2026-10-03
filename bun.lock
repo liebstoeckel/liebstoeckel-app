@@ -704,6 +704,13 @@
         "playwright-core": "1.60.0",
       },
     },
+    "packages/video-pipeline": {
+      "name": "@liebstoeckel/video-pipeline",
+      "version": "0.0.0",
+      "bin": {
+        "liebstoeckel-videos": "./src/cli.ts",
+      },
+    },
     "packages/win-debug": {
       "name": "@liebstoeckel/win-debug",
       "version": "0.0.0",
@@ -1361,6 +1368,8 @@
     "@liebstoeckel/theme": ["@liebstoeckel/theme@workspace:packages/theme"],
 
     "@liebstoeckel/thumbnails": ["@liebstoeckel/thumbnails@workspace:packages/thumbnails"],
+
+    "@liebstoeckel/video-pipeline": ["@liebstoeckel/video-pipeline@workspace:packages/video-pipeline"],
 
     "@liebstoeckel/visx-showcase": ["@liebstoeckel/visx-showcase@workspace:presentations/visx-showcase"],
 
