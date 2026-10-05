@@ -246,10 +246,23 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
       onUnrecoverable();
       return;
     }
-    const delay = Math.min(baseMs * 2 ** attempt, maxMs);
+    // Up to half again as long, at random: after an outage that closed every socket at
+    // once (a crash, a network cut) the audience must not come back in lockstep.
+    const delay = Math.min(baseMs * 2 ** attempt, maxMs) * (1 + Math.random() / 2);
     attempt++;
     timer = setTimeout(open, delay);
   };
+
+  // The browser says the network is back: a reconnect waiting out its backoff (up to
+  // `reconnectMaxMs`) goes now. Every phone in the room hears this at a different moment.
+  const onOnline = () => {
+    if (closed || timer === undefined || (ws && (ws.readyState === ws.OPEN || ws.readyState === ws.CONNECTING))) return;
+    clearTimeout(timer);
+    timer = undefined;
+    open();
+  };
+  const lifecycle = typeof globalThis.addEventListener === "function" ? globalThis : undefined;
+  lifecycle?.addEventListener("online", onOnline);
 
   // watchdog: if the socket is OPEN but we've heard nothing within staleMs, the
   // connection is likely half-open, drop it so `close` triggers a reconnect.
@@ -281,6 +294,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
 
   function open() {
     if (closed) return;
+    timer = undefined;
     attemptAt = Date.now();
     const sock = new WS(resume ? `${url}&r=${resume}` : url);
     ws = sock;
@@ -384,6 +398,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
    *  keep the doc: its state stays readable for the end card and results. */
   function stop() {
     closed = true;
+    lifecycle?.removeEventListener("online", onOnline);
     if (timer) clearTimeout(timer);
     if (sendingTimer) clearTimeout(sendingTimer);
     sendingSince = 0;
@@ -425,6 +440,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
     },
     close() {
       closed = true;
+      lifecycle?.removeEventListener("online", onOnline);
       if (timer) clearTimeout(timer);
       if (sendingTimer) clearTimeout(sendingTimer);
       if (watchdog) clearInterval(watchdog);

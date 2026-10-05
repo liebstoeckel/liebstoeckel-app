@@ -47,9 +47,10 @@ export async function startLive(deckDir: string, log: (line: string) => void): P
   }
 
   const client = new SyncClient({
-    url: async () => {
-      // Grants are short-lived; fetch a fresh one when reconnecting late.
-      if (access.expiresAt - Date.now() < 60_000) access = await src.sourceAccess(cloud, state.deckId, false);
+    url: async ({ renewGrant }) => {
+      // Grants are short-lived; fetch a fresh one when reconnecting late, or when
+      // the server refused the last one (whatever this machine's clock says).
+      if (renewGrant || access.expiresAt - Date.now() < 60_000) access = await src.sourceAccess(cloud, state.deckId, false);
       return `${access.wsUrl}?t=${encodeURIComponent(access.grant)}`;
     },
     onNotice: (n) => {

@@ -547,3 +547,72 @@ describe("connectLive: session state and resume token", () => {
     conn.close();
   });
 });
+
+describe("connectLive: backoff spread and the network coming back", () => {
+  const factory = () => {
+    const created: MockWS[] = [];
+    const WS = function (url: string) {
+      const s = new MockWS(url);
+      created.push(s);
+      return s;
+    } as unknown as typeof WebSocket;
+    return { created, WS };
+  };
+
+  /** The delays connectLive asks setTimeout for while `run` runs, with Math.random fixed. */
+  function delaysWith(random: number, run: () => void): number[] {
+    const delays: number[] = [];
+    const realTimeout = globalThis.setTimeout;
+    const realRandom = Math.random;
+    globalThis.setTimeout = ((fn: () => void, ms?: number) => {
+      delays.push(ms ?? 0);
+      return realTimeout(() => {}, 0);
+    }) as typeof setTimeout;
+    Math.random = () => random;
+    try {
+      run();
+    } finally {
+      globalThis.setTimeout = realTimeout;
+      Math.random = realRandom;
+    }
+    return delays;
+  }
+
+  test("a plain drop waits a random share longer, so an audience does not come back in lockstep", () => {
+    const { created, WS } = factory();
+    let conn: ReturnType<typeof connectLive> | undefined;
+    const low = delaysWith(0, () => {
+      conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 1000, reconnectMaxMs: 8000 });
+      created[0]!.open();
+      created[0]!.serverClose(1006);
+    });
+    conn!.close();
+    const high = delaysWith(0.999, () => {
+      conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 1000, reconnectMaxMs: 8000 });
+      created[1]!.open();
+      created[1]!.serverClose(1006);
+    });
+    conn!.close();
+    expect(low).toEqual([1000]);
+    expect(high[0]!).toBeGreaterThan(1400);
+    expect(high[0]!).toBeLessThan(1500);
+  });
+
+  test("the network coming back cuts a pending backoff short", async () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 60_000, reconnectMaxMs: 60_000 });
+    created[0]!.open();
+    created[0]!.serverClose(1006);
+    expect(created).toHaveLength(1); // waiting out a minute
+    globalThis.dispatchEvent(new Event("online"));
+    expect(created).toHaveLength(2);
+    // An open connection is left alone.
+    created[1]!.open();
+    globalThis.dispatchEvent(new Event("online"));
+    expect(created).toHaveLength(2);
+    conn.close();
+    // A closed connection stops listening.
+    globalThis.dispatchEvent(new Event("online"));
+    expect(created).toHaveLength(2);
+  });
+});
