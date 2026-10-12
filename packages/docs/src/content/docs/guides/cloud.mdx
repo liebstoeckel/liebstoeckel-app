@@ -462,8 +462,10 @@ the assistant stops and says so; your deck stays as it is.
   difference for the rest of the period and get the difference in credits.
 - **One-off credit**: 200 credits for 2 EUR, as many blocks as the workspace's limit
   allows. They are yours at once, until the end of the billing period, and the amount is
-  added to your next bill. An owner sets the limit per billing period on the Billing page
-  (10 EUR unless changed). One-off credit cannot be added while the plan is set to end.
+  added to your next bill. If the plan is cancelled before that bill, the amount is
+  charged at once instead (see [Cancelling a plan](#cancelling-a-plan)). An owner sets the
+  limit per billing period on the Billing page (10 EUR unless changed). One-off credit
+  cannot be added while the plan is set to end.
 
 The assistant's out-of-credit card offers one-off credit first and a larger add-on second.
 
@@ -485,8 +487,15 @@ payment provider's portal linked from there. You can also cancel without signing
 **Verträge hier kündigen** page linked from the sign-in screen: enter the email you sign in
 with and, optionally, the workspace's name. A confirmation arrives by email either way.
 
-A cancelled plan runs until the end of the month you paid for; nothing more is charged. Until
-then, **Keep my plan** on the Billing page undoes the cancellation. When the page without
+A cancelled plan runs until the end of the month you paid for. Nothing more is charged, with
+one exception: one-off credit added this billing period is normally billed with the next
+renewal, and a cancelled plan has none, so the amount is charged when the plan is set to cancel,
+however you cancel (the Billing page, the page without sign-in, or the payment provider's
+portal). The confirmation on the Billing page names the amount before you confirm, and the
+confirmation mail names it for each workspace. If that charge does not go through, the plan is
+still cancelled and we get in touch to settle it. Until the end of the month, **Keep my plan**
+on the Billing page undoes the cancellation; any one-off credit charged when you cancelled is
+then refunded and billed with the renewal instead, so it is paid once. When the page without
 sign-in is used, every owner of the workspace, and the address the payment provider bills if it
 is a different one, also gets a mail with the end date and the way to keep the plan. After that the workspace
 moves to the free plan: your decks stay, the free limits apply, and saved live results are
@@ -504,9 +513,10 @@ contract instead of cancelling it. Enter the email you sign in with and, optiona
 workspace's name, then press **Widerruf bestätigen**. The confirmation arrives by email at
 once, and every other owner of the workspace gets a mail saying someone withdrew.
 
-A withdrawal is carried out 48 hours after it was received: the plan ends and every payment
-for it is refunded in full to the card or account you paid with (the refund can take a few
-days to show). Until then, **Keep my plan** on the Billing page stops it, and the plan carries
+A withdrawal is carried out 48 hours after it was received: the plan ends and everything you
+paid for it is refunded to the card or account you paid with (the refund can take a few days
+to show). A payment that was partly refunded before gets the rest, and one-off credit not
+billed yet is not charged. Until then, **Keep my plan** on the Billing page stops it, and the plan carries
 on as before. A mail confirms when the withdrawal is carried out. If the 14 days have already
 passed, the request counts as an ordinary cancellation at the end of the paid month, and the
 confirmation says so.
