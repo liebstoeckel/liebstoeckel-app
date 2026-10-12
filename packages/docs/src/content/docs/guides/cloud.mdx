@@ -469,6 +469,16 @@ the assistant stops and says so; your deck stays as it is.
 
 The assistant's out-of-credit card offers one-off credit first and a larger add-on second.
 
+Every order shows, before its button, what you order, what you pay today, the monthly price
+including VAT from your next bill, and who sells it (the payment provider, for us). The button
+itself names the payment ("Order and pay €3.33 now", "Order and pay €2 with your next bill").
+The order dialog follows your browser's language: German if your browser asks for German first,
+English otherwise. For one-off credit you tick a box first: the credits start at once, and the
+right to withdraw from a block ends once all its credits are used. After every order a
+confirmation arrives by email with what you ordered, the prices, the last day to withdraw and
+the withdrawal notice with the model form, which is also on the **withdrawal** page of the app
+(`/withdrawal`).
+
 ### Changing seats or the add-on
 
 More seats and a larger add-on start at once and are charged for the rest of the period. The
@@ -510,14 +520,36 @@ cancellation still takes one click once the check shows as done.
 
 Subscribed less than 14 days ago? On the same page, **Vertrag widerrufen** withdraws from the
 contract instead of cancelling it. Enter the email you sign in with and, optionally, the
-workspace's name, then press **Widerruf bestätigen**. The confirmation arrives by email at
-once, and every other owner of the workspace gets a mail saying someone withdrew.
+workspace's name, choose what you withdraw from, then press **Widerruf bestätigen**. The
+confirmation arrives by email at once, and every other owner of the workspace gets a mail
+saying someone withdrew.
+
+Each later booking has 14 days of its own, counted from the booking: a monthly credit add-on or
+a larger one, more seats, a block of one-off credit. Withdrawing from one of them keeps your plan:
+
+- **Credit add-on**: the add-on goes back to what you had before, what you paid for it is
+  refunded (the charge when you booked it and, if a renewal came in between, its share of that
+  renewal), and its credits are taken back at once.
+- **Extra seats**: the seats you added come off again and are refunded the same way. If the team
+  then has more members than seats, nobody is removed for you: the owners get a mail saying how
+  many to remove, and no one new can be invited until it fits.
+- **One-off credit**: the credit is taken back and refunded. A block whose credits you have all
+  used cannot be withdrawn any more (you agreed to that when ordering). Credits count as used in
+  this order: your plan's and your add-on's first, then one-off credit in the order you bought
+  it. A block withdrawn before it was billed is still on your next bill at the payment provider,
+  which cannot drop it; it is refunded the day that bill is paid.
+
+The Billing page lists, for owners and admins, the plan and each booking still inside its 14
+days with the last day, and a **Withdraw** link that opens this form with the kind and the
+workspace filled in. The page without sign-in never shows what a workspace bought; the
+confirmation mail does. If nothing of the kind you chose was booked in the last 14 days, nothing
+changes and the mail lists what you can still withdraw from.
 
 A withdrawal is carried out 48 hours after it was received: the plan ends and everything you
 paid for it is refunded to the card or account you paid with (the refund can take a few days
 to show). A payment that was partly refunded before gets the rest, and one-off credit not
 billed yet is not charged. Until then, **Keep my plan** on the Billing page stops it, and the plan carries
-on as before. A mail confirms when the withdrawal is carried out. If the 14 days have already
+on as before; a withdrawal from a later booking has its own **Keep** button there. A mail confirms when the withdrawal is carried out. If the 14 days have already
 passed, the request counts as an ordinary cancellation at the end of the paid month, and the
 confirmation says so.
 
