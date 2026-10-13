@@ -39,6 +39,9 @@ export interface LiveContextValue {
   audienceInputKeptDays?: number;
   /** the live connection's state (live only) */
   connection?: LiveState;
+  /** live only: false while the device says it is offline (`navigator.onLine`), which it
+   *  knows before the connection notices */
+  online?: boolean;
   /** presenters, live only: how many are connected, as the server last said. Read it
    *  with `useAudienceCount`, which re-renders only the components that show it. */
   audience?: AudienceSource;
@@ -98,7 +101,8 @@ export function usePluginProps(
 }
 
 /** Whether this client's writes are reaching the live server now (see `ClientProps.connected`). */
-export function connectedOf(ctx: Pick<LiveContextValue, "connection">): boolean {
+export function connectedOf(ctx: Pick<LiveContextValue, "connection" | "online">): boolean {
+  if (ctx.online === false) return false;
   const c = ctx.connection;
   return !c || (c.status === "connected" && !c.sending);
 }

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import * as Y from "yjs";
 import { definePlugin, schema, t, pluginState, type ClientProps } from "@liebstoeckel/plugin-sdk";
 import { readTheme } from "@liebstoeckel/plugin-ui";
-import { Plugin, LiveProvider, type LiveContextValue } from "./Plugin";
+import { Plugin, LiveProvider, connectedOf, type LiveContextValue } from "./Plugin";
 
 const counter = definePlugin<{ n: number }>({
   id: "counter",
@@ -83,5 +83,20 @@ describe("<Plugin>", () => {
       </LiveProvider>,
     );
     expect(html).toBe("");
+  });
+});
+
+describe("connectedOf (what a plugin may call delivered)", () => {
+  test("connected and not resending", () => {
+    expect(connectedOf({ connection: { status: "connected" } })).toBe(true);
+    expect(connectedOf({})).toBe(true); // outside a live session
+  });
+  test("not while the connection is down, reconnecting or resending", () => {
+    expect(connectedOf({ connection: { status: "reconnecting" } })).toBe(false);
+    expect(connectedOf({ connection: { status: "connecting" } })).toBe(false);
+    expect(connectedOf({ connection: { status: "connected", sending: true } })).toBe(false);
+  });
+  test("not while the device says it is offline, even before the socket notices", () => {
+    expect(connectedOf({ connection: { status: "connected" }, online: false })).toBe(false);
   });
 });

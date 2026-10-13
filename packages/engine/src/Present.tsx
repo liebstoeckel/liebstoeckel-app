@@ -55,6 +55,20 @@ export function Present(props: DeckProps) {
   const [connection, setConnection] = useState<LiveState | undefined>(undefined);
   const [refusals, setRefusals] = useState<ReadonlyMap<string, Refusal> | undefined>(undefined);
   const [synced, setSynced] = useState(() => conn?.synced ?? true);
+  // The device's own word on the network. It knows at once when a phone goes offline,
+  // while the live connection only notices a dead socket at its next keepalive.
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false);
+  useEffect(() => {
+    if (!info || typeof window === "undefined") return;
+    const update = () => setOnline(navigator.onLine !== false);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, [info]);
   // A stable source, so a new count re-renders only what shows it.
   const audience = useMemo<AudienceSource | undefined>(
     () => (conn ? { get: () => conn.audience, subscribe: (cb) => conn.onAudience(cb) } : undefined),
@@ -92,6 +106,7 @@ export function Present(props: DeckProps) {
     viewerUrl: info?.viewer,
     audienceInputKeptDays: info?.audienceInputKeptDays,
     connection: info ? connection : undefined,
+    online: info ? online : undefined,
     audience,
     refusals: info ? refusals : undefined,
     synced: conn ? synced : true,
