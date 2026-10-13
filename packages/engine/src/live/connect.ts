@@ -376,6 +376,13 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
         setState({ status: "ended" });
         return;
       }
+      if (code === LIVE_CLOSE.FULL) {
+        // At the audience cap: trying again by itself would only knock on a full room.
+        // The viewer is told, and decides when to try again (a reload).
+        stop();
+        setState({ status: "full" });
+        return;
+      }
       if (code === LIVE_CLOSE.PROTOCOL_TOO_OLD) {
         stop();
         setState({ status: "outdated", message: e?.reason || "This page is out of date. Reload it to reconnect." });
@@ -407,8 +414,9 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
     });
   }
 
-  /** Stop reconnecting for good (the talk ended, or this client is refused) but
-   *  keep the doc: its state stays readable for the end card and results. */
+  /** Stop reconnecting for good (the talk ended, the session is full, or this client
+   *  is refused) but keep the doc: its state stays readable for the end card and
+   *  results. */
   function stop() {
     closed = true;
     lifecycle?.removeEventListener("online", onOnline);

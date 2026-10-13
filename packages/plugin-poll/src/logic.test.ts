@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
 import { pluginState } from "@liebstoeckel/plugin-sdk";
-import { pollSchema, tally, totalVotes, votesLabel, myVote, leader, resultsMode, resultsVisible, voteStatus, type PollState } from "./logic";
+import { pollSchema, tally, totalVotes, votesLabel, myVote, leader, resultsMode, resultsVisible, voteStatus, pollMessages, type PollState } from "./logic";
 
 const make = (over: Partial<PollState> = {}): PollState => ({
   question: "Q?",
@@ -95,5 +95,20 @@ describe("results setting", () => {
     expect(resultsVisible({ ...v, closed: true })).toBe(true);
     expect(resultsVisible({ ...v, role: "presenter" })).toBe(true);
     expect(resultsVisible({ ...v, mode: "always" })).toBe(true);
+  });
+});
+
+describe("in German", () => {
+  const base = { mine: "A", closed: false, synced: true, connected: true, refused: false, locale: "de" as const };
+  test("the status lines and the count", () => {
+    expect(voteStatus(base)?.text).toBe("Stimme angekommen: A. Zum Ändern eine andere Option antippen.");
+    expect(voteStatus({ ...base, connected: false })).toEqual({ state: "sending", text: "Stimme wird gesendet: A…" });
+    expect(voteStatus({ ...base, closed: true })?.text).toBe("Die Abstimmung ist beendet. Gewählt: A.");
+    expect(votesLabel(1, "de")).toBe("1 Stimme");
+    expect(votesLabel(3, "de")).toBe("3 Stimmen");
+  });
+  test("English and German carry the same messages", () => {
+    expect(Object.keys(pollMessages("de")).sort()).toEqual(Object.keys(pollMessages("en")).sort());
+    expect(pollMessages("de").refused("full")).toContain("voll");
   });
 });

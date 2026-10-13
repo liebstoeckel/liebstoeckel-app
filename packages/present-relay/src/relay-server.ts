@@ -920,11 +920,6 @@ export function createRelay(opts: RelayOptions): RelayServer {
       // viewer → audience (write-scope enforced when the session opted in);
       // presenter + runner are trusted writers.
       const role: PeerRole = relRole === "viewer" ? "audience" : "presenter";
-      // Enforce the plan's audience cap ((internal ADR)), presenter/runner never count.
-      if (role === "audience" && s.audienceCap !== undefined && s.count.n >= s.audienceCap) {
-        metrics.audienceCapRejects.inc();
-        return new Response("audience full", { status: 503 });
-      }
       // A browser cannot read the body of a refused upgrade, so an old client is let
       // in and then closed with a code that tells it why.
       const negotiated = negotiateVersion(url.searchParams.get("v"), LIVE_PROTOCOL);
@@ -1003,6 +998,16 @@ export function createRelay(opts: RelayOptions): RelayServer {
         // being stored for a restart: come back in a moment, wherever it is placed next
         if (s.closing) {
           socket.close(CLOSE.RESTARTING, "restarting");
+          return;
+        }
+        // The plan's audience cap (presenter and runner never count). Checked here, where
+        // the count goes up, so a burst of joins cannot slip past it together. A browser
+        // cannot read why an upgrade was refused, so the socket is let in and closed with
+        // `full` before it joins anything: it gets no session state, and the client shows
+        // that the session is full instead of retrying.
+        if (socket.data.role === "audience" && s.audienceCap !== undefined && s.count.n >= s.audienceCap) {
+          metrics.audienceCapRejects.inc();
+          socket.close(CLOSE.FULL, "full");
           return;
         }
         s.sockets.add(socket);

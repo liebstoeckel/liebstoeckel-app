@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { definePlugin, type ClientProps, type GlobalProps, type Refusal } from "@liebstoeckel/plugin-sdk";
+import { browserLocale } from "@liebstoeckel/plugin-sdk/messages";
 import { Button, Card, Eyebrow, RefusalNote, ScrollArea, Stack } from "@liebstoeckel/plugin-ui";
 import {
   qaSchema,
@@ -10,12 +11,16 @@ import {
   rankedQuestions,
   keptHint,
   sentQuestionFate,
+  qaMessages,
   type QaState,
   type RankedQuestion,
   type SentQuestion,
 } from "./logic";
 
 const v = (name: string, fallback: string) => `var(--brand-${name}, ${fallback})`;
+
+/** The Q&A's words in the reader's language (`?lang=`, else the browser's). */
+const words = () => qaMessages(browserLocale());
 
 /** A vote pill + the question text + presenter controls, as one springy row. */
 function QuestionRow({
@@ -55,7 +60,7 @@ function QuestionRow({
         onClick={onUpvote}
         data-active={voted}
         aria-pressed={voted}
-        aria-label={`Upvote: ${q.text} (${q.votes})`}
+        aria-label={words().upvote(q.text, q.votes)}
         style={{
           appearance: "none",
           cursor: "pointer",
@@ -97,8 +102,8 @@ function QuestionRow({
             color: v("muted", "#8b93a7"),
           }}
         >
-          {q.author || "anonymous"}
-          {q.answered ? " · answered" : ""}
+          {q.author || words().anonymous}
+          {q.answered ? ` · ${words().answered}` : ""}
         </div>
       </div>
       {role === "presenter" && (
@@ -205,11 +210,13 @@ function Composer({
     questionRefusedAt.set(instance, refusal.at);
     setDraft((d) => (d.trim() ? d : sent.text));
   }, [refusal, snapshot, instance]);
-  const hint = keptHint(keptDays);
+  const locale = browserLocale();
+  const m = qaMessages(locale);
+  const hint = keptHint(keptDays, locale);
   const what = refusal && questionRefusedAt.get(instance) === refusal.at ? "question" : "upvote";
   return (
     <div>
-      <RefusalNote refusal={refusal} what={what} style={{ marginBottom: "0.45rem" }} />
+      <RefusalNote refusal={refusal} what={what} message={(reason) => m.refused(what, reason)} style={{ marginBottom: "0.45rem" }} />
       {hint && (
         <div
           data-testid="qa-kept-hint"
@@ -224,8 +231,8 @@ function Composer({
           autoFocus={autoFocus}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && go()}
-          placeholder="Type your question…"
-          aria-label="Your question"
+          placeholder={m.placeholder}
+          aria-label={m.inputLabel}
           style={{
             flex: 1,
             minWidth: 0,
@@ -241,7 +248,7 @@ function Composer({
           }}
         />
         <Button onClick={go} active style={{ width: "auto", paddingLeft: "1.2rem", paddingRight: "1.2rem" }}>
-          Ask
+          {m.ask}
         </Button>
       </div>
     </div>
@@ -271,7 +278,7 @@ function Queue({ fill, ...p }: Pick<ClientProps<QaState>, "snapshot" | "state" |
       </AnimatePresence>
       {ranked.length === 0 && (
         <div style={{ color: v("muted", "#8b93a7"), fontFamily: v("font-mono", "monospace"), fontSize: "0.8rem", padding: "0.6rem 0" }}>
-          {p.synced === false ? "Connecting…" : "No questions yet, be the first."}
+          {p.synced === false ? words().connecting : words().empty}
         </div>
       )}
     </Stack>
@@ -286,10 +293,13 @@ function Queue({ fill, ...p }: Pick<ClientProps<QaState>, "snapshot" | "state" |
 function QaSlide(p: ClientProps<QaState>) {
   const { snapshot, props } = p;
   const { submit } = useQaActions(p);
-  const prompt = (props.prompt as string) || "Ask a question";
+  const m = words();
+  const prompt = (props.prompt as string) || m.prompt;
   return (
     <Card style={{ width: "100%", maxWidth: 520 }}>
-      <Eyebrow>Audience Q&amp;A · {rankedQuestions(snapshot).length} open</Eyebrow>
+      <Eyebrow>
+        {m.audienceQa} · {m.open(rankedQuestions(snapshot).length)}
+      </Eyebrow>
       <div style={{ fontFamily: v("font-heading", "serif"), fontSize: "1.9rem", fontWeight: 600, marginBottom: "1.1rem" }}>
         {prompt}
       </div>
@@ -332,7 +342,7 @@ function QaPanel(p: GlobalProps<QaState>) {
   // fills a full-viewport sheet on touch, capped in the desktop popover (which is ~22rem)
   return (
     <div style={{ width: "100%", maxWidth: 480 }}>
-      <Eyebrow>Ask the room</Eyebrow>
+      <Eyebrow>{words().askTheRoom}</Eyebrow>
       <div style={{ margin: "0.4rem 0 0.9rem" }}>
         <Composer
           onSubmit={submit}

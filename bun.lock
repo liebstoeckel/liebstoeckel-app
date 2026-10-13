@@ -127,6 +127,7 @@
         "@liebstoeckel/engine": "workspace:*",
         "@liebstoeckel/live-server": "workspace:*",
         "@liebstoeckel/mail": "workspace:*",
+        "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/present-relay": "workspace:*",
         "@opentelemetry/api": "^1.9.1",
         "@opentelemetry/context-async-hooks": "^2.10.0",

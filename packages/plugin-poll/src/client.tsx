@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
+import { browserLocale } from "@liebstoeckel/plugin-sdk/messages";
 import { Bar, Button, Card, Eyebrow, RefusalNote, Stack } from "@liebstoeckel/plugin-ui";
 import {
   pollSchema,
@@ -11,6 +12,7 @@ import {
   resultsMode,
   resultsVisible,
   voteStatus,
+  pollMessages,
   type PollState,
 } from "./logic";
 
@@ -68,12 +70,16 @@ function PollSlide(p: ClientProps<PollState>) {
   const vote = (option: string) => {
     if (!snapshot.closed && !connecting) state.recordSet("votes", participantId, option);
   };
+  // What the audience reads follows the reader's language (`?lang=`, else the browser's).
+  const locale = browserLocale();
+  const m = pollMessages(locale);
   const status = voteStatus({
     mine,
     closed: snapshot.closed,
     synced: !connecting,
     connected: p.connected !== false,
     refused: !!p.refusal,
+    locale,
   });
   const announced = useSettled(status?.text ?? "", 800);
   const received = status?.state === "received";
@@ -85,7 +91,7 @@ function PollSlide(p: ClientProps<PollState>) {
   });
   return (
     <Card style={{ width: "100%", maxWidth: 460 }}>
-      <Eyebrow>Live poll · {connecting ? "connecting…" : votesLabel(totalVotes(snapshot))}</Eyebrow>
+      <Eyebrow>{m.livePoll} · {connecting ? m.connecting : votesLabel(totalVotes(snapshot), locale)}</Eyebrow>
       <div style={{ fontFamily: "var(--brand-font-heading, serif)", fontSize: "1.9rem", fontWeight: 600, marginBottom: "1.1rem" }}>
         {snapshot.question || "…"}
       </div>
@@ -97,7 +103,7 @@ function PollSlide(p: ClientProps<PollState>) {
         ))}
       </Stack>
       {/* a refused vote already reads as not cast (the state is the presenter's); say why */}
-      <RefusalNote refusal={p.refusal} what="vote" style={{ marginTop: "0.8rem" }} />
+      <RefusalNote refusal={p.refusal} what="vote" message={m.refused} style={{ marginTop: "0.8rem" }} />
       {/* Where this person's vote stands. Shown at once; screen readers hear it once it
           settles, politely (the visible line is hidden from them to avoid a double read). */}
       {status && (
@@ -125,7 +131,7 @@ function PollSlide(p: ClientProps<PollState>) {
           <ResultsView {...p} />
         ) : (
           <div style={{ color: muted, fontFamily: "var(--brand-font-mono,monospace)", fontSize: "0.8rem", letterSpacing: "0.04em" }}>
-            Results appear after you vote.
+            {m.resultsAfterVote}
           </div>
         )}
       </div>

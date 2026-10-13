@@ -356,6 +356,34 @@ describe("connectLive close codes and protocol version", () => {
     conn.close();
   });
 
+  test("full: stops at once and does not knock again, even when the network comes back", async () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 1, reconnectMaxMs: 1 });
+    let state: LiveState | undefined;
+    conn.onState((s) => (state = s));
+    created[0]!.open();
+    created[0]!.serverClose(LIVE_CLOSE.FULL, "full");
+    await Bun.sleep(50);
+    globalThis.dispatchEvent?.(new Event("online"));
+    await Bun.sleep(50);
+    expect(created.length).toBe(1);
+    expect(state?.status).toBe("full");
+    conn.close();
+  });
+
+  test("full before the socket ever opened (the relay closes right after the upgrade)", async () => {
+    const { created, WS } = factory();
+    const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 1, reconnectMaxMs: 1 });
+    let state: LiveState | undefined;
+    conn.onState((s) => (state = s));
+    created[0]!.serverClose(LIVE_CLOSE.FULL, "full");
+    await Bun.sleep(50);
+    expect(created.length).toBe(1);
+    expect(state?.status).toBe("full");
+    expect(conn.synced).toBe(false);
+    conn.close();
+  });
+
   test("too old: stops and passes on the server's message", async () => {
     const { created, WS } = factory();
     const conn = connectLive(info, "p", { WS, staleMs: 0, reconnectBaseMs: 1, reconnectMaxMs: 1 });

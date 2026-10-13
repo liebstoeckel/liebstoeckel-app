@@ -100,6 +100,33 @@ export { default } from "./client";
 export * from "./logic";
 ```
 
+### Audience languages
+
+The audience reads the engine's live states and the built-in plugins in English or
+German, in the language their browser prefers, or the one a `?lang=en|de` in the page
+address names. Your plugin can follow the same rule with
+`@liebstoeckel/plugin-sdk/messages`: declare a catalog with `defineMessages` (the type
+makes every language carry every message, with the same parameters) and look it up with
+`browserLocale()`:
+
+```tsx
+import { browserLocale, defineMessages } from "@liebstoeckel/plugin-sdk/messages";
+
+const words = defineMessages({
+  en: { clap: "Clap", sent: (n: number) => `${n} claps sent` },
+  de: { clap: "Klatschen", sent: (n: number) => `${n}-mal geklatscht` },
+});
+
+function ApplauseSlide(p: ClientProps<ApplauseState>) {
+  const m = words(browserLocale());
+  // ...
+}
+```
+
+`pickLocale(prefs, override)` does the same for a server (pass an `Accept-Language`
+header). Text the author passes in `props` (a poll's question, a Q&A prompt) is shown
+as written.
+
 ## 4. Use it
 
 ```tsx title="main.tsx"

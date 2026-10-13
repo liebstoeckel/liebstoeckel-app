@@ -5,6 +5,7 @@ import { StageScaleContext } from "../Stage";
 import { useCoarsePointer } from "../useCoarsePointer";
 import { breakoutEligible } from "../mobile";
 import { useDialogFocus } from "../focus";
+import { msgs } from "./messages";
 
 /** Set false to suppress the touch breakout for plugins in a subtree (e.g. the
  *  presenter's non-interactive slide preview). */
@@ -27,7 +28,7 @@ export function GlowTap({ label, onOpen, children }: { label: string; onOpen: ()
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${label}, tap to interact`}
+      aria-label={msgs().tapToInteractLabel(label)}
       data-pi-no-nav
       onClick={onOpen}
       onKeyDown={(e) => {
@@ -71,7 +72,7 @@ export function GlowTap({ label, onOpen, children }: { label: string; onOpen: ()
           pointerEvents: "none",
         }}
       >
-        tap to interact ↗
+        {msgs().tapToInteract} ↗
       </span>
     </div>
   );
@@ -226,7 +227,7 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
           </span>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={msgs().close}
             style={{
               appearance: "none",
               cursor: "pointer",

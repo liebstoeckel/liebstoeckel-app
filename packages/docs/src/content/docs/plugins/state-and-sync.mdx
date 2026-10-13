@@ -130,6 +130,8 @@ function ApplauseSlide(p: ClientProps<ApplauseState>) {
 }
 ```
 
+`what` builds the English message. To show the message in the viewer's language, pass `message`, a function from the reason to the text (see [audience languages](/plugins/building-a-plugin/#audience-languages)).
+
 Because the page replaces the shared state, the `doc` a plugin gets can change during a session. Read it from the props on each render and don't keep it anywhere else; `state` and `snapshot` follow the new one by themselves.
 
 While audience writes are refused because a field is full or the relay is busy, the presenter view shows a banner saying so. It goes away once audience writes arrive again. The banner is on the presenter's own screen only, never on the projected deck.

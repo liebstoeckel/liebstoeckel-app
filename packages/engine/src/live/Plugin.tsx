@@ -186,8 +186,12 @@ export function Plugin({
   // Motion morph one into another (rows "disappear" from the slide). A per-surface
   // LayoutGroup namespaces the ids so intra-surface animation still works but they never
   // collide across surfaces (the (internal ADR) hazard, generalised).
+  // After the talk has ended a viewer's plugins stay readable (the results as they were)
+  // but take no more input: nothing sent now would reach anyone.
+  const ended = ctx.role === "viewer" && ctx.connection?.status === "ended";
   const slide = (key: string) => (
     <LayoutGroup key={key} id={`plugin:${id}:${instance}:${key}`}>
+      <div inert={ended} data-pi-plugin-ended={ended || undefined} style={{ display: "contents" }}>
       <PluginBoundary resetKey={snap}>
         <Slide
           doc={ctx.doc}
@@ -206,6 +210,7 @@ export function Plugin({
           connected={connectedOf(ctx)}
         />
       </PluginBoundary>
+      </div>
     </LayoutGroup>
   );
 

@@ -1,4 +1,5 @@
-import { schema, t, type Infer } from "@liebstoeckel/plugin-sdk";
+import { schema, t, type Infer, type Refusal } from "@liebstoeckel/plugin-sdk";
+import { defineMessages, type Locale } from "@liebstoeckel/plugin-sdk/messages";
 
 // Ephemeral floating-emoji reactions. Each entry is one reaction "burst", keyed by
 // a generated id. Entries are transient, clients prune expired/over-cap ids via
@@ -21,8 +22,46 @@ export const EMOJI_NAMES: Readonly<Record<string, string>> = {
   "💡": "Idea",
 };
 
+const EMOJI_NAMES_DE: Readonly<Record<string, string>> = {
+  "👏": "Applaus",
+  "❤️": "Herz",
+  "🎉": "Feiern",
+  "🔥": "Feuer",
+  "😮": "Wow",
+  "💡": "Idee",
+};
+
+/** What the reactions say to the room, in English and German. */
+export const reactionsMessages = defineMessages({
+  en: {
+    react: "React",
+    label: (name: string) => `React: ${name}`,
+    name: (emoji: string) => EMOJI_NAMES[emoji] ?? emoji,
+    refused: (reason: Refusal["reason"]) =>
+      reason === "busy"
+        ? "Your reaction didn't reach the presenter. The live server is busy, try again in a moment."
+        : reason === "full"
+          ? "Your reaction didn't reach the presenter: the session is full."
+          : "Your reaction didn't reach the presenter.",
+  },
+  de: {
+    react: "Reagieren",
+    label: (name: string) => `Reagieren: ${name}`,
+    name: (emoji: string) => EMOJI_NAMES_DE[emoji] ?? emoji,
+    refused: (reason: Refusal["reason"]) =>
+      reason === "busy"
+        ? "Die Reaktion ist nicht angekommen. Der Live-Server ist ausgelastet, gleich noch einmal versuchen."
+        : reason === "full"
+          ? "Die Reaktion ist nicht angekommen: die Sitzung ist voll."
+          : "Die Reaktion ist nicht angekommen.",
+  },
+});
+
 /** The accessible name of an emoji button: its name, or the emoji itself. */
-export const emojiLabel = (emoji: string): string => `React: ${EMOJI_NAMES[emoji] ?? emoji}`;
+export const emojiLabel = (emoji: string, locale?: Locale): string => {
+  const m = reactionsMessages(locale);
+  return m.label(m.name(emoji));
+};
 
 /** Soft cap on live entries before clients prune the oldest. */
 export const MAX_ENTRIES = 60;

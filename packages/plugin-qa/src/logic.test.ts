@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
 import { pluginState } from "@liebstoeckel/plugin-sdk";
-import { qaSchema, voteKey, voteCount, hasVoted, rankedQuestions, keptHint, sentQuestionFate, type QaState } from "./logic";
+import { qaSchema, voteKey, voteCount, hasVoted, rankedQuestions, keptHint, sentQuestionFate, qaMessages, type QaState } from "./logic";
 
 const make = (over: Partial<QaState> = {}): QaState => ({
   questions: {},
@@ -148,5 +148,16 @@ describe("sentQuestionFate (a refused question goes back into the ask box)", () 
   test("pending without a refusal, or with one from before it was sent", () => {
     expect(sentQuestionFate(sent, qaSchema.default(), undefined)).toBe("pending");
     expect(sentQuestionFate(sent, qaSchema.default(), 900)).toBe("pending");
+  });
+});
+
+describe("in German", () => {
+  test("the kept hint and the refusal never address the reader", () => {
+    expect(keptHint(365, "de")).toBe("Die Frage kann von der Organisation der vortragenden Person bis zu einem Jahr gespeichert werden.");
+    expect(keptHint(30, "de")).toContain("bis zu 30 Tagen");
+    expect(qaMessages("de").refused("upvote", "full")).toBe("Die Unterstützung ist nicht angekommen: die Sitzung ist voll.");
+  });
+  test("English and German carry the same messages", () => {
+    expect(Object.keys(qaMessages("de")).sort()).toEqual(Object.keys(qaMessages("en")).sort());
   });
 });

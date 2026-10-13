@@ -114,21 +114,50 @@ client is scoped to match: the **presenter view** (<kbd>p</kbd> / `#presenter`) 
 shortcut help (<kbd>?</kbd>) for viewers, so the speaker notes and plugin consoles aren't
 reachable from a shared audience link.
 
-### Connection status
+### What the audience sees
 
 Every window reconnects by itself after a network drop or a server restart, and sends
 what it changed while it was away. In the cloud a talk can also move to another server
 mid-session (a restart or an update of the servers): votes, questions and reactions sent
 just before the move still arrive, and someone opening the audience link during it gets
-the talk. While it is not connected, the presenter sees a
-small status in the corner: **Reconnecting**, or **Talk ended** once the session is
-over. Viewers see only what does not fix itself: the end of the talk, or **Out of date,
-reload** when the page is older than the server it talks to supports (a reload loads a
-current one).
+the talk.
+
+The presenter sees every problem with the connection as a small status in the corner:
+**Reconnecting**, **Offline**, or **Talk ended** once the session is over. The audience
+sees only what matters to them, so a short server restart does not flash on every phone
+in the room:
+
+| State | What a viewer sees |
+|---|---|
+| **Offline** (the device has no network) | A line in the corner: *Offline. What you send goes out once the connection is back.* A vote made now says *Sending your vote* instead of *Vote received*, and goes out on reconnect. |
+| **Reconnecting** for longer than about 5 seconds | *Reconnecting* in the corner, until the connection is back. Shorter drops show nothing. |
+| **Session full** (the audience cap is reached) | A full-screen card: *This session is full*, with a suggestion to follow on the main screen and a **Try again** button. The page does not keep knocking by itself. |
+| **Talk ended** (the presenter ended the session) | A card: *The talk has ended. Thanks for joining.* **Back to the slides** shows the deck as the talk left it, with what the plugins showed (a poll's results, if its `results` setting shows them to that viewer). Nothing can be sent any more. |
+| **Out of date** | *Out of date, reload* in the corner, when the page is older than the server it talks to supports. A reload loads a current one. |
+
+In the cloud, the audience link (`/live/<code>`) answers with a small page of its own when
+there is no talk to show: **No live session at this link** (check the code), **The talk
+has ended**, or **Waiting for the session** while it is being started again (that page
+checks again by itself every few seconds). A reload of an audience tab after the talk
+ended says **This talk isn't running**.
+
+### Languages
+
+Everything above, and what the poll, Q&A and reactions say to the audience, is in English
+and German. Each viewer gets the language of their browser (German if it prefers German,
+English otherwise). Add `?lang=de` or `?lang=en` to the audience link to choose one for
+everyone who opens it, for example in the link you put on a slide or send to a meeting.
+The German never addresses the reader as "du" or "Sie", so it fits a team meeting and a
+conference alike. The slides themselves are yours and are shown as written.
 
 ### When a session is full
 
-Through the relay, audience input has limits (see [limits on audience
+There are two kinds of full. The **audience cap** limits how many people can join at once
+(in the cloud it comes with your plan; on your own [relay](/guides/relay/), whoever
+creates the session can set one). Someone who opens the link above it gets the *session is full* card
+above and can try again once someone leaves.
+
+Through the relay, audience input has limits too (see [limits on audience
 writes](/plugins/state-and-sync/#limits-on-audience-writes)), and the relay pauses it
 while it is short of memory. When a vote, question or reaction is refused, the viewer
 sees it undone on their screen and a short message saying it didn't reach the

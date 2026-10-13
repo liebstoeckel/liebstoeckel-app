@@ -32,7 +32,8 @@ import type { Theme } from "@liebstoeckel/theme";
 import { useCoarsePointer } from "./useCoarsePointer";
 import { moveSelection, gridCols, type GridDir } from "./overview";
 import type { NavMode } from "./interaction";
-import { LiveStatusBadge } from "./live/status";
+import { LiveStatusBadge, ViewerStateCard } from "./live/status";
+import { msgs } from "./live/messages";
 import { DEFAULT_BRANDS, warnIfBrandsMissing } from "./brandCheck";
 import { useDialogFocus } from "./focus";
 
@@ -367,6 +368,10 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
     };
   }, [phoneTarget]);
   const talkEnded = liveCtx?.connection?.status === "ended";
+  const sessionFull = liveCtx?.connection?.status === "full";
+  const [endCardDismissed, setEndCardDismissed] = useState(false);
+  // A viewer turned away at the cap, or at the end of the talk, gets one card over everything.
+  const viewerCard = role === "viewer" && (sessionFull || (talkEnded && !endCardDismissed));
 
   // The first moment of a talk: the presenter's deck opens the join overlay by itself
   // once the session's state has arrived, if the talk is on its first slide and that
@@ -483,7 +488,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
             <PluginOverlays />
 
             <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} ejectable={ejectable} />
-            <PortraitHint suppressed={phoneLayout} />
+            <PortraitHint suppressed={phoneLayout || viewerCard} />
           </div>
 
           {/* blur-screen overlay */}
@@ -528,7 +533,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
           >
             {talkEnded && (
               <div role="status" className="mb-3 font-mono text-xs uppercase tracking-[0.2em] text-muted">
-                The talk has ended
+                {msgs().endedPanel}
               </div>
             )}
           </div>
@@ -536,7 +541,12 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
 
         {/* QR + overview render OUTSIDE the scaled canvas (device scale) so they're
             full-size on a phone, the touch ⋮ menu opens them. */}
-        <LiveStatusBadge state={liveCtx?.connection} role={role} className="absolute left-3 top-3 z-30" />
+        <LiveStatusBadge state={liveCtx?.connection} role={role} online={liveCtx?.online} className="absolute left-3 top-3 z-30" />
+        {/* A viewer turned away at the audience cap, or at the end of the talk: one card
+            over everything that says so (the ended card can be put away). */}
+        {viewerCard && (
+          <ViewerStateCard state={sessionFull ? "full" : "ended"} onDismiss={() => setEndCardDismissed(true)} />
+        )}
         <QrOverlay
           open={qr}
           url={liveCtx?.viewerUrl}

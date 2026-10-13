@@ -39,7 +39,8 @@
     "./manifest": "./src/manifest.ts",
     "./discovery": "./src/discovery.ts",
     "./authorize": "./src/authorize.ts",
-    "./decode": "./src/decode.ts"
+    "./decode": "./src/decode.ts",
+    "./messages": "./src/messages.ts"
   },
   "peerDependencies": {
     "react": "^19.2.7",

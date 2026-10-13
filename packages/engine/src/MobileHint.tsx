@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { msgs } from "./live/messages";
 
 /** A brief, dismissable "rotate for a bigger view" toast shown on a portrait phone
  *  (coarse pointer). Portaled to <body> so it renders at device scale, not inside
@@ -65,7 +66,7 @@ export function PortraitHint({ suppressed = false }: { suppressed?: boolean }) {
           }}
         >
           <span aria-hidden style={{ fontSize: "0.9rem" }}>⤾</span>
-          Rotate for a bigger view
+          {msgs().rotate}
         </motion.button>
       )}
     </AnimatePresence>,

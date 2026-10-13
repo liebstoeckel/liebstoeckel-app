@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { definePlugin, type ClientProps, type GlobalProps, type PluginState } from "@liebstoeckel/plugin-sdk";
+import { browserLocale } from "@liebstoeckel/plugin-sdk/messages";
 import { Card, Eyebrow, RefusalNote } from "@liebstoeckel/plugin-ui";
 import {
   reactionsSchema,
   EMOJI,
   emojiLabel,
+  reactionsMessages,
   MAX_ENTRIES,
   recent,
   expired,
@@ -96,7 +98,7 @@ function EmojiPalette({ onEmit }: { onEmit: (emoji: string) => void }) {
         <motion.button
           key={e}
           onClick={() => onEmit(e)}
-          aria-label={emojiLabel(e)}
+          aria-label={emojiLabel(e, browserLocale())}
           whileTap={{ scale: 0.86 }}
           whileHover={{ scale: 1.08 }}
           transition={{ type: "spring", stiffness: 500, damping: 24 }}
@@ -130,9 +132,14 @@ function ReactionsSlide(p: ClientProps<ReactionsState>) {
           <FloatLayer snapshot={snapshot} state={state} />
         </div>
       </div>
-      <Eyebrow>React</Eyebrow>
+      <Eyebrow>{reactionsMessages(browserLocale()).react}</Eyebrow>
       <EmojiPalette onEmit={emit} />
-      <RefusalNote refusal={p.refusal} what="reaction" style={{ marginTop: "0.7rem" }} />
+      <RefusalNote
+        refusal={p.refusal}
+        what="reaction"
+        message={reactionsMessages(browserLocale()).refused}
+        style={{ marginTop: "0.7rem" }}
+      />
     </Card>
   );
 }
@@ -164,9 +171,14 @@ function ReactionsPanel(p: GlobalProps<ReactionsState>) {
   const emit = useEmit(p.state, p.participantId);
   return (
     <>
-      <Eyebrow>React</Eyebrow>
+      <Eyebrow>{reactionsMessages(browserLocale()).react}</Eyebrow>
       <EmojiPalette onEmit={emit} />
-      <RefusalNote refusal={p.refusal} what="reaction" style={{ marginTop: "0.7rem" }} />
+      <RefusalNote
+        refusal={p.refusal}
+        what="reaction"
+        message={reactionsMessages(browserLocale()).refused}
+        style={{ marginTop: "0.7rem" }}
+      />
     </>
   );
 }

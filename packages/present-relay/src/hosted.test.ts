@@ -2,6 +2,7 @@ import { test, expect, describe, afterEach } from "bun:test";
 import * as Y from "yjs";
 import { createRelay, type RelayServer, type RelayStorage } from "./relay-server";
 import { mintGrant } from "./grant";
+import { CLOSE } from "@liebstoeckel/live-server/placement/protocol";
 
 // Hosted live presenting ((internal ADR)): audience write-scope enforcement + snapshot
 // persistence. A deck whose embedded manifest lets the audience write only `votes`
@@ -348,11 +349,45 @@ describe("hosted relay: plan limits ((internal ADR))", () => {
     const a1 = await wsOpen(`${wsBase}?t=${viewerToken}`);
     await a1.first;
     await settle();
-    // a 2nd audience peer is refused at upgrade (503)
-    const res = await fetch(`${base}/sync/${id}?t=${viewerToken}`, { headers: { upgrade: "websocket" } });
-    expect(res.status).toBe(503);
-    pres.ws.close();
+    // a 2nd audience peer is let in and closed with `full` before it gets any state (a
+    // browser cannot read why an upgrade was refused); the presenter still is not capped
+    const a2 = new WebSocket(`${wsBase}?t=${viewerToken}`);
+    a2.binaryType = "arraybuffer";
+    let frames = 0;
+    a2.addEventListener("message", () => frames++);
+    const closed = await new Promise<CloseEvent>((r) => a2.addEventListener("close", r, { once: true }));
+    expect(closed.code).toBe(CLOSE.FULL);
+    expect(closed.reason).toBe("full");
+    expect(frames).toBe(0);
+    const pres2 = await wsOpen(`${wsBase}?t=${presenterToken}`);
+    await pres2.first;
+    // once someone leaves there is room again
     a1.ws.close();
+    await settle();
+    const a3 = await wsOpen(`${wsBase}?t=${viewerToken}`);
+    await a3.first;
+    pres.ws.close();
+    pres2.ws.close();
+    a3.ws.close();
+  });
+
+  test("a burst of joins cannot slip past the cap together", async () => {
+    const base = start();
+    const { id, viewerToken } = await create(base, { "x-audience-cap": "3" });
+    const wsBase = `ws://127.0.0.1:${relay!.port}/sync/${id}`;
+    const socks = Array.from({ length: 8 }, () => {
+      const ws = new WebSocket(`${wsBase}?t=${viewerToken}`);
+      ws.binaryType = "arraybuffer";
+      const got = new Promise<"in" | "full">((r) => {
+        ws.addEventListener("message", () => r("in"), { once: true });
+        ws.addEventListener("close", (e) => r(e.code === CLOSE.FULL ? "full" : "in"), { once: true });
+      });
+      return { ws, got };
+    });
+    const outcomes = await Promise.all(socks.map((s) => s.got));
+    expect(outcomes.filter((o) => o === "in").length).toBe(3);
+    expect(outcomes.filter((o) => o === "full").length).toBe(5);
+    for (const s of socks) s.ws.close();
   });
 });
 

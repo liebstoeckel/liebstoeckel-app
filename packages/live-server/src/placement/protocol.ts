@@ -16,6 +16,9 @@ export const CLOSE = {
   /** The server dropped one of this client's updates (the audience rate limit), so
    *  its later updates could not apply; reconnect and send the full state again. */
   DROPPED: 4007,
+  /** The session is at its audience cap; reconnecting will not get in until someone
+   *  leaves, so do not retry by yourself. */
+  FULL: 4008,
 } as const;
 
 /** Close codes after which a client should reconnect immediately, without
@@ -26,7 +29,7 @@ export function reconnectsAtOnce(code: number): boolean {
 
 /** Close codes after which reconnecting cannot help. */
 export function isFatalClose(code: number): boolean {
-  return code === CLOSE.PROTOCOL_TOO_OLD || code === CLOSE.ENDED;
+  return code === CLOSE.PROTOCOL_TOO_OLD || code === CLOSE.ENDED || code === CLOSE.FULL;
 }
 
 /** The live-talk protocol (decks in the browser, the relay's create API) the

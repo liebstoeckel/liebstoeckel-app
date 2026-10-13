@@ -75,6 +75,9 @@ export const LIVE_CLOSE = {
   /** One of this client's updates was dropped (the audience rate limit); reconnect
    *  and send the full state again so the later ones arrive. */
   DROPPED: 4007,
+  /** The session is at its audience cap; reconnecting will not get in until someone
+   *  leaves, so do not retry by yourself. */
+  FULL: 4008,
 } as const;
 
 /** Where a live connection stands, for status displays. */
@@ -86,6 +89,8 @@ export type LiveStatus =
   | "reconnecting"
   /** the talk ended; the connection stays closed */
   | "ended"
+  /** the session is at its audience cap; no retry until the viewer asks for one */
+  | "full"
   /** the server refused this client's protocol; a reload fetches a current one */
   | "outdated";
 

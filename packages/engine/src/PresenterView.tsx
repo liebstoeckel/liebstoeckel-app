@@ -527,7 +527,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
             reset
           </button>
           {live && <AudienceCountPill onOpen={() => setShare(true)} />}
-          <LiveStatusBadge state={liveCtx?.connection} role={liveCtx?.role} />
+          <LiveStatusBadge state={liveCtx?.connection} role={liveCtx?.role} online={liveCtx?.online} />
           {live && (
             <button
               onClick={() => setShare((v) => !v)}

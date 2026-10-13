@@ -95,6 +95,10 @@ import { Plugin } from "@liebstoeckel/engine";
   and the slide's interactive plugins full width below it (one tap to vote). Nothing to
   configure; keep each plugin readable on its own (its question or prompt inside the
   plugin, not only in the slide text next to it).
+- **Languages.** The live states (offline, full, ended) and the built-in plugins' own
+  words are in English or German, by the viewer's browser. `?lang=de` (or `en`) on the
+  audience link picks one for everyone. The author's text (a poll's question and
+  options, a Q&A prompt) is shown as written, so write it in the room's language.
 
 ## Validate: registration is not build-checked
 

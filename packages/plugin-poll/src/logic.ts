@@ -1,4 +1,43 @@
 import { schema, t, type Infer } from "@liebstoeckel/plugin-sdk";
+import { defineMessages, type Locale } from "@liebstoeckel/plugin-sdk/messages";
+import type { Refusal } from "@liebstoeckel/plugin-sdk";
+
+/** What the poll says to the room, in English and German. The German never addresses
+ *  the reader, so it fits a meeting and a conference alike. */
+export const pollMessages = defineMessages({
+  en: {
+    livePoll: "Live poll",
+    connecting: "connecting…",
+    votes: (n: number) => `${n} ${n === 1 ? "vote" : "votes"}`,
+    closed: "Voting is closed.",
+    closedMine: (choice: string) => `Voting is closed. Your vote: ${choice}.`,
+    sending: (choice: string) => `Sending your vote: ${choice}…`,
+    received: (choice: string) => `Vote received: ${choice}. Tap another option to change it.`,
+    resultsAfterVote: "Results appear after you vote.",
+    refused: (reason: Refusal["reason"]) =>
+      reason === "busy"
+        ? "Your vote didn't reach the presenter. The live server is busy, try again in a moment."
+        : reason === "full"
+          ? "Your vote didn't reach the presenter: the session is full."
+          : "Your vote didn't reach the presenter.",
+  },
+  de: {
+    livePoll: "Live-Umfrage",
+    connecting: "Verbindung wird aufgebaut…",
+    votes: (n: number) => `${n} ${n === 1 ? "Stimme" : "Stimmen"}`,
+    closed: "Die Abstimmung ist beendet.",
+    closedMine: (choice: string) => `Die Abstimmung ist beendet. Gewählt: ${choice}.`,
+    sending: (choice: string) => `Stimme wird gesendet: ${choice}…`,
+    received: (choice: string) => `Stimme angekommen: ${choice}. Zum Ändern eine andere Option antippen.`,
+    resultsAfterVote: "Die Ergebnisse erscheinen nach der Stimmabgabe.",
+    refused: (reason: Refusal["reason"]) =>
+      reason === "busy"
+        ? "Die Stimme ist nicht angekommen. Der Live-Server ist ausgelastet, gleich noch einmal versuchen."
+        : reason === "full"
+          ? "Die Stimme ist nicht angekommen: die Sitzung ist voll."
+          : "Die Stimme ist nicht angekommen.",
+  },
+});
 
 // Shared state: the question's options + one vote per participant (keyed by id).
 export const pollSchema = schema({
@@ -31,8 +70,8 @@ export function tally(state: PollState): TallyRow[] {
 export const totalVotes = (state: PollState): number =>
   Object.values(state.votes).filter((c) => state.options.includes(c)).length;
 
-/** The vote count as the room reads it: "1 vote", "3 votes". */
-export const votesLabel = (n: number): string => `${n} ${n === 1 ? "vote" : "votes"}`;
+/** The vote count as the room reads it: "1 vote", "3 votes" ("1 Stimme" in German). */
+export const votesLabel = (n: number, locale?: Locale): string => pollMessages(locale).votes(n);
 
 /** The option this participant currently has selected, if any. */
 export const myVote = (state: PollState, participantId: string): string | undefined =>
@@ -74,11 +113,13 @@ export function voteStatus(opts: {
   synced: boolean;
   connected: boolean;
   refused: boolean;
+  locale?: Locale;
 }): VoteStatus | null {
   const { mine, closed, synced, connected, refused } = opts;
+  const m = pollMessages(opts.locale);
   if (!synced || refused) return null;
-  if (closed) return { state: "closed", text: mine ? `Voting is closed. Your vote: ${mine}.` : "Voting is closed." };
+  if (closed) return { state: "closed", text: mine ? m.closedMine(mine) : m.closed };
   if (!mine) return null;
-  if (!connected) return { state: "sending", text: `Sending your vote: ${mine}…` };
-  return { state: "received", text: `Vote received: ${mine}. Tap another option to change it.` };
+  if (!connected) return { state: "sending", text: m.sending(mine) };
+  return { state: "received", text: m.received(mine) };
 }

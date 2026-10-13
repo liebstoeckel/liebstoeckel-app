@@ -233,8 +233,19 @@ export function refusalMessage(what: string, reason: Refusal["reason"]): string 
 
 /** A short line telling a viewer their last write was refused (the `refusal` client
  *  prop). The live region is always there, so a screen reader announces the message
- *  when it appears; it renders nothing visible without a refusal. */
-export function RefusalNote({ refusal, what, style }: { refusal?: Refusal; what: string; style?: CSSProperties }) {
+ *  when it appears; it renders nothing visible without a refusal. `message` replaces
+ *  the English default built from `what`, e.g. with a plugin's own translated words. */
+export function RefusalNote({
+  refusal,
+  what,
+  message,
+  style,
+}: {
+  refusal?: Refusal;
+  what: string;
+  message?: (reason: Refusal["reason"]) => string;
+  style?: CSSProperties;
+}) {
   return (
     <div role="status" aria-live="polite" data-testid="refusal-note">
       {refusal && (
@@ -251,7 +262,7 @@ export function RefusalNote({ refusal, what, style }: { refusal?: Refusal; what:
             ...style,
           }}
         >
-          {refusalMessage(what, refusal.reason)}
+          {message ? message(refusal.reason) : refusalMessage(what, refusal.reason)}
         </div>
       )}
     </div>
