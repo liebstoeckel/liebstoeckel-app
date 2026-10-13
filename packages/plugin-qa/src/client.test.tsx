@@ -65,3 +65,19 @@ describe("qa client renders", () => {
     expect(renderToStaticMarkup(<qa.client.Slide {...clientProps()} />)).not.toContain("reach the presenter");
   });
 });
+
+describe("qa: accessible names", () => {
+  test("the ask box has a label, not only a placeholder", () => {
+    const html = renderToStaticMarkup(<qa.client.Slide {...clientProps()} />);
+    expect(html).toContain('aria-label="Your question"');
+  });
+
+  test("an upvote button names its question and says whether it is pressed", () => {
+    const p = clientProps();
+    p.state.recordSet("questions", "q1", { text: "Why Yjs?", author: "viewer-abcd", ts: 1 });
+    p.state.recordSet("votes", "q1|abcd1234", true);
+    const html = renderToStaticMarkup(<qa.client.Slide {...p} snapshot={p.state.snapshot()} />);
+    expect(html).toContain('aria-label="Upvote: Why Yjs? (1)"');
+    expect(html).toContain('aria-pressed="true"');
+  });
+});

@@ -11,6 +11,19 @@ export type ReactionsState = Infer<typeof reactionsSchema>;
 /** A small, tasteful palette. */
 export const EMOJI: readonly string[] = ["👏", "❤️", "🎉", "🔥", "😮", "💡"];
 
+/** What each emoji button says to a screen reader. */
+export const EMOJI_NAMES: Readonly<Record<string, string>> = {
+  "👏": "Applause",
+  "❤️": "Love",
+  "🎉": "Celebrate",
+  "🔥": "Fire",
+  "😮": "Wow",
+  "💡": "Idea",
+};
+
+/** The accessible name of an emoji button: its name, or the emoji itself. */
+export const emojiLabel = (emoji: string): string => `React: ${EMOJI_NAMES[emoji] ?? emoji}`;
+
 /** Soft cap on live entries before clients prune the oldest. */
 export const MAX_ENTRIES = 60;
 

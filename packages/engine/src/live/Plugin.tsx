@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
-import { AnimatePresence, LayoutGroup } from "motion/react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, LayoutGroup, useIsPresent } from "motion/react";
 import type * as Y from "yjs";
 import {
   instanceStateKey,
@@ -14,6 +15,8 @@ import {
 } from "@liebstoeckel/plugin-sdk";
 import { mergeUi } from "./ui";
 import { GlowTap, BreakoutSheet, useBreakoutEligible } from "./breakout";
+import { usePhoneView, pluginLabel } from "./phoneView";
+import { pluginPlacement } from "../mobile";
 import { PluginBoundary } from "./PluginBoundary";
 import { devWarn } from "../devLog";
 import type { AudienceCount, LiveState } from "./protocol";
@@ -90,7 +93,14 @@ export function usePluginProps(
     instance,
     refusal: ctx.refusals?.get(instanceStateKey(id, instance)),
     synced: ctx.synced ?? true,
+    connected: connectedOf(ctx),
   };
+}
+
+/** Whether this client's writes are reaching the live server now (see `ClientProps.connected`). */
+export function connectedOf(ctx: Pick<LiveContextValue, "connection">): boolean {
+  const c = ctx.connection;
+  return !c || (c.status === "connected" && !c.sending);
 }
 
 /** Place a plugin in a slide. Renders the plugin's `Slide` when a server is
@@ -124,6 +134,16 @@ export function Plugin({
   // hooks run unconditionally (before any early return)
   const interactive = def?.client.interactive !== false;
   const eligible = useBreakoutEligible(interactive);
+  // The phone-first view (a viewer on a portrait phone): the plugin leaves the slide and
+  // fills the screen below a small slide preview. Not for a slide on its way out.
+  const phone = usePhoneView();
+  const present = useIsPresent();
+  const placement = pluginPlacement({ eligible, phoneView: !!phone && !!ctx?.live && !!def, leaving: !present });
+  const phoneFirst = placement === "phone" && !!phone;
+  const register = phone?.register;
+  useEffect(() => {
+    if (phoneFirst && register) return register();
+  }, [phoneFirst, register]);
 
   useEffect(() => {
     if (!state) return;
@@ -179,22 +199,75 @@ export function Plugin({
           instance={instance}
           refusal={ctx.refusals?.get(instanceStateKey(id, instance))}
           synced={ctx.synced ?? true}
+          connected={connectedOf(ctx)}
         />
       </PluginBoundary>
     </LayoutGroup>
   );
 
+  const label = pluginLabel(def, id);
+
+  // Phone-first: the real plugin renders once, at device scale, in the deck's panel
+  // below the slide; the slide keeps only a marker where it sits. Rendering the plugin
+  // in the slide as well would run its effects twice (a Q&A ask box would race its own
+  // copy for a refused question).
+  if (phoneFirst) {
+    return (
+      <>
+        <PhonePlaceholder label={label} />
+        {phone.target &&
+          createPortal(
+            <section aria-label={label} data-pi-phone-plugin={id}>
+              {slide("phone")}
+            </section>,
+            phone.target,
+          )}
+      </>
+    );
+  }
+
   // Desktop / fine pointer: inline, as today.
-  if (!eligible) return slide("inline");
+  if (placement === "inline") return slide("inline");
 
   // Touch + shrunk stage: a tappable glowing preview (non-interactive) that opens
   // the same plugin full-size in a sheet outside the scaled canvas.
   return (
     <>
-      <GlowTap label={id} onOpen={() => setOpen(true)}>
+      <GlowTap label={label} onOpen={() => setOpen(true)}>
         {slide("preview")}
       </GlowTap>
-      <AnimatePresence>{open && <BreakoutSheet label={id} onClose={() => setOpen(false)}>{slide("sheet")}</BreakoutSheet>}</AnimatePresence>
+      <AnimatePresence>{open && <BreakoutSheet label={label} onClose={() => setOpen(false)}>{slide("sheet")}</BreakoutSheet>}</AnimatePresence>
     </>
+  );
+}
+
+/** Where a plugin sits on the slide while it is shown below it (the phone-first view):
+ *  a quiet outline with its name and an arrow down, in slide pixels. */
+function PhonePlaceholder({ label }: { label: string }) {
+  return (
+    <div
+      aria-hidden
+      data-pi-phone-placeholder
+      style={{
+        width: "100%",
+        maxWidth: 460,
+        minHeight: 320,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "1.2rem",
+        borderRadius: "1.1rem",
+        border: "3px dashed color-mix(in srgb, var(--brand-accent, #e0c580) 70%, transparent)",
+        background: "color-mix(in srgb, var(--brand-surface, #1a2014) 50%, transparent)",
+        color: "var(--brand-accent, #e0c580)",
+        fontFamily: "var(--brand-font-mono, monospace)",
+        fontSize: "3.2rem",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
+      {label}
+      <span style={{ fontSize: "4rem" }}>↓</span>
+    </div>
   );
 }

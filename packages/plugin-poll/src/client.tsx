@@ -1,7 +1,31 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
 import { Bar, Button, Card, Eyebrow, RefusalNote, Stack } from "@liebstoeckel/plugin-ui";
-import { pollSchema, tally, totalVotes, votesLabel, myVote, leader, type PollState } from "./logic";
+import {
+  pollSchema,
+  tally,
+  totalVotes,
+  votesLabel,
+  myVote,
+  leader,
+  resultsMode,
+  resultsVisible,
+  voteStatus,
+  type PollState,
+} from "./logic";
+
+/** `value`, once it has stayed the same for `ms`: what a screen reader is told, so a
+ *  few quick taps between options are announced once, not once per tap. */
+function useSettled<T>(value: T, ms: number): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setSettled(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return settled;
+}
+
+const muted = "var(--brand-muted,#8b93a7)";
 
 // Seed the question/options from author props once (presenter owns init).
 function useSeed(p: ClientProps<PollState>) {
@@ -44,6 +68,21 @@ function PollSlide(p: ClientProps<PollState>) {
   const vote = (option: string) => {
     if (!snapshot.closed && !connecting) state.recordSet("votes", participantId, option);
   };
+  const status = voteStatus({
+    mine,
+    closed: snapshot.closed,
+    synced: !connecting,
+    connected: p.connected !== false,
+    refused: !!p.refusal,
+  });
+  const announced = useSettled(status?.text ?? "", 800);
+  const received = status?.state === "received";
+  const showResults = resultsVisible({
+    mode: resultsMode(p.props.results),
+    role,
+    voted: !!mine,
+    closed: snapshot.closed,
+  });
   return (
     <Card style={{ width: "100%", maxWidth: 460 }}>
       <Eyebrow>Live poll · {connecting ? "connecting…" : votesLabel(totalVotes(snapshot))}</Eyebrow>
@@ -52,20 +91,48 @@ function PollSlide(p: ClientProps<PollState>) {
       </div>
       <Stack gap="0.55rem">
         {snapshot.options.map((o) => (
-          <Button key={o} active={mine === o} disabled={snapshot.closed || connecting} onClick={() => vote(o)}>
+          <Button key={o} active={mine === o} pressed={mine === o} disabled={snapshot.closed || connecting} onClick={() => vote(o)}>
             {o}
           </Button>
         ))}
       </Stack>
       {/* a refused vote already reads as not cast (the state is the presenter's); say why */}
       <RefusalNote refusal={p.refusal} what="vote" style={{ marginTop: "0.8rem" }} />
+      {/* Where this person's vote stands. Shown at once; screen readers hear it once it
+          settles, politely (the visible line is hidden from them to avoid a double read). */}
+      {status && (
+        <div
+          aria-hidden
+          data-testid="poll-vote-status"
+          data-state={status.state}
+          style={{
+            marginTop: "0.8rem",
+            color: received ? "var(--brand-accent, #62e8ff)" : muted,
+            fontFamily: "var(--brand-font-body, sans-serif)",
+            fontSize: "0.95rem",
+            lineHeight: 1.4,
+          }}
+        >
+          {received ? "✓ " : ""}
+          {status.text}
+        </div>
+      )}
+      <div role="status" aria-live="polite" style={SR_ONLY}>
+        {announced}
+      </div>
       <div style={{ marginTop: "1.4rem" }}>
-        <ResultsView {...p} />
+        {showResults ? (
+          <ResultsView {...p} />
+        ) : (
+          <div style={{ color: muted, fontFamily: "var(--brand-font-mono,monospace)", fontSize: "0.8rem", letterSpacing: "0.04em" }}>
+            Results appear after you vote.
+          </div>
+        )}
       </div>
       {role === "presenter" && (
         <button
           onClick={() => state.set("closed", !snapshot.closed)}
-          style={{ marginTop: "1rem", background: "none", border: "none", cursor: "pointer", color: "var(--brand-muted,#8b93a7)", fontFamily: "var(--brand-font-mono,monospace)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.15em" }}
+          style={{ marginTop: "1rem", background: "none", border: "none", cursor: "pointer", color: muted, fontFamily: "var(--brand-font-mono,monospace)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.15em" }}
         >
           {snapshot.closed ? "▶ reopen voting" : "■ close voting"}
         </button>
@@ -73,6 +140,19 @@ function PollSlide(p: ClientProps<PollState>) {
     </Card>
   );
 }
+
+/** Visually hidden, still read by screen readers. */
+const SR_ONLY = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  margin: -1,
+  padding: 0,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+} as const;
 
 /** Presenter console: the big live tally plus the privileged close/reopen control.
  *  Toggling `closed` is an audience-affecting action, the Slide reads it and locks

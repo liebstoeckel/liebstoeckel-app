@@ -1,4 +1,4 @@
-import { createContext, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { motion } from "motion/react";
 
 // Logical canvas. Everything is authored at this size and scaled to fit, so the
@@ -18,7 +18,7 @@ export const StageScaleContext = createContext(1);
  *  `layoutId`/`layout` morphs (`Magic`, `CodeMagic`) correct under the scaled stage
  *  (Motion #3356/#874). The outer div must be a positioned containing block for the
  *  absolute canvas (all consumers pass `absolute`/`fixed inset-0`). */
-export function ScaledStage({ children, className }: { children: ReactNode; className?: string }) {
+export function ScaledStage({ children, className, style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
   const ref = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState({ scale: 0, x: 0, y: 0 });
 
@@ -36,7 +36,7 @@ export function ScaledStage({ children, className }: { children: ReactNode; clas
   }, []);
 
   return (
-    <div ref={ref} className={`overflow-hidden bg-bg ${className ?? ""}`}>
+    <div ref={ref} className={`overflow-hidden bg-bg ${className ?? ""}`} style={style}>
       <StageScaleContext.Provider value={fit.scale || 1}>
         <motion.div
           style={{

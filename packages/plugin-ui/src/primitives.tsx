@@ -26,23 +26,33 @@ export function Card({ children, style, className }: { children?: ReactNode; sty
   );
 }
 
+/** A full-width choice/action button. `active` is the look only (the brand primary
+ *  fill); for a toggle such as a poll option also pass `pressed`, which tells
+ *  screen readers whether it is selected (`aria-pressed`). */
 export function Button({
   children,
   onClick,
   active = false,
+  pressed,
   disabled = false,
+  ariaLabel,
   style,
 }: {
   children?: ReactNode;
   onClick?: () => void;
   active?: boolean;
+  /** a toggle's state for assistive tech; omit for a plain action button */
+  pressed?: boolean;
   disabled?: boolean;
+  ariaLabel?: string;
   style?: CSSProperties;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={pressed}
+      aria-label={ariaLabel}
       data-active={active}
       style={{
         appearance: "none",
@@ -166,7 +176,9 @@ export function Stack({ children, gap = "0.6rem", style }: { children?: ReactNod
  *  (default a stage-relative cap that leaves room for surrounding chrome). */
 export function ScrollArea({
   children,
-  maxHeight = "min(360px, 42vh)",
+  // A surface that already scrolls as a whole (the phone view below the slide) sets
+  // --pi-scroll-area-max to `none`, so the list is not a second scroller inside it.
+  maxHeight = "var(--pi-scroll-area-max, min(360px, 42vh))",
   style,
   className,
 }: {

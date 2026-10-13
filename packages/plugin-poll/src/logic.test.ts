@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
 import { pluginState } from "@liebstoeckel/plugin-sdk";
-import { pollSchema, tally, totalVotes, votesLabel, myVote, leader, type PollState } from "./logic";
+import { pollSchema, tally, totalVotes, votesLabel, myVote, leader, resultsMode, resultsVisible, voteStatus, type PollState } from "./logic";
 
 const make = (over: Partial<PollState> = {}): PollState => ({
   question: "Q?",
@@ -60,5 +60,40 @@ describe("poll over shared state (one vote per participant)", () => {
       { option: "A", count: 0, pct: 0 },
       { option: "B", count: 2, pct: 100 },
     ]);
+  });
+});
+
+describe("voteStatus", () => {
+  const base = { mine: "A" as string | undefined, closed: false, synced: true, connected: true, refused: false };
+  test("received once cast over a working connection", () => {
+    expect(voteStatus(base)).toEqual({ state: "received", text: "Vote received: A. Tap another option to change it." });
+  });
+  test("sending while the connection is down", () => {
+    expect(voteStatus({ ...base, connected: false })).toEqual({ state: "sending", text: "Sending your vote: A…" });
+  });
+  test("nothing before a vote, before the state arrived, or after a refusal", () => {
+    expect(voteStatus({ ...base, mine: undefined })).toBeNull();
+    expect(voteStatus({ ...base, synced: false })).toBeNull();
+    expect(voteStatus({ ...base, refused: true })).toBeNull();
+  });
+  test("closed voting says so, with the vote if there is one", () => {
+    expect(voteStatus({ ...base, closed: true })?.text).toBe("Voting is closed. Your vote: A.");
+    expect(voteStatus({ ...base, closed: true, mine: undefined })?.text).toBe("Voting is closed.");
+  });
+});
+
+describe("results setting", () => {
+  test("unknown values fall back to always", () => {
+    expect(resultsMode(undefined)).toBe("always");
+    expect(resultsMode("nope")).toBe("always");
+    expect(resultsMode("after-vote")).toBe("after-vote");
+  });
+  test("after-vote: hidden from a viewer until they vote or voting closes; never from the presenter", () => {
+    const v = { mode: "after-vote" as const, role: "viewer", voted: false, closed: false };
+    expect(resultsVisible(v)).toBe(false);
+    expect(resultsVisible({ ...v, voted: true })).toBe(true);
+    expect(resultsVisible({ ...v, closed: true })).toBe(true);
+    expect(resultsVisible({ ...v, role: "presenter" })).toBe(true);
+    expect(resultsVisible({ ...v, mode: "always" })).toBe(true);
   });
 });

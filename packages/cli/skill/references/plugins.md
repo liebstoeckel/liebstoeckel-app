@@ -13,7 +13,7 @@ and in `SKILL.md`; that is the contract.
 
 | id          | package                          | props                                  |
 |-------------|----------------------------------|----------------------------------------|
-| `poll`      | `@liebstoeckel/plugin-poll`      | `{ question: string; options: string[] }` |
+| `poll`      | `@liebstoeckel/plugin-poll`      | `{ question: string; options: string[]; results?: "always" \| "after-vote" }` |
 | `qa`        | `@liebstoeckel/plugin-qa`        | `{ prompt?: string }` (default `"Ask a question"`) |
 | `reactions` | `@liebstoeckel/plugin-reactions` | _none_                                 |
 
@@ -82,11 +82,19 @@ import { Plugin } from "@liebstoeckel/engine";
   ```tsx
   <Plugin id="poll" instance="pace" props={{ question: "How's the pace?", options: ["Slow", "Right", "Fast"] }} />
   ```
+  `results: "after-vote"` keeps the bars off an audience member's screen until they
+  have voted (or voting closes). It does not hide them from the presenter's screen,
+  which is what the projector shows; say so if the user asks for "hidden results".
 - **qa** — also exposes a deck-wide 💬 panel, so the audience can ask from **any
   slide**; a dedicated Q&A slide is optional. The presenter moderates (mark answered /
   dismiss) from the presenter console.
 - **reactions** — emoji float deck-wide over **every** slide once placed; ephemeral
   (self-pruning, rate-limited). No configuration, no presenter tab.
+
+- **On phones** an audience member holding the phone upright sees the slide as a strip
+  and the slide's interactive plugins full width below it (one tap to vote). Nothing to
+  configure; keep each plugin readable on its own (its question or prompt inside the
+  plugin, not only in the slide text next to it).
 
 ## Validate: registration is not build-checked
 

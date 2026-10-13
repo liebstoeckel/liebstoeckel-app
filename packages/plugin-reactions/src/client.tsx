@@ -5,6 +5,7 @@ import { Card, Eyebrow, RefusalNote } from "@liebstoeckel/plugin-ui";
 import {
   reactionsSchema,
   EMOJI,
+  emojiLabel,
   MAX_ENTRIES,
   recent,
   expired,
@@ -95,6 +96,7 @@ function EmojiPalette({ onEmit }: { onEmit: (emoji: string) => void }) {
         <motion.button
           key={e}
           onClick={() => onEmit(e)}
+          aria-label={emojiLabel(e)}
           whileTap={{ scale: 0.86 }}
           whileHover={{ scale: 1.08 }}
           transition={{ type: "spring", stiffness: 500, damping: 24 }}

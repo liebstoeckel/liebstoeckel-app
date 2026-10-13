@@ -54,6 +54,8 @@ function QuestionRow({
       <button
         onClick={onUpvote}
         data-active={voted}
+        aria-pressed={voted}
+        aria-label={`Upvote: ${q.text} (${q.votes})`}
         style={{
           appearance: "none",
           cursor: "pointer",
@@ -140,6 +142,10 @@ const sentQuestions = new Map<string, SentQuestion>();
 /** The refusal (by its time) that sent a question back, by instance, so the message
  *  says "question" rather than "upvote". */
 const questionRefusedAt = new Map<string, number>();
+/** What is typed but not sent yet, by instance. The ask box unmounts when its sheet
+ *  closes or the slide moves on (on a phone the Q&A leaves with its slide), and a half
+ *  typed question should still be there when it comes back. */
+const drafts = new Map<string, string>();
 
 /** Submit a question / toggle a vote, the audience actions, shared by every surface. */
 function useQaActions(p: Pick<ClientProps<QaState>, "snapshot" | "state" | "participantId"> & { instance?: string }) {
@@ -178,7 +184,14 @@ function Composer({
   instance?: string;
   refusal?: Refusal;
 }) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraftState] = useState(() => drafts.get(instance) ?? "");
+  const setDraft = (next: string | ((d: string) => string)) =>
+    setDraftState((d) => {
+      const v = typeof next === "function" ? next(d) : next;
+      if (v) drafts.set(instance, v);
+      else drafts.delete(instance);
+      return v;
+    });
   const go = () => {
     onSubmit(draft);
     setDraft("");
@@ -212,6 +225,7 @@ function Composer({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && go()}
           placeholder="Type your question…"
+          aria-label="Your question"
           style={{
             flex: 1,
             minWidth: 0,

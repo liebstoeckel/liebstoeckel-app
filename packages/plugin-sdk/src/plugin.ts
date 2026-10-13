@@ -45,6 +45,13 @@ export interface ClientProps<T> {
    *  held back and made once the state is there. Show a "connecting" state rather than
    *  empty results while this is false. Always true outside a live session. */
   synced?: boolean;
+  /** Whether what this client writes is reaching the live server right now: false
+   *  while the connection is down or being re-established, or while the server is
+   *  making this client resend for writing too fast. Writes made meanwhile are kept
+   *  and go out once it is back. Use it before telling someone their input arrived
+   *  ("Vote received"). Absent outside a live session and from older engines: treat
+   *  absent as true. */
+  connected?: boolean;
 }
 
 /** Why the live server refused a viewer's write. `busy`: the server is short of memory

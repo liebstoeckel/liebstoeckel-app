@@ -67,10 +67,10 @@ From `@liebstoeckel/plugin-ui`, used inside plugin client surfaces. They style a
 | Component | Props | Use |
 | --- | --- | --- |
 | `Card` | `style?`, `className?` | translucent surface container |
-| `Button` | `onClick?`, `active?`, `disabled?`, `style?` | full-width option/action button |
+| `Button` | `onClick?`, `active?`, `pressed?`, `disabled?`, `ariaLabel?`, `style?` | full-width option/action button. `active` is the look (brand fill); `pressed` makes it a toggle for screen readers (`aria-pressed`), for choices like poll options |
 | `Bar` | `pct`, `color?`, `label`, `value?`, `highlight?` | animatable result bar (0 to 100) |
 | `Stack` | `gap?`, `style?` | vertical flex stack |
-| `ScrollArea` | `maxHeight?`, `style?`, `className?` | bounded, internally-scrolling region. Cap unbounded plugin content so it doesn't overflow the fixed slide canvas |
+| `ScrollArea` | `maxHeight?`, `style?`, `className?` | bounded, internally-scrolling region. Cap unbounded plugin content so it doesn't overflow the fixed slide canvas. Without a `maxHeight`, the cap is lifted where the surface around it already scrolls (the phone view) |
 | `Eyebrow` | (none) | uppercase mono label |
 
 Also exported: `useTheme()` / `readTheme()` → `ThemeTokens` (resolved brand colors/fonts/`viz` for canvas or SVG use).

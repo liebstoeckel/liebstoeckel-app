@@ -56,3 +56,61 @@ describe("poll: before the session state has arrived", () => {
     expect(renderToStaticMarkup(<poll.client.Slide {...clientProps()} />)).toContain("0 votes");
   });
 });
+
+describe("poll: one tap and a confirmation", () => {
+  function voted(extra: Partial<ClientProps<PollState>> = {}) {
+    const p = clientProps(extra);
+    p.state.recordSet("votes", "view", "B");
+    return { ...p, snapshot: p.state.snapshot() };
+  }
+
+  test("options are toggle buttons: the chosen one is pressed", () => {
+    const html = renderToStaticMarkup(<poll.client.Slide {...voted()} />);
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('aria-pressed="false"');
+  });
+
+  test("says the vote was received, and how to change it", () => {
+    const html = renderToStaticMarkup(<poll.client.Slide {...voted({ connected: true })} />);
+    expect(html).toContain("Vote received: B. Tap another option to change it.");
+    // a polite status region for screen readers, never assertive
+    expect(html).toContain('role="status" aria-live="polite"');
+    expect(html).not.toContain("assertive");
+  });
+
+  test("says it is sending, not received, while the connection is down", () => {
+    const html = renderToStaticMarkup(<poll.client.Slide {...voted({ connected: false })} />);
+    expect(html).toContain("Sending your vote: B…");
+    expect(html).not.toContain("Vote received");
+  });
+
+  test("no confirmation before a vote, or when the vote was refused", () => {
+    expect(renderToStaticMarkup(<poll.client.Slide {...clientProps()} />)).not.toContain("poll-vote-status");
+    const refused = renderToStaticMarkup(<poll.client.Slide {...voted({ refusal: { reason: "full", at: 1 } })} />);
+    expect(refused).not.toContain("Vote received");
+  });
+});
+
+describe("poll: results after voting", () => {
+  const after = { results: "after-vote" };
+
+  test("a viewer sees the bars only after voting", () => {
+    const before = renderToStaticMarkup(<poll.client.Slide {...clientProps({ props: after })} />);
+    expect(before).toContain("Results appear after you vote.");
+    expect(before).not.toContain("0 · 0%");
+    const p = clientProps({ props: after });
+    p.state.recordSet("votes", "view", "A");
+    const html = renderToStaticMarkup(<poll.client.Slide {...p} snapshot={p.state.snapshot()} />);
+    expect(html).not.toContain("Results appear after you vote.");
+    expect(html).toContain("1 · 100%");
+  });
+
+  test("the presenter always sees them", () => {
+    const html = renderToStaticMarkup(<poll.client.Slide {...clientProps({ props: after, role: "presenter" })} />);
+    expect(html).not.toContain("Results appear after you vote.");
+  });
+
+  test("by default everyone sees them", () => {
+    expect(renderToStaticMarkup(<poll.client.Slide {...clientProps()} />)).not.toContain("Results appear after you vote.");
+  });
+});

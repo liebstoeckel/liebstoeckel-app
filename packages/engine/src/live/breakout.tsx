@@ -160,7 +160,9 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
         flexDirection: "column",
         justifyContent: short ? "center" : "flex-end",
         alignItems: "center",
-        padding: short ? "max(env(safe-area-inset-top), 0.75rem) 0.75rem" : 0,
+        // the bottom keeps clear of the "Published with liebstoeckel" badge a free
+        // session pins to the bottom right corner (about 31 px tall)
+        padding: short ? "max(env(safe-area-inset-top), 0.75rem) 0.75rem 2.5rem" : 0,
         background: "color-mix(in srgb, var(--brand-bg, #10140e) 60%, transparent)",
         backdropFilter: "blur(6px)",
       }}
@@ -186,7 +188,7 @@ export function BreakoutSheet({ label, onClose, children }: { label: string; onC
           overflow: "auto",
           padding: short
             ? "0 1.1rem 1.1rem"
-            : "0 1.25rem calc(1.5rem + env(safe-area-inset-bottom))",
+            : "0 1.25rem calc(3.5rem + env(safe-area-inset-bottom))",
           borderRadius: short ? "1.2rem" : "1.4rem 1.4rem 0 0",
           background: "var(--brand-surface, #1a2014)",
           border: short

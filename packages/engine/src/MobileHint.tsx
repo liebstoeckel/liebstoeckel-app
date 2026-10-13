@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 /** A brief, dismissable "rotate for a bigger view" toast shown on a portrait phone
  *  (coarse pointer). Portaled to <body> so it renders at device scale, not inside
  *  the scaled canvas. Auto-hides; tap to dismiss. */
-export function PortraitHint() {
+export function PortraitHint({ suppressed = false }: { suppressed?: boolean }) {
   const [portrait, setPortrait] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -31,7 +31,9 @@ export function PortraitHint() {
   }, [portrait]);
 
   if (typeof document === "undefined") return null;
-  const show = portrait && !dismissed;
+  // Suppressed while the phone-first view shows a plugin: the screen is already used
+  // well upright, and the hint would sit on the plugin.
+  const show = portrait && !dismissed && !suppressed;
 
   return createPortal(
     <AnimatePresence>

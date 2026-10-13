@@ -7,9 +7,25 @@ import { Aside, CardGrid, Card } from "@astrojs/starlight/components";
 
 The audience joins from a phone (scan QR → vote / ask / react), so the **viewer is a first-class mobile surface**. The challenge: interactive controls live inside the fixed, scaled canvas, where on a portrait phone they'd shrink to ~30%. liebstoeckel solves this without breaking the fixed-canvas guarantee.
 
+## The phone view for the audience
+
+When someone in the audience holds a phone upright (a touch screen in portrait, up to 560 px wide) and the presenter is on a slide with an interactive plugin, the phone switches to a layout made for voting:
+
+- **The slide as a strip** at the top, full width. The plugin's place on the slide shows its name and an arrow down.
+- **The plugin below it, full width, at the phone's own scale.** Poll options are real buttons: one tap votes. Several plugins on one slide stack in the order they are placed.
+- **The bottom row stays clear.** The menu, the reactions button, the slide counter and a "Published with liebstoeckel" badge sit below the plugin area, never on top of it.
+- **Typing gets the room it needs.** When the ask box of a Q&A has focus, the plugin area takes the whole screen; it gives the strip back when the keyboard closes. A half typed question is still there if the presenter moves on and comes back.
+- **When the talk ends,** the plugin area dims, stops taking taps and says so.
+
+On a slide without an interactive plugin the phone shows the slide as usual. The presenter on a phone, a phone held sideways, a tablet and every desktop window keep the slide as authored, with the breakout below. Nothing about this needs setting up: every `<Plugin>` whose plugin takes input (`client.interactive`, true by default) gets it.
+
+<Aside type="tip" title="Preview it before the talk">
+Start the deck live (`liebstoeckel live`), open the audience link in your browser's device emulation (a phone in portrait with touch, for example Chrome DevTools' device toolbar), and move to a slide with a plugin from the presenter window. The emulated phone shows what the room will see.
+</Aside>
+
 ## Tap-to-interact breakout
 
-On a touch device with a shrunk stage, a `<Plugin>` doesn't try to make tiny controls tappable. Instead it:
+On a touch device with a shrunk stage (the presenter's phone, a phone held sideways), a `<Plugin>` doesn't try to make tiny controls tappable. Instead it:
 
 <CardGrid>
   <Card title="Glows" icon="star">
@@ -32,7 +48,7 @@ For whoever drives the deck (a standalone viewer or the presenter; a live audien
 
 ## Portrait hint
 
-On a portrait phone the 16:9 slide is letterboxed. A dismissable "rotate for a bigger view" hint nudges the viewer; it's rendered at device scale (outside the canvas) and auto-hides.
+On a portrait phone the 16:9 slide is letterboxed. A dismissable "rotate for a bigger view" hint nudges the viewer; it's rendered at device scale (outside the canvas) and auto-hides. It stays away while the phone view shows a plugin.
 
 ## Presenter view on a phone
 

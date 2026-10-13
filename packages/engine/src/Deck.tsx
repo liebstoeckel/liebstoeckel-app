@@ -22,6 +22,7 @@ import { QrOverlay } from "./QrOverlay";
 import { JoinCardPresence } from "./joinPresence";
 import { shouldOpenJoinAtStart, START_HINT } from "./joinStart";
 import { PluginOverlays } from "./live/globalChrome";
+import { PhoneViewContext, usePhoneFirst, type PhoneView } from "./live/phoneView";
 import { DeckChrome } from "./DeckChrome";
 import { StepsProvider } from "./steps";
 import { accumulateDigits, toggleFullscreen, resolveStep } from "./delivery";
@@ -85,6 +86,11 @@ function openPresenter() {
     console.warn("[liebstoeckel] presenter pop-out is unavailable in this context:", err);
   }
 }
+
+/** Height of the slide strip above the phone-first panel: the slide at full width
+ *  (16:9), but never more than about a quarter of the screen. */
+const PHONE_STRIP = "min(56.25vw, 27dvh)";
+const TEXT_ENTRY = "input, textarea, [contenteditable=true]";
 
 export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandThemes, transition: deckTransition, mobileTransitions, backdrop }: DeckProps) {
   const norm = useMemo(() => normalizeSlides(slides), [slides]);
@@ -322,6 +328,46 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
   const reduceMotion = useReducedMotion();
   const coarse = useCoarsePointer();
 
+  // The phone-first audience view: on a viewer's portrait phone, an interactive plugin
+  // on the current slide renders full width in a panel below a small slide preview
+  // (its `<Plugin>` registers and portals there). Without one, the slide shows as usual.
+  const phoneOn = usePhoneFirst(role) && isLive;
+  const [phoneTarget, setPhoneTarget] = useState<HTMLDivElement | null>(null);
+  const [phonePlugins, setPhonePlugins] = useState(0);
+  const registerPhonePlugin = useCallback(() => {
+    setPhonePlugins((n) => n + 1);
+    return () => setPhonePlugins((n) => n - 1);
+  }, []);
+  const phoneView = useMemo<PhoneView | null>(
+    () => (phoneOn ? { target: phoneTarget, register: registerPhonePlugin } : null),
+    [phoneOn, phoneTarget, registerPhonePlugin],
+  );
+  const phoneLayout = phoneOn && phonePlugins > 0;
+  // Typing a question: the panel takes the whole screen so the keyboard leaves room.
+  const [phoneTyping, setPhoneTyping] = useState(false);
+  useEffect(() => {
+    if (!phoneLayout) setPhoneTyping(false);
+  }, [phoneLayout]);
+  // Native focus events: the plugins render into the panel through portals, so React's
+  // own events bubble to the plugin's place in the slide, not to the panel.
+  useEffect(() => {
+    if (!phoneTarget) return;
+    const typing = (el: EventTarget | null) => el instanceof HTMLElement && el.matches(TEXT_ENTRY);
+    const onIn = (e: FocusEvent) => {
+      if (typing(e.target)) setPhoneTyping(true);
+    };
+    const onOut = (e: FocusEvent) => {
+      if (!typing(e.relatedTarget)) setPhoneTyping(false);
+    };
+    phoneTarget.addEventListener("focusin", onIn);
+    phoneTarget.addEventListener("focusout", onOut);
+    return () => {
+      phoneTarget.removeEventListener("focusin", onIn);
+      phoneTarget.removeEventListener("focusout", onOut);
+    };
+  }, [phoneTarget]);
+  const talkEnded = liveCtx?.connection?.status === "ended";
+
   // The first moment of a talk: the presenter's deck opens the join overlay by itself
   // once the session's state has arrived, if the talk is on its first slide and that
   // slide shows no join card of its own. Once per page load; any slide change, from
@@ -381,6 +427,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
   return (
     <MDXProvider components={mdxComponents}>
      <JoinCardPresence.Provider value={registerJoinCard}>
+     <PhoneViewContext.Provider value={phoneView}>
      <BackdropProvider backdrop={backdrop}>
       <PersistentProvider>
        {/* 100dvh (dynamic viewport), NOT 100vh: on mobile the browser's address
@@ -394,7 +441,10 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
          tabIndex={-1}
          className="relative h-dvh w-screen overflow-hidden bg-bg outline-none"
        >
-        <ScaledStage className="absolute inset-0">
+        <ScaledStage
+          className={phoneLayout ? "absolute inset-x-0 top-0" : "absolute inset-0"}
+          style={phoneLayout ? { height: PHONE_STRIP } : undefined}
+        >
           <div data-deck-root data-slide={index} className="absolute inset-0 bg-bg">
             {/* One backdrop per view, behind the transition stack: a slide change
                 crossfades transparent content over it instead of mounting a
@@ -433,7 +483,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
             <PluginOverlays />
 
             <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} ejectable={ejectable} />
-            <PortraitHint />
+            <PortraitHint suppressed={phoneLayout} />
           </div>
 
           {/* blur-screen overlay */}
@@ -455,6 +505,34 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
             )}
           </AnimatePresence>
         </ScaledStage>
+
+        {/* The phone-first panel: the current slide's interactive plugins at device
+            scale, below the slide strip and above the bottom rail (menu, reactions,
+            the counter and a "Published with" badge stay clear of it). Present only
+            on a viewer's portrait phone; shown while a plugin is in it. */}
+        {phoneOn && (
+          <div
+            ref={setPhoneTarget}
+            data-pi-phone-panel
+            data-pi-no-nav
+            hidden={!phoneLayout}
+            inert={talkEnded}
+            className="absolute inset-x-0 z-20 overflow-y-auto overscroll-contain border-t border-border bg-bg px-3 pt-3 pb-4"
+            style={{
+              top: phoneTyping ? 0 : PHONE_STRIP,
+              bottom: "calc(4.25rem + env(safe-area-inset-bottom))",
+              opacity: talkEnded ? 0.55 : 1,
+              // the panel already scrolls as a whole: lists inside it don't get a cap of their own
+              ["--pi-scroll-area-max" as string]: "none",
+            }}
+          >
+            {talkEnded && (
+              <div role="status" className="mb-3 font-mono text-xs uppercase tracking-[0.2em] text-muted">
+                The talk has ended
+              </div>
+            )}
+          </div>
+        )}
 
         {/* QR + overview render OUTSIDE the scaled canvas (device scale) so they're
             full-size on a phone, the touch ⋮ menu opens them. */}
@@ -593,6 +671,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
        </main>
       </PersistentProvider>
      </BackdropProvider>
+     </PhoneViewContext.Provider>
      </JoinCardPresence.Provider>
     </MDXProvider>
   );

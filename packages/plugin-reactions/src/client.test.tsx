@@ -51,3 +51,10 @@ describe("reactions prune", () => {
     expect(Object.keys(state.snapshot().reactions)).toEqual(["fresh"]);
   });
 });
+
+describe("reactions: accessible names", () => {
+  test("every emoji button has a name", () => {
+    const html = renderToStaticMarkup(<reactions.client.Slide {...clientProps()} />);
+    for (const name of ["Applause", "Love", "Celebrate", "Fire", "Wow", "Idea"]) expect(html).toContain(`aria-label="React: ${name}"`);
+  });
+});

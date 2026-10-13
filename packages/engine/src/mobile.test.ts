@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { breakoutEligible, resolveTouchGesture, isPortrait, BREAKOUT_SCALE_MAX } from "./mobile";
+import { breakoutEligible, resolveTouchGesture, isPortrait, phoneFirst, pluginPlacement, BREAKOUT_SCALE_MAX, PHONE_FIRST_MAX_WIDTH } from "./mobile";
 
 describe("breakoutEligible", () => {
   const base = { allowed: true, coarse: true, scale: 0.3, interactive: true };
@@ -48,5 +48,46 @@ describe("isPortrait", () => {
   test("height > width", () => {
     expect(isPortrait(390, 844)).toBe(true);
     expect(isPortrait(844, 390)).toBe(false);
+  });
+});
+
+describe("phoneFirst", () => {
+  const phone = { role: "viewer", coarse: true, width: 390, height: 844 };
+  test("a viewer on a portrait touch phone gets the phone-first view", () => {
+    expect(phoneFirst(phone)).toBe(true);
+    expect(phoneFirst({ ...phone, width: 320, height: 568 })).toBe(true);
+    expect(phoneFirst({ ...phone, width: PHONE_FIRST_MAX_WIDTH, height: 900 })).toBe(true);
+  });
+  test("desktop (fine pointer) keeps the slide, even in a narrow window", () => {
+    expect(phoneFirst({ ...phone, coarse: false })).toBe(false);
+    expect(phoneFirst({ ...phone, coarse: false, width: 1280, height: 760 })).toBe(false);
+  });
+  test("a landscape phone keeps the slide", () => {
+    expect(phoneFirst({ ...phone, width: 844, height: 390 })).toBe(false);
+  });
+  test("a tablet in portrait keeps the slide", () => {
+    expect(phoneFirst({ ...phone, width: 768, height: 1024 })).toBe(false);
+    expect(phoneFirst({ ...phone, width: PHONE_FIRST_MAX_WIDTH + 1, height: 1024 })).toBe(false);
+  });
+  test("only the audience: a presenter or a standalone deck on a phone keeps the slide", () => {
+    expect(phoneFirst({ ...phone, role: "presenter" })).toBe(false);
+    expect(phoneFirst({ ...phone, role: undefined })).toBe(false);
+  });
+  test("not before the screen has a size", () => {
+    expect(phoneFirst({ ...phone, width: 0, height: 0 })).toBe(false);
+  });
+});
+
+describe("pluginPlacement", () => {
+  test("desktop or a big stage: inline", () => {
+    expect(pluginPlacement({ eligible: false, phoneView: false, leaving: false })).toBe("inline");
+    expect(pluginPlacement({ eligible: false, phoneView: true, leaving: false })).toBe("inline");
+  });
+  test("touch on a shrunk stage: the glow, unless the phone-first view is on", () => {
+    expect(pluginPlacement({ eligible: true, phoneView: false, leaving: false })).toBe("glow");
+    expect(pluginPlacement({ eligible: true, phoneView: true, leaving: false })).toBe("phone");
+  });
+  test("a slide on its way out does not take the panel", () => {
+    expect(pluginPlacement({ eligible: true, phoneView: true, leaving: true })).toBe("glow");
   });
 });

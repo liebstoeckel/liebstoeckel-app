@@ -22,6 +22,12 @@ describe("primitives render", () => {
     expect(html).toContain('data-active="true"');
     expect(html).toContain("Vote");
   });
+  test("Button: pressed is a toggle state for screen readers, active only the look", () => {
+    expect(renderToStaticMarkup(<Button pressed>A</Button>)).toContain('aria-pressed="true"');
+    expect(renderToStaticMarkup(<Button pressed={false}>A</Button>)).toContain('aria-pressed="false"');
+    expect(renderToStaticMarkup(<Button active>Ask</Button>)).not.toContain("aria-pressed");
+    expect(renderToStaticMarkup(<Button ariaLabel="Vote for A">A</Button>)).toContain('aria-label="Vote for A"');
+  });
   test("Card renders children", () => {
     expect(renderToStaticMarkup(<Card>hello</Card>)).toContain("hello");
   });
@@ -29,7 +35,7 @@ describe("primitives render", () => {
     const html = renderToStaticMarkup(<ScrollArea>queue</ScrollArea>);
     expect(html).toContain("queue");
     expect(html).toContain("overflow-y:auto");
-    expect(html).toContain("max-height:min(360px, 42vh)"); // default cap
+    expect(html).toContain("max-height:var(--pi-scroll-area-max, min(360px, 42vh))"); // default cap, liftable by the surface
     expect(html).toContain("overscroll-behavior:contain"); // don't chain to the deck
   });
   test("ScrollArea honours a custom maxHeight", () => {

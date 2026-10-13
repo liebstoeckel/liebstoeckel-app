@@ -42,7 +42,19 @@ import { Plugin } from "@liebstoeckel/engine";
 <Plugin id="poll" props={{ question: "Ship it?", options: ["Yes", "Also yes"] }} />
 ```
 
-`<Plugin>` renders the plugin's `Slide` when a live server is connected, else its `fallback`. On touch screens it provides the [tap-to-interact breakout](/guides/mobile/) automatically.
+`<Plugin>` renders the plugin's `Slide` when a live server is connected, else its `fallback`. On touch screens it provides the [phone view and the tap-to-interact breakout](/guides/mobile/) automatically.
+
+### Poll options
+
+| Prop | Type | Default | What it does |
+|---|---|---|---|
+| `question` | `string` | | the question |
+| `options` | `string[]` | | the answers, one button each |
+| `results` | `"always"` \| `"after-vote"` | `"always"` | when a viewer sees the bars. `"after-vote"` shows them on an audience device only after that person has voted (or voting is closed) |
+
+`results: "after-vote"` is about what an audience member's own screen shows, so a vote is not steered by the bars. It hides nothing anywhere else: the presenter's screen, and so the deck on the projector, always shows the results, and the votes still reach every device in the session. To keep results off the projector, place the poll on a slide the room does not see while voting runs, or close voting first.
+
+After a vote the poll says "Vote received" with the chosen option, and how to change it. While the phone is offline it says "Sending your vote" instead; the vote is kept and goes out when the connection is back.
 
 The `id` you place **must** be in `<Present plugins={[…]}>`. A `<Plugin>` whose id isn't registered renders nothing (the build still succeeds) — a blank spot on a slide almost always means a missing entry in `plugins`. Dev builds log a console warning to flag it.
 
