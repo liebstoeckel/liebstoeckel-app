@@ -26,7 +26,8 @@ import {
   type LiveNotice,
 } from "@liebstoeckel/live-server/placement/protocol";
 import type { ServerWebSocket } from "bun";
-import { SessionState, type StateStorage } from "./state";
+import { createHash } from "node:crypto";
+import { SessionState, type Owners, type StateStorage } from "./state";
 
 /** Templated path for relay span names, collapse session ids so the span name stays bounded
  *  (`/sync/<id>` → `/sync/:id`), the trace-name equivalent of the metric cardinality rule. */
@@ -137,8 +138,13 @@ interface RelaySession {
   fence?: ReturnType<typeof setInterval>;
   /** open sockets, closed with a reason when the session goes away */
   sockets: Set<ServerWebSocket<WSData>>;
-  /** resume tokens handed to this session's viewers (protocol 3+) */
-  resumeTokens: Set<string>;
+  /** The owner keys (`ownerKey`) of the resume tokens handed to this session's viewers
+   *  (protocol 3+), here or, restored from the stored state, on the relay that held the
+   *  session before. The tokens themselves are kept nowhere. */
+  owners: Set<string>;
+  /** Set while the session is being stored and closed (a restart): its page is still
+   *  served, sockets are closed at once with `restarting`, nothing is written. */
+  closing?: boolean;
   /** Audience writes are being refused for being full or the relay being short of
    *  memory; presenters are told, and told again when they are taken. */
   refusing?: { reason: "busy" | "full"; quiet?: ReturnType<typeof setTimeout> };
@@ -159,6 +165,13 @@ export interface RelayServer {
   /** operational counters ((internal ADR) / (internal ticket)), snapshot write failures so a
    *  silently-lost result surfaces in logs/metrics instead of vanishing. */
   stats(): { snapshotFailures: number };
+  /** Stop taking writes and store every session: close the sockets with `restarting`,
+   *  then write each session's final state. The sessions stay listed (pages are served,
+   *  new sockets are closed with `restarting` at once) until `stop`, so a request that
+   *  still reaches this process during a restart gets the page instead of a 403, and
+   *  the caller can let the control plane place them elsewhere first. Takes no new
+   *  sessions from here on. */
+  drain(): Promise<void>;
   /** Flush every active session's final snapshot, then tear down. Awaitable so a
    *  SIGTERM handler can guarantee the writes land before the process exits
    *  ((internal ADR) §5 / (internal ticket), the racy fire-and-forget path lost results). */
@@ -183,6 +196,20 @@ type WSData = {
   resetAt?: number;
   resetTimer?: ReturnType<typeof setTimeout>;
 };
+
+/** The owner key of a viewer's resume token: who that viewer is, for the Yjs client ids
+ *  it may write. A digest, so the stored session state never holds a token. */
+export function ownerKey(token: string): string {
+  return `r:${createHash("sha256").update(token).digest("base64url").slice(0, 22)}`;
+}
+
+/** The owners a Hub stores with the session state: those of resume tokens only. */
+function storedOwners(hub: Hub): Owners {
+  return hub.ownerEntries().filter(([, owner]) => owner.startsWith("r:"));
+}
+
+/** What a resume token the relay hands out looks like (`hex()`). */
+const RESUME_TOKEN = /^[0-9a-f]{32}$/;
 
 const hex = (bytes = 16): string => {
   const a = new Uint8Array(bytes);
@@ -290,7 +317,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     if (!cfg.storage || (!s.snapshotKey && !s.state)) return;
     metrics.snapshotWrites.inc();
     try {
-      if (s.state) await s.state.snapshot(s.hub.snapshot());
+      if (s.state) await s.state.snapshot(s.hub.snapshot(), storedOwners(s.hub));
       else await cfg.storage.put(s.snapshotKey!, s.hub.snapshot());
     } catch (e) {
       // Best-effort: a failed write must never crash the relay, but it must NOT be
@@ -372,18 +399,33 @@ export function createRelay(opts: RelayOptions): RelayServer {
     for (const socket of s.sockets) if (socket.data.presenter) notify(socket, { t: "refusing", reason });
   };
 
-  const dropSession = async (s: RelaySession, reason: "ended" | "moved" | "restarting" = "ended"): Promise<void> => {
+  // The sockets close BEFORE the final state is stored: a write the relay took after the
+  // snapshot was taken would be in no stored state, and the next relay would not know it.
+  // A write still on its way is in the client's doc, which it sends again on reconnect.
+  // `keep`: the session stays listed, as `closing` (a restart, see `drain`).
+  const dropSession = async (
+    s: RelaySession,
+    reason: "ended" | "moved" | "restarting" = "ended",
+    keep = false,
+  ): Promise<void> => {
+    if (s.closing) return;
+    s.closing = true;
     if (s.ttl) clearTimeout(s.ttl);
     if (s.snap) clearInterval(s.snap);
     if (s.log) clearInterval(s.log);
     if (s.fence) clearInterval(s.fence);
     if (s.refusing?.quiet) clearTimeout(s.refusing.quiet);
-    if (sessions.get(s.id) === s) sessions.delete(s.id);
+    if (!keep && sessions.get(s.id) === s) sessions.delete(s.id);
+    const code = reason === "moved" ? CLOSE.MOVED : reason === "restarting" ? CLOSE.RESTARTING : CLOSE.ENDED;
+    for (const socket of [...s.sockets]) {
+      // nothing it sends from now on is applied
+      socket.data.peer?.leave();
+      socket.data.peer = null;
+      socket.close(code, reason);
+    }
     if (reason === "moved") s.state?.stop();
     else await persist(s);
     s.state?.stop();
-    const code = reason === "moved" ? CLOSE.MOVED : reason === "restarting" ? CLOSE.RESTARTING : CLOSE.ENDED;
-    for (const socket of [...s.sockets]) socket.close(code, reason);
     s.hub.destroy();
   };
 
@@ -475,6 +517,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     }
     let state: SessionState | undefined;
     let seed: Uint8Array | null = null;
+    let restored: Owners = [];
     if (fenced) {
       try {
         const opened = await SessionState.open({
@@ -489,6 +532,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         }
         state = opened.state;
         seed = opened.seed;
+        restored = opened.owners;
       } catch (e) {
         metrics.sessionRejects.inc({ reason: "storage" });
         console.error(JSON.stringify({ level: "error", msg: "relay state load failed", session: providedId, err: String(e) }));
@@ -501,11 +545,22 @@ export function createRelay(opts: RelayOptions): RelayServer {
       audience: enforce
         ? { scope: audienceScopeFromHtml(html), rate: cfg.audienceRate, admit: hasRoom, caps: audienceCaps }
         : undefined,
+      // Who owns which client id is stored with the state (viewers on protocol 3 only:
+      // the participant id older clients are known by is not stored).
+      onOwner: state
+        ? (client, owner) => {
+            if (owner.startsWith("r:")) state!.noteOwner(client, owner);
+          }
+        : undefined,
     });
     // Re-seed from the stored state: the previous epoch's, or (a session placed
     // before epochs, or unfenced) the single snapshot key.
     if (seed) {
       hub.seed(seed);
+      // A viewer that comes back from the relay before may continue its own ids, so the
+      // writes the stored state missed (in flight during a move, or after the last log
+      // flush before a crash) arrive with its resync instead of being refused.
+      hub.adopt(restored.filter(([, owner]) => owner.startsWith("r:")));
       metrics.snapshotSeed.inc({ result: "hit" });
     } else if (cfg.storage && snapshotKey) {
       try {
@@ -538,7 +593,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       snapshotKey: state ? undefined : snapshotKey,
       state,
       sockets: new Set(),
-      resumeTokens: new Set(),
+      owners: new Set(restored.map(([, owner]) => owner)),
     };
     const unref = (t: unknown) => (t as { unref?: () => void }).unref?.();
     rs.ttl = setTimeout(() => void dropSession(rs), ttlMs);
@@ -767,11 +822,14 @@ export function createRelay(opts: RelayOptions): RelayServer {
       // participant id, which is not secret (see the Hub).
       if (role === "audience") {
         if (version >= RESUME_SINCE) {
+          // A token handed out here, or by the relay that held the session before (its
+          // owner key came with the stored state), is taken back; anything else gets a
+          // new one.
           const r = url.searchParams.get("r");
-          const token = r && s.resumeTokens.has(r) ? r : hex();
-          s.resumeTokens.add(token);
+          const token = r && RESUME_TOKEN.test(r) && s.owners.has(ownerKey(r)) ? r : hex();
           data.resume = token;
-          data.owner = `r:${token}`;
+          data.owner = ownerKey(token);
+          s.owners.add(data.owner);
         } else {
           const p = url.searchParams.get("p");
           if (p) data.owner = `p:${p}`;
@@ -819,6 +877,11 @@ export function createRelay(opts: RelayOptions): RelayServer {
         const s = sessions.get(socket.data.sessionId);
         if (!s) {
           socket.close();
+          return;
+        }
+        // being stored for a restart: come back in a moment, wherever it is placed next
+        if (s.closing) {
+          socket.close(CLOSE.RESTARTING, "restarting");
           return;
         }
         s.sockets.add(socket);
@@ -879,17 +942,28 @@ export function createRelay(opts: RelayOptions): RelayServer {
     },
   });
 
+  let draining: Promise<void> | undefined;
+  function drain(): Promise<void> {
+    cordoned = true;
+    draining ??= Promise.allSettled([...sessions.values()].map((s) => dropSession(s, "restarting", true))).then(
+      () => undefined,
+    );
+    return draining;
+  }
+
   const port = server.port ?? 0;
   return {
     port,
     baseUrl: opts.publicBaseUrl?.replace(/\/$/, "") ?? `http://${opts.hostname ?? "0.0.0.0"}:${port}`,
     sessions,
     stats: () => ({ snapshotFailures }),
+    drain,
     async stop() {
       // Store every session's final state and AWAIT the writes before tearing down,
       // so a SIGTERM followed by process.exit cannot race the S3 PUTs. Clients get
       // `restarting` and reconnect to wherever the session is placed next.
-      await Promise.allSettled([...sessions.values()].map((s) => dropSession(s, "restarting")));
+      await drain();
+      sessions.clear();
       server.stop(true);
     },
   };

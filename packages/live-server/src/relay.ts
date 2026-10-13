@@ -52,8 +52,8 @@ export interface JoinOptions {
    *  none, only this connection may continue the ids it brings in. */
   owner?: string;
   /** Let this audience peer continue an id that was in the stored state the session was
-   *  seeded from (a relay restart or move forgets who brought which id in). Only for
-   *  clients that keep their id across reconnects (protocol 1 and 2). */
+   *  seeded from and that no stored owner claims (see `Hub.adopt`). Only for clients
+   *  that keep their id across reconnects (protocol 1 and 2). */
   claimSeeded?: boolean;
   /** Called when an update from this audience peer carried content on Yjs client ids it
    *  may not write, which was removed before the update was checked. */
@@ -179,6 +179,11 @@ export interface HubOptions {
    *  every viewer on its own is what the relay spends most of its time on. 0/undefined =
    *  every update at once. */
   coalesceMs?: number;
+  /** Called when an audience owner named by a string (`JoinOptions.owner`) brings a
+   *  client id in, so the caller can store who owns which id with the session state.
+   *  After a relay restart or move, `adopt` gives the new Hub the same owners back, and
+   *  a returning client may then continue the ids its earlier connections wrote on. */
+  onOwner?: (client: number, owner: string) => void;
 }
 
 // A valid Yjs update for an empty doc: applying it is a no-op (no structs), but
@@ -213,9 +218,11 @@ export class Hub {
   /** Ids from the stored state the session was seeded from that only hold audience
    *  content and no one has continued yet. */
   private readonly seeded = new Set<number>();
+  private readonly onOwner?: (client: number, owner: string) => void;
 
   constructor(opts: HubOptions = {}) {
     this.audience = opts.audience;
+    this.onOwner = opts.onOwner;
     this.coalesceMs = opts.coalesceMs && opts.coalesceMs > 0 ? opts.coalesceMs : 0;
     if (opts.audience) {
       this.gate = new AudienceGate(this.doc, opts.audience.scope, opts.audience.caps);
@@ -289,12 +296,33 @@ export class Hub {
       /* ignore bad seed */
     }
     if (!this.audience) return;
-    // Who brought which id in is not stored. Ids that hold anything the audience may not
-    // write are the presenter's or the runner's; the others may be continued by the old
-    // clients that keep their id across reconnects (`claimSeeded`).
+    // Ids that hold anything the audience may not write are the presenter's or the
+    // runner's. The others go back to their owners when the caller has them (`adopt`);
+    // until then they may be continued by the old clients that keep their id across
+    // reconnects (`claimSeeded`).
     const { audience, trusted } = classifyClients(this.doc, this.audience.scope);
     for (const c of trusted) this.trusted.add(c);
     for (const c of audience) if (!this.trusted.has(c) && !this.owners.has(c)) this.seeded.add(c);
+  }
+
+  /** Who brought which client id in, for the owners named by a string (the ones a
+   *  caller can recognise again on another relay). */
+  ownerEntries(): Array<[number, string]> {
+    const out: Array<[number, string]> = [];
+    for (const [client, owner] of this.owners) if (typeof owner === "string") out.push([client, owner]);
+    return out;
+  }
+
+  /** Take over the owners a previous Hub of this session recorded (call after `seed`).
+   *  An id the stored state shows as the presenter's stays trusted; any other id is
+   *  given back to its owner instead of being open to the first old client that writes
+   *  on it. */
+  adopt(entries: Iterable<readonly [number, string]>): void {
+    for (const [client, owner] of entries) {
+      if (this.trusted.has(client) || this.owners.has(client)) continue;
+      this.owners.set(client, owner);
+      this.seeded.delete(client);
+    }
   }
 
   /** Mark the ids a trusted peer's update adds clocks to as trusted, unless an audience
@@ -366,6 +394,7 @@ export class Hub {
         this.owners.set(client, owner);
         this.seeded.delete(client);
         claims++;
+        if (typeof owner === "string") this.onOwner?.(client, owner);
       }
     };
 

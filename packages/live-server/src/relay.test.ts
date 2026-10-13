@@ -544,4 +544,44 @@ describe("Hub: an audience peer writes only on its own Yjs client ids", () => {
     expect(votes()).toEqual({ o: "A" });
     next.destroy();
   });
+
+  test("after a reseed with the stored owners, a returning client continues its own id and no one else may", () => {
+    const owners: Array<[number, string]> = [];
+    const hub = new Hub({ audience: { scope }, onOwner: (client, owner) => owners.push([client, owner]) });
+    const presenter = new Y.Doc();
+    presenter.getMap("plugin:poll").set("votes", new Y.Map<string>());
+    presenter.getMap("nav").set("slide", 1);
+    hub.join(() => {}, "presenter").recv(Y.encodeStateAsUpdate(presenter));
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, Y.encodeStateAsUpdate(hub.doc));
+    const a = hub.join(() => {}, "audience", { owner: "r:a" });
+    let sv = Y.encodeStateVector(doc);
+    (doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("a", "A");
+    a.recv(Y.encodeStateAsUpdate(doc, sv));
+    expect(owners).toEqual([[doc.clientID, "r:a"]]);
+    expect(hub.ownerEntries()).toEqual([[doc.clientID, "r:a"]]);
+    // a vote the relay took but did not store, then the move
+    const stored = hub.snapshot();
+    sv = Y.encodeStateVector(doc);
+    (doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("a", "B");
+    a.recv(Y.encodeStateAsUpdate(doc, sv));
+
+    const next = new Hub({ audience: { scope } });
+    next.seed(stored);
+    // a stored owner can never take the presenter's id
+    next.adopt([...owners, [presenter.clientID, "r:mallory"]]);
+    let foreign = 0;
+    const mallory = next.join(() => {}, "audience", { owner: "r:mallory", onForeign: () => foreign++ });
+    mallory.recv(tombstoneUpdate([{ client: doc.clientID, clock: Y.getState(next.doc.store, doc.clientID), length: 9 }]));
+    mallory.recv(tombstoneUpdate([{ client: presenter.clientID, clock: Y.getState(next.doc.store, presenter.clientID), length: 9 }]));
+    expect(foreign).toBe(2);
+    // the viewer comes back under a fresh id; its resync carries the lost vote on the old one
+    doc.clientID = 4242;
+    const back = next.join(() => {}, "audience", { owner: "r:a", onForeign: () => foreign++ });
+    back.recv(Y.encodeStateAsUpdate(doc));
+    expect(foreign).toBe(2);
+    expect((next.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).toJSON()).toEqual({ a: "B" });
+    hub.destroy();
+    next.destroy();
+  });
 });

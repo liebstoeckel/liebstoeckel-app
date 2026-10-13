@@ -64,7 +64,10 @@ reachable from a shared audience link.
 ### Connection status
 
 Every window reconnects by itself after a network drop or a server restart, and sends
-what it changed while it was away. While it is not connected, the presenter sees a
+what it changed while it was away. In the cloud a talk can also move to another server
+mid-session (a restart or an update of the servers): votes, questions and reactions sent
+just before the move still arrive, and someone opening the audience link during it gets
+the talk. While it is not connected, the presenter sees a
 small status in the corner: **Reconnecting**, or **Talk ended** once the session is
 over. Viewers see only what does not fix itself: the end of the talk, or **Out of date,
 reload** when the page is older than the server it talks to supports (a reload loads a

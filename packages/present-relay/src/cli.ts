@@ -45,6 +45,10 @@ function s3Storage(): RelayStorage | undefined {
   };
 }
 
+/** How long a stopping relay keeps answering after it gave up its lease (ms): the
+ *  control plane's route resolver reads the leases at most a second old. */
+const DRAIN_GRACE_MS = 3_000;
+
 const hex = (bytes = 24): string => {
   const a = new Uint8Array(bytes);
   crypto.getRandomValues(a);
@@ -142,9 +146,20 @@ export const relayCommand = defineCommand({
     // Await the snapshot flush before exiting so a rolling deploy / drain doesn't lose
     // the last interval's live state ((internal ADR) §5 / (internal ticket)). k8s gives us
     // terminationGracePeriodSeconds (set on the StatefulSet) to finish.
+    //
+    // Order: close every socket and store every session first (nothing written after the
+    // final state is lost), then give up the liveness lease, which tells the control plane
+    // the talks here are gone so the next request places them elsewhere. Until the server
+    // stops a few seconds later, a request that still reaches this pod gets the page (and
+    // its socket a `restarting` close), never a 403 for a talk that is only moving.
+    let stopping = false;
     const shutdown = async () => {
-      await relay.stop();
+      if (stopping) return;
+      stopping = true;
+      await relay.drain();
       await liveness?.stop();
+      if (liveness) await Bun.sleep(DRAIN_GRACE_MS);
+      await relay.stop();
       process.exit(0);
     };
     process.on("SIGINT", () => void shutdown());

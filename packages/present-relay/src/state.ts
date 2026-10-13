@@ -5,9 +5,11 @@
 //   <seq>.snap  the whole Yjs document
 //   <seq>.log   the document updates since the previous key (flushed every ~1.5 s)
 //   <seq>.end   written by the control plane when the session ends (no state)
+//   <seq>.own   which audience client owns which Yjs client id (JSON): the whole map
+//               before each snapshot, what was added before each log
 //
 // A new owner reads the highest earlier epoch that holds state: its latest snapshot
-// and the logs after it. An owner that finds any key under a higher epoch has been
+// and the logs after it, and every `.own` key of that epoch. An owner that finds any key under a higher epoch has been
 // replaced (or the session ended) and stops without writing. Imports only Yjs and the
 // placement layout, so the control plane can read results with `latestState`.
 
@@ -17,7 +19,41 @@ import * as Y from "yjs";
 export const STATE_PREFIX = "live";
 const SNAP = "snap";
 const LOG = "log";
+const OWN = "own";
 export const END = "end";
+
+/** Who owns which Yjs client id: client id -> an opaque owner key. */
+export type Owners = Array<[number, string]>;
+
+/** The owners in one `.own` key; nothing for a key that does not parse. */
+function decodeOwners(bytes: Uint8Array): Owners {
+  try {
+    const body = JSON.parse(new TextDecoder().decode(bytes)) as { v?: unknown; owners?: unknown };
+    if (body.v !== 1 || !Array.isArray(body.owners)) return [];
+    return body.owners.filter(
+      (e): e is [number, string] =>
+        Array.isArray(e) && Number.isSafeInteger(e[0]) && e[0] >= 0 && typeof e[1] === "string" && e[1].length <= 64,
+    );
+  } catch {
+    return [];
+  }
+}
+
+const encodeOwners = (owners: Owners): Uint8Array => new TextEncoder().encode(JSON.stringify({ v: 1, owners }));
+
+/** Every owner recorded in the `.own` keys of the epoch `picked` comes from. An owner
+ *  never changes, so the union of all of them is the map. */
+async function readOwners(storage: StateStorage, keys: StateKey[], picked: StateKey[]): Promise<Owners> {
+  if (picked.length === 0) return [];
+  const epoch = picked[0]!.epoch;
+  const out = new Map<number, string>();
+  for (const k of keys.filter((k) => k.epoch === epoch && k.ext === OWN).sort((a, b) => a.seq - b.seq)) {
+    // gone (pruned meanwhile): a later key holds the whole map
+    const bytes = await storage.get(stateKey(k));
+    if (bytes) for (const [client, owner] of decodeOwners(bytes)) if (!out.has(client)) out.set(client, owner);
+  }
+  return [...out];
+}
 
 /** What the state layer needs from object storage. */
 export interface StateStorage {
@@ -94,6 +130,8 @@ export interface SessionStateOptions {
 export class SessionState {
   private seq = 0;
   private pending: Uint8Array[] = [];
+  /** Owners recorded since the last write of them. */
+  private newOwners: Owners = [];
   private written: Array<{ seq: number; ext: string }> = [];
   private stopped = false;
 
@@ -105,15 +143,19 @@ export class SessionState {
 
   /** Open a session's state at `epoch`: returns the state to seed from (null: none),
    *  or "stale" when a higher epoch already exists (this placement lost a race). */
-  static async open(opts: SessionStateOptions): Promise<{ state: SessionState; seed: Uint8Array | null } | "stale"> {
+  static async open(
+    opts: SessionStateOptions,
+  ): Promise<{ state: SessionState; seed: Uint8Array | null; owners: Owners } | "stale"> {
     for (let attempt = 1; ; attempt++) {
       try {
         const keys = await sessionKeys(opts.storage, opts.org, opts.session);
         if (keys.some((k) => k.epoch >= opts.epoch)) return "stale";
-        const seed = await readMerged(opts.storage, pickState(keys, opts.epoch));
+        const picked = pickState(keys, opts.epoch);
+        const seed = await readMerged(opts.storage, picked);
+        const owners = await readOwners(opts.storage, keys, picked);
         const state = new SessionState(opts);
         void state.dropOldEpochs(keys.map((k) => stateKey(k)));
-        return { state, seed };
+        return { state, seed, owners };
       } catch (err) {
         if (err instanceof MissingObject && attempt < 3) continue;
         throw err;
@@ -126,9 +168,18 @@ export class SessionState {
     if (!this.stopped) this.pending.push(update);
   }
 
-  /** Write the updates noted since the last flush as one log key. */
+  /** Record that `owner` brought Yjs client id `client` in, for the next write. */
+  noteOwner(client: number, owner: string): void {
+    if (!this.stopped) this.newOwners.push([client, owner]);
+  }
+
+  /** Write the updates noted since the last flush as one log key. The owners recorded
+   *  meanwhile go first: an owner without its content does no harm, content whose owner
+   *  is not stored would be refused to that owner after a move. */
   async flushLog(): Promise<void> {
-    if (this.stopped || this.pending.length === 0) return;
+    if (this.stopped) return;
+    await this.flushOwners();
+    if (this.pending.length === 0) return;
     const batch = this.pending;
     this.pending = [];
     try {
@@ -139,12 +190,34 @@ export class SessionState {
     }
   }
 
-  /** Write the whole document; then the logs and snapshots before the previous
-   *  snapshot are no longer needed by a load and are deleted. */
-  async snapshot(doc: Uint8Array): Promise<void> {
+  private async flushOwners(): Promise<void> {
+    if (this.newOwners.length === 0) return;
+    const batch = this.newOwners;
+    this.newOwners = [];
+    try {
+      await this.write(OWN, encodeOwners(batch));
+    } catch (err) {
+      this.newOwners = [...batch, ...this.newOwners];
+      throw err;
+    }
+  }
+
+  /** Write the whole document (and the whole owner map, before it); then the keys
+   *  before the previous snapshot are no longer needed by a load and are deleted. */
+  async snapshot(doc: Uint8Array, owners?: Owners): Promise<void> {
     if (this.stopped) return;
-    // Everything noted so far is in `doc`.
+    // Everything noted so far is in `doc` and in `owners`.
     this.pending = [];
+    if (owners) {
+      this.newOwners = [];
+      try {
+        if (owners.length > 0) await this.write(OWN, encodeOwners(owners));
+      } catch (err) {
+        // the next log flush writes them instead
+        this.newOwners = [...owners, ...this.newOwners];
+        throw err;
+      }
+    }
     await this.write(SNAP, doc);
     const snaps = this.written.filter((w) => w.ext === SNAP);
     const keep = this.opts.keepSnapshots ?? 2;
@@ -173,6 +246,7 @@ export class SessionState {
   stop(): void {
     this.stopped = true;
     this.pending = [];
+    this.newOwners = [];
   }
 
   private key(w: { seq: number; ext: string }): string {
