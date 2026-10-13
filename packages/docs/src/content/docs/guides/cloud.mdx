@@ -274,7 +274,8 @@ the deck's page to see decoded poll tallies, the Q&A backlog, and reaction total
 
 A live session keeps what the audience sends through its plugins: **poll votes**,
 **reactions**, and **Q&A questions** with their upvotes. The audience never signs in and
-there is no name field: each browser gets a random participant id, and a question is
+there is no name field: each browser gets a random participant id (kept in a cookie for
+that session's page, which expires when the session ends), and a question is
 labelled with a generated handle such as `viewer-3f2a`. The only personal data a session
 can hold is whatever a participant writes into a question.
 

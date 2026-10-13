@@ -39,7 +39,7 @@ export function Present(props: DeckProps) {
   const [capture] = useState(() => captureRequest());
   const [print] = useState(() => printRequest());
   const info = useMemo(() => (capture || print ? null : detectLive()), [capture, print]);
-  const participant = useMemo(() => getParticipantId(), []);
+  const participant = useMemo(() => getParticipantId(undefined, undefined, info?.participant), [info]);
   const theme = useTheme();
   const registry = useMemo(
     () =>

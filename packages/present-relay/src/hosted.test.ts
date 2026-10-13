@@ -195,12 +195,12 @@ describe("hosted relay: the presenter grant leaves the URL", () => {
     expect((await presenterPage(base, s.id, s.presenterToken)).status).toBe(200);
   });
 
-  test("viewer links keep their t and set no cookie; an explicit t beats the cookie", async () => {
+  test("viewer links keep their t and set no presenter cookie; an explicit t beats the cookie", async () => {
     const base = start();
     const s = await create(base);
     const viewer = await fetch(s.urls.viewer.replace(/^https?:\/\/[^/]+/, base), { redirect: "manual" });
     expect(viewer.status).toBe(200);
-    expect(viewer.headers.get("set-cookie")).toBeNull();
+    expect(viewer.headers.get("set-cookie")).not.toContain("lst_presenter_");
     const grant = new URL(s.urls.presenter).searchParams.get("t")!;
     const cookie = `lst_presenter_${s.id}=${grant}`;
     const asViewer = await fetch(`${base}/s/${s.id}?t=${s.viewerToken}`, { headers: { cookie }, redirect: "manual" });
@@ -226,6 +226,90 @@ describe("hosted relay: the presenter grant leaves the URL", () => {
       expect(await res.text()).toContain("presenter link");
     }
     expect((await fetch(`${base}/s/${s.id}`)).status).toBe(403);
+  });
+});
+
+describe("hosted relay: a viewer's participant id stays with its browser", () => {
+  const participantOf = async (res: Response) => /"participant":"([^"]*)"/.exec(await res.text())?.[1];
+  const viewerCookieOf = (res: Response, id: string) =>
+    res.headers
+      .get("set-cookie")
+      ?.split(/,(?=\s*lst_)/)
+      .find((c) => c.trim().startsWith(`lst_viewer_${id}=`));
+  const local = (u: string, base: string) => u.replace(/^https?:\/\/[^/]+/, base);
+
+  test("a viewer page issues a participant id in a session-scoped cookie and the bootstrap", async () => {
+    const base = start();
+    const s = await create(base);
+    const res = await fetch(local(s.urls.viewer, base));
+    expect(res.status).toBe(200);
+    const cookie = viewerCookieOf(res, s.id)!;
+    const id = /^lst_viewer_[^=]+=([^;]+);/.exec(cookie)![1]!;
+    expect(id).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(cookie).toContain(`Path=/s/${s.id}`);
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("SameSite=Lax");
+    // Ends with the grant: the signed viewer grant carries the session's end.
+    const maxAge = Number(/Max-Age=(\d+)/.exec(cookie)![1]);
+    const exp = s.expiresAt as number;
+    expect(Math.abs(maxAge - (exp - Date.now()) / 1000)).toBeLessThan(5);
+    expect(await participantOf(res)).toBe(id);
+  });
+
+  test("the same browser coming back (reload, re-scan) keeps its id; another browser gets its own", async () => {
+    const base = start();
+    const s = await create(base);
+    const first = await fetch(local(s.urls.viewer, base));
+    const id = await participantOf(first);
+    const cookie = viewerCookieOf(first, s.id)!.split(";")[0]!;
+    // Re-opening the join link in the same browser: the cookie comes along.
+    const again = await fetch(local(s.urls.viewer, base), { headers: { cookie } });
+    expect(await participantOf(again)).toBe(id);
+    expect(viewerCookieOf(again, s.id)).toStartWith(`${cookie};`); // refreshed, same id
+    // The address copied into a chat and opened on another device: no cookie, new id.
+    const copied = await fetch(`${local(s.urls.viewer, base)}&pid=${id}`);
+    const other = await participantOf(copied);
+    expect(other).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(other).not.toBe(id);
+  });
+
+  test("a malformed or foreign viewer cookie is not used", async () => {
+    const base = start();
+    const s = await create(base);
+    const other = await create(base);
+    for (const cookie of [
+      `lst_viewer_${s.id}=short`,
+      `lst_viewer_${s.id}=${"x".repeat(65)}`,
+      `lst_viewer_${s.id}=a"b<script>x`,
+      `lst_viewer_${other.id}=another-session-0001`,
+    ]) {
+      const id = await participantOf(await fetch(local(s.urls.viewer, base), { headers: { cookie } }));
+      expect(id).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+      expect(id).not.toBe("another-session-0001");
+    }
+  });
+
+  test("the viewer cookie never stands for a role, and a presenter page gets none", async () => {
+    const base = start();
+    const s = await create(base);
+    const first = await fetch(local(s.urls.viewer, base));
+    const cookie = viewerCookieOf(first, s.id)!.split(";")[0]!;
+    const bare = await fetch(`${base}/s/${s.id}`, { headers: { cookie } });
+    expect(bare.status).toBe(403);
+    const grant = new URL(s.urls.presenter).searchParams.get("t")!;
+    const presenter = await presenterPage(base, s.id, grant);
+    expect(presenter.headers.get("set-cookie")).toBeNull();
+    expect(await participantOf(presenter)).toBe("");
+  });
+
+  test("the cookie's lifetime follows the viewer grant it came with", async () => {
+    const base = start();
+    const s = await create(base);
+    const short = mintGrant({ session: s.id, role: "viewer", exp: Date.now() + 120_000 }, TOKEN);
+    const res = await fetch(`${base}/s/${s.id}?t=${short}`);
+    const maxAge = Number(/Max-Age=(\d+)/.exec(viewerCookieOf(res, s.id)!)![1]);
+    expect(maxAge).toBeGreaterThan(110);
+    expect(maxAge).toBeLessThanOrEqual(120);
   });
 });
 

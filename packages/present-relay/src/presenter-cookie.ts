@@ -86,3 +86,52 @@ export function deniedPage(hadUrlToken: boolean): Response {
     : "This presenter page needs its link again. Open the presenter link where you started the talk, or scan the presenter QR code again.";
   return new Response(text, { status: 403, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": NO_STORE } });
 }
+
+// Each audience browser keeps its own participant id in a cookie as well.
+//
+// Poll votes and Q&A upvotes are keyed by the participant id. The deck cannot keep
+// the id in storage (opaque sandbox), and kept in the tab's address instead, a copied
+// link (pasted into a meeting chat) would let a second person vote as the first, while
+// a second scan of the join code would vote again. So the relay keeps the id in a
+// cookie and hands it to the page in the bootstrap: a reload or a re-scan on the same
+// device brings the cookie back and keeps the id, a copied address opened on another
+// device has no cookie and gets a fresh id. The id is random and not secret (votes are
+// keyed by it in the shared doc anyway), so this cookie never stands for a role: the
+// page's token still comes from `?t=` or the presenter cookie alone.
+
+/** Name of the cookie that holds this browser's participant id in session `id`.
+ *  Callers pass the id of a session they found, never raw request input. */
+export function viewerCookie(id: string): string {
+  return `lst_viewer_${id}`;
+}
+
+/** The ids the engine accepts as a participant id (its own check); anything else in
+ *  the cookie is replaced by a fresh id rather than echoed into the page. */
+const PARTICIPANT = /^[A-Za-z0-9_-]{8,64}$/;
+
+/** The participant id of the browser behind a viewer page request, and the
+ *  `Set-Cookie` that keeps it: the id in its cookie for this session, or a fresh one.
+ *  The cookie is set again on every load, so its lifetime follows the latest grant.
+ *  `path` is the page's path (the cookie reaches nothing else), `secure` whether the
+ *  browser reached us over https, `endsAt` when the session ends (unix ms): the cookie
+ *  goes with it. */
+export function viewerIdentity(
+  cookieHeader: string | null | undefined,
+  id: string,
+  path: string,
+  secure: boolean,
+  endsAt: number,
+  now = Date.now(),
+): { participant: string; setCookie: string } {
+  const kept = readCookie(cookieHeader, viewerCookie(id));
+  const participant = kept && PARTICIPANT.test(kept) ? kept : crypto.randomUUID();
+  const attrs = [
+    `${viewerCookie(id)}=${participant}`,
+    `Path=${path}`,
+    `Max-Age=${Math.max(0, Math.ceil((endsAt - now) / 1000))}`,
+    "HttpOnly",
+    "SameSite=Lax",
+    ...(secure ? ["Secure"] : []),
+  ];
+  return { participant, setCookie: attrs.join("; ") };
+}

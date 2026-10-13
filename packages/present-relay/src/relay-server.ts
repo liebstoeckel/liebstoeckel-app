@@ -12,7 +12,7 @@ import {
 } from "@liebstoeckel/live-server";
 import { bearer, matchAccount, safeEqual } from "./auth";
 import { mintGrant, verifyGrant } from "./grant";
-import { NO_STORE, deniedPage, pageToken, presenterRedirect } from "./presenter-cookie";
+import { NO_STORE, deniedPage, pageToken, presenterRedirect, viewerIdentity } from "./presenter-cookie";
 import { closeReason, createRelayMetrics } from "./metrics";
 import { containerMemoryLimit, memoryRoom, MEMORY_CEILING_SHARE } from "./memory";
 import { withSpan, SpanKind, ctxFromHeaders } from "./tracing";
@@ -612,7 +612,8 @@ export function createRelay(opts: RelayOptions): RelayServer {
   // same page without `t`, so the grant never stays in the address bar or the history of
   // a tab that may be projected or screen-shared. Reloads and the `P` pop-out then come
   // back with the cookie (or with `t` again, which repeats the exchange). Viewer links
-  // keep their `t`: they are meant to be shared.
+  // keep their `t`: they are meant to be shared. A viewer page sets a cookie of its own
+  // that keeps the browser's participant id, never a role.
   const serveDeck = (req: Request, url: URL, id: string): Response => {
     const s = sessions.get(id);
     const { token, fromCookie } = s ? pageToken(url, req.headers.get("cookie"), s.id) : { token: null, fromCookie: false };
@@ -623,7 +624,15 @@ export function createRelay(opts: RelayOptions): RelayServer {
       return deniedPage(url.searchParams.has("t"));
     }
     const { http, ws } = originOf(req, opts);
-    if (role === "presenter" && !fromCookie) return presenterRedirect(url, s.id, token, http.startsWith("https:"));
+    const secure = http.startsWith("https:");
+    if (role === "presenter" && !fromCookie) return presenterRedirect(url, s.id, token, secure);
+    // A viewer's participant id (what its votes are keyed by) stays with the browser, not
+    // the address: a copied link opened elsewhere is a new participant, a reload or a
+    // re-scan here is the same one. The cookie ends with the grant (or the session).
+    const now = Date.now();
+    const endsAt = verifyGrant(token, s.account, now)?.exp ?? s.createdAt + s.ttlMs;
+    const identity =
+      role === "viewer" ? viewerIdentity(req.headers.get("cookie"), s.id, url.pathname, secure, endsAt, now) : null;
     const wsUrl = `${ws}/sync/${s.id}?t=${token}`;
     const viewer = `${http}/s/${s.id}?t=${s.session.viewerToken}`;
     // Free-tier provenance badge on the public audience view ((internal ADR)); paid
@@ -634,7 +643,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       session: s.id,
       role,
       token,
-      participant: "",
+      participant: identity?.participant ?? "",
       viewer,
       ...(s.audienceInputKeptDays ? { audienceInputKeptDays: s.audienceInputKeptDays } : {}),
     });
@@ -665,6 +674,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         // and the page holds a grant in its bootstrap: never cache it.
         "cache-control": NO_STORE,
         vary: "Cookie",
+        ...(identity ? { "set-cookie": identity.setCookie } : {}),
       },
     });
   };

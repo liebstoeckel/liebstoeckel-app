@@ -87,6 +87,35 @@ describe("getParticipantId", () => {
     }
   });
 
+  test("an id issued by the server wins and keeps the URL free of ids", () => {
+    const store = memStore();
+    store.m.set("liebstoeckel:pid", "stored-id-0001");
+    const url = urlSlot("https://relay.example/s/abc?t=tok#presenter");
+    expect(getParticipantId(store, url, "issued-id-0001")).toBe("issued-id-0001");
+    expect(getParticipantId(deniedStore, url, "issued-id-0001")).toBe("issued-id-0001");
+    expect(url.writes).toBe(0); // nothing to copy along with the address
+    expect(url.href).toBe("https://relay.example/s/abc?t=tok#presenter");
+  });
+
+  test("an issued id removes a participant id an older copied link left in the URL", () => {
+    // Someone pasted their own tab's address (with its `pid`) into a chat: the receiver's
+    // browser has its own issued id and must not keep the sender's in its address bar.
+    const url = urlSlot("https://relay.example/s/abc?t=tok&pid=sender-0001#x");
+    expect(getParticipantId(deniedStore, url, "receiver-0001")).toBe("receiver-0001");
+    expect(url.writes).toBe(1);
+    const cleaned = new URL(url.href);
+    expect(cleaned.searchParams.has("pid")).toBe(false);
+    expect(cleaned.searchParams.get("t")).toBe("tok");
+    expect(cleaned.hash).toBe("#x");
+  });
+
+  test("an empty or malformed issued id falls back to the per-tab id", () => {
+    for (const bad of ["", "short", "has space here", "x".repeat(65)]) {
+      const url = urlSlot("https://h/s/x?pid=from-url-0001");
+      expect(getParticipantId(deniedStore, url, bad)).toBe("from-url-0001");
+    }
+  });
+
   test("a URL that can't be rewritten still yields an ephemeral id", () => {
     const url = {
       read: () => "https://h/s/x?t=tok",

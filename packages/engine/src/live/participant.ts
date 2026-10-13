@@ -87,20 +87,43 @@ function attempt<T>(fn: () => T, fallback: T): T {
   }
 }
 
-/** Stable id for this browser tab (one tab = one participant), so a reload keeps
- *  identity and doesn't count a vote twice. Resolution order:
+/** `href` without the participant id, or null when it carries none. */
+function withoutParticipantInHref(href: string): string | null {
+  const url = new URL(href);
+  if (!url.searchParams.has(PARAM)) return null;
+  url.search = withoutParticipant(url.search);
+  return url.href;
+}
+
+/** Stable id for this participant, so a reload keeps identity and doesn't count a
+ *  vote twice. Resolution order:
  *
- *  1. an id in the page URL (`?pid=`), used verbatim;
- *  2. sessionStorage;
- *  3. a freshly minted id.
+ *  1. the id the server issued with the page (`issued`), used verbatim;
+ *  2. an id in the page URL (`?pid=`), used verbatim;
+ *  3. sessionStorage;
+ *  4. a freshly minted id.
  *
- *  When storage can't hold the id (an opaque-origin sandbox denies it), the id is
- *  written into this tab's URL instead, in place and without a reload, so the next
- *  reload finds it at step 1. Links handed to an audience never carry an id: each
- *  viewer's tab gets its own on first load. */
-export function getParticipantId(storage?: Store, url?: UrlSlot): string {
-  const store = storage ?? safeSessionStorage();
+ *  A hosting relay issues the id from a cookie of its own, so it stays with the
+ *  browser: a reload or a second scan of the join code on the same device keeps it,
+ *  while a copied address opened elsewhere gets a new one. The URL then carries no
+ *  id, and one left there by an older link is removed, so a copy can't pass it on.
+ *
+ *  Without an issued id (a LAN server, the dev server, an older relay), one tab is
+ *  one participant: when storage can't hold the id (an opaque-origin sandbox denies
+ *  it), the id is written into this tab's URL instead, in place and without a
+ *  reload, so the next reload finds it at step 2. Links handed to an audience never
+ *  carry an id: each viewer's tab gets its own on first load. */
+export function getParticipantId(storage?: Store, url?: UrlSlot, issued?: string): string {
   const slot = url ?? pageUrl();
+  if (issued && VALID.test(issued)) {
+    if (slot) {
+      const clean = attempt(() => withoutParticipantInHref(slot.read()), null);
+      if (clean) attempt(() => slot.write(clean), undefined);
+    }
+    return issued;
+  }
+
+  const store = storage ?? safeSessionStorage();
   const href = slot ? attempt(() => slot.read(), "") : "";
 
   const fromUrl = href ? participantFromUrl(href) : null;
