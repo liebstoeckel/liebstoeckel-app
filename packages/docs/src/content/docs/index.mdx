@@ -2,12 +2,12 @@
 # the splash hero renders the visible H1 (hero.title); this `title` only feeds
 # <title>/og:title, so make it descriptive — bare "liebstoeckel" would render as
 # the keyword-empty "liebstoeckel | liebstoeckel" on the site's most valuable page
-title: Code-first presentations that talk back
-description: A code-first presentation engine that builds animated, single-file HTML decks (no server needed) on Bun + React 19 + Motion + Tailwind v4.
+title: "Live, programmable presentations: present with the room"
+description: A code-first presentation framework for talks with a live room. Every phone in the room shares one state with your screen; polls, Q&A and reactions are built in, and any other interaction is a plugin.
 template: splash
 hero:
-  title: Code-first presentations that <span class="ul">talk&nbsp;back</span>
-  tagline: Author decks in MDX and TSX. The engine compiles them into one self-contained HTML file that presents offline, runs live sessions with polls and Q&A, and your agent can write it too, as real source you own.
+  title: Present with the <span class="ul">room</span>
+  tagline: Live, programmable presentations. Your deck runs on every phone in the room, and they all share one state, so a vote, a question or a move in a game shows up on every screen as it happens. Polls, Q&A and reactions are built in; anything else is a plugin, written by you or your coding agent.
   actions:
     - text: Get started
       link: /guides/getting-started/
@@ -18,11 +18,26 @@ hero:
 
 ## Why liebstoeckel
 
-liebstoeckel is a small, opinionated **engine + theming layer**, not another reveal.js: content is authored in MDX/TSX, design lives in one place per brand, and motion is first-class.
+liebstoeckel is a code-first presentation framework built around the live room: decks are MDX and TSX, a live session gives every phone one shared state, and any interaction is a plugin. The same deck builds to one HTML file that presents offline and turns back into a project.
 
 <dl class="home-ledger">
   <div class="lrow">
-    <dt>Single-file output</dt>
+    <dt>One state for the whole room</dt>
+    <dd>Run a deck live and the room joins by QR, no app and no account. Every phone shares one Yjs state with your screen: polls, audience Q&A and reactions update everywhere as they happen. Unhosted, plugins render a quiet fallback.</dd>
+    <a class="lrow-link" href="/guides/live/">guides/live <span aria-hidden="true">&rarr;</span></a>
+  </div>
+  <div class="lrow">
+    <dt>Any interaction is a plugin</dt>
+    <dd><code>definePlugin</code> takes a typed schema for the shared state and React for the views. A quiz, a vote that redraws a diagram, a game the room plays: write it yourself or have your agent write it.</dd>
+    <a class="lrow-link" href="/plugins/building-a-plugin/">plugins/building-a-plugin <span aria-hidden="true">&rarr;</span></a>
+  </div>
+  <div class="lrow">
+    <dt>Written as source, with any agent</dt>
+    <dd><code>liebstoeckel skill install --global</code> teaches your coding agent (Claude Code, Codex, Cursor, Gemini) the same CLI you use and the plugin SDK: it reads the component registry, writes MDX and TSX you own, and loops on <code>build --check</code> until the deck is green.</dd>
+    <a class="lrow-link" href="/reference/cli/">reference/cli <span aria-hidden="true">&rarr;</span></a>
+  </div>
+  <div class="lrow">
+    <dt>One file, still editable</dt>
     <dd>Every deck builds to one portable <code>.html</code>: JS and CSS inlined, assets base64'd. No server, no CDN. It drops into an email, a USB stick, an air-gapped room. And it isn't a dead end: <code>liebstoeckel eject</code> turns a built file back into an editable project.</dd>
     <a class="lrow-link" href="/guides/building/">guides/building <span aria-hidden="true">&rarr;</span></a>
   </div>
@@ -35,16 +50,6 @@ liebstoeckel is a small, opinionated **engine + theming layer**, not another rev
     <dt>Brands, not styles</dt>
     <dd>A deck declares <code>brand: "acme"</code> and inherits the whole look from typed design tokens. Override one token for a one-off without forking the theme.</dd>
     <a class="lrow-link" href="/guides/theming/">guides/theming <span aria-hidden="true">&rarr;</span></a>
-  </div>
-  <div class="lrow">
-    <dt>Decks that talk back</dt>
-    <dd>Host the same file and it opens a live Yjs session: polls, audience Q&A, and reactions sync to every device in the room. Unhosted, plugins render a quiet fallback.</dd>
-    <a class="lrow-link" href="/guides/live/">guides/live <span aria-hidden="true">&rarr;</span></a>
-  </div>
-  <div class="lrow">
-    <dt>Built for agents</dt>
-    <dd><code>liebstoeckel skill install --global</code> teaches your agent the same CLI you use: it reads the component registry, writes MDX and TSX you own, and loops on <code>build --check</code> until the deck is green.</dd>
-    <a class="lrow-link" href="/reference/cli/">reference/cli <span aria-hidden="true">&rarr;</span></a>
   </div>
   <div class="lrow">
     <dt>Mobile-ready</dt>

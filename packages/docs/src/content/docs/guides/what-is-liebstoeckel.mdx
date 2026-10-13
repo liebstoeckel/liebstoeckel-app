@@ -1,30 +1,32 @@
 ---
 title: What is liebstoeckel?
-description: A code-first presentation engine for animated, single-file HTML decks, and the philosophy behind it.
+description: Live, programmable presentations. A code-first framework where every phone in the room shares one state with your screen, any interaction is a plugin, and the deck builds to one HTML file.
 ---
 
 import { CardGrid, Card, LinkCard } from "@astrojs/starlight/components";
 
-**liebstoeckel** is a code-first presentation engine. You author slides in **MDX** (prose) and **TSX** (anything interactive), theme them from one central place, and ship a single portable `.html` file per deck.
+**liebstoeckel** is a code-first framework for presenting with the room. Your deck runs on every phone in the room, and they all share one state with your screen: a vote, a question or a move in a game shows up on every screen as it happens. Polls, Q&A and reactions are built in. Anything else is a plugin, written by you or your coding agent.
 
-It is built on **Bun + React 19 + Motion + Tailwind v4**, authored in **MDX + TSX**, and themed from **one place** so the same engine can ship many presentations under the same or different corporate brands.
+You author slides in **MDX** (prose) and **TSX** (anything interactive), theme them from one central place, and build each deck into one portable `.html` that presents offline, goes live with `liebstoeckel live`, and turns back into a project with `liebstoeckel eject`. It runs on **Bun + React 19 + Motion + Tailwind v4**, with **Yjs** for the shared state.
 
 ## What makes it different
 
 <CardGrid>
-  <Card title="One portable file" icon="document">
+  <Card title="One state for the whole room" icon="comment">
+    `liebstoeckel live` turns a deck into a session: the room joins by QR, no app and no account, and every device shares one CRDT (Yjs) state, pushed to all of them as it changes. Your own network by default; a [relay](/guides/relay/) reaches the internet.
+  </Card>
+  <Card title="Any interaction is a plugin" icon="puzzle">
+    A plugin is a typed schema for the shared state plus React for the views (`definePlugin`). Poll, Q&A and reactions ship built in; a quiz, a vote that redraws a diagram or a game the room plays are plugins you write. Offline, plugins render a fallback.
+  </Card>
+  <Card title="Written as source, with any agent" icon="rocket">
+    The CLI works for a coding agent as well as a person: `--json` output, a readable component registry, `build --check` for validation without an artifact, and `liebstoeckel skill install --global` to teach Claude Code, Codex, Cursor or Gemini the workflow and the plugin SDK.
+  </Card>
+  <Card title="One file, still editable" icon="document">
     `liebstoeckel build` produces a single `.html` with JS, CSS, and assets inlined. No server, no CDN. The file also embeds the deck's own source by default, so `liebstoeckel eject` can turn it back into an editable project.
   </Card>
-  <Card title="Live sessions" icon="comment">
-    An optional live server turns the same file into a shared session: a CRDT (Yjs) syncs state across every device, and a plugin system adds polls, Q&A, and reactions. Offline, plugins render a fallback.
-  </Card>
-  <Card title="Built for agents" icon="rocket">
-    The CLI works for a coding agent as well as a person: `--json` output, a readable component registry, `build --check` for validation without an artifact, and `liebstoeckel skill install --global` to teach the agent the workflow.
-  </Card>
-  <Card title="Design lives in one place" icon="setting">
-    A brand is one typed token object: colors, fonts, spacing, motion, backgrounds. Slides reference *semantic* tokens (`primary`, not `blue-500`), so a deck re-skins by switching `data-brand`.
-  </Card>
 </CardGrid>
+
+Design lives in one place too: a brand is one typed token object (colors, fonts, spacing, motion, backgrounds), and slides reference *semantic* tokens (`primary`, not `blue-500`), so a deck re-skins by switching `data-brand`. See [Theming](/guides/theming/).
 
 ## Who it's for
 
