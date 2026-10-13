@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
 import { pluginState } from "@liebstoeckel/plugin-sdk";
-import { pollSchema, tally, totalVotes, myVote, leader, type PollState } from "./logic";
+import { pollSchema, tally, totalVotes, votesLabel, myVote, leader, type PollState } from "./logic";
 
 const make = (over: Partial<PollState> = {}): PollState => ({
   question: "Q?",
@@ -25,6 +25,11 @@ describe("tally", () => {
     const s = make({ votes: { p1: "Z", p2: "A" } });
     expect(totalVotes(s)).toBe(1);
     expect(tally(s)[0]).toEqual({ option: "A", count: 1, pct: 100 });
+  });
+  test("labels the count in the singular for one vote", () => {
+    expect(votesLabel(0)).toBe("0 votes");
+    expect(votesLabel(1)).toBe("1 vote");
+    expect(votesLabel(2)).toBe("2 votes");
   });
   test("empty → zero pcts", () => {
     expect(tally(make()).every((r) => r.pct === 0)).toBe(true);

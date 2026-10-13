@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { definePlugin, type ClientProps } from "@liebstoeckel/plugin-sdk";
 import { Bar, Button, Card, Eyebrow, RefusalNote, Stack } from "@liebstoeckel/plugin-ui";
-import { pollSchema, tally, totalVotes, myVote, leader, type PollState } from "./logic";
+import { pollSchema, tally, totalVotes, votesLabel, myVote, leader, type PollState } from "./logic";
 
 // Seed the question/options from author props once (presenter owns init).
 function useSeed(p: ClientProps<PollState>) {
@@ -46,7 +46,7 @@ function PollSlide(p: ClientProps<PollState>) {
   };
   return (
     <Card style={{ width: "100%", maxWidth: 460 }}>
-      <Eyebrow>Live poll · {connecting ? "connecting…" : `${totalVotes(snapshot)} votes`}</Eyebrow>
+      <Eyebrow>Live poll · {connecting ? "connecting…" : votesLabel(totalVotes(snapshot))}</Eyebrow>
       <div style={{ fontFamily: "var(--brand-font-heading, serif)", fontSize: "1.9rem", fontWeight: 600, marginBottom: "1.1rem" }}>
         {snapshot.question || "…"}
       </div>
@@ -88,7 +88,7 @@ function PollConsole(p: ClientProps<PollState>) {
   }
   return (
     <Card>
-      <Eyebrow>Results · {totalVotes(snapshot)} votes{snapshot.closed ? " · closed" : ""}</Eyebrow>
+      <Eyebrow>Results · {votesLabel(totalVotes(snapshot))}{snapshot.closed ? " · closed" : ""}</Eyebrow>
       <Results {...p} />
       {role === "presenter" && (
         <div style={{ marginTop: "1.2rem" }}>

@@ -31,6 +31,9 @@ export function tally(state: PollState): TallyRow[] {
 export const totalVotes = (state: PollState): number =>
   Object.values(state.votes).filter((c) => state.options.includes(c)).length;
 
+/** The vote count as the room reads it: "1 vote", "3 votes". */
+export const votesLabel = (n: number): string => `${n} ${n === 1 ? "vote" : "votes"}`;
+
 /** The option this participant currently has selected, if any. */
 export const myVote = (state: PollState, participantId: string): string | undefined =>
   state.votes[participantId];
