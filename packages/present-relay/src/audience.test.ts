@@ -104,18 +104,18 @@ describe("the audience count presenters hear", () => {
 });
 
 describe("the count and peak the control plane reads", () => {
-  test("GET /api/sessions/:id: count, peak and cap, for the owning account only", async () => {
+  test("GET /api/sessions/:id: count, peak, cap and end, for the owning account only", async () => {
     const base = start();
     const s = await create(base, { "x-audience-cap": "5" });
     const sync = `${base.replace("http", "ws")}/sync/${s.id}`;
     const read = (token = TOKEN) => fetch(`${base}/api/sessions/${s.id}`, { headers: { authorization: `Bearer ${token}` } });
-    expect(await (await read()).json()).toEqual({ audience: 0, peak: 0, cap: 5 });
+    expect(await (await read()).json()).toEqual({ audience: 0, peak: 0, cap: 5, expiresAt: s.expiresAt });
     const a = await listen(`${sync}?t=${s.viewerGrant}&v=3`);
     await listen(`${sync}?t=${s.viewerGrant}&v=3`);
     await until(() => relay!.sessions.get(s.id!)!.count.n === 2);
     a.ws.close();
     await until(() => relay!.sessions.get(s.id!)!.count.n === 1);
-    expect(await (await read()).json()).toEqual({ audience: 1, peak: 2, cap: 5 });
+    expect(await (await read()).json()).toEqual({ audience: 1, peak: 2, cap: 5, expiresAt: s.expiresAt });
     expect((await read(OTHER)).status).toBe(404);
     expect((await fetch(`${base}/api/sessions/${s.id}`)).status).toBe(401);
     expect((await fetch(`${base}/api/sessions/nope`, { headers: { authorization: `Bearer ${TOKEN}` } })).status).toBe(404);

@@ -132,7 +132,7 @@ in the room:
 | **Offline** (the device has no network) | A line in the corner: *Offline. What you send goes out once the connection is back.* A vote made now says *Sending your vote* instead of *Vote received*, and goes out on reconnect. |
 | **Reconnecting** for longer than about 5 seconds | *Reconnecting* in the corner, until the connection is back. Shorter drops show nothing. |
 | **Session full** (the audience cap is reached) | A full-screen card: *This session is full*, with a suggestion to follow on the main screen and a **Try again** button. The page does not keep knocking by itself. |
-| **Talk ended** (the presenter ended the session) | A card: *The talk has ended. Thanks for joining.* **Back to the slides** shows the deck as the talk left it, with what the plugins showed (a poll's results, if its `results` setting shows them to that viewer). Nothing can be sent any more. |
+| **Talk ended** (the presenter ended the session, or its time ran out) | A card: *The talk has ended. Thanks for joining.* **Back to the slides** shows the deck as the talk left it, with what the plugins showed (a poll's results, if its `results` setting shows them to that viewer). Nothing can be sent any more. |
 | **Out of date** | *Out of date, reload* in the corner, when the page is older than the server it talks to supports. A reload loads a current one. |
 
 In the cloud, the audience link (`/live/<code>`) answers with a small page of its own when

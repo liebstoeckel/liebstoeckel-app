@@ -79,6 +79,12 @@ Three token layers keep roles separated:
 
 The relay enforces per-account quotas (max concurrent sessions, max deck bytes, session TTL, inbound frame caps) and keeps docs in memory only (ephemeral, for privacy).
 
+A session lasts 6 hours unless whoever creates it asks for a length with the
+`x-session-ttl-ms` header (milliseconds). The relay keeps a requested length up to 24 hours
+and cuts a longer one to 24 hours. Embedding the relay with `createRelay`, `sessionTtlMs`
+sets the default and `maxSessionTtlMs` the ceiling; a relay given only `sessionTtlMs` uses
+it as the ceiling too.
+
 <Aside type="tip" title="Production">
 Local dev is plain `ws://`. For public use, terminate **TLS at a proxy** and pass `--public-url https://…` so links and the WebSocket use `wss://`.
 </Aside>

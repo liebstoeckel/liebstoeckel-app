@@ -1,6 +1,6 @@
 import { test, expect, describe, afterEach } from "bun:test";
 import * as Y from "yjs";
-import { createRelay, type RelayServer, type RelayStorage } from "./relay-server";
+import { createRelay, MAX_SESSION_TTL_MS, type RelayServer, type RelayStorage } from "./relay-server";
 import { mintGrant } from "./grant";
 import { CLOSE } from "@liebstoeckel/live-server/placement/protocol";
 
@@ -328,15 +328,53 @@ describe("hosted relay: plan limits ((internal ADR))", () => {
     expect(lifetime).toBeGreaterThan(30_000);
   });
 
-  test("a requested TTL can't exceed the relay max (clamped)", async () => {
+  const HOUR = 60 * 60 * 1000;
+  const lifetimeOf = async (base: string, ttl?: number) => {
+    const s = await create(base, ttl === undefined ? {} : { "x-session-ttl-ms": String(ttl) });
+    return { id: s.id as string, ms: (s.expiresAt as number) - Date.now() };
+  };
+
+  test("a plan's duration is kept: 8 h for Pro, 24 h for Team", async () => {
+    const base = start();
+    for (const hours of [8, 24]) {
+      const { ms } = await lifetimeOf(base, hours * HOUR);
+      expect(ms).toBeLessThanOrEqual(hours * HOUR);
+      expect(ms).toBeGreaterThan(hours * HOUR - 5_000);
+    }
+  });
+
+  test("a requested duration above the bound is cut to 24 h", async () => {
+    const base = start();
+    const { ms } = await lifetimeOf(base, 48 * HOUR);
+    expect(MAX_SESSION_TTL_MS).toBe(24 * HOUR);
+    expect(ms).toBeLessThanOrEqual(MAX_SESSION_TTL_MS);
+    expect(ms).toBeGreaterThan(MAX_SESSION_TTL_MS - 5_000);
+  });
+
+  test("a configured bound holds too", async () => {
+    const base = start({ maxSessionTtlMs: 60_000 });
+    const { ms } = await lifetimeOf(base, 999_999_999);
+    expect(ms).toBeLessThanOrEqual(60_000);
+  });
+
+  test("a relay set to one lifetime keeps it as the ceiling", async () => {
     const base = start({ sessionTtlMs: 60_000 });
-    const r = await fetch(`${base}/api/sessions`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${TOKEN}`, "content-type": "text/html", "x-session-ttl-ms": "999999999" },
-      body: DECK,
-    });
-    const body = await r.json();
-    expect(body.expiresAt - Date.now()).toBeLessThanOrEqual(60_000 + 2000); // clamped to max
+    const { ms } = await lifetimeOf(base, 8 * HOUR);
+    expect(ms).toBeLessThanOrEqual(60_000);
+  });
+
+  test("a session that asks for no duration gets the relay default (6 h)", async () => {
+    const base = start();
+    const { ms } = await lifetimeOf(base);
+    expect(ms).toBeLessThanOrEqual(6 * HOUR);
+    expect(ms).toBeGreaterThan(6 * HOUR - 5_000);
+  });
+
+  test("the session info reports when the session ends", async () => {
+    const base = start();
+    const s = await create(base, { "x-session-ttl-ms": String(24 * HOUR) });
+    const info = await fetch(`${base}/api/sessions/${s.id}`, { headers: { authorization: `Bearer ${TOKEN}` } }).then((r) => r.json());
+    expect(info.expiresAt).toBe(s.expiresAt);
   });
 
   test("the audience cap rejects the (cap+1)th audience peer; presenter is never capped", async () => {

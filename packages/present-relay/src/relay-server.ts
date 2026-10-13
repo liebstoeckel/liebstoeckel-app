@@ -63,8 +63,14 @@ export interface RelayOptions {
   maxDeckBytes?: number;
   /** max concurrent sessions per account */
   maxSessionsPerAccount?: number;
-  /** session lifetime; the doc + tokens are dropped after this */
+  /** lifetime of a session that names none (`x-session-ttl-ms` absent); the doc and
+   *  tokens are dropped after this */
   sessionTtlMs?: number;
+  /** the longest lifetime a session may ask for with `x-session-ttl-ms`; a longer
+   *  request is cut to this. Defaults to `sessionTtlMs` when that is set (a relay
+   *  configured with one lifetime keeps it as the ceiling too), else to
+   *  `MAX_SESSION_TTL_MS` (24 h). */
+  maxSessionTtlMs?: number;
   /** inbound WS frame cap */
   maxFrameBytes?: number;
   /** keepalive period for each session Hub */
@@ -228,6 +234,11 @@ const hex = (bytes = 16): string => {
   return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
 };
 
+/** The longest a session may run (24 h): the longest live session any plan sells.
+ *  The control plane asks for each session's plan duration, and the relay keeps it up
+ *  to this bound. */
+export const MAX_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
 const DEFAULTS = {
   maxDeckBytes: 8 * 1024 * 1024,
   // Per-pod safety valve, NOT the platform ceiling ((internal ADR) §2 / (internal ticket)): real
@@ -303,7 +314,7 @@ function resolveRole(s: RelaySession, token: string | null, now: number): Role |
  *  and a token-gated Yjs WebSocket per session. Decks run their code locally (the
  *  runner connects as a privileged peer); the relay only relays + serves bytes. */
 export function createRelay(opts: RelayOptions): RelayServer {
-  const cfg = { ...DEFAULTS, ...opts };
+  const cfg = { ...DEFAULTS, ...opts, maxSessionTtlMs: opts.maxSessionTtlMs ?? opts.sessionTtlMs ?? MAX_SESSION_TTL_MS };
   if (!opts.accountTokens.length) throw new Error("createRelay: at least one account token is required");
   const sessions = new Map<string, RelaySession>();
   const limit = containerMemoryLimit();
@@ -528,11 +539,11 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // and names the object-storage key its Yjs snapshot persists to.
     const enforce = req.headers.get("x-live-enforce") === "1";
     const snapshotKey = req.headers.get("x-snapshot-key") || undefined;
-    // Plan limits the control plane passes per session ((internal ADR)): the duration
-    // (so a free session's link dies on time, not at the relay's 6h default) and
-    // the audience cap. TTL is clamped to the relay max; absent → relay default.
+    // Plan limits the control plane passes per session: the duration (a free session
+    // ends after its hour, a Team session runs its full day) and the audience cap. A
+    // requested duration is kept up to the relay's bound; none asked, the relay default.
     const reqTtl = Number(req.headers.get("x-session-ttl-ms") ?? "");
-    const ttlMs = Number.isFinite(reqTtl) && reqTtl > 0 ? Math.min(reqTtl, cfg.sessionTtlMs) : cfg.sessionTtlMs;
+    const ttlMs = Number.isFinite(reqTtl) && reqTtl > 0 ? Math.min(reqTtl, cfg.maxSessionTtlMs) : cfg.sessionTtlMs;
     const capHdr = Number(req.headers.get("x-audience-cap") ?? "");
     const audienceCap = Number.isFinite(capHdr) && capHdr > 0 ? capHdr : undefined;
     const watermark = req.headers.get("x-watermark") === "1";
@@ -889,13 +900,18 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // placement. `?reason=moved` (another pod took over) stores nothing and closes
     // sockets with `moved`; otherwise the session ended: final state, then `ended`.
     const del = pathname.match(/^\/api\/sessions\/([^/]+)$/);
-    // How many are connected to a session, the most at once, and its cap.
+    // How many are connected to a session, the most at once, its cap, and when it ends.
     if (del && req.method === "GET") {
       const account = matchAccount(cfg.accountTokens, bearer(req));
       if (!account) return json({ error: "unauthorized" }, 401);
       const s = sessions.get(del[1]!);
       if (!s || s.account !== account || s.closing) return json({ error: "not found" }, 404);
-      return json({ audience: s.count.n, peak: s.count.peak, ...(s.audienceCap !== undefined ? { cap: s.audienceCap } : {}) });
+      return json({
+        audience: s.count.n,
+        peak: s.count.peak,
+        ...(s.audienceCap !== undefined ? { cap: s.audienceCap } : {}),
+        expiresAt: s.createdAt + s.ttlMs,
+      });
     }
     if (del && req.method === "DELETE") {
       const account = matchAccount(cfg.accountTokens, bearer(req));
