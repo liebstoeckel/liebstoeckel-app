@@ -49,8 +49,9 @@ export interface ClientProps<T> {
    *  while the connection is down or being re-established, or while the server is
    *  making this client resend for writing too fast. Writes made meanwhile are kept
    *  and go out once it is back. Use it before telling someone their input arrived
-   *  ("Vote received"). Absent outside a live session and from older engines: treat
-   *  absent as true. */
+   *  ("Vote received"). After the talk has ended it is true again: nothing more can be
+   *  written, and what was sent before arrived. Absent outside a live session and from
+   *  older engines: treat absent as true. */
   connected?: boolean;
 }
 

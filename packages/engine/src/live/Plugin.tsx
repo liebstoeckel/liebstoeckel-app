@@ -100,11 +100,21 @@ export function usePluginProps(
   };
 }
 
-/** Whether this client's writes are reaching the live server now (see `ClientProps.connected`). */
+/** Whether this client's writes are reaching the live server now (see `ClientProps.connected`).
+ *  After the talk has ended nothing more is written (the plugins take no input), and what
+ *  was sent before arrived, so a plugin keeps saying so ("Vote received") rather than
+ *  claiming it is still sending. */
 export function connectedOf(ctx: Pick<LiveContextValue, "connection" | "online">): boolean {
-  if (ctx.online === false) return false;
   const c = ctx.connection;
+  if (c?.status === "ended") return true;
+  if (ctx.online === false) return false;
   return !c || (c.status === "connected" && !c.sending);
+}
+
+/** Swallow an input event (a plugin of an ended talk). */
+function stopInput(e: { stopPropagation(): void; preventDefault(): void }) {
+  e.stopPropagation();
+  e.preventDefault();
 }
 
 /** Place a plugin in a slide. Renders the plugin's `Slide` when a server is
@@ -191,7 +201,17 @@ export function Plugin({
   const ended = ctx.role === "viewer" && ctx.connection?.status === "ended";
   const slide = (key: string) => (
     <LayoutGroup key={key} id={`plugin:${id}:${instance}:${key}`}>
-      <div inert={ended} data-pi-plugin-ended={ended || undefined} style={{ display: "contents" }}>
+      <div
+        inert={ended}
+        data-pi-plugin-ended={ended || undefined}
+        // `inert` stops a person; a click dispatched from script still reaches the
+        // plugin. Stopping input here as well keeps an ended talk's state as it was.
+        onClickCapture={ended ? stopInput : undefined}
+        onPointerDownCapture={ended ? stopInput : undefined}
+        onKeyDownCapture={ended ? stopInput : undefined}
+        onSubmitCapture={ended ? stopInput : undefined}
+        style={{ display: "contents" }}
+      >
       <PluginBoundary resetKey={snap}>
         <Slide
           doc={ctx.doc}

@@ -76,6 +76,23 @@ describe("<Plugin>", () => {
     expect(st.snapshot().n).toBe(3);
   });
 
+  test("after the talk ended a viewer's plugin is shown but takes no input", () => {
+    const ended = renderToStaticMarkup(
+      <LiveProvider value={ctx({ live: true, connection: { status: "ended" } })}>
+        <Plugin id="counter" />
+      </LiveProvider>,
+    );
+    expect(ended).toContain("live:0:viewer");
+    expect(ended).toContain("data-pi-plugin-ended");
+    expect(ended).toContain("inert");
+    const presenter = renderToStaticMarkup(
+      <LiveProvider value={ctx({ live: true, role: "presenter", connection: { status: "ended" } })}>
+        <Plugin id="counter" />
+      </LiveProvider>,
+    );
+    expect(presenter).not.toContain("data-pi-plugin-ended");
+  });
+
   test("unknown plugin id renders nothing", () => {
     const html = renderToStaticMarkup(
       <LiveProvider value={ctx({})}>
@@ -98,5 +115,7 @@ describe("connectedOf (what a plugin may call delivered)", () => {
   });
   test("not while the device says it is offline, even before the socket notices", () => {
     expect(connectedOf({ connection: { status: "connected" }, online: false })).toBe(false);
+    // after the end nothing more is written; what was sent arrived ("Vote received", not "Sending")
+    expect(connectedOf({ connection: { status: "ended" }, online: false })).toBe(true);
   });
 });
