@@ -171,6 +171,9 @@ export function createRelayMetrics(version = "unknown") {
       ),
     ),
     grantDenials: r.register(new Counter("liebstoeckel_relay_grant_denials_total", "Deck/sync requests denied (bad/expired grant)")),
+    pageResponses: r.register(
+      new Counter("liebstoeckel_relay_page_responses_total", "Deck pages served, by role and encoding (gzip, identity, not_modified)"),
+    ),
     wsFrames: r.register(new Counter("liebstoeckel_relay_ws_frames_total", "Yjs WS frames, by direction")),
     wsBytes: r.register(new Counter("liebstoeckel_relay_ws_bytes_total", "Yjs WS bytes, by direction")),
     buildInfo: r.register(new Gauge("liebstoeckel_relay_build_info", "Relay build info (constant 1)")),

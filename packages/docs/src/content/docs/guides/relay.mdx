@@ -54,6 +54,18 @@ Because storage is blocked, the relay keeps each viewer's participant id (the ke
 - A browser that blocks cookies for the relay's host gets a new id on every load, so after a reload its earlier vote no longer shows as its own and it can vote again.
 - Decks built with an older version ignore the relay's id and keep it in the tab's address (`?pid=…`), where a copied address shares it; rebuild the deck to change that.
 
+## What the audience downloads
+
+A deck is one file of about 1 MB, and on a phone network that is most of the time between scanning the QR code and voting. The relay keeps it small and sends it once:
+
+- **A copy for the audience.** Viewers get the deck without its slide thumbnails, which only the presenter's overview grid shows. Everything else stays in, including the license notices and the embedded source. The presenter gets the file exactly as built.
+- **Compressed.** Pages go out gzip-encoded to every browser that accepts it. The relay compresses each session's audience copy once and adds only the few hundred bytes that differ per viewer for each request, so a room joining at once does not cost it a compression run per phone.
+- **Asked for again, not downloaded again.** A viewer's page carries an `ETag` and `Cache-Control: private, no-cache`. The browser keeps it, and a reload, a second scan of the QR code or a phone coming back from another app gets `304 Not Modified` while the talk runs. Every request is still checked first: once the talk has ended, or with a link that is no longer valid, the answer is the usual 403, never the stored page. Presenter pages are never stored (`no-store`).
+
+On the poll demo that is about 390 KB on the wire for a viewer instead of 1 MB.
+
+If you run the relay behind your own proxy (nginx, Caddy, a CDN), let `Content-Encoding`, `ETag` and `If-None-Match` pass through and don't compress `/s/` pages again at the proxy. The `ETag` is weak (`W/"..."`) on purpose, since the same page goes out compressed or not.
+
 ## Tokens & quotas
 
 Three token layers keep roles separated:

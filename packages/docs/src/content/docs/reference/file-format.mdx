@@ -135,6 +135,8 @@ If a headless Chromium was available at build time, the file carries one small W
 
 Thumbnails are optional. The build skips them, with a note rather than an error, when no Chromium is found or when you set `LIEBSTOECKEL_NO_THUMBS=1`. Without the manifest the overview falls back to rendering slides directly. See [Thumbnails](/guides/thumbnails/).
 
+The overview is the presenter's, so a relay leaves this block out of the copy it sends to the audience of a live session (see [The relay](/guides/relay/#what-the-audience-downloads)). The presenter gets the file as built.
+
 ## Standalone and live from the same file
 
 The file does not contain a relay URL or a session token, and it makes no network requests on its own. Opened from disk or a static host, it runs entirely offline: plugins show their `fallback`, and the presenter view works through the browser's `BroadcastChannel`.
