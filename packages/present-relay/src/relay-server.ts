@@ -501,20 +501,30 @@ export function createRelay(opts: RelayOptions): RelayServer {
       !!cfg.storage?.list && !!cfg.storage?.delete;
 
     const session = createSession();
+    // A talk placed again on the relay that already holds it (the control plane placed
+    // it twice in a row, or recovered it onto the same pod): the old entry's state is
+    // newer than anything stored (a move stores nothing), so it is carried over, and
+    // the old entry stays listed as closing until the new one replaces it, so the page
+    // keeps loading meanwhile.
+    let carried: { doc: Uint8Array; owners: Owners } | undefined;
+    let stale: RelaySession | undefined;
     if (providedId) {
-      // A stale entry under this id (re-provision raced its predecessor's teardown)
-      // goes first so the fresh, re-seeded one wins. Under epochs the new one loads
-      // what the old one stored, so the old one must store before it goes.
-      const stale = sessions.get(providedId);
+      stale = sessions.get(providedId);
       if (stale) {
         if (stale.state && stale.state.epoch >= epochHdr) {
           metrics.sessionRejects.inc({ reason: "stale_epoch" });
           return json({ error: "a newer placement of this session is already here" }, 409);
         }
-        await dropSession(stale, "moved");
+        // taken in the same turn as the sockets close below: nothing can arrive between
+        if (!stale.closing) carried = { doc: stale.hub.snapshot(), owners: storedOwners(stale.hub) };
+        await dropSession(stale, "moved", true);
       }
       session.id = providedId;
     }
+    /** Give up: the old entry, if any, goes now. */
+    const unlistStale = () => {
+      if (stale && providedId && sessions.get(providedId) === stale) sessions.delete(providedId);
+    };
     let state: SessionState | undefined;
     let seed: Uint8Array | null = null;
     let restored: Owners = [];
@@ -527,6 +537,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
           epoch: epochHdr,
         });
         if (opened === "stale") {
+          unlistStale();
           metrics.sessionRejects.inc({ reason: "stale_epoch" });
           return json({ error: "a newer placement of this session exists" }, 409);
         }
@@ -534,6 +545,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         seed = opened.seed;
         restored = opened.owners;
       } catch (e) {
+        unlistStale();
         metrics.sessionRejects.inc({ reason: "storage" });
         console.error(JSON.stringify({ level: "error", msg: "relay state load failed", session: providedId, err: String(e) }));
         return json({ error: "session state unavailable" }, 503);
@@ -576,6 +588,11 @@ export function createRelay(opts: RelayOptions): RelayServer {
         metrics.snapshotSeed.inc({ result: "error" });
       }
     }
+    if (carried) {
+      hub.seed(carried.doc);
+      hub.adopt(carried.owners);
+      restored = [...restored, ...carried.owners];
+    }
     const rs: RelaySession = {
       id: session.id,
       account,
@@ -593,7 +610,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       snapshotKey: state ? undefined : snapshotKey,
       state,
       sockets: new Set(),
-      owners: new Set(restored.map(([, owner]) => owner)),
+      owners: new Set([...restored.map(([, owner]) => owner), ...(carried ? stale!.owners : [])]),
     };
     const unref = (t: unknown) => (t as { unref?: () => void }).unref?.();
     rs.ttl = setTimeout(() => void dropSession(rs), ttlMs);

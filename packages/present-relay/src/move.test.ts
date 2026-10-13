@@ -285,6 +285,29 @@ describe("a talk that moves to another relay", () => {
     expect(v.refused).toEqual([]);
   });
 
+  test("a talk placed again on the relay that holds it keeps what that relay took but had not stored", async () => {
+    const storage = memStorage();
+    const a = start(storage);
+    const { presenterToken, viewerGrant } = await place(a.base, 1);
+    await presenter(a.base, presenterToken);
+    const v = viewer(() => a.base, viewerGrant);
+    await until(() => v.state.synced && !!votes(v.doc) && !!v.resume);
+    v.vote("x");
+    await until(() => voteOn(a.relay, "pid1") === "x");
+    storage.ctl.lose = true;
+    v.vote("y");
+    await until(() => voteOn(a.relay, "pid1") === "y");
+    // a second placement onto the same relay (the control plane recovered it twice)
+    await place(a.base, 2);
+    storage.ctl.lose = false;
+    expect(voteOn(a.relay, "pid1")).toBe("y");
+    await v.reconnected(1);
+    expect(v.closes[0]).toBe(CLOSE.MOVED);
+    v.vote("z");
+    await until(() => voteOn(a.relay, "pid1") === "z");
+    expect(v.refused).toEqual([]);
+  });
+
   test("the stored state holds digests of the resume tokens, never a token", async () => {
     const storage = memStorage();
     const a = start(storage);

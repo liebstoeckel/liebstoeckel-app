@@ -1,6 +1,6 @@
 import { test, expect, describe } from "bun:test";
 import * as Y from "yjs";
-import { Hub } from "./relay";
+import { Hub, withoutUnknownDeletes } from "./relay";
 import { tombstoneUpdate } from "./tombstone";
 
 describe("Hub (Yjs relay)", () => {
@@ -545,6 +545,80 @@ describe("Hub: an audience peer writes only on its own Yjs client ids", () => {
     next.destroy();
   });
 
+  test("a resync that carries the delete of an item the relay never got is not refused; only that delete goes", () => {
+    const { hub, votes, viewer } = setup();
+    const g = viewer("r:g");
+    g.vote("g", "1");
+    // g changes its vote twice; both changes reach b but not the relay (lost in a move)
+    const sv = Y.encodeStateVector(g.doc);
+    (g.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("g", "2");
+    (g.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("g", "3");
+    const lost = Y.encodeStateAsUpdate(g.doc, sv);
+    const b = viewer("r:b");
+    Y.applyUpdate(b.doc, lost);
+    (b.doc.getMap("plugin:poll").get("votes") as Y.Map<string>).set("b", "B");
+    b.peer.recv(Y.encodeStateAsUpdate(b.doc)); // b's resync deletes g's "2", which the relay lacks
+    expect(b.drops).toEqual([]);
+    // the delete of g's "1", which the relay has, comes along: a delete set does not say whose it is
+    expect(votes()).toEqual({ b: "B" });
+    // g's own resync brings the rest
+    g.peer.recv(Y.encodeStateAsUpdate(g.doc));
+    expect(votes()).toEqual({ g: "3", b: "B" });
+    expect(hub.doc.store.pendingDs).toBeNull();
+  });
+
+  test("a delete aimed at clocks the presenter has not written yet is dropped, never kept for later", () => {
+    const { hub, presenter, presenterPeer, viewer } = setup();
+    const m = viewer("r:m");
+    const ds = Y.createDeleteSet();
+    ds.clients.set(presenter.clientID, [{ clock: Y.getState(presenter.store, presenter.clientID), len: 5 } as never]);
+    const bytes = Y.encodeSnapshot(Y.createSnapshot(ds, new Map()));
+    // an update with no structs: zero clients, then the delete set
+    const forged = new Uint8Array([0, ...bytes.subarray(0, bytes.length - 1)]);
+    m.peer.recv(forged);
+    expect(hub.doc.store.pendingDs).toBeNull();
+    const sv = Y.encodeStateVector(presenter);
+    presenter.getMap("nav").set("slide", 2);
+    presenterPeer.recv(Y.encodeStateAsUpdate(presenter, sv));
+    expect(hub.doc.getMap("nav").get("slide")).toBe(2);
+  });
+
+  test("a delete of something the audience may not delete is still refused", () => {
+    const { hub, presenter, viewer } = setup();
+    const m = viewer("r:m");
+    const d = new Y.Doc();
+    Y.applyUpdate(d, Y.encodeStateAsUpdate(hub.doc));
+    const sv = Y.encodeStateVector(d);
+    d.getMap("nav").delete("slide");
+    m.peer.recv(Y.encodeStateAsUpdate(d, sv));
+    expect(m.drops).toEqual(["scope"]);
+    expect(hub.doc.getMap("nav").get("slide")).toBe(1);
+    expect(presenter.getMap("nav").get("slide")).toBe(1);
+  });
+
+  test("withoutUnknownDeletes leaves an update the doc can take byte for byte as it is", () => {
+    const { hub } = setup();
+    const d = new Y.Doc();
+    const votes = new Y.Map<string>();
+    d.getMap("plugin:poll").set("votes", votes);
+    for (let i = 0; i < 50; i++) votes.set(`k${i % 7}`, `v${i}`);
+    for (let i = 0; i < 3; i++) votes.delete(`k${i}`);
+    const full = Y.encodeStateAsUpdate(d);
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, full);
+    expect(withoutUnknownDeletes(full, doc)).toBe(full);
+    // against a doc that lacks everything the deletes are all on the update's own items
+    expect(withoutUnknownDeletes(full, new Y.Doc())).toBe(full);
+    // the update without its first 20 clocks, to a doc that has none of them: the deletes
+    // of those clocks go, every struct stays
+    const later = Y.diffUpdate(full, encodeSv(new Map([[d.clientID, 20]])));
+    const pruned = withoutUnknownDeletes(later, new Y.Doc())!;
+    expect(pruned).not.toBeNull();
+    expect(pruned.length).toBeLessThan(later.length);
+    expect(Y.decodeUpdate(pruned).structs.length).toBe(Y.decodeUpdate(later).structs.length);
+    hub.destroy();
+  });
+
   test("after a reseed with the stored owners, a returning client continues its own id and no one else may", () => {
     const owners: Array<[number, string]> = [];
     const hub = new Hub({ audience: { scope }, onOwner: (client, owner) => owners.push([client, owner]) });
@@ -585,3 +659,21 @@ describe("Hub: an audience peer writes only on its own Yjs client ids", () => {
     next.destroy();
   });
 });
+
+/** A state vector for `Y.diffUpdate`. */
+function encodeSv(sv: Map<number, number>): Uint8Array {
+  const out: number[] = [];
+  const varUint = (n: number) => {
+    while (n > 0x7f) {
+      out.push(0x80 | (n & 0x7f));
+      n = Math.floor(n / 128);
+    }
+    out.push(n);
+  };
+  varUint(sv.size);
+  for (const [client, clock] of sv) {
+    varUint(client);
+    varUint(clock);
+  }
+  return new Uint8Array(out);
+}

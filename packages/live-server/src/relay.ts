@@ -115,6 +115,58 @@ export function describeUpdate(update: Uint8Array, doc: Y.Doc): { roots: string[
   return { roots: [...out], adds };
 }
 
+/** The bytes Yjs (v1) writes for a delete set, in its own layout and order. */
+type DeleteSet = ReturnType<typeof Y.createDeleteSet>;
+type DeleteItem = DeleteSet["clients"] extends Map<number, Array<infer I>> ? I : never;
+
+function encodeDeleteSet(ds: DeleteSet): Uint8Array {
+  // A snapshot is the delete set followed by a state vector; an empty one is one zero byte.
+  const bytes = Y.encodeSnapshot(Y.createSnapshot(ds, new Map()));
+  return bytes.subarray(0, bytes.length - 1);
+}
+
+/** `update` without the deletions of items `doc` does not have and the update does not
+ *  bring itself. Such a delete cannot apply: it would wait in the doc and delete whatever
+ *  arrives there later, unchecked, so the gate refuses an update that has one. A viewer's
+ *  resync carries them when another client's write reached the viewer but not the relay
+ *  (lost when a relay moved or crashed): only that delete goes, the rest of the resync
+ *  stays. Returns `update` itself when there is nothing to remove, and null when the
+ *  update's delete set is not laid out the way Yjs writes it (the caller then keeps the
+ *  update as it is, and the gate decides). */
+export function withoutUnknownDeletes(update: Uint8Array, doc: Y.Doc): Uint8Array | null {
+  // A v1 update ends with its delete set; an empty one is a single zero byte, and a
+  // non-empty one ends with a length, which is never zero.
+  if (update.length === 0 || update[update.length - 1] === 0) return update;
+  const { ds } = Y.decodeUpdate(update);
+  const { from, to } = Y.parseUpdateMeta(update);
+  const kept = Y.createDeleteSet();
+  let removed = false;
+  for (const [client, items] of ds.clients) {
+    let have = Y.getState(doc.store, client);
+    // the update's own structs on this client apply when they continue the doc's clock
+    if ((from.get(client) ?? Infinity) <= have) have = Math.max(have, to.get(client) ?? 0);
+    const out: DeleteItem[] = [];
+    for (const d of items) {
+      const end = Math.min(d.clock + d.len, have);
+      if (end < d.clock + d.len) removed = true;
+      // the encoder reads only these two fields
+      if (end > d.clock) out.push({ clock: d.clock, len: end - d.clock } as DeleteItem);
+    }
+    if (out.length > 0) kept.clients.set(client, out);
+  }
+  if (!removed) return update;
+  const tail = encodeDeleteSet(ds);
+  if (tail.length > update.length) return null;
+  const at = update.length - tail.length;
+  for (let i = 0; i < tail.length; i++) if (update[at + i] !== tail[i]) return null;
+  const head = update.subarray(0, at);
+  const next = encodeDeleteSet(kept);
+  const out = new Uint8Array(head.length + next.length);
+  out.set(head);
+  out.set(next, head.length);
+  return out;
+}
+
 /** Most client ids one connection can bring in: a real client uses one per connection,
  *  plus one per doc replacement after a refusal. */
 const MAX_OWNED_CLIENTS = 64;
@@ -382,9 +434,17 @@ export class Hub {
         if (st === "foreign") foreign.set(client, ALL_CLOCKS);
         else if (st === "claim") claimed.push(client);
       }
-      if (foreign.size === 0) return { update, claimed };
-      opts.onForeign?.();
-      return { update: Y.diffUpdate(update, Y.encodeStateVector(foreign)), claimed };
+      let own = update;
+      if (foreign.size > 0) {
+        opts.onForeign?.();
+        own = Y.diffUpdate(update, Y.encodeStateVector(foreign));
+      }
+      const known = withoutUnknownDeletes(own, this.doc);
+      if (known && known !== own) {
+        if (foreign.size === 0) opts.onForeign?.();
+        own = known;
+      }
+      return { update: own, claimed };
     };
 
     /** Record the ids an applied update (or its placeholder) brought in as this peer's. */
