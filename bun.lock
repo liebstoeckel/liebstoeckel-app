@@ -789,6 +789,23 @@
         "@liebstoeckel/thumbnails": "workspace:*",
       },
     },
+    "presentations/the-room": {
+      "name": "the-room",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liebstoeckel/engine": "workspace:^",
+        "@liebstoeckel/plugin-poll": "workspace:^",
+        "@liebstoeckel/plugin-qa": "workspace:^",
+        "@liebstoeckel/plugin-reactions": "workspace:^",
+        "@liebstoeckel/plugin-sdk": "workspace:^",
+        "@liebstoeckel/plugin-ui": "workspace:^",
+        "@liebstoeckel/theme": "workspace:^",
+        "the-room-tug": "file:./plugins/tug",
+      },
+      "devDependencies": {
+        "@liebstoeckel/thumbnails": "workspace:^",
+      },
+    },
     "presentations/visx-showcase": {
       "name": "@liebstoeckel/visx-showcase",
       "version": "0.0.0",
@@ -3343,6 +3360,8 @@
 
     "tar-stream": ["tar-stream@2.2.0", "", { "dependencies": { "bl": "^4.0.3", "end-of-stream": "^1.4.1", "fs-constants": "^1.0.0", "inherits": "^2.0.3", "readable-stream": "^3.1.1" } }, "sha512-ujeqbceABgwMZxEJnk2HDY2DlnUZ+9oEcb1KzTVfYHio0UE6dG71n60d8D2I4qNvleWrrXpmjpt7vZeF1LnMZQ=="],
 
+    "the-room": ["the-room@workspace:presentations/the-room"],
+
     "thread-stream": ["thread-stream@4.2.0", "", { "dependencies": { "real-require": "^1.0.0" } }, "sha512-e2zZ96wSChazBsbENf/Pcm/4swHt2cEKQ92rhUjkL9GCKiTDJIaTBenjE/m9DXi0QBmTMDkFDdOomUy20A1tDQ=="],
 
     "tidymd": ["tidymd@0.1.0", "", {}, "sha512-zgwjLyj5KvZSNtoAFZgq7AVXuztNamC69/NNPjd4LJ/DnF3l4kCCgj9u82TO+LbZ7F+lOo8Vc+FPMfBFG4nz+Q=="],
@@ -3696,6 +3715,8 @@
     "smtp-server/nodemailer": ["nodemailer@9.0.5", "", {}, "sha512-wvjiKvjczmsN7U/8006JOdXubgBk2XFAbioDMbT+sM7cPs0QrhJTa6KBRX7P5REGGkDcLUz/EarWidb8G8C1jQ=="],
 
     "svgo/commander": ["commander@11.1.0", "", {}, "sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ=="],
+
+    "the-room/the-room-tug": ["the-room-tug@file:presentations/the-room/plugins/tug", { "peerDependencies": { "@liebstoeckel/plugin-sdk": "^0.3.4", "@liebstoeckel/plugin-ui": "^0.3.4", "react": "^19.2.7" } }],
 
     "thread-stream/real-require": ["real-require@1.0.0", "", {}, "sha512-P4nbQYQfePJxRSmY+v/KINxVucm4NF3p3s7pJveMTtom52FR4YGltUQLB8idDXwDDWW+eYrWDFbuzUnjoWHF7g=="],
 

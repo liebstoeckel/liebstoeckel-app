@@ -1,0 +1,34 @@
+{
+  "name": "the-room",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A small live deck: the room votes, asks, reacts and plays tug of war from their phones. The tug of war is a plugin of its own, in plugins/tug.",
+  "files": [
+    "index.html",
+    "main.tsx",
+    "server.ts",
+    "build.ts",
+    "bunfig.toml",
+    "slides",
+    "plugins",
+    "!plugins/**/node_modules"
+  ],
+  "scripts": {
+    "dev": "bun --hot ./server.ts",
+    "build": "bun run build.ts"
+  },
+  "dependencies": {
+    "@liebstoeckel/engine": "workspace:^",
+    "@liebstoeckel/plugin-poll": "workspace:^",
+    "@liebstoeckel/plugin-qa": "workspace:^",
+    "@liebstoeckel/plugin-reactions": "workspace:^",
+    "@liebstoeckel/plugin-sdk": "workspace:^",
+    "@liebstoeckel/plugin-ui": "workspace:^",
+    "@liebstoeckel/theme": "workspace:^",
+    "the-room-tug": "file:./plugins/tug"
+  },
+  "devDependencies": {
+    "@liebstoeckel/thumbnails": "workspace:^"
+  }
+}

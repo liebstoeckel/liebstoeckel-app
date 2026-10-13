@@ -1,0 +1,19 @@
+{
+  "name": "the-room-tug",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tug of war for a live room: every phone pulls for one side, the rope moves on every screen.",
+  "keywords": ["liebstoeckel-plugin"],
+  "exports": { ".": "./src/client.tsx", "./logic": "./src/logic.ts" },
+  "peerDependencies": {
+    "@liebstoeckel/plugin-sdk": "^0.3.4",
+    "@liebstoeckel/plugin-ui": "^0.3.4",
+    "react": "^19.2.7"
+  },
+  "liebstoeckel": {
+    "client": "./src/client.tsx",
+    "id": "tug",
+    "audienceWrites": ["pulls"]
+  }
+}
