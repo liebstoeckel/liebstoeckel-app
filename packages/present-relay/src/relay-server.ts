@@ -12,6 +12,7 @@ import {
 } from "@liebstoeckel/live-server";
 import { bearer, matchAccount, safeEqual } from "./auth";
 import { mintGrant, verifyGrant } from "./grant";
+import { NO_STORE, deniedPage, pageToken, presenterRedirect } from "./presenter-cookie";
 import { closeReason, createRelayMetrics } from "./metrics";
 import { containerMemoryLimit, memoryRoom, MEMORY_CEILING_SHARE } from "./memory";
 import { withSpan, SpanKind, ctxFromHeaders } from "./tracing";
@@ -606,15 +607,23 @@ export function createRelay(opts: RelayOptions): RelayServer {
   // GET /s/:id, serve the deck to a grant-bearing presenter/viewer in an opaque sandbox
   // ((internal ADR)/0069). A closure over sessions; returns the sandboxed HTML, or a 403 on a
   // missing/invalid/expired grant (runner tokens are WS-only and may not load the page).
+  //
+  // A presenter grant in `?t=` is moved into a cookie at once: the answer is a 303 to the
+  // same page without `t`, so the grant never stays in the address bar or the history of
+  // a tab that may be projected or screen-shared. Reloads and the `P` pop-out then come
+  // back with the cookie (or with `t` again, which repeats the exchange). Viewer links
+  // keep their `t`: they are meant to be shared.
   const serveDeck = (req: Request, url: URL, id: string): Response => {
     const s = sessions.get(id);
-    const token = url.searchParams.get("t");
+    const { token, fromCookie } = s ? pageToken(url, req.headers.get("cookie"), s.id) : { token: null, fromCookie: false };
     const role = s ? resolveRole(s, token, Date.now()) : null;
-    if (!s || !role || role === "runner" || !token) {
+    // A cookie only ever stands for a presenter; anything else in it is refused.
+    if (!s || !role || role === "runner" || !token || (fromCookie && role !== "presenter")) {
       metrics.grantDenials.inc();
-      return new Response("Invalid or expired link.", { status: 403 });
+      return deniedPage(url.searchParams.has("t"));
     }
     const { http, ws } = originOf(req, opts);
+    if (role === "presenter" && !fromCookie) return presenterRedirect(url, s.id, token, http.startsWith("https:"));
     const wsUrl = `${ws}/sync/${s.id}?t=${token}`;
     const viewer = `${http}/s/${s.id}?t=${s.session.viewerToken}`;
     // Free-tier provenance badge on the public audience view ((internal ADR)); paid
@@ -636,7 +645,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         // the relay's cookies/API/DOM, and each load is a fresh opaque origin
         // (deck-to-deck isolation). connect-src pins the live socket to us.
         // `allow-popups` enables the presenter pop-out (P → window.open of
-        // /s/:id?t=<presenterToken>#presenter), the popup is itself served
+        // /s/:id?t=<presenter grant>#presenter, exchanged like any presenter link), the popup is itself served
         // sandboxed by the relay and syncs through the Hub, so isolation holds
         // ((internal ADR)). Without it window.open throws in the sandbox.
         // `allow-fullscreen` is NOT a valid CSP `sandbox` token (it's an
@@ -652,6 +661,10 @@ export function createRelay(opts: RelayOptions): RelayServer {
         "content-security-policy": `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src ${ws} ${http}; frame-ancestors 'none'; sandbox allow-scripts allow-popups`,
         "x-content-type-options": "nosniff",
         "referrer-policy": "no-referrer",
+        // The same URL answers a presenter (by cookie) and anyone else differently,
+        // and the page holds a grant in its bootstrap: never cache it.
+        "cache-control": NO_STORE,
+        vary: "Cookie",
       },
     });
   };

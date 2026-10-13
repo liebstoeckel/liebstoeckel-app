@@ -8,7 +8,8 @@ import { useLive } from "./live/Plugin";
 import { PresenterPanel } from "./live/presenterPanel";
 import { BreakoutAllowedContext } from "./live/breakout";
 import { useLiveDeck } from "./live/deckIndex";
-import { withoutParticipant } from "./live/participant";
+import { linkWithToken } from "./live/links";
+import { detectLive } from "./live/detect";
 import { resolveStep, type StepPos } from "./delivery";
 import { StepsProvider } from "./steps";
 import { ScaledStage, SlideFrame } from "./Stage";
@@ -281,15 +282,15 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
     [ctrl],
   );
 
-  // Share both links (Q / the header button), live only. The viewer link is
-  // injected; the presenter link is this window's own URL minus the #presenter
-  // hash (it loaded with ?t=<presenterToken>), scanning it drives from a phone.
+  // The share screen (Q / the header button), live only. The viewer link is injected.
+  // The presenter link, for driving from a phone, is built from the token this window
+  // was started with (the address bar does not hold it) and stays hidden behind an
+  // explicit reveal in the share screen, so a projected or shared screen never shows it.
   const [share, setShare] = useState(false);
-  const presenterUrl = useMemo(
-    () =>
-      typeof location !== "undefined" ? location.origin + location.pathname + withoutParticipant(location.search) : undefined,
-    [],
-  );
+  const presenterUrl = useMemo(() => {
+    const info = detectLive();
+    return typeof location !== "undefined" && info?.role === "presenter" ? linkWithToken(location.href, info.token) : undefined;
+  }, []);
   // Nothing left to advance to: last slide AND all reveals shown (a remaining reveal
   // still makes Next a "Reveal →"). Symmetric for Prev at the very start.
   const atEnd = index >= norm.length - 1 && step >= total;

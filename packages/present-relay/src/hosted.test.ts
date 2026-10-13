@@ -67,6 +67,15 @@ function setUpdate(build: (d: Y.Doc) => void): Uint8Array<ArrayBuffer> {
 
 const settle = () => new Promise((r) => setTimeout(r, 150));
 
+/** Open a presenter link as a browser does: the relay answers the `?t=` link with a 303
+ *  and a cookie, the browser follows to the same page with the cookie. */
+async function presenterPage(base: string, id: string, token: string, hash = ""): Promise<Response> {
+  const first = await fetch(`${base}/s/${id}?t=${token}${hash}`, { redirect: "manual" });
+  expect(first.status).toBe(303);
+  const cookie = first.headers.get("set-cookie")!.split(";")[0]!;
+  return fetch(new URL(first.headers.get("location")!, base), { headers: { cookie } });
+}
+
 describe("hosted relay: audience write-scope enforcement", () => {
   test("an audience (viewer) vote propagates, but an out-of-scope write is dropped", async () => {
     const base = start();
@@ -152,6 +161,74 @@ describe("hosted relay: signed-grant connection auth ((internal ADR))", () => {
   });
 });
 
+describe("hosted relay: the presenter grant leaves the URL", () => {
+  test("a presenter link answers 303 to the same page without t, with the grant in a scoped cookie", async () => {
+    const base = start();
+    const s = await create(base);
+    const grant = new URL(s.urls.presenter).searchParams.get("t")!;
+    const res = await fetch(`${base}/s/${s.id}?t=${grant}&x=1`, { redirect: "manual" });
+    expect(res.status).toBe(303);
+    // Relative, built from the path alone (never from Host headers), other params kept.
+    expect(res.headers.get("location")).toBe(`/s/${s.id}?x=1`);
+    const cookie = res.headers.get("set-cookie")!;
+    expect(cookie).toStartWith(`lst_presenter_${s.id}=${grant};`);
+    expect(cookie).toContain(`Path=/s/${s.id}`);
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("SameSite=Lax");
+    expect(cookie).not.toContain("Max-Age"); // gone with the browser session
+    expect(res.headers.get("cache-control")).toContain("no-store");
+  });
+
+  test("the cookie alone brings back the presenter, for a reload and the pop-out", async () => {
+    const base = start();
+    const s = await create(base);
+    const grant = new URL(s.urls.presenter).searchParams.get("t")!;
+    const page = await presenterPage(base, s.id, grant, "#presenter");
+    expect(page.status).toBe(200);
+    expect(page.headers.get("cache-control")).toContain("no-store");
+    expect(page.headers.get("vary")).toContain("Cookie");
+    const html = await page.text();
+    expect(html).toContain('"role":"presenter"');
+    // The socket still gets the grant, from the page's memory, not from the address bar.
+    expect(html).toContain(`?t=${grant}`);
+    // A raw presenter token (the CLI's relay mode) goes through the same exchange.
+    expect((await presenterPage(base, s.id, s.presenterToken)).status).toBe(200);
+  });
+
+  test("viewer links keep their t and set no cookie; an explicit t beats the cookie", async () => {
+    const base = start();
+    const s = await create(base);
+    const viewer = await fetch(s.urls.viewer.replace(/^https?:\/\/[^/]+/, base), { redirect: "manual" });
+    expect(viewer.status).toBe(200);
+    expect(viewer.headers.get("set-cookie")).toBeNull();
+    const grant = new URL(s.urls.presenter).searchParams.get("t")!;
+    const cookie = `lst_presenter_${s.id}=${grant}`;
+    const asViewer = await fetch(`${base}/s/${s.id}?t=${s.viewerToken}`, { headers: { cookie }, redirect: "manual" });
+    expect(await asViewer.text()).toContain('"role":"viewer"');
+  });
+
+  test("a cookie that is not a valid presenter grant for this session is refused", async () => {
+    const base = start();
+    const s = await create(base);
+    const other = await create(base);
+    const viewerGrant = new URL(s.urls.viewer).searchParams.get("t")!;
+    const otherGrant = new URL(other.urls.presenter).searchParams.get("t")!;
+    const bad = [
+      `lst_presenter_${s.id}=${viewerGrant}`, // a viewer grant does not become a presenter
+      `lst_presenter_${s.id}=${s.runnerToken}`, // runner tokens never load the page
+      `lst_presenter_${s.id}=${otherGrant}`, // another session's grant
+      `lst_presenter_${other.id}=${otherGrant}`, // another session's cookie name
+      `lst_presenter_${s.id}=${mintGrant({ session: s.id, role: "presenter", exp: Date.now() - 1 }, TOKEN)}`,
+    ];
+    for (const cookie of bad) {
+      const res = await fetch(`${base}/s/${s.id}`, { headers: { cookie } });
+      expect(res.status).toBe(403);
+      expect(await res.text()).toContain("presenter link");
+    }
+    expect((await fetch(`${base}/s/${s.id}`)).status).toBe(403);
+  });
+});
+
 describe("hosted relay: plan limits ((internal ADR))", () => {
   test("a per-session TTL shortens expiry below the relay default", async () => {
     const base = start({ sessionTtlMs: 6 * 60 * 60 * 1000 });
@@ -200,9 +277,10 @@ describe("hosted relay: audience white-label ((internal ADR))", () => {
     const base = start();
     const { id, presenterToken, viewerToken } = await create(base, { "x-watermark": "1" });
     const aud = await fetch(`${base}/s/${id}?t=${viewerToken}`).then((r) => r.text());
-    const pres = await fetch(`${base}/s/${id}?t=${presenterToken}`).then((r) => r.text());
+    const pres = await presenterPage(base, id, presenterToken);
+    expect(pres.status).toBe(200);
     expect(aud).toContain("Published with liebstoeckel");
-    expect(pres).not.toContain("Published with liebstoeckel");
+    expect(await pres.text()).not.toContain("Published with liebstoeckel");
   });
 
   test("a white-label session omits the badge on the audience view", async () => {

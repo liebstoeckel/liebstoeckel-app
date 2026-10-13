@@ -55,7 +55,9 @@ Because storage is blocked, a viewer's participant id (the key their poll vote a
 Three token layers keep roles separated:
 
 - **account token**: your deck-runner authenticating to the relay.
-- **session tokens**: presenter / viewer roles embedded in public URLs.
+- **session tokens**: presenter / viewer roles embedded in public URLs. A presenter link
+  is exchanged for a cookie scoped to the session's page on its first load, so the
+  token does not stay in the presenter tab's address bar.
 - **runner token**: the privileged server-plugin peer (WebSocket-only; can't load the page).
 
 The relay enforces per-account quotas (max concurrent sessions, max deck bytes, session TTL, inbound frame caps) and keeps docs in memory only (ephemeral, for privacy).

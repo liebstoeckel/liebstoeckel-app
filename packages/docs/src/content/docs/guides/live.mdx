@@ -31,8 +31,8 @@ This builds the deck (if needed), serves it on your LAN, and prints presenter + 
 
 </Steps>
 
-<Aside type="tip" title="Share both links from the presenter view">
-In the presenter window (<kbd>p</kbd>), press <kbd>q</kbd> (or the header QR button) to show **two** QRs at once: **Follow along** (the read-only audience link) and **Drive from your phone** (the presenter link). Scanning the second joins as a second driver, handy for advancing slides from your phone while you walk the room.
+<Aside type="tip" title="Drive from your phone">
+In the presenter window (<kbd>p</kbd>), press <kbd>q</kbd> (or the header QR button) to open the share screen. It shows the **Follow along** QR (the audience link) and a **Drive from your phone** button. Only after you click it does the presenter QR appear; scanning it joins your phone as a second driver, handy for advancing slides while you walk the room. Anyone who scans that code can control the talk, so reveal it only on a screen the room can't see. It hides again when you close the share screen. The <kbd>q</kbd> overlay in the deck window, the one you project, only ever shows the audience QR.
 </Aside>
 
 <Aside type="tip" title="Presenter consoles & focus mode">
@@ -46,7 +46,13 @@ State lives in a **Yjs** document (a CRDT) shared over WebSocket. A small relay 
 - **Presenter**: drives the slide index; everyone follows. Can moderate plugins.
 - **Viewer**: follows the presenter's index; can still interact with plugins (vote, ask, react).
 
-Roles come from an **unguessable token in the URL** (`?t=…`), not a login. A viewer's
+Roles come from an **unguessable token in the link** (`?t=…`), not a login. On a
+[relay](/guides/relay/) or in the cloud, a presenter link's token leaves the address bar
+on the first load: the relay keeps it in a cookie for that page and redirects to the
+same address without it, so a projected or screen-shared presenter tab shows nothing
+that grants control, and a reload or the <kbd>p</kbd> pop-out still opens as the
+presenter. The cookie lasts until you close the browser; after that, open the presenter
+link again. Audience links keep their token, since they are meant to be shared. A viewer's
 client is scoped to match: the **presenter view** (<kbd>p</kbd> / `#presenter`) and the
 **overview grid** (<kbd>o</kbd>) are presenter-only: they stay disabled and dimmed in the
 shortcut help (<kbd>?</kbd>) for viewers, so the speaker notes and plugin consoles aren't

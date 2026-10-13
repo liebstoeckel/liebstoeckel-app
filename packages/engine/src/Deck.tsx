@@ -9,7 +9,8 @@ import { PortraitHint } from "./MobileHint";
 import { useDeckSync } from "./useDeckSync";
 import { useLive } from "./live/Plugin";
 import { useLiveDeck } from "./live/deckIndex";
-import { withoutParticipant } from "./live/participant";
+import { linkWithToken } from "./live/links";
+import { detectLive } from "./live/detect";
 import { PersistentProvider, PersistentLayer, type PersistentItem } from "./PersistentLayer";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { Backdrop, BackdropProvider, type BackdropComponent } from "./backdrop";
@@ -60,19 +61,19 @@ export type DeckProps = {
   plugins?: PluginDef<any>[];
 };
 
-/** This document's own URL (origin + path + query). A deck inlined into an
- *  `about:srcdoc` frame (the MCP preview widget does this) has no usable
- *  `location`; the embedder points a `<base>` at the deck's real URL, which
- *  `document.baseURI` reflects. Everywhere else this is plain `location`. */
-function pageUrlWithoutParticipant(): string {
-  const u = location.protocol === "about:" ? new URL(document.baseURI) : location;
-  return u.origin + u.pathname + withoutParticipant(u.search);
+/** This document's own URL. A deck inlined into an `about:srcdoc` frame (the MCP
+ *  preview widget does this) has no usable `location`; the embedder points a `<base>`
+ *  at the deck's real URL, which `document.baseURI` reflects. Everywhere else this is
+ *  plain `location`. */
+function pageHref(): string {
+  return location.protocol === "about:" ? document.baseURI : location.href;
 }
 
 function openPresenter() {
-  // preserve the query (incl. ?t=<token>) so a live presenter window authenticates,
-  // minus this tab's participant id: the pop-out is a participant of its own
-  const url = pageUrlWithoutParticipant() + "#presenter";
+  // A live presenter window signs in with the token this page was started with (the
+  // address bar no longer carries it), minus this tab's participant id: the pop-out is
+  // a participant of its own.
+  const url = linkWithToken(pageHref(), detectLive()?.token) + "#presenter";
   // window.open can throw (relay sandbox without allow-popups) or return null (a
   // popup blocker), never let that bubble up as an uncaught DOMException.
   try {

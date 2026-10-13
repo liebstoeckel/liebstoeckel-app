@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useDialogFocus } from "./focus";
 import QRCode from "qrcode";
@@ -28,10 +28,26 @@ function useEscToClose(open: boolean, onClose: () => void) {
   }, [open, onClose]);
 }
 
-export type QrItem = { url?: string; label: string; sub?: string };
+/** `sub` is printed under the QR in mono (the link itself); `note` is a line of plain
+ *  text instead, for a QR whose link must not be readable off the screen. */
+export type QrItem = { url?: string; label: string; sub?: string; note?: string };
 
-/** A labelled QR + the URL underneath. Renders nothing without a url. */
-function QrCard({ url, label, sub, enabled, size }: { url?: string; label: string; sub?: string; enabled: boolean; size: number }) {
+/** A labelled QR + the URL (or a note) underneath. Renders nothing without a url. */
+function QrCard({
+  url,
+  label,
+  sub,
+  note,
+  enabled,
+  size,
+}: {
+  url?: string;
+  label: string;
+  sub?: string;
+  note?: string;
+  enabled: boolean;
+  size: number;
+}) {
   const src = useQrDataUrl(url, enabled);
   const reduceMotion = useReducedMotion();
   if (!url) return null;
@@ -51,6 +67,7 @@ function QrCard({ url, label, sub, enabled, size }: { url?: string; label: strin
         />
       )}
       {sub && <div className="max-w-[18rem] break-all text-center font-mono text-[11px] text-muted">{sub}</div>}
+      {note && <div className="max-w-[18rem] text-center text-sm text-muted">{note}</div>}
     </div>
   );
 }
@@ -59,7 +76,20 @@ function QrCard({ url, label, sub, enabled, size }: { url?: string; label: strin
  *  backdrop tap / ✕) showing one or more labelled QRs. A single QR renders big
  *  (the audience "scan to follow along"); several render as a row (presenter share).
  *  `QrOverlay` and `PresenterShare` are thin wrappers so behaviour can't drift. */
-export function QrShare({ open, items, title, onClose }: { open: boolean; items: QrItem[]; title?: string; onClose: () => void }) {
+export function QrShare({
+  open,
+  items,
+  title,
+  footer,
+  onClose,
+}: {
+  open: boolean;
+  items: QrItem[];
+  title?: string;
+  /** extra controls under the QRs; clicks there do not close the overlay */
+  footer?: ReactNode;
+  onClose: () => void;
+}) {
   useEscToClose(open, onClose);
   const visible = items.filter((i) => i.url);
   const big = visible.length <= 1;
@@ -99,9 +129,14 @@ export function QrShare({ open, items, title, onClose }: { open: boolean; items:
           )}
           <div className="flex flex-wrap items-start justify-center gap-14" onClick={(e) => e.stopPropagation()}>
             {visible.map((it) => (
-              <QrCard key={it.label} url={it.url} label={it.label} sub={it.sub} enabled={open} size={big ? 300 : 240} />
+              <QrCard key={it.label} url={it.url} label={it.label} sub={it.sub} note={it.note} enabled={open} size={big ? 300 : 240} />
             ))}
           </div>
+          {footer && (
+            <div className="flex flex-col items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              {footer}
+            </div>
+          )}
           <div className="font-mono text-xs text-muted">tap outside, ✕, or press Q / Esc to close</div>
         </motion.div>
       )}
@@ -115,9 +150,21 @@ export function QrOverlay({ open, url, onClose }: { open: boolean; url?: string;
   return <QrShare open={open} onClose={onClose} items={[{ url, label: "Scan to follow along", sub: url }]} />;
 }
 
-/** Presenter: BOTH links, "Follow along" (read-only viewer) and "Drive from your
- *  phone" (presenter; scanning joins as a second driver). Q / header button in the
- *  presenter view. (DESIGN §QR & handoff.) */
+/** What the presenter share screen shows: the audience link always, the presenter link
+ *  (which controls the talk) only once revealed. Pure, so the "nothing that grants
+ *  control until asked" rule is testable without a DOM. */
+export function presenterShareItems(viewerUrl: string | undefined, presenterUrl: string | undefined, revealed: boolean): QrItem[] {
+  const items: QrItem[] = [{ url: viewerUrl, label: "Follow along", sub: viewerUrl }];
+  // No link text under this QR: it is a grant, and a QR is harder to copy off a screen.
+  if (revealed && presenterUrl) items.push({ url: presenterUrl, label: "Drive from your phone", note: "Anyone who scans this can control the talk." });
+  return items;
+}
+
+/** Presenter: the audience "Follow along" link, and behind an explicit button the
+ *  "Drive from your phone" link (presenter; scanning joins as a second driver). The
+ *  presenter link is never on screen until asked for, and hides again when the overlay
+ *  closes, so opening the share screen on a projected or shared screen gives nobody
+ *  control. Q / header button in the presenter view. (DESIGN §QR & handoff.) */
 export function PresenterShare({
   open,
   viewerUrl,
@@ -129,15 +176,35 @@ export function PresenterShare({
   presenterUrl?: string;
   onClose: () => void;
 }) {
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    if (!open) setRevealed(false);
+  }, [open]);
+  const button =
+    "min-h-11 rounded-full border border-border px-5 text-sm text-text transition hover:border-accent hover:text-accent active:text-accent";
+  const footer = presenterUrl ? (
+    revealed ? (
+      <button type="button" className={button} onClick={() => setRevealed(false)}>
+        Hide the presenter code
+      </button>
+    ) : (
+      <>
+        <button type="button" className={button} onClick={() => setRevealed(true)}>
+          Drive from your phone
+        </button>
+        <div className="max-w-[22rem] text-center text-xs text-muted">
+          Shows a code that controls this talk. Make sure this screen is not projected or shared.
+        </div>
+      </>
+    )
+  ) : null;
   return (
     <QrShare
       open={open}
       onClose={onClose}
       title="share this session"
-      items={[
-        { url: viewerUrl, label: "Follow along", sub: viewerUrl },
-        { url: presenterUrl, label: "Drive from your phone", sub: presenterUrl },
-      ]}
+      items={presenterShareItems(viewerUrl, presenterUrl, revealed)}
+      footer={footer}
     />
   );
 }
