@@ -287,6 +287,12 @@ export function createRelay(opts: RelayOptions): RelayServer {
       ? { entries: cfg.audienceEntryCap, tallyEntries: cfg.audienceEntryCap }
       : undefined;
   let snapshotFailures = 0;
+  /** The sessions this relay holds, not counting those closing for a restart. */
+  const liveCount = (): number => {
+    let n = 0;
+    for (const s of sessions.values()) if (!s.closing) n++;
+    return n;
+  };
   // Process start time, reported in /stats so the reconciler can tell when a pod has
   // RESTARTED (same name, fresh memory) and re-provision sessions it lost, not just when
   // a pod is gone ((internal ADR) §5 / (internal ticket)+0019).
@@ -306,7 +312,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       audience += s.audienceCount;
       deckBytes += Buffer.byteLength(s.html, "utf8");
     }
-    metrics.sessions.set(sessions.size);
+    metrics.sessions.set(liveCount());
     metrics.audiencePeers.set(audience);
     metrics.deckBytes.set(deckBytes);
     metrics.cordoned.set(cordoned ? 1 : 0);
@@ -765,7 +771,9 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // Account-gated, the per-pod Ingress makes it publicly reachable.
     if (pathname === "/stats") {
       if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
-      return json({ ok: true, sessions: sessions.size, cordoned, startedAt, ...(opts.holder ? { holder: opts.holder } : {}) });
+      // Sessions closing for a restart are this pod's no longer: the control plane places
+      // them elsewhere.
+      return json({ ok: true, sessions: liveCount(), cordoned, startedAt, ...(opts.holder ? { holder: opts.holder } : {}) });
     }
 
     // --- Prometheus metrics: this pod's logical state ((internal ADR)). Account-gated like /stats, so

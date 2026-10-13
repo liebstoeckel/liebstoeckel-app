@@ -355,6 +355,9 @@ describe("a talk that moves to another relay", () => {
       ws.addEventListener("close", (e) => r(e.code));
     });
     expect(code).toBe(CLOSE.RESTARTING);
+    // and it no longer counts the talk as its own
+    const stats = await fetch(`${a.base}/stats`, { headers: { authorization: `Bearer ${TOKEN}` } }).then((r) => r.json());
+    expect(stats).toMatchObject({ sessions: 0, cordoned: true });
     // and it takes no new talk meanwhile
     const placed = await fetch(`${a.base}/api/sessions`, {
       method: "POST",
