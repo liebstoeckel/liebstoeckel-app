@@ -16,7 +16,13 @@ import { mergeUi } from "./ui";
 import { GlowTap, BreakoutSheet, useBreakoutEligible } from "./breakout";
 import { PluginBoundary } from "./PluginBoundary";
 import { devWarn } from "../devLog";
-import type { LiveState } from "./protocol";
+import type { AudienceCount, LiveState } from "./protocol";
+
+/** Where the audience count comes from: the current value, and a way to hear changes. */
+export interface AudienceSource {
+  get(): AudienceCount | undefined;
+  subscribe(cb: () => void): () => void;
+}
 
 export interface LiveContextValue {
   live: boolean;
@@ -30,6 +36,9 @@ export interface LiveContextValue {
   audienceInputKeptDays?: number;
   /** the live connection's state (live only) */
   connection?: LiveState;
+  /** presenters, live only: how many are connected, as the server last said. Read it
+   *  with `useAudienceCount`, which re-renders only the components that show it. */
+  audience?: AudienceSource;
   /** this viewer's refused writes by doc root (live only) */
   refusals?: ReadonlyMap<string, Refusal>;
   /** live only: whether the session state has arrived yet (absent means it has) */

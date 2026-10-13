@@ -119,3 +119,29 @@ describe("startServer live protocol version", () => {
     ws.close();
   });
 });
+
+describe("the audience count on the LAN server", () => {
+  test("a presenter hears how many viewers are connected; viewers hear nothing", async () => {
+    live = await startServer({ html: BASE_HTML, hostname: "127.0.0.1", publicHost: "127.0.0.1" });
+    const listen = async (token: string) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${live!.port}/sync?t=${token}&v=3`);
+      const texts: Array<Record<string, unknown>> = [];
+      ws.addEventListener("message", (e) => typeof e.data === "string" && texts.push(JSON.parse(e.data)));
+      await new Promise((r) => ws.addEventListener("open", r));
+      return { ws, texts };
+    };
+    const until = async (check: () => boolean) => {
+      for (let i = 0; i < 200 && !check(); i++) await Bun.sleep(20);
+      expect(check()).toBe(true);
+    };
+    const presenter = await listen(live.session.presenterToken);
+    await until(() => presenter.texts.length === 1);
+    expect(presenter.texts[0]).toEqual({ t: "audience", n: 0 });
+    const viewer = await listen(live.session.viewerToken);
+    await until(() => presenter.texts.at(-1)?.n === 1);
+    viewer.ws.close();
+    await until(() => presenter.texts.at(-1)?.n === 0);
+    expect(viewer.texts).toEqual([]);
+    presenter.ws.close();
+  });
+});

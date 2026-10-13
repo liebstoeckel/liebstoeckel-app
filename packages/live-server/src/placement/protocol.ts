@@ -60,12 +60,17 @@ export type RefusalReason = "busy" | "full" | "invalid";
  *    or, with `reason: null`, are taken again.
  *  - `resume`, to a viewer on protocol 3 and up when it connects: a secret the client
  *    sends back as `r` when it reconnects, so the relay knows the Yjs client ids of its
- *    earlier connections are its own. */
+ *    earlier connections are its own.
+ *  - `audience`, to presenters: how many audience connections are open (`n`) and the
+ *    session's audience cap, if it has one (`cap`). Sent when a presenter connects and
+ *    then at most about once a second while the count changes. Clients that do not know
+ *    it ignore it, like any notice they do not know. */
 export type LiveNotice =
   | { t: "refused"; reason: RefusalReason; roots: string[] }
   | { t: "reset" }
   | { t: "refusing"; reason: Exclude<RefusalReason, "invalid"> | null }
-  | { t: "resume"; token: string };
+  | { t: "resume"; token: string }
+  | { t: "audience"; n: number; cap?: number };
 
 /** A close reason must fit 123 bytes; the full message goes where there is room. */
 export const TOO_OLD_REASON = "This page is out of date. Reload it to reconnect.";

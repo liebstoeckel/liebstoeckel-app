@@ -22,6 +22,7 @@ export { readThumbnails, type ThumbnailSet } from "./thumbnails";
 export { hasEmbeddedSource } from "./source";
 export { Step, StepsProvider, useRevealState } from "./steps";
 export { CodeMagic } from "./CodeMagic";
+export { JoinCard } from "./JoinCard";
 export type { TokenizedStep, CodeToken } from "./code/types";
 export {
   fullscreenAction,

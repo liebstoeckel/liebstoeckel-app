@@ -5,6 +5,7 @@ import {
   injectBootstrap,
   injectWatermark,
   audienceScopeFromHtml,
+  AudienceCounter,
   type Peer,
   type PeerRole,
   type Role,
@@ -124,8 +125,14 @@ interface RelaySession {
   enforce: boolean;
   /** max concurrent audience peers (plan's liveAudienceCap); undefined = uncapped. */
   audienceCap?: number;
-  /** current connected audience peers (for the cap). */
-  audienceCount: number;
+  /** connected audience peers (for the cap, and the count presenters see), and the
+   *  most there were at once (the session's peak audience on this relay). */
+  count: AudienceCounter;
+  /** The session's stable join link (hosted: the control plane's `/live/<slug>`), which
+   *  the deck shows as its QR. Absent → the relay's own viewer link. */
+  joinUrl?: string;
+  /** a signed viewer grant for this session, for the relay's own viewer link */
+  viewerGrant: string;
   /** show the "Published with liebstoeckel" provenance badge (free tier; (internal ADR)). */
   watermark: boolean;
   /** days the host keeps what the audience writes after the session (hosted, set by
@@ -251,6 +258,25 @@ function originOf(req: Request, opts: RelayOptions): { http: string; ws: string 
   return { http: `${proto}://${host}`, ws: `${proto === "https" ? "wss" : "ws"}://${host}` };
 }
 
+/** A host a plain-http join link may point at: this machine or a private network. */
+const LOCAL_HOST = /^(localhost|127(\.\d{1,3}){3}|\[::1\]|10(\.\d{1,3}){3}|192\.168(\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2}|[a-z0-9-]+\.local)$/i;
+
+/** The join link the control plane names for a session (`x-join-url`), shown in the
+ *  deck as its QR: an absolute https URL of sensible length (plain http only on this
+ *  machine or a private network, for local setups), else none. */
+export function joinLink(value: string | null): string | undefined {
+  const v = value?.trim();
+  if (!v || v.length > 512) return undefined;
+  try {
+    const u = new URL(v);
+    if (u.username || u.password) return undefined;
+    if (u.protocol === "https:") return u.href;
+    return u.protocol === "http:" && LOCAL_HOST.test(u.hostname) ? u.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
@@ -313,7 +339,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     let audience = 0;
     let deckBytes = 0;
     for (const s of sessions.values()) {
-      audience += s.audienceCount;
+      audience += s.count.n;
       deckBytes += Buffer.byteLength(s.html, "utf8") + (s.audience?.heldBytes ?? 0);
     }
     metrics.sessions.set(liveCount());
@@ -409,6 +435,20 @@ export function createRelay(opts: RelayOptions): RelayServer {
     for (const socket of s.sockets) if (socket.data.presenter) notify(socket, { t: "refusing", reason });
   };
 
+  /** What presenters hear about the audience: how many are connected, and the cap. */
+  const audienceNotice = (s: RelaySession): LiveNotice => ({
+    t: "audience",
+    n: s.count.n,
+    ...(s.audienceCap !== undefined ? { cap: s.audienceCap } : {}),
+  });
+
+  /** Tell every presenter of a session how many are connected (the counter throttles). */
+  const announceAudience = (s: RelaySession): void => {
+    if (s.closing) return;
+    const notice = audienceNotice(s);
+    for (const socket of s.sockets) if (socket.data.presenter) notify(socket, notice);
+  };
+
   // The sockets close BEFORE the final state is stored: a write the relay took after the
   // snapshot was taken would be in no stored state, and the next relay would not know it.
   // A write still on its way is in the client's doc, which it sends again on reconnect.
@@ -425,6 +465,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     if (s.log) clearInterval(s.log);
     if (s.fence) clearInterval(s.fence);
     if (s.refusing?.quiet) clearTimeout(s.refusing.quiet);
+    s.count.destroy();
     if (!keep && sessions.get(s.id) === s) sessions.delete(s.id);
     const code = reason === "moved" ? CLOSE.MOVED : reason === "restarting" ? CLOSE.RESTARTING : CLOSE.ENDED;
     for (const socket of [...s.sockets]) {
@@ -495,6 +536,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     const capHdr = Number(req.headers.get("x-audience-cap") ?? "");
     const audienceCap = Number.isFinite(capHdr) && capHdr > 0 ? capHdr : undefined;
     const watermark = req.headers.get("x-watermark") === "1";
+    const joinUrl = joinLink(req.headers.get("x-join-url"));
     const keptHdr = Number(req.headers.get("x-audience-input-kept-days") ?? "");
     const audienceInputKeptDays = Number.isSafeInteger(keptHdr) && keptHdr > 0 ? keptHdr : undefined;
     // Stable session id across re-provision ((internal ADR)): the control plane re-creates
@@ -603,6 +645,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       hub.adopt(carried.owners);
       restored = [...restored, ...carried.owners];
     }
+    const exp = Date.now() + ttlMs;
     const rs: RelaySession = {
       id: session.id,
       account,
@@ -610,11 +653,14 @@ export function createRelay(opts: RelayOptions): RelayServer {
       html,
       session,
       runnerToken: hex(),
-      createdAt: Date.now(),
+      createdAt: exp - ttlMs,
       ttlMs,
       enforce,
       audienceCap,
-      audienceCount: 0,
+      // presenters hear the count (set below, once the session exists)
+      count: new AudienceCounter(() => undefined),
+      joinUrl,
+      viewerGrant: mintGrant({ session: session.id, role: "viewer", exp }, account),
       watermark,
       audienceInputKeptDays,
       snapshotKey: state ? undefined : snapshotKey,
@@ -622,6 +668,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       sockets: new Set(),
       owners: new Set([...restored.map(([, owner]) => owner), ...(carried ? stale!.owners : [])]),
     };
+    rs.count = new AudienceCounter(() => announceAudience(rs));
     const unref = (t: unknown) => (t as { unref?: () => void }).unref?.();
     rs.ttl = setTimeout(() => void dropSession(rs), ttlMs);
     unref(rs.ttl);
@@ -663,9 +710,8 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // these, and the relay verifies them statelessly with the account token; no
     // per-session token is stored client-side. (Raw tokens are still returned for
     // CLI/runner back-compat.)
-    const exp = rs.createdAt + ttlMs;
     const presenterGrant = mintGrant({ session: rs.id, role: "presenter", exp }, account);
-    const viewerGrant = mintGrant({ session: rs.id, role: "viewer", exp }, account);
+    const viewerGrant = rs.viewerGrant;
 
     const { http, ws } = originOf(req, opts);
     return json({
@@ -716,7 +762,10 @@ export function createRelay(opts: RelayOptions): RelayServer {
     const identity =
       role === "viewer" ? viewerIdentity(req.headers.get("cookie"), s.id, url.pathname, secure, endsAt, now) : null;
     const wsUrl = `${ws}/sync/${s.id}?t=${token}`;
-    const viewer = `${http}/s/${s.id}?t=${s.session.viewerToken}`;
+    // What the deck's QR and join card show: the session's stable join link when the
+    // control plane gave one, else this relay's link with a signed viewer grant. Never the
+    // raw viewer token, which a new placement of the session (a pod move) replaces.
+    const viewer = s.joinUrl ?? `${http}/s/${s.id}?t=${s.viewerGrant}`;
     const boot = {
       ws: wsUrl,
       session: s.id,
@@ -802,10 +851,17 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // --- fleet stats: this pod's live load, for control-plane placement ((internal ADR) §2). ---
     // Account-gated, the per-pod Ingress makes it publicly reachable.
     if (pathname === "/stats") {
-      if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
+      const account = matchAccount(cfg.accountTokens, bearer(req));
+      if (!account) return json({ error: "unauthorized" }, 401);
       // Sessions closing for a restart are this pod's no longer: the control plane places
       // them elsewhere.
-      return json({ ok: true, sessions: liveCount(), cordoned, startedAt, ...(opts.holder ? { holder: opts.holder } : {}) });
+      // `audience`: each of the caller's sessions with an audience so far, its count now
+      // and its peak, which the control plane records as the session's peak audience.
+      const audience: Array<{ id: string; n: number; peak: number }> = [];
+      for (const s of sessions.values()) {
+        if (s.account === account && !s.closing && s.count.peak > 0) audience.push({ id: s.id, n: s.count.n, peak: s.count.peak });
+      }
+      return json({ ok: true, sessions: liveCount(), cordoned, startedAt, ...(opts.holder ? { holder: opts.holder } : {}), audience });
     }
 
     // --- Prometheus metrics: this pod's logical state ((internal ADR)). Account-gated like /stats, so
@@ -833,6 +889,14 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // placement. `?reason=moved` (another pod took over) stores nothing and closes
     // sockets with `moved`; otherwise the session ended: final state, then `ended`.
     const del = pathname.match(/^\/api\/sessions\/([^/]+)$/);
+    // How many are connected to a session, the most at once, and its cap.
+    if (del && req.method === "GET") {
+      const account = matchAccount(cfg.accountTokens, bearer(req));
+      if (!account) return json({ error: "unauthorized" }, 401);
+      const s = sessions.get(del[1]!);
+      if (!s || s.account !== account || s.closing) return json({ error: "not found" }, 404);
+      return json({ audience: s.count.n, peak: s.count.peak, ...(s.audienceCap !== undefined ? { cap: s.audienceCap } : {}) });
+    }
     if (del && req.method === "DELETE") {
       const account = matchAccount(cfg.accountTokens, bearer(req));
       if (!account) return json({ error: "unauthorized" }, 401);
@@ -857,7 +921,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       // presenter + runner are trusted writers.
       const role: PeerRole = relRole === "viewer" ? "audience" : "presenter";
       // Enforce the plan's audience cap ((internal ADR)), presenter/runner never count.
-      if (role === "audience" && s.audienceCap !== undefined && s.audienceCount >= s.audienceCap) {
+      if (role === "audience" && s.audienceCap !== undefined && s.count.n >= s.audienceCap) {
         metrics.audienceCapRejects.inc();
         return new Response("audience full", { status: 503 });
       }
@@ -942,7 +1006,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
           return;
         }
         s.sockets.add(socket);
-        if (socket.data.role === "audience") s.audienceCount++;
+        if (socket.data.role === "audience") s.count.join();
         if (s.refusing && socket.data.presenter) notify(socket, { t: "refusing", reason: s.refusing.reason });
         metrics.wsOpens.inc({ role: socket.data.role });
         metrics.wsConnections.inc({ role: socket.data.role });
@@ -979,6 +1043,8 @@ export function createRelay(opts: RelayOptions): RelayServer {
           },
         );
         if (socket.data.resume) notify(socket, { t: "resume", token: socket.data.resume });
+        // after the session state, which stays the first frame on every connection
+        if (socket.data.presenter) notify(socket, audienceNotice(s));
       },
       message(socket, msg) {
         if (typeof msg === "string") return;
@@ -994,7 +1060,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         metrics.wsCloses.inc({ role: socket.data.role, reason: closeReason(code) });
         metrics.wsConnections.dec({ role: socket.data.role });
         const s = sessions.get(socket.data.sessionId);
-        if (s && s.sockets.delete(socket) && socket.data.role === "audience" && s.audienceCount > 0) s.audienceCount--;
+        if (s && s.sockets.delete(socket) && socket.data.role === "audience") s.count.leave();
       },
     },
   });

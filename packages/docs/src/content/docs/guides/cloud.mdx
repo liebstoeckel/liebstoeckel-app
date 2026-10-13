@@ -252,9 +252,16 @@ Turn any hosted deck into a **live, interactive session** straight from the brow
 no CLI and no local runtime. Use a deck's **Present** action, or **Start live session** on
 the deck's own page:
 
-- A **presenter view** opens (you drive the slides), and a **shareable audience link**
-  appears that you can copy or hand out. Your audience opens it on any device and follows
-  along, voting in polls, asking questions, and reacting in real time.
+- A **presenter view** opens (you drive the slides), and the session's **join card**
+  appears on the deck's page: a QR code of the audience link, the link itself with its
+  10-character code set large (for example `app.liebstoeckel.app/live/k7m2x9qp4r`), a copy
+  button, and how many people are watching right now (with the peak once some have left).
+  At your plan's audience cap the card says the session is full. Your audience opens the
+  link on any device and follows along, voting in polls, asking questions, and reacting in
+  real time. The code ignores case and dashes, so it can be typed from the back of the room.
+- The deck itself shows the same join card when the talk starts on its first slide, so
+  the room can scan it right away (see [the join card](/guides/live/#the-join-card)). The
+  link stays the same for the whole session, even if the session moves to another server.
 - The presenter tab is safe to project or share: its address bar holds no presenter
   token, and the share screen shows only the audience link until you choose **Drive from
   your phone** in the presenter view (see [live presenting](/guides/live/)).
@@ -268,7 +275,8 @@ drive navigation or tamper with results.
 **Free** gives you a real, usable live session with a capped audience and duration, and
 **results aren't kept** once the session ends. **Pro / Team** raise the limits, drop the
 audience watermark, and **persist results**: open a past session under **Present live** on
-the deck's page to see decoded poll tallies, the Q&A backlog, and reaction totals.
+the deck's page to see decoded poll tallies, the Q&A backlog, and reaction totals. Each past
+session also shows its **peak audience**, the most people connected at once.
 
 ### What live sessions store
 

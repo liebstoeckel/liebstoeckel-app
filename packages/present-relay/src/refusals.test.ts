@@ -46,7 +46,11 @@ async function connect(url: string) {
     ws.addEventListener("error", rej);
   });
   while (first) await Bun.sleep(5);
-  const texts = () => frames.flatMap((f) => ("text" in f ? [JSON.parse(f.text) as Record<string, unknown>] : []));
+  // the audience count presenters hear is not about refusals (see the count's own tests)
+  const texts = () =>
+    frames
+      .flatMap((f) => ("text" in f ? [JSON.parse(f.text) as Record<string, unknown>] : []))
+      .filter((m) => m.t !== "audience");
   /** Send a change made on this socket's own copy of the doc. */
   const write = (change: (d: Y.Doc) => void) => {
     const before = Y.encodeStateVector(doc);

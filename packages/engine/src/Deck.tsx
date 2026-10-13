@@ -19,6 +19,8 @@ import { readThumbnails } from "./thumbnails";
 import { hasEmbeddedSource } from "./source";
 import { HelpOverlay } from "./HelpOverlay";
 import { QrOverlay } from "./QrOverlay";
+import { JoinCardPresence } from "./joinPresence";
+import { shouldOpenJoinAtStart, START_HINT } from "./joinStart";
 import { PluginOverlays } from "./live/globalChrome";
 import { DeckChrome } from "./DeckChrome";
 import { StepsProvider } from "./steps";
@@ -125,7 +127,23 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
   const ejectable = useMemo(() => hasEmbeddedSource(), []);
   const [blurred, setBlurred] = useState(false);
   const [overview, setOverview] = useState(false);
-  const [qr, setQr] = useState(false);
+  const [qr, setQrState] = useState(false);
+  // The join overlay opened by itself at the start of a talk (its hint says how to go on).
+  const [qrAuto, setQrAuto] = useState(false);
+  const qrRef = useRef(qr);
+  qrRef.current = qr;
+  const setQr = useCallback((next: boolean | ((open: boolean) => boolean)) => {
+    setQrAuto(false);
+    setQrState(next);
+  }, []);
+  // How many `<JoinCard />`s are on screen: a slide that shows one needs no overlay.
+  const joinCards = useRef(0);
+  const registerJoinCard = useCallback(() => {
+    joinCards.current++;
+    return () => {
+      joinCards.current--;
+    };
+  }, []);
   const [jump, setJump] = useState("");
   // Terminal "end of deck" screen: advancing past the final slide's last step shows
   // a deliberate end state (like PowerPoint) instead of replaying the last slide's
@@ -261,14 +279,16 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
   // Only the deck's driver gets it; a live viewer just follows. In a modal layer
   // routeKey never yields "next", so this only fires while actually presenting.
   const handleNext = useCallback(() => {
+    // The join overlay is up: the first forward press only puts it away.
+    if (qrRef.current) return setQr(false);
     const shown = resolveStep(stepRef.current, totalRef.current);
     if (canDrive && indexRef.current >= count - 1 && shown >= totalRef.current) {
       setEnded(true);
       return;
     }
     ctrl.next();
-  }, [canDrive, count, ctrl]);
-  const handlePrev = useCallback(() => ctrl.prev(), [ctrl]);
+  }, [canDrive, count, ctrl, setQr]);
+  const handlePrev = useCallback(() => (qrRef.current ? setQr(false) : ctrl.prev()), [ctrl, setQr]);
 
   useDeckNav({
     count,
@@ -301,6 +321,35 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
   // back-nav; reduced-motion collapses everything to a tiny opacity fade.
   const reduceMotion = useReducedMotion();
   const coarse = useCoarsePointer();
+
+  // The first moment of a talk: the presenter's deck opens the join overlay by itself
+  // once the session's state has arrived, if the talk is on its first slide and that
+  // slide shows no join card of its own. Once per page load; any slide change, from
+  // any window or phone, puts it away.
+  const joinChecked = useRef(false);
+  useEffect(() => {
+    if (joinChecked.current || !isLive || !liveCtx?.synced) return;
+    joinChecked.current = true;
+    if (
+      shouldOpenJoinAtStart({
+        role,
+        joinUrl: liveCtx.viewerUrl,
+        index: indexRef.current,
+        joinCardsOnScreen: joinCards.current,
+        coarsePointer: coarse,
+      })
+    ) {
+      setQrState(true);
+      setQrAuto(true);
+    }
+  }, [isLive, liveCtx?.synced, liveCtx?.viewerUrl, role, coarse]);
+  const shownIndexRef = useRef(index);
+  useEffect(() => {
+    if (shownIndexRef.current === index) return;
+    shownIndexRef.current = index;
+    if (qrRef.current) setQr(false);
+  }, [index, setQr]);
+
   const prevIndexRef = useRef(index);
   const direction: SlideDirection = index >= prevIndexRef.current ? 1 : -1;
   useEffect(() => {
@@ -331,6 +380,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
 
   return (
     <MDXProvider components={mdxComponents}>
+     <JoinCardPresence.Provider value={registerJoinCard}>
      <BackdropProvider backdrop={backdrop}>
       <PersistentProvider>
        {/* 100dvh (dynamic viewport), NOT 100vh: on mobile the browser's address
@@ -409,7 +459,12 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
         {/* QR + overview render OUTSIDE the scaled canvas (device scale) so they're
             full-size on a phone, the touch ⋮ menu opens them. */}
         <LiveStatusBadge state={liveCtx?.connection} role={role} className="absolute left-3 top-3 z-30" />
-        <QrOverlay open={qr} url={liveCtx?.viewerUrl} onClose={() => setQr(false)} />
+        <QrOverlay
+          open={qr}
+          url={liveCtx?.viewerUrl}
+          hint={qrAuto ? START_HINT : undefined}
+          onClose={() => setQr(false)}
+        />
         <AnimatePresence>
           {overview && (
             <motion.div
@@ -538,6 +593,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
        </main>
       </PersistentProvider>
      </BackdropProvider>
+     </JoinCardPresence.Provider>
     </MDXProvider>
   );
 }

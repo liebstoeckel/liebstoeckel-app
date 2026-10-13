@@ -1,8 +1,10 @@
 import * as os from "node:os";
+import type { ServerWebSocket } from "bun";
 import { Hub } from "./relay";
 import { createSession, roleForToken, buildLinks, type Session, type Links } from "./session";
 import { injectBootstrap } from "./inject";
-import { CLOSE, LIVE_PROTOCOL, TOO_OLD_REASON, negotiateVersion } from "./placement/protocol";
+import { CLOSE, LIVE_PROTOCOL, NOTICES_SINCE, TOO_OLD_REASON, negotiateVersion, type LiveNotice } from "./placement/protocol";
+import { AudienceCounter } from "./audience";
 import { extractManifest, rehydrateServerBundle } from "./manifest";
 
 /** First non-internal IPv4 address (for LAN links / QR). */
@@ -34,7 +36,14 @@ export interface LiveServer {
   stop(): void;
 }
 
-type WSData = { peer: ReturnType<Hub["join"]> | null; tooOld?: boolean };
+type WSData = {
+  peer: ReturnType<Hub["join"]> | null;
+  tooOld?: boolean;
+  /** the presenter's link (it hears the audience count) rather than a viewer's */
+  presenter?: boolean;
+  /** the negotiated live protocol version (notices from 2 on) */
+  version?: number;
+};
 
 /** cap inbound WS frames (Yjs updates for a poll-class deck are tiny) */
 const MAX_FRAME_BYTES = 4 * 1024 * 1024;
@@ -68,6 +77,20 @@ export async function startServer(opts: ServeOptions): Promise<LiveServer> {
     }
   }
 
+  // Presenters hear how many viewers are connected, at most about once a second.
+  const presenters = new Set<ServerWebSocket<WSData>>();
+  const tell = (ws: ServerWebSocket<WSData>, notice: LiveNotice) => {
+    if ((ws.data.version ?? 1) < NOTICES_SINCE) return;
+    try {
+      ws.send(JSON.stringify(notice));
+    } catch {
+      /* closing */
+    }
+  };
+  const audience = new AudienceCounter((n) => {
+    for (const ws of presenters) tell(ws, { t: "audience", n });
+  });
+
   const server = Bun.serve<WSData>({
     port: opts.port ?? 0,
     hostname: opts.hostname ?? "0.0.0.0",
@@ -76,10 +99,17 @@ export async function startServer(opts: ServeOptions): Promise<LiveServer> {
       const token = url.searchParams.get("t");
 
       if (url.pathname === "/sync") {
-        if (!roleForToken(session, token)) return new Response("forbidden", { status: 403 });
+        const role = roleForToken(session, token);
+        if (!role) return new Response("forbidden", { status: 403 });
         // A browser cannot read the body of a refused upgrade, so an old client is
         // let in and then closed with a code that tells it why.
-        const data: WSData = { peer: null, tooOld: !negotiateVersion(url.searchParams.get("v"), LIVE_PROTOCOL).ok };
+        const negotiated = negotiateVersion(url.searchParams.get("v"), LIVE_PROTOCOL);
+        const data: WSData = {
+          peer: null,
+          tooOld: !negotiated.ok,
+          presenter: role === "presenter",
+          version: negotiated.ok ? negotiated.version : 0,
+        };
         return srv.upgrade(req, { data }) ? undefined : new Response("upgrade failed", { status: 400 });
       }
 
@@ -105,6 +135,10 @@ export async function startServer(opts: ServeOptions): Promise<LiveServer> {
           return;
         }
         ws.data.peer = hub.join((d) => ws.send(d));
+        if (ws.data.presenter) {
+          presenters.add(ws);
+          tell(ws, { t: "audience", n: audience.n });
+        } else audience.join();
       },
       message(ws, msg) {
         if (typeof msg === "string") return;
@@ -113,7 +147,11 @@ export async function startServer(opts: ServeOptions): Promise<LiveServer> {
         ws.data.peer?.recv(bytes); // recv is internally guarded
       },
       close(ws) {
-        ws.data.peer?.leave();
+        if (!ws.data.peer) return;
+        ws.data.peer.leave();
+        ws.data.peer = null;
+        if (ws.data.presenter) presenters.delete(ws);
+        else audience.leave();
       },
     },
   });
@@ -130,6 +168,7 @@ export async function startServer(opts: ServeOptions): Promise<LiveServer> {
     serverPlugins,
     stop() {
       for (const c of cleanups) c();
+      audience.destroy();
       server.stop(true);
       hub.destroy();
     },

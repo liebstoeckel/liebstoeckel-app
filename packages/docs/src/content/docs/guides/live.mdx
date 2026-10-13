@@ -26,13 +26,66 @@ This builds the deck (if needed), serves it on your LAN, and prints presenter + 
 <Steps>
 
 1. Open the **presenter** link (or press <kbd>p</kbd> for the presenter window).
-2. The room opens the **audience** link: share it directly, or press <kbd>q</kbd> in the deck to show a scannable QR full-screen.
+2. The room opens the **audience** link: the presenter's deck shows the [join card](#the-join-card) on its own when the talk starts, <kbd>q</kbd> shows it again at any time, or share the link directly.
 3. Navigate: every viewer follows. Plugins (polls, Q&A, reactions) sync in real time.
 
 </Steps>
 
+## The join card
+
+The join card is how the room gets in: a QR code of the audience link, the link itself, and,
+on the presenter's screens, how many people are watching.
+
+- **When the talk starts.** The presenter's deck window opens the join card full-screen by
+  itself when a live session loads on the first slide. The first <kbd>→</kbd> (or a click,
+  or your clicker) only puts it away; the next one advances. It also goes away when the
+  slide changes from anywhere else, such as the presenter window or your phone. It does not
+  open by itself on a reload in the middle of a talk, on a phone, or when the first slide
+  already has a `<JoinCard />`.
+- **At any time.** Press <kbd>q</kbd> in the deck window.
+- **The count.** "Waiting for people to join", then "12 watching". It counts open
+  connections, so a phone with the link open in two tabs counts twice. The deck window,
+  the one the room sees, never says more than that; the presenter window and the
+  dashboard also tell you when the session is full.
+- **In the presenter window** the header shows the count as a small pill; click it (or press
+  <kbd>q</kbd>) for the share screen.
+
+In the cloud the link is the session's short, stable link (`…/live/k7m2x9qp4r`), which keeps
+working if the session moves to another server mid-talk. On a self-hosted
+[relay](/guides/relay/) it is the relay's audience link with a signed token, and on your LAN
+the `liebstoeckel live` audience link.
+
+### `<JoinCard />` on a slide
+
+Place the card on a slide yourself, for example on the title slide or a "questions?" slide:
+
+```tsx
+import { JoinCard } from "@liebstoeckel/engine";
+
+export default function Title() {
+  return (
+    <div className="flex h-full w-full items-center justify-between gap-16">
+      <h1 className="text-7xl">Present with the room</h1>
+      <JoinCard size={300} />
+    </div>
+  );
+}
+```
+
+| Prop | Default | |
+| --- | --- | --- |
+| `size` | `280` | QR size in pixels on the 1920×1080 stage; the link scales with it |
+| `label` | `"Scan to join"` | the line above the QR; `""` for none |
+| `fallback` | a placeholder | what to show without a live session; `null` shows nothing |
+
+Without a live session (the deck opened as a plain `.html`, a thumbnail, a PDF export) the
+card keeps its space and says the join code appears there when the deck is presented live,
+so the slide's layout holds. A first slide with a `<JoinCard />` keeps the deck from opening
+the full-screen card by itself. Viewers see the card too (handy for passing the link on),
+without the count.
+
 <Aside type="tip" title="Drive from your phone">
-In the presenter window (<kbd>p</kbd>), press <kbd>q</kbd> (or the header QR button) to open the share screen. It shows the **Follow along** QR (the audience link) and a **Drive from your phone** button. Only after you click it does the presenter QR appear; scanning it joins your phone as a second driver, handy for advancing slides while you walk the room. Anyone who scans that code can control the talk, so reveal it only on a screen the room can't see. It hides again when you close the share screen. The <kbd>q</kbd> overlay in the deck window, the one you project, only ever shows the audience QR.
+In the presenter window (<kbd>p</kbd>), press <kbd>q</kbd> (or the header QR button) to open the share screen. It shows the join card (the audience link) and a **Drive from your phone** button. Only after you click it does the presenter QR appear; scanning it joins your phone as a second driver, handy for advancing slides while you walk the room. Anyone who scans that code can control the talk, so reveal it only on a screen the room can't see. It hides again when you close the share screen. The <kbd>q</kbd> overlay in the deck window, the one you project, only ever shows the audience QR.
 </Aside>
 
 <Aside type="tip" title="Presenter consoles & focus mode">

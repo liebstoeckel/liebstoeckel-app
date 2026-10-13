@@ -21,7 +21,7 @@
     "registry:build": "cd presentations/registry-demo && bun run build.ts",
     "add": "bun packages/cli/src/cli.ts add",
     "poll:build": "cd presentations/poll-demo && bun run build.ts",
-    "poll:live": "bun run poll:build && bun packages/live-server/src/cli.ts presentations/poll-demo/dist/index.html",
+    "poll:live": "bun run poll:build && bun packages/live-server/src/cli.ts presentations/poll-demo/dist/poll-demo.html",
     "live": "bun packages/live-server/src/cli.ts",
     "relay": "bun packages/present-relay/src/cli.ts",
     "thumbs": "bun packages/thumbnails/src/cli.ts",

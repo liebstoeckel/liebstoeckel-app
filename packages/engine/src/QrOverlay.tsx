@@ -1,20 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useDialogFocus } from "./focus";
-import QRCode from "qrcode";
-
-/** Generate a QR data-URL for `url` while `enabled` (no work when closed). */
-function useQrDataUrl(url: string | undefined, enabled: boolean): string {
-  const [src, setSrc] = useState("");
-  useEffect(() => {
-    if (enabled && url) {
-      QRCode.toDataURL(url, { margin: 1, width: 420, color: { dark: "#0b0c10", light: "#ffffff" } })
-        .then(setSrc)
-        .catch(() => setSrc(""));
-    }
-  }, [enabled, url]);
-  return src;
-}
+import { useQrDataUrl } from "./qr";
+import { JoinCardView, useAudienceCount } from "./JoinCard";
+import type { AudienceCount } from "./live/protocol";
 
 /** Close on Escape while `open`. */
 function useEscToClose(open: boolean, onClose: () => void) {
@@ -72,38 +61,50 @@ function QrCard({
   );
 }
 
+/** What the overlay says about closing it, unless told otherwise. */
+export const CLOSE_HINT = "tap outside, ✕, or press Q / Esc to close";
+
 /** The one QR-share surface: a full-screen, blurred, dismissable overlay (Esc /
- *  backdrop tap / ✕) showing one or more labelled QRs. A single QR renders big
- *  (the audience "scan to follow along"); several render as a row (presenter share).
- *  `QrOverlay` and `PresenterShare` are thin wrappers so behaviour can't drift. */
+ *  backdrop tap / ✕) showing the join card (`lead`) and any further labelled QRs in a
+ *  row. `QrOverlay` and `PresenterShare` are thin wrappers so behaviour can't drift. */
 export function QrShare({
   open,
   items,
+  lead,
   title,
   footer,
+  hint = CLOSE_HINT,
+  label,
   onClose,
 }: {
   open: boolean;
   items: QrItem[];
+  /** shown first in the row, usually the join card */
+  lead?: ReactNode;
   title?: string;
   /** extra controls under the QRs; clicks there do not close the overlay */
   footer?: ReactNode;
+  /** the line at the bottom, how to close it */
+  hint?: string;
+  /** the dialog's accessible name, when there is no title */
+  label?: string;
   onClose: () => void;
 }) {
   useEscToClose(open, onClose);
   const visible = items.filter((i) => i.url);
-  const big = visible.length <= 1;
+  const shown = visible.length > 0 || !!lead;
+  const big = visible.length + (lead ? 1 : 0) <= 1;
   const box = useRef<HTMLDivElement>(null);
-  useDialogFocus(open && visible.length > 0, box);
+  useDialogFocus(open && shown, box);
   return (
     <AnimatePresence>
-      {open && visible.length > 0 && (
+      {open && shown && (
         <motion.div
           ref={box}
           data-pi-chrome
           role="dialog"
           aria-modal="true"
-          aria-label={title ?? visible[0]?.label ?? "QR code"}
+          aria-label={title ?? label ?? visible[0]?.label ?? "QR code"}
           tabIndex={-1}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-10 overflow-y-auto p-6 outline-none backdrop-blur-2xl"
           style={{ background: "color-mix(in srgb, var(--brand-bg) 80%, transparent)" }}
@@ -128,6 +129,7 @@ export function QrShare({
             </div>
           )}
           <div className="flex flex-wrap items-start justify-center gap-14" onClick={(e) => e.stopPropagation()}>
+            {lead}
             {visible.map((it) => (
               <QrCard key={it.label} url={it.url} label={it.label} sub={it.sub} note={it.note} enabled={open} size={big ? 300 : 240} />
             ))}
@@ -137,27 +139,49 @@ export function QrShare({
               {footer}
             </div>
           )}
-          <div className="font-mono text-xs text-muted">tap outside, ✕, or press Q / Esc to close</div>
+          <div className="font-mono text-xs text-muted">{hint}</div>
         </motion.div>
       )}
     </AnimatePresence>
   );
 }
 
-/** Audience: a single big "follow along" QR (the read-only link). Toggled with Q in
- *  the Deck during a live session. */
-export function QrOverlay({ open, url, onClose }: { open: boolean; url?: string; onClose: () => void }) {
-  return <QrShare open={open} onClose={onClose} items={[{ url, label: "Scan to follow along", sub: url }]} />;
+/** The deck's join overlay: the join card, big, on the screen the room sees (Q in the
+ *  deck during a live session, and on its own when a talk starts). It names the count
+ *  of people watching, never the plan's cap. */
+export function QrOverlay({
+  open,
+  url,
+  count,
+  hint,
+  onClose,
+}: {
+  open: boolean;
+  url?: string;
+  count?: AudienceCount;
+  hint?: string;
+  onClose: () => void;
+}) {
+  // read here, so a new count re-renders the card, not the deck
+  const heard = useAudienceCount();
+  return (
+    <QrShare
+      open={open}
+      onClose={onClose}
+      items={[]}
+      label="Scan to join"
+      hint={hint}
+      lead={url ? <JoinCardView url={url} count={count ?? heard} size={300} qr={open} shownTo="room" /> : undefined}
+    />
+  );
 }
 
-/** What the presenter share screen shows: the audience link always, the presenter link
- *  (which controls the talk) only once revealed. Pure, so the "nothing that grants
+/** What the presenter share screen shows besides the join card: the presenter link
+ *  (which controls the talk), only once revealed. Pure, so the "nothing that grants
  *  control until asked" rule is testable without a DOM. */
-export function presenterShareItems(viewerUrl: string | undefined, presenterUrl: string | undefined, revealed: boolean): QrItem[] {
-  const items: QrItem[] = [{ url: viewerUrl, label: "Follow along", sub: viewerUrl }];
+export function presenterShareItems(presenterUrl: string | undefined, revealed: boolean): QrItem[] {
   // No link text under this QR: it is a grant, and a QR is harder to copy off a screen.
-  if (revealed && presenterUrl) items.push({ url: presenterUrl, label: "Drive from your phone", note: "Anyone who scans this can control the talk." });
-  return items;
+  return revealed && presenterUrl ? [{ url: presenterUrl, label: "Drive from your phone", note: "Anyone who scans this can control the talk." }] : [];
 }
 
 /** Presenter: the audience "Follow along" link, and behind an explicit button the
@@ -169,14 +193,17 @@ export function PresenterShare({
   open,
   viewerUrl,
   presenterUrl,
+  count,
   onClose,
 }: {
   open: boolean;
   viewerUrl?: string;
   presenterUrl?: string;
+  count?: AudienceCount;
   onClose: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const heard = useAudienceCount();
   useEffect(() => {
     if (!open) setRevealed(false);
   }, [open]);
@@ -203,7 +230,8 @@ export function PresenterShare({
       open={open}
       onClose={onClose}
       title="share this session"
-      items={presenterShareItems(viewerUrl, presenterUrl, revealed)}
+      items={presenterShareItems(presenterUrl, revealed)}
+      lead={viewerUrl ? <JoinCardView url={viewerUrl} count={count ?? heard} size={revealed ? 240 : 300} qr={open} shownTo="presenter" /> : undefined}
       footer={footer}
     />
   );

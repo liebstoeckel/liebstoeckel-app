@@ -96,6 +96,23 @@ was never added to `<Present plugins>` — that placement silently falls back to
 offline preview. So after the check passes, confirm by eye: **every `id` you placed
 appears in the `plugins={[…]}` array.**
 
+## The join card on a slide
+
+`<JoinCard />` (from `@liebstoeckel/engine`, no plugin to register) shows the live session's
+join QR, its link, and on the presenter's screen how many are watching. Put it on the title
+slide or a "questions?" slide:
+
+```tsx
+import { JoinCard } from "@liebstoeckel/engine";
+// …in the slide's JSX, beside the headline:
+<JoinCard size={300} />
+```
+
+Props: `size` (QR px on the 1920×1080 stage, default 280), `label` (default "Scan to
+join", `""` for none), `fallback` (shown without a live session; default a same-size
+placeholder note, `null` for nothing). A first slide with a `<JoinCard />` keeps the deck
+from opening the full-screen join card by itself when the talk starts.
+
 ## Present it live (how to see plugins activate)
 
 Built or opened directly, a deck shows only fallbacks. Plugins go live with:

@@ -8,7 +8,7 @@ import { BackdropProvider } from "./backdrop";
 import { PresenterView } from "./PresenterView";
 import { CaptureView } from "./CaptureView";
 import { PrintView } from "./PrintView";
-import { LiveProvider, type LiveContextValue } from "./live/Plugin";
+import { LiveProvider, type AudienceSource, type LiveContextValue } from "./live/Plugin";
 import { detectLive } from "./live/detect";
 import { connectLive } from "./live/connect";
 import type { LiveState } from "./live/protocol";
@@ -55,6 +55,11 @@ export function Present(props: DeckProps) {
   const [connection, setConnection] = useState<LiveState | undefined>(undefined);
   const [refusals, setRefusals] = useState<ReadonlyMap<string, Refusal> | undefined>(undefined);
   const [synced, setSynced] = useState(() => conn?.synced ?? true);
+  // A stable source, so a new count re-renders only what shows it.
+  const audience = useMemo<AudienceSource | undefined>(
+    () => (conn ? { get: () => conn.audience, subscribe: (cb) => conn.onAudience(cb) } : undefined),
+    [conn],
+  );
   useEffect(() => {
     if (!conn) return;
     // A viewer's doc is replaced when the server refuses one of its writes.
@@ -87,6 +92,7 @@ export function Present(props: DeckProps) {
     viewerUrl: info?.viewer,
     audienceInputKeptDays: info?.audienceInputKeptDays,
     connection: info ? connection : undefined,
+    audience,
     refusals: info ? refusals : undefined,
     synced: conn ? synced : true,
     gate: conn ?? undefined,

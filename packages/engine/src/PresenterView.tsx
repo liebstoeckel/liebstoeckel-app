@@ -15,6 +15,7 @@ import { StepsProvider } from "./steps";
 import { ScaledStage, SlideFrame } from "./Stage";
 import { Backdrop } from "./backdrop";
 import { PresenterShare } from "./QrOverlay";
+import { AudienceCountPill } from "./JoinCard";
 import { PersistentProvider } from "./PersistentLayer";
 import { useCoarsePointer } from "./useCoarsePointer";
 import { normalizeSlides } from "./slides";
@@ -525,6 +526,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
           >
             reset
           </button>
+          {live && <AudienceCountPill onOpen={() => setShare(true)} />}
           <LiveStatusBadge state={liveCtx?.connection} role={liveCtx?.role} />
           {live && (
             <button

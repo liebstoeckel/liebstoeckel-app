@@ -181,7 +181,9 @@ The built-ins:
 
 Adding one is: `bun add` the package, register it on `<Present plugins={[…]}>`, and place
 `<Plugin id="…" props={…} />` on a slide — see `references/plugins.md`. To author a new
-plugin, see `references/build-plugins.md`.
+plugin, see `references/build-plugins.md`. To put the join QR on a slide (title or
+"questions?" slide), place `<JoinCard />` from `@liebstoeckel/engine` (props `size`,
+`label`, `fallback`); see `references/plugins.md`.
 
 ## Rules
 

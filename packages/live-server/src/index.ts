@@ -1,6 +1,7 @@
 export { startServer, lanAddress, type ServeOptions, type LiveServer } from "./server";
 export { Hub, describeUpdate, type Peer, type Send, type HubOptions, type AudiencePolicy, type DropInfo, type DropReason } from "./relay";
 export { audienceScopeFromHtml } from "./scope";
+export { AudienceCounter, AUDIENCE_NOTICE_MS } from "./audience";
 export {
   buildAudienceScope,
   authorizeAudienceUpdate,

@@ -1,7 +1,7 @@
 import * as Y from "yjs";
 import type { LiveInfo } from "./detect";
 import type { Refusal } from "@liebstoeckel/plugin-sdk";
-import { LIVE_CLOSE, type LiveState, parseNotice, withLiveProtocol } from "./protocol";
+import { LIVE_CLOSE, type AudienceCount, type LiveState, parseNotice, withLiveProtocol } from "./protocol";
 
 export interface LiveConnection {
   /** Whether the doc holds the session state yet: false until the server's first state
@@ -24,6 +24,11 @@ export interface LiveConnection {
   /** The detailed state (reconnecting, ended, outdated), called with the current
    *  state at once and on every change. */
   onState(cb: (state: LiveState) => void): void;
+  /** Presenters: how many are connected to the session, as the server last said;
+   *  undefined until it has said (viewers, older servers). */
+  readonly audience: AudienceCount | undefined;
+  /** Call `cb` whenever the audience count changes. Returns an unsubscribe. */
+  onAudience(cb: () => void): () => void;
   close(): void;
 }
 
@@ -147,6 +152,8 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
   const statusCbs: Array<(c: boolean) => void> = [];
   const emit = (c: boolean) => statusCbs.forEach((cb) => cb(c));
   const stateCbs: Array<(s: LiveState) => void> = [];
+  let audience: AudienceCount | undefined;
+  let audienceCbs: Array<() => void> = [];
   let state: LiveState = { status: "connecting" };
   const setState = (next: LiveState) => {
     if (
@@ -332,6 +339,12 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
         else if (notice?.t === "reset") resetNext = true;
         else if (notice?.t === "refusing") setState({ ...state, refusing: notice.reason ?? undefined });
         else if (notice?.t === "resume") resume = notice.token;
+        else if (notice?.t === "audience") {
+          if (audience?.n !== notice.n || audience?.cap !== notice.cap) {
+            audience = notice.cap !== undefined ? { n: notice.n, cap: notice.cap } : { n: notice.n };
+            audienceCbs.forEach((cb) => cb());
+          }
+        }
         return;
       }
       const bytes = new Uint8Array(e.data as ArrayBuffer);
@@ -437,6 +450,15 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
     onState(cb) {
       stateCbs.push(cb);
       cb(state);
+    },
+    get audience() {
+      return audience;
+    },
+    onAudience(cb) {
+      audienceCbs.push(cb);
+      return () => {
+        audienceCbs = audienceCbs.filter((c) => c !== cb);
+      };
     },
     close() {
       closed = true;

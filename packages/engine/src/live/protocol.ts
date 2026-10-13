@@ -11,12 +11,24 @@ export type RefusalReason = "busy" | "full" | "invalid";
 
 /** Control messages servers send as text frames to protocol 2 clients. After `reset`
  *  the next binary frame is the whole session state, which replaces the client's doc.
- *  `resume` (protocol 3) is a secret the client sends back as `r` when it reconnects. */
+ *  `resume` (protocol 3) is a secret the client sends back as `r` when it reconnects.
+ *  `audience` (to presenters) is how many audience connections are open, and the cap. */
 export type LiveNotice =
   | { t: "refused"; reason: RefusalReason; roots: string[] }
   | { t: "reset" }
   | { t: "refusing"; reason: Exclude<RefusalReason, "invalid"> | null }
-  | { t: "resume"; token: string };
+  | { t: "resume"; token: string }
+  | { t: "audience"; n: number; cap?: number };
+
+/** How many people are connected to a live session, as presenters hear it. */
+export interface AudienceCount {
+  /** audience connections open now */
+  n: number;
+  /** the session's audience cap, when it has one */
+  cap?: number;
+}
+
+const count = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
 
 const REASONS: readonly string[] = ["busy", "full", "invalid"];
 
@@ -41,6 +53,9 @@ export function parseNotice(text: string): LiveNotice | null {
   }
   if (m.t === "resume" && typeof m.token === "string" && /^[0-9a-f]{16,128}$/.test(m.token)) {
     return { t: "resume", token: m.token };
+  }
+  if (m.t === "audience" && count(m.n)) {
+    return count(m.cap) && m.cap > 0 ? { t: "audience", n: m.n, cap: m.cap } : { t: "audience", n: m.n };
   }
   return null;
 }
