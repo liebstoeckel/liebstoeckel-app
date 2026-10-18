@@ -11,7 +11,7 @@ export {
   type TokenBucket,
 } from "@liebstoeckel/plugin-sdk/authorize";
 export { createSession, roleForToken, buildLinks, type Session, type Role, type Links } from "./session";
-export { injectBootstrap, injectLegalLinks, injectWatermark, legalLinksFrom, reportHref, type LegalLinks, type LiveBootstrap } from "./inject";
+export { injectBootstrap, injectLegalLinks, injectWatermark, LEGAL_MENU_ATTR, legalForPage, legalLinksFrom, readsLegalMenu, reportHref, type LegalLinks, type LiveBootstrap } from "./inject";
 export {
   embedManifest,
   extractManifest,

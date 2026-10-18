@@ -21,6 +21,7 @@ import { useCoarsePointer } from "./useCoarsePointer";
 import { normalizeSlides } from "./slides";
 import type { DeckProps } from "./Deck";
 import { AudienceRefusingNotice, LiveStatusBadge } from "./live/status";
+import { useLegalLinks } from "./live/legal";
 import { DEFAULT_BRANDS } from "./brandCheck";
 
 function useNow(ms = 1000) {
@@ -288,6 +289,8 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
   // was started with (the address bar does not hold it) and stays hidden behind an
   // explicit reveal in the share screen, so a projected or shared screen never shows it.
   const [share, setShare] = useState(false);
+  // The host's legal links sit on the share screen, which opens once the session is up.
+  const legal = useLegalLinks(live);
   const presenterUrl = useMemo(() => {
     const info = detectLive();
     return typeof location !== "undefined" && info?.role === "presenter" ? linkWithToken(location.href, info.token) : undefined;
@@ -375,7 +378,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
   const count = norm.length;
   const noNotes = <span className="text-muted">, no notes for this slide, </span>;
   const shareOverlay = (
-    <PresenterShare open={share} viewerUrl={liveCtx?.viewerUrl} presenterUrl={presenterUrl} onClose={() => setShare(false)} />
+    <PresenterShare open={share} viewerUrl={liveCtx?.viewerUrl} presenterUrl={presenterUrl} legal={legal} onClose={() => setShare(false)} />
   );
 
   // ── Mobile: notes-first stack ((internal ADR)) ───────────────────────────────────

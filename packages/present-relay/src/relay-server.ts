@@ -4,6 +4,8 @@ import {
   roleForToken,
   injectBootstrap,
   injectLegalLinks,
+  legalForPage,
+  readsLegalMenu,
   injectWatermark,
   audienceScopeFromHtml,
   AudienceCounter,
@@ -128,6 +130,8 @@ interface RelaySession {
   /** whether the deck's engine follows the presenter cookie exchange (0.4 and later);
    *  an older deck keeps its presenter `?t=` in the address, which its phone link needs */
   presenterCookie: boolean;
+  /** the deck's engine shows the legal links in its own menu (read once from the HTML) */
+  legalMenu: boolean;
   /** The audience's copy of the page, compressed once, built at the first viewer request. */
   audience?: PreparedPage;
   session: Session;
@@ -673,6 +677,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       hub,
       html,
       presenterCookie: followsPresenterCookie(html),
+      legalMenu: readsLegalMenu(html),
       session,
       runnerToken: hex(),
       createdAt: exp - ttlMs,
@@ -793,6 +798,9 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // control plane gave one, else this relay's link with a signed viewer grant. Never the
     // raw viewer token, which a new placement of the session (a pod move) replaces.
     const viewer = s.joinUrl ?? `${http}/s/${s.id}?t=${s.viewerGrant}`;
+    // The legal links name the session the way the audience knows it: the stable join
+    // link, else this relay's audience link (a viewer grant, never the presenter's).
+    const legal = cfg.legalLinks ? legalForPage(cfg.legalLinks, viewer) : undefined;
     const boot = {
       ws: wsUrl,
       session: s.id,
@@ -801,6 +809,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       participant: identity?.participant ?? "",
       viewer,
       ...(s.audienceInputKeptDays ? { audienceInputKeptDays: s.audienceInputKeptDays } : {}),
+      ...(legal ? { legal } : {}),
     };
     // Opaque-origin isolation: no allow-same-origin → the deck can't reach
     // the relay's cookies/API/DOM, and each load is a fresh opaque origin
@@ -825,12 +834,12 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // there can be sent. The relay's own pages carry this policy themselves, so the
     // presenter pop-out stays sandboxed.
     const csp = `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src ${ws} ${http}; frame-ancestors 'none'; sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox`;
-    // The legal row's report link names the session the way the audience knows it: the
-    // stable join link, else this relay's audience link (a viewer grant, never the
-    // presenter's).
+    // The legal row: the three links for a deck whose engine cannot show them, else only
+    // the free tier's badge, with the links held back for the engine's menu (and shown by
+    // the row after all if the engine never takes them).
     const withLegal = (html: string, as: Role): string =>
       cfg.legalLinks
-        ? injectLegalLinks(html, { links: cfg.legalLinks, page: s.joinUrl ?? `${http}/s/${s.id}?t=${s.viewerGrant}`, role: as, watermark: as === "viewer" && s.watermark })
+        ? injectLegalLinks(html, { links: cfg.legalLinks, page: viewer, role: as, watermark: as === "viewer" && s.watermark, menu: s.legalMenu })
         : as === "viewer" && s.watermark
           ? injectWatermark(html)
           : html;

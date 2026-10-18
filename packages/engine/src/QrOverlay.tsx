@@ -4,6 +4,7 @@ import { useDialogFocus } from "./focus";
 import { useQrDataUrl } from "./qr";
 import { JoinCardView, useAudienceCount } from "./JoinCard";
 import type { AudienceCount } from "./live/protocol";
+import { LegalLinksRow, type LegalLinks } from "./live/legal";
 
 /** Close on Escape while `open`. */
 function useEscToClose(open: boolean, onClose: () => void) {
@@ -194,12 +195,15 @@ export function PresenterShare({
   viewerUrl,
   presenterUrl,
   count,
+  legal,
   onClose,
 }: {
   open: boolean;
   viewerUrl?: string;
   presenterUrl?: string;
   count?: AudienceCount;
+  /** the host's legal links, a line at the foot of the screen */
+  legal?: LegalLinks | null;
   onClose: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
@@ -209,7 +213,7 @@ export function PresenterShare({
   }, [open]);
   const button =
     "min-h-11 rounded-full border border-border px-5 text-sm text-text transition hover:border-accent hover:text-accent active:text-accent";
-  const footer = presenterUrl ? (
+  const drive = presenterUrl ? (
     revealed ? (
       <button type="button" className={button} onClick={() => setRevealed(false)}>
         Hide the presenter code
@@ -225,6 +229,13 @@ export function PresenterShare({
       </>
     )
   ) : null;
+  const footer =
+    drive || legal ? (
+      <>
+        {drive}
+        {legal && <LegalLinksRow links={legal} className={`${drive ? "mt-4" : ""} text-xs`} />}
+      </>
+    ) : null;
   return (
     <QrShare
       open={open}

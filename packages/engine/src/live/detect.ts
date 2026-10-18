@@ -10,6 +10,8 @@ export interface LiveInfo {
   viewer?: string;
   /** days the host keeps what the audience writes after the session; absent = not kept */
   audienceInputKeptDays?: number;
+  /** the host's legal links (Impressum, privacy notice, report form), for the deck's menu */
+  legal?: { imprint?: unknown; privacy?: unknown; report?: unknown };
 }
 
 /** Read the bootstrap the live server injects. Absent → standalone (.html). */

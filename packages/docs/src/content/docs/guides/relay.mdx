@@ -56,24 +56,43 @@ Because storage is blocked, the relay keeps each viewer's participant id (the ke
 
 ## Legal links on live pages
 
-A relay that serves the public can add a small row to every audience and presenter page
-linking your Impressum, your privacy notice and a form to report content. Set all three
-(http or https), or none:
+A relay that serves the public can link your Impressum, your privacy notice and a form to
+report content from every audience and presenter page. Set all three (http or https), or
+none:
 
 | Variable | Link |
 | --- | --- |
 | `PRESENT_RELAY_LEGAL_IMPRINT_URL` | your Impressum or legal notice |
 | `PRESENT_RELAY_LEGAL_PRIVACY_URL` | your privacy notice |
-| `PRESENT_RELAY_LEGAL_REPORT_URL` | a form to report content; the session's link is added as `?url=` |
+| `PRESENT_RELAY_LEGAL_REPORT_URL` | a form to report content; the session's audience link is added as `?url=` |
 
-The row sits in the bottom right corner, in English or German by the reader's browser
-languages (`?lang=de` or `?lang=en` on the page wins). On a phone it folds into one
-**Legal** link at the top right. It is on white-labelled sessions too; on free sessions the
-"Published with liebstoeckel" badge joins it in the same pill. On the presenter's page it
-shows only in the presenter view (`#presenter`), not in the deck window the room sees. The
-links open a new tab. The row is part of the deck's own page, so a deck's code could hide
-it; the relay does not guard against that. Without the variables there is no row, and free
-sessions show the badge alone as before.
+The relay hands the three links to the page, and the deck shows them in its own menu, at
+most two clicks from any live page, with nothing drawn over the slide:
+
+- **On a phone or tablet**, the **⋮** menu ends with a **Legal** section: Imprint, Privacy,
+  Report content.
+- **On a computer**, the button at the bottom left (**Info and shortcuts**, or the `?` key)
+  opens the shortcuts panel with the three links at its foot.
+- **In the presenter view**, they sit at the foot of the share screen (the share button at
+  the top, or `Q`). The presenter's deck window, which the room sees, shows none.
+
+The labels are in English or German by the reader's browser languages (`?lang=de` or
+`?lang=en` on the page wins). The links open a new tab, so the talk stays where it is. They
+are there on white-labelled sessions too. Free sessions keep the "Published with
+liebstoeckel" badge visible on its own, in the bottom right corner (at the top right on a
+phone).
+
+**Decks built with an older version** cannot show the links in their menu. The relay tells
+them apart by the code the deck carries and gives those decks a small row with the three
+links instead, in the bottom right corner, folded into one **Legal** link at the top right
+on a phone (with the badge in the same pill on free sessions). Rebuilding the deck moves the
+links into its menu. If a current deck does not take the links within a few seconds of
+loading (its code failed, say), the row appears after all, so no live page is left without
+them.
+
+The links live in the deck's own page, so a deck's code could hide them; the relay does not
+guard against that. Without the variables there are no links, and free sessions show the
+badge alone as before.
 
 ## What the audience downloads
 

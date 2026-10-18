@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useDialogFocus } from "./focus";
 import type { Role } from "@liebstoeckel/plugin-sdk";
+import { LegalLinksRow, type LegalLinks } from "./live/legal";
 
 type Shortcut = { keys: string[]; label: string; presenterOnly?: boolean };
 
@@ -26,6 +27,7 @@ export function HelpOverlay({
   showBrand,
   role,
   ejectable,
+  legal,
 }: {
   open: boolean;
   onClose: () => void;
@@ -34,6 +36,8 @@ export function HelpOverlay({
   role?: Role;
   /** this `.html` carries its own recoverable source → show the "edit this deck" hint */
   ejectable?: boolean;
+  /** the host's legal links: a line at the foot of the panel, never scrolled away */
+  legal?: LegalLinks | null;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -94,8 +98,9 @@ export function HelpOverlay({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 8 }}
             transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 24 }}
-            className="relative outline-none max-h-[88%] w-[400px] overflow-auto rounded-2xl border border-border bg-surface/90 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
+            className="relative flex outline-none max-h-[88%] w-[400px] flex-col rounded-2xl border border-border bg-surface/90 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
           >
+            <div className="min-h-0 overflow-auto">
             <div className="mb-4 flex items-baseline justify-between">
               <h2 id="pi-help-title" className="m-0 font-heading text-xl font-semibold text-text">Shortcuts</h2>
               {role ? (
@@ -156,7 +161,9 @@ export function HelpOverlay({
                 </p>
               </div>
             )}
-            <div className="mt-4 border-t border-border pt-3 text-center font-mono text-[11px] uppercase tracking-[0.25em] text-muted">
+            </div>
+            {legal && <LegalLinksRow links={legal} className="mt-4 shrink-0 border-t border-border pt-3 font-body text-[13px]" />}
+            <div className={`${legal ? "mt-2" : "mt-4 border-t border-border pt-3"} shrink-0 text-center font-mono text-[11px] uppercase tracking-[0.25em] text-muted`}>
               right-click anywhere to toggle
             </div>
           </motion.div>

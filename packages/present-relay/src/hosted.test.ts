@@ -501,12 +501,65 @@ describe("hosted relay: audience white-label ((internal ADR))", () => {
     expect(row).not.toContain(presenterToken);
   });
 
+  // A deck whose engine shows the legal links in its menu carries the attribute it sets.
+  const MENU_DECK = DECK.replace("</body>", `<script>document.documentElement.setAttribute("data-liebstoeckel-legal-menu-v1","")</script></body>`);
+  const OLD_DECK = DECK.replace("engine 0.4.0, cli 0.4.0", "engine 0.3.10, cli 0.3.12");
+  const bootOf = (html: string) => JSON.parse(/window\.__LIEBSTOECKEL_LIVE__=(\{.*?\})<\/script>/.exec(html)![1]!);
+
+  test("a deck whose engine has the menu gets the links as data and a row that holds them back", async () => {
+    const base = start({ legalLinks: LEGAL });
+    for (const headers of [{ "x-watermark": "1" }, {}] as Record<string, string>[]) {
+      const { id, viewerToken } = await create(base, { ...headers, "x-join-url": "https://app.example/live/abc" }, MENU_DECK);
+      const aud = await fetch(`${base}/s/${id}?t=${viewerToken}`).then((r) => r.text());
+      expect(bootOf(aud).legal).toEqual({
+        imprint: LEGAL.imprint,
+        privacy: LEGAL.privacy,
+        report: `https://app.example/forms/abuse?url=${encodeURIComponent("https://app.example/live/abc")}`,
+      });
+      const row = legalRow(aud)!;
+      expect(row).toContain(headers["x-watermark"] ? 'class="lst-menu lst-wait"' : 'class="lst-menu lst-wait lst-nobadge"');
+      expect(row.includes("Published with liebstoeckel")).toBe(headers["x-watermark"] === "1");
+    }
+  });
+
+  test("an old deck (0.3.12 build) keeps the visible row; the data rides along unused", async () => {
+    const base = start({ legalLinks: LEGAL });
+    const { id, viewerToken } = await create(base, { "x-watermark": "1" }, OLD_DECK);
+    const aud = await fetch(`${base}/s/${id}?t=${viewerToken}`).then((r) => r.text());
+    const row = legalRow(aud)!;
+    expect(row).toMatch(/^<nav id="lst-legal" lang="en" aria-label="Legal">/);
+    expect(row).toContain('href="https://site.example/impressum"');
+    expect(aud).not.toContain("lst-wait");
+  });
+
+  test("a deck that only names the marker in its text still ends up with the links: the row shows them if the engine never takes them", async () => {
+    const base = start({ legalLinks: LEGAL });
+    const named = DECK.replace("<div id=root></div>", "<div id=root><p>data-liebstoeckel-legal-menu-v1</p></div>");
+    const { id, viewerToken } = await create(base, {}, named);
+    const aud = await fetch(`${base}/s/${id}?t=${viewerToken}`).then((r) => r.text());
+    const row = legalRow(aud)!;
+    expect(row).toContain('href="https://site.example/impressum"');
+    expect(row).toContain('href="https://site.example/datenschutz"');
+    expect(aud).toContain('setTimeout(function(){r.classList.remove("lst-wait")},4000)');
+  });
+
+  test("the presenter page's data names the audience link, never the presenter grant", async () => {
+    const base = start({ legalLinks: LEGAL });
+    const { id, presenterToken, viewerGrant } = await create(base, {}, MENU_DECK);
+    const pres = await (await presenterPage(base, id, presenterToken)).text();
+    const legal = bootOf(pres).legal;
+    expect(legal.report).toBe(`https://app.example/forms/abuse?url=${encodeURIComponent(`http://127.0.0.1:${relay!.port}/s/${id}?t=${viewerGrant}`)}`);
+    expect(JSON.stringify(legal)).not.toContain(presenterToken);
+    expect(legal.report).not.toContain("presenter");
+  });
+
   test("without legal links, no row: the plain badge on free sessions as before", async () => {
     const base = start();
     const { id, viewerToken } = await create(base, { "x-watermark": "1" });
     const aud = await fetch(`${base}/s/${id}?t=${viewerToken}`).then((r) => r.text());
     expect(legalRow(aud)).toBeNull();
     expect(aud).toContain("Published with liebstoeckel");
+    expect(bootOf(aud).legal).toBeUndefined();
   });
 
   test("a tab the page opens may leave the sandbox, so a form there can be sent", async () => {

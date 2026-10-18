@@ -34,6 +34,7 @@ import { moveSelection, gridCols, type GridDir } from "./overview";
 import type { NavMode } from "./interaction";
 import { LiveStatusBadge, ViewerStateCard } from "./live/status";
 import { msgs } from "./live/messages";
+import { useLegalLinks } from "./live/legal";
 import { DEFAULT_BRANDS, warnIfBrandsMissing } from "./brandCheck";
 import { useDialogFocus } from "./focus";
 
@@ -132,6 +133,11 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
   const [help, setHelp] = useState(false);
   // Static for the loaded document; resolve once for the help overlay's eject hint.
   const ejectable = useMemo(() => hasEmbeddedSource(), []);
+  // The host's legal links (hosted live pages): in the menu for the audience; the
+  // presenter's deck window is what the room sees, so it shows none.
+  const legal = useLegalLinks();
+  const pageRole = useMemo(() => detectLive()?.role, []);
+  const menuLegal = (role ?? pageRole) === "presenter" ? null : legal;
   const [blurred, setBlurred] = useState(false);
   const [overview, setOverview] = useState(false);
   const [qr, setQrState] = useState(false);
@@ -487,7 +493,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
                 slide, below chrome; non-interactive (live only, see (internal ADR)) */}
             <PluginOverlays />
 
-            <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} ejectable={ejectable} />
+            <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} ejectable={ejectable} legal={menuLegal} />
             <PortraitHint suppressed={phoneLayout || viewerCard} />
           </div>
 
@@ -677,6 +683,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
           onHelp={() => setHelp(true)}
           onOverview={toggleOverview}
           onQr={() => setQr((v) => !v)}
+          legal={menuLegal}
         />
        </main>
       </PersistentProvider>

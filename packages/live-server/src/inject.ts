@@ -11,6 +11,8 @@ export interface LiveBootstrap {
   viewer?: string;
   /** days the host keeps what the audience writes after the session; absent = not kept */
   audienceInputKeptDays?: number;
+  /** the operator's legal links, for the deck's menu; the report link names the session */
+  legal?: LegalLinks;
 }
 
 /** Inject `window.__LIEBSTOECKEL_LIVE__` into <head> so the client knows a server
@@ -76,6 +78,27 @@ export function legalLinksFrom(env: { imprint?: string; privacy?: string; report
 const escapeHtml = (v: string): string =>
   v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
+/** The attribute a deck's engine sets on its root element once it shows the legal links
+ *  in its own menu. Its name in a built deck's code tells the relay that the engine reads
+ *  the links from the bootstrap; an engine from before has no such code and gets the row.
+ *  The version suffix changes when the bootstrap's `legal` shape does. */
+export const LEGAL_MENU_ATTR = "data-liebstoeckel-legal-menu-v1";
+
+/** Whether a built deck's engine shows the legal links in its menu. A plain text check:
+ *  a deck that only mentions the name still gets the row, see {@link injectLegalLinks}. */
+export function readsLegalMenu(html: string): boolean {
+  return html.includes(LEGAL_MENU_ATTR);
+}
+
+/** How long the row waits for the engine to take the links into its menu before it
+ *  shows them itself (a deck whose engine failed, or one that only names the marker). */
+export const LEGAL_MENU_WAIT_MS = 4000;
+
+/** The legal links a page's bootstrap carries, the report link naming `page`. */
+export function legalForPage(links: LegalLinks, page: string | undefined): LegalLinks {
+  return { imprint: links.imprint, privacy: links.privacy, report: reportHref(links.report, page) };
+}
+
 /** The report form's address with the reported page filled in. */
 export function reportHref(report: string, page: string | undefined): string {
   if (!page) return report;
@@ -94,6 +117,12 @@ export function reportHref(report: string, page: string | undefined): string {
  * presenter's page it shows only in the presenter view (`#presenter`): the deck
  * window is what the room sees.
  *
+ * `menu`: the deck's engine shows the links in its own menu ({@link readsLegalMenu}).
+ * The row then holds only the badge (free tier) and keeps the three links hidden. If
+ * the engine has not marked the page ({@link LEGAL_MENU_ATTR}) after
+ * {@link LEGAL_MENU_WAIT_MS}, the row shows them after all, so a page never ends up
+ * without them; once the engine marks the page they stay hidden.
+ *
  * English or German by the reader's languages (`?lang=` first), chosen in the browser
  * so one prepared page serves every reader. Self-contained (inline styles and a small
  * inline script): the deck runs in an opaque sandbox with no outside resources. The
@@ -103,7 +132,7 @@ export function reportHref(report: string, page: string | undefined): string {
  */
 export function injectLegalLinks(
   html: string,
-  opts: { links: LegalLinks; page?: string; role: Role; watermark: boolean },
+  opts: { links: LegalLinks; page?: string; role: Role; watermark: boolean; menu?: boolean },
 ): string {
   const en = legalMessages("en");
   const de = legalMessages("de");
@@ -112,6 +141,8 @@ export function injectLegalLinks(
     `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" data-lst-t="${key}">${escapeHtml(text)}</a>`;
   const badge = opts.watermark ? a(WATERMARK_HREF, "publishedWith", en.publishedWith) : "";
   const legal = [a(opts.links.imprint, "imprint", en.imprint), a(opts.links.privacy, "privacy", en.privacy), a(report, "report", en.report)].join("");
+  const menu = opts.menu === true;
+  const classes = menu ? (opts.watermark ? "lst-menu lst-wait" : "lst-menu lst-wait lst-nobadge") : "";
   // Only the texts this page shows (a white-label page names no product, not even here).
   const shown = (m: typeof en) => {
     const { publishedWith, ...rest } = m;
@@ -120,6 +151,15 @@ export function injectLegalLinks(
   const texts = JSON.stringify({ en: shown(en), de: shown(de) }).replace(/</g, "\\u003c");
   const presenterOnly = opts.role === "presenter";
   const css =
+    `#lst-legal .lst-row .lst-legal{display:contents}` +
+    // The engine shows the links in its menu: hidden while waiting for it, and for good
+    // once it marked the page. Without the badge the whole row goes.
+    (menu
+      ? `#lst-legal.lst-wait .lst-legal,html[${LEGAL_MENU_ATTR}] #lst-legal .lst-legal{display:none!important}` +
+        `#lst-legal.lst-wait.lst-nobadge,html[${LEGAL_MENU_ATTR}] #lst-legal.lst-nobadge{display:none}` +
+        // Such an engine draws its slide counter in the bottom right corner: sit above it.
+        `#lst-legal.lst-menu{bottom:calc(2.6rem + env(safe-area-inset-bottom))}`
+      : ``) +
     `#lst-legal{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));` +
     `z-index:2147483647;font:500 11px/1.2 system-ui,sans-serif;letter-spacing:.02em;color:#fff}` +
     `#lst-legal[hidden]{display:none}` +
@@ -133,12 +173,13 @@ export function injectLegalLinks(
     // A narrow screen: one pill at the top right, where the letterbox above the slide is
     // empty (the bottom edge holds the deck's own controls and counter there), with the
     // three links folded behind "Legal".
-    `@media (max-width:640px),(pointer:coarse) and (max-height:500px){#lst-legal{top:max(10px,env(safe-area-inset-top));bottom:auto}` +
+    `@media (max-width:640px),(pointer:coarse) and (max-height:500px){#lst-legal,#lst-legal.lst-menu{top:max(10px,env(safe-area-inset-top));bottom:auto}` +
     `#lst-legal .lst-row{display:none}#lst-legal .lst-narrow{display:flex}}`;
   const script =
     `(function(){var r=document.getElementById("lst-legal");if(!r)return;var T=${texts};` +
     `var l="en";try{var q=new URLSearchParams(location.search).get("lang");var c=(q?[q]:[]).concat(navigator.languages||[navigator.language||""]);` +
     `for(var i=0;i<c.length;i++){var b=String(c[i]||"").toLowerCase().split(/[-_]/)[0];if(b==="en"||b==="de"){l=b;break}}}catch(e){}` +
+    (menu ? `setTimeout(function(){r.classList.remove("lst-wait")},${LEGAL_MENU_WAIT_MS});` : ``) +
     `var m=T[l];r.lang=l;var n=r.querySelectorAll("[data-lst-t]");for(var j=0;j<n.length;j++){var k=n[j].getAttribute("data-lst-t");if(m[k])n[j].textContent=m[k]}` +
     (presenterOnly
       ? `var s=function(){r.hidden=location.hash!=="#presenter"};s();addEventListener("hashchange",s);`
@@ -146,9 +187,9 @@ export function injectLegalLinks(
     `})();`;
   const row =
     `<style>${css}</style>` +
-    `<nav id="lst-legal" lang="en" aria-label="Legal"${presenterOnly ? " hidden" : ""}>` +
-    `<div class="lst-row">${badge}${legal}</div>` +
-    `<div class="lst-narrow">${badge}<details><summary data-lst-t="legal">${escapeHtml(en.legal)}</summary><div class="lst-fold">${legal}</div></details></div>` +
+    `<nav id="lst-legal" lang="en" aria-label="Legal"${classes ? ` class="${classes}"` : ""}${presenterOnly ? " hidden" : ""}>` +
+    `<div class="lst-row">${badge}<span class="lst-legal">${legal}</span></div>` +
+    `<div class="lst-narrow">${badge}<details class="lst-legal"><summary data-lst-t="legal">${escapeHtml(en.legal)}</summary><div class="lst-fold">${legal}</div></details></div>` +
     `</nav><script>${script}</script>`;
   const at = html.lastIndexOf("</body>");
   return at >= 0 ? html.slice(0, at) + row + html.slice(at) : html + row;

@@ -4,6 +4,8 @@ import { usePluginChrome } from "./live/globalChrome";
 import { BreakoutSheet } from "./live/breakout";
 import { useCoarsePointer } from "./useCoarsePointer";
 import { toggleFullscreen } from "./delivery";
+import { msgs } from "./live/messages";
+import { legalItems, type LegalLinks } from "./live/legal";
 
 function useIsFullscreen(): boolean {
   const [fs, setFs] = useState(false);
@@ -55,6 +57,11 @@ const ICON = {
       <path d="M7 9h10M7 13h6" />
     </svg>
   ),
+  external: (
+    <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+    </svg>
+  ),
 } as const;
 
 interface MenuAction {
@@ -64,6 +71,31 @@ interface MenuAction {
   onClick: () => void;
 }
 
+/** A menu row that leads off the deck: a link opening a new tab. */
+export interface MenuLink {
+  key: string;
+  label: string;
+  href: string;
+}
+
+const rowStyle = {
+  appearance: "none",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "0.9rem",
+  width: "100%",
+  padding: "0.95rem 0.5rem",
+  border: "none",
+  borderTop: "1px solid color-mix(in srgb, var(--brand-text, #e9e6d7) 8%, transparent)",
+  background: "transparent",
+  color: "var(--brand-text, #e9e6d7)",
+  fontFamily: "var(--brand-font-body, sans-serif)",
+  fontSize: "1.05rem",
+  textAlign: "left",
+  textDecoration: "none",
+} as const;
+
 function MenuRow({ action, onDone }: { action: MenuAction; onDone: () => void }) {
   return (
     <button
@@ -71,22 +103,7 @@ function MenuRow({ action, onDone }: { action: MenuAction; onDone: () => void })
         action.onClick();
         onDone();
       }}
-      style={{
-        appearance: "none",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        gap: "0.9rem",
-        width: "100%",
-        padding: "0.95rem 0.5rem",
-        border: "none",
-        borderTop: "1px solid color-mix(in srgb, var(--brand-text, #e9e6d7) 8%, transparent)",
-        background: "transparent",
-        color: "var(--brand-text, #e9e6d7)",
-        fontFamily: "var(--brand-font-body, sans-serif)",
-        fontSize: "1.05rem",
-        textAlign: "left",
-      }}
+      style={rowStyle}
     >
       <span aria-hidden style={{ color: "var(--brand-muted, #9da28c)", display: "flex" }}>{action.icon}</span>
       {action.label}
@@ -94,14 +111,48 @@ function MenuRow({ action, onDone }: { action: MenuAction; onDone: () => void })
   );
 }
 
-/** Touch action menu: a `⋮` button opening a sheet of tappable deck actions. */
-function DeckMenu({ actions }: { actions: MenuAction[] }) {
+/** The menu's last rows: links that open a new tab (the legal links), set apart from
+ *  the deck's actions by a heading and marked as leading elsewhere. */
+export function MenuLinks({ heading, links, newTab }: { heading: string; links: MenuLink[]; newTab: string }) {
+  if (links.length === 0) return null;
+  return (
+    <nav aria-label={heading} data-pi-legal style={{ display: "flex", flexDirection: "column", marginTop: "0.6rem" }}>
+      <div
+        style={{
+          padding: "0.9rem 0.5rem 0.35rem",
+          borderTop: "1px solid color-mix(in srgb, var(--brand-text, #e9e6d7) 16%, transparent)",
+          color: "var(--brand-muted, #9da28c)",
+          fontFamily: "var(--brand-font-mono, monospace)",
+          fontSize: "0.72rem",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+        }}
+      >
+        {heading}
+      </div>
+      {links.map((l) => (
+        <a key={l.key} href={l.href} target="_blank" rel="noopener noreferrer" style={{ ...rowStyle, justifyContent: "space-between", fontSize: "1rem" }}>
+          {l.label}
+          <span style={{ color: "var(--brand-muted, #9da28c)", display: "flex" }}>
+            {ICON.external}
+            <span className="sr-only">{newTab}</span>
+          </span>
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+/** Touch action menu: a `⋮` button opening a sheet of tappable deck actions, with any
+ *  links (the host's legal links) as its last rows. */
+function DeckMenu({ actions, links }: { actions: MenuAction[]; links: MenuLink[] }) {
   const [open, setOpen] = useState(false);
+  const m = msgs();
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label="Menu"
+        aria-label={m.menu}
         aria-haspopup="dialog"
         aria-expanded={open}
         className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted/70 transition hover:border-text hover:text-text"
@@ -110,17 +161,25 @@ function DeckMenu({ actions }: { actions: MenuAction[] }) {
       </button>
       <AnimatePresence>
         {open && (
-          <BreakoutSheet label="Menu" onClose={() => setOpen(false)}>
+          <BreakoutSheet label={m.menu} onClose={() => setOpen(false)}>
             <div style={{ display: "flex", flexDirection: "column" }}>
               {actions.map((a) => (
                 <MenuRow key={a.key} action={a} onDone={() => setOpen(false)} />
               ))}
+              <MenuLinks heading={m.legal} links={links} newTab={m.opensInNewTab} />
             </div>
           </BreakoutSheet>
         )}
       </AnimatePresence>
     </>
   );
+}
+
+/** The legal links a deck page offers in its menu: for the audience, never in the
+ *  presenter's deck window (the room sees it; the presenter view has them instead). */
+export function legalMenuLinks(legal: LegalLinks | null | undefined, role: string | undefined, m = msgs()): MenuLink[] {
+  if (!legal || role === "presenter") return [];
+  return legalItems(legal, m);
 }
 
 /** Deck chrome rendered at DEVICE scale, pinned to the real viewport, outside the
@@ -138,6 +197,7 @@ export function DeckChrome({
   onHelp,
   onOverview,
   onQr,
+  legal,
 }: {
   index: number;
   count: number;
@@ -148,8 +208,12 @@ export function DeckChrome({
   onHelp: () => void;
   onOverview: () => void;
   onQr: () => void;
+  /** the host's legal links, from the live bootstrap */
+  legal?: LegalLinks | null;
 }) {
   const coarse = useCoarsePointer();
+  const m = msgs();
+  const links = legalMenuLinks(legal, role, m);
   const fs = useIsFullscreen();
   const inset = "max(env(safe-area-inset-left), 1rem)";
   // plugin global controls: pinned ones sit in the rail; the rest overflow into the ⋮
@@ -170,14 +234,14 @@ export function DeckChrome({
   const actions: MenuAction[] = [
     {
       key: "fullscreen",
-      label: fs ? "Exit fullscreen" : "Fullscreen",
+      label: fs ? m.exitFullscreen : m.fullscreen,
       icon: fs ? ICON.exitFs : ICON.enterFs,
       onClick: () => void toggleFullscreen(document.documentElement),
     },
-    ...(canDrive ? [{ key: "overview", label: "Overview", icon: ICON.grid, onClick: onOverview }] : []),
+    ...(canDrive ? [{ key: "overview", label: m.overview, icon: ICON.grid, onClick: onOverview }] : []),
     // Presenter view (notes-first confidence monitor), drivers only, never viewers.
-    ...(canDrive ? [{ key: "presenter", label: "Presenter view", icon: ICON.notes, onClick: openPresenterView }] : []),
-    ...(isLive && viewerUrl ? [{ key: "share", label: "Share / QR", icon: ICON.share, onClick: onQr }] : []),
+    ...(canDrive ? [{ key: "presenter", label: m.presenterView, icon: ICON.notes, onClick: openPresenterView }] : []),
+    ...(isLive && viewerUrl ? [{ key: "share", label: m.shareQr, icon: ICON.share, onClick: onQr }] : []),
     ...pluginMenu, // overflowed (unpinned) plugin controls, touch only
   ];
 
@@ -216,13 +280,13 @@ export function DeckChrome({
         }}
       >
         {coarse ? (
-          <DeckMenu actions={actions} />
+          <DeckMenu actions={actions} links={links} />
         ) : (
           <button
             onClick={onHelp}
-            aria-label={isLive ? `Keyboard shortcuts (${role})` : "Keyboard shortcuts"}
+            aria-label={links.length ? m.infoAndShortcuts : isLive ? `Keyboard shortcuts (${role})` : "Keyboard shortcuts"}
             aria-haspopup="dialog"
-            title={isLive ? `${role} · shortcuts (? or right-click)` : "Shortcuts (? or right-click)"}
+            title={links.length ? `${m.infoAndShortcuts} (?)` : isLive ? `${role} · shortcuts (? or right-click)` : "Shortcuts (? or right-click)"}
             className={`flex h-7 w-7 items-center justify-center rounded-full border transition ${
               isLive
                 ? "border-accent/50 text-accent opacity-80 hover:opacity-100"
