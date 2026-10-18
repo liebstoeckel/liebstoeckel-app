@@ -149,7 +149,18 @@ The sign-in page runs a short, invisible check in your browser before it sends a
 the page. To keep inboxes from being flooded, an address gets at most five codes in 15
 minutes: use the newest one.
 
-A new workspace's free AI credits start once you have accepted the terms of service.
+A new workspace's free AI credits start once you have accepted the terms of service. Until an
+account has accepted them, it can look at what it has but not create or change anything, in
+the dashboard as in the CLI and the API; leaving a team, cancelling a plan and everything on
+the **Account** page keep working. Buying something (a plan, a change to it, extra credit)
+needs the current version of the terms.
+
+### Error reports
+
+When something breaks in the dashboard, the browser sends an error report to our own
+server: the error message, the page it happened on and the browser type. Nothing is stored
+on your device for this and no session id travels with it; there are no page views, timing
+measurements or click tracking. A share link's public page and the cancel page send none.
 
 ### Download your data
 
@@ -313,12 +324,11 @@ can hold is whatever a participant writes into a question.
   runs out.
 - **Pro / Team**: results are saved for **365 days** after the session ends. Each past
   session on the deck's page shows the date it is saved until.
-- **After a withdrawal**: when a paid plan ends through a withdrawal (see
-  [Withdrawing within 14 days](#withdrawing-within-14-days)), saved results are **kept for 30
-  more days** and stay readable, even though the workspace is on Free by then. Subscribe again
-  within those 30 days and nothing is lost; after them the free plan's rule applies. The
-  Billing page shows the date. An ordinary cancellation at the end of the paid month has no
-  such extra time.
+- **After a paid plan ends**: however it ends (a cancellation at the end of the paid month,
+  a [withdrawal](#withdrawing-within-14-days), or a plan taken back by us), saved results are
+  **kept for 30 more days** and stay readable and exportable, even though the workspace is on
+  Free by then. Subscribe again within those 30 days and nothing is lost; after them the free
+  plan's rule applies. The Billing page and the confirmation mail show the date.
 - **The audience is told.** In a Pro / Team session, the Q&A box shows a short line above
   the input: "Your question may be saved by the presenter's organisation for up to a
   year." Free sessions don't show it, since nothing is kept. The line comes from the Q&A
@@ -332,9 +342,9 @@ can hold is whatever a participant writes into a question.
 - **Deleting a deck** deletes its live sessions and their saved results too. When an
   organization is deleted, its live results are deleted with it once its 14-day restore
   window has passed (see [Deleting a workspace](#deleting-a-workspace)).
-- **Moving to the free plan** applies the free rule to past sessions as well: their saved
-  results are deleted shortly after the change. Copy anything you want to keep before you
-  downgrade.
+- **Moving to the free plan** applies the free rule to past sessions as well, once the
+  30 days above have passed: their saved results are then deleted. Copy anything you want to
+  keep before then.
 
 <Aside type="note">
 Built-in plugins (poll, Q&A, reactions) sync purely peer-to-peer over the shared document,
@@ -407,7 +417,9 @@ the share link and view counts carry over. `--new` starts a separate deck.
   preserved).
 - **Pro / Team** keep **full version history** with one-click **rollback**: open a deck's
   **Versions** panel to see every version, preview one (`/d/:id?v=N`), or make an older
-  version current.
+  version current. When the paid plan ends, older versions stay readable this way for
+  **30 days**; the Versions panel shows until when. New uploads follow the free plan's rule
+  from the day the plan ends.
 
 **Delete a version.** Owners and admins can delete a single version from the menu next to
 it in the **Versions** panel, or with `DELETE /api/v1/decks/:id/versions/:n`. Its file, its
@@ -530,7 +542,8 @@ then. Seats never go below the people in the team plus open invitations.
 
 Owners and admins cancel from the workspace's **Billing** page (**Cancel plan**), or in the
 payment provider's portal linked from there. You can also cancel without signing in, on the
-**Verträge hier kündigen** page linked from the sign-in screen: enter the email you sign in
+**Verträge hier kündigen** page at `liebstoeckel.app/cancel`, linked from the footer of every
+dashboard page and of the website, and from the sign-in screen: enter the email you sign in
 with and, optionally, the workspace's name. A confirmation arrives by email either way.
 
 A cancelled plan runs until the end of the month you paid for. Nothing more is charged, with
@@ -544,9 +557,10 @@ on the Billing page undoes the cancellation; any one-off credit charged when you
 then refunded and billed with the renewal instead, so it is paid once. When the page without
 sign-in is used, every owner of the workspace, and the address the payment provider bills if it
 is a different one, also gets a mail with the end date and the way to keep the plan. After that the workspace
-moves to the free plan: your decks stay, the free limits apply, and saved live results are
-deleted as described above. The confirmation before you cancel says how many past sessions
-that affects.
+moves to the free plan: your decks stay, the free limits apply, and saved live results and
+older versions stay readable for 30 days, then the free plan's rule applies as described
+above. The confirmation before you cancel says how many past sessions that affects and until
+when they are kept.
 
 The page without sign-in runs a short check in your browser that you are not a bot while it
 opens (a proof of work, with no cookies and nothing sent to anyone else), so sending the
