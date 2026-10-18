@@ -134,7 +134,7 @@ export function JoinCard({
   label = "Scan to join",
   fallback,
 }: {
-  /** QR size in px (on the 1920x1080 stage) */
+  /** QR size in px (on the 1280x720 stage) */
   size?: number;
   /** the line above the QR; empty for none */
   label?: string;

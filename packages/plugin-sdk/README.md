@@ -64,6 +64,10 @@ The SDK is pure infrastructure. It does no React rendering and carries no networ
 
 All plugins in a deck share one `Y.Doc`, and each plugin's state is namespaced to `plugin:<id>`.
 
+## Upgrading from 0.3
+
+Move every `@liebstoeckel/*` package of a deck to 0.4 together with `liebstoeckel update` (a plain `bun update` stays on 0.3). A deck bundles one copy of each package, so a deck that mixes 0.3 and 0.4 copies fails to build. A plugin package that depends on this one with `^0.3.x` needs a release that accepts `^0.4.0`. A plugin defined inside a deck declares its audience fields in the deck's package.json (`liebstoeckel.plugins.<id>.audienceWrites`). What changed: [Upgrading to 0.4](https://docs.liebstoeckel.app/guides/upgrading-to-0-4/).
+
 ## Links
 
 - [Building a plugin](https://docs.liebstoeckel.app/plugins/building-a-plugin/)

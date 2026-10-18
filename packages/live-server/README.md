@@ -58,6 +58,10 @@ A `Bun.serve` HTTP and WebSocket server in front of a single-session Yjs relay. 
 - `relay-client.ts` is the WAN path. `uploadDeck` and `endSession` call a `present-relay` control API, and `runServerPluginsViaRelay` runs the deck's server plugins locally while connecting to the relay as the privileged `runner` peer, so deck code never runs on the relay.
 - `cli.ts` holds `runLive`, which powers `liebstoeckel live`. It classifies the target (a built `.html` or a project directory, building through `@liebstoeckel/engine` when needed), then runs in LAN mode (`startServer`) or relay mode (`relay-client`), printing the local and LAN presenter and audience links.
 
+## Upgrading from 0.3
+
+Move every `@liebstoeckel/*` package of a deck to 0.4 together with `liebstoeckel update` (a plain `bun update` stays on 0.3). A deck bundles one copy of each package, so a deck that mixes 0.3 and 0.4 copies fails to build. The keepalive is now 10 s. What changed: [Upgrading to 0.4](https://docs.liebstoeckel.app/guides/upgrading-to-0-4/).
+
 ## Links
 
 - [Live presenting](https://docs.liebstoeckel.app/guides/live/) and the [relay guide](https://docs.liebstoeckel.app/guides/relay/)

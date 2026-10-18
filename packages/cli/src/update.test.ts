@@ -11,6 +11,8 @@ import {
   parseSkillVersion,
   installedSkillVersion,
   healSkills,
+  engineBehindSkill,
+  deckEngineVersion,
   updateReminder,
   type CheckState,
 } from "./update";
@@ -228,6 +230,30 @@ describe("healSkills (self-heal, real writes)", () => {
     }
   });
 
+  test("keeps the skill of a deck whose engine is an older minor, and says so to a person", async () => {
+    const deck = mkdtempSync(join(tmpdir(), "lst-heal-deck-"));
+    const skillMd = withSkill(deck, "0.0.1");
+    const homeSkill = withSkill(home, "0.0.1");
+    // An engine a minor behind the running CLI: the newer skill would describe what it lacks.
+    const current = await (await import("./skill")).cliVersion();
+    const [maj, min] = current.split(".").map(Number) as [number, number];
+    const older = min > 0 ? `${maj}.${min - 1}.9` : `${maj - 1}.99.0`;
+    mkdirSync(join(deck, "node_modules", "@liebstoeckel", "engine"), { recursive: true });
+    writeFileSync(join(deck, "node_modules", "@liebstoeckel", "engine", "package.json"), JSON.stringify({ version: older }));
+    try {
+      const out = await captureReminder(() => healSkills(deck, []), { tty: true });
+      expect(out).toContain(`the deck runs engine ${older}`);
+      expect(out).toContain("liebstoeckel update");
+      expect(await installedSkillVersion(deck)).toBe("0.0.1");
+      expect(await Bun.file(skillMd).text()).not.toContain("Staying current");
+      expect(await Bun.file(homeSkill).text()).not.toContain("Staying current"); // serves this deck too
+      // An agent (a pipe) is not told on every command; `doctor` reports it instead.
+      expect(await captureReminder(() => healSkills(deck, []), { tty: false })).toBe("");
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
   test("heals a user-scope install under the home dir too", async () => {
     const deck = mkdtempSync(join(tmpdir(), "lst-heal-deck-"));
     withSkill(home, "0.0.1");
@@ -250,6 +276,30 @@ describe("healSkills (self-heal, real writes)", () => {
       withSkill(deck, current);
       expect(await captureReminder(() => healSkills(deck), { tty: true })).toBe("");
       expect(await installedSkillVersion(deck)).toBe(current);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("engineBehindSkill / deckEngineVersion", () => {
+  test("an older engine minor is behind; same minor or newer is not", () => {
+    expect(engineBehindSkill("0.3.10", "0.4.0")).toBe(true);
+    expect(engineBehindSkill("0.4.0", "0.4.3")).toBe(false);
+    expect(engineBehindSkill("0.5.0", "0.4.3")).toBe(false);
+    expect(engineBehindSkill("1.0.0", "0.9.0")).toBe(false);
+    expect(engineBehindSkill(null, "0.4.0")).toBe(false);
+  });
+
+  test("reads the installed engine, else the declared range", async () => {
+    const deck = mkdtempSync(join(tmpdir(), "lst-engine-"));
+    try {
+      expect(await deckEngineVersion(deck)).toBeNull();
+      writeFileSync(join(deck, "package.json"), JSON.stringify({ dependencies: { "@liebstoeckel/engine": "^0.3.10" } }));
+      expect(await deckEngineVersion(deck)).toBe("0.3.10");
+      mkdirSync(join(deck, "node_modules", "@liebstoeckel", "engine"), { recursive: true });
+      writeFileSync(join(deck, "node_modules", "@liebstoeckel", "engine", "package.json"), JSON.stringify({ version: "0.3.12" }));
+      expect(await deckEngineVersion(deck)).toBe("0.3.12");
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }

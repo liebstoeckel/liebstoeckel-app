@@ -68,6 +68,7 @@ export function deckFiles(
       "components",
       "charts",
       "brands",
+      "plugins",
       "assets",
       "public",
     ],

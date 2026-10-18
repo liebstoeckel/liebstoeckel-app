@@ -44,6 +44,10 @@ function Results({ rows }: { rows: { label: string; pct: number }[] }) {
 
 The primitives are stateless and have no build step or Tailwind dependency of their own. Each one styles inline against `var(--brand-*, fallback)`, so it picks up the active `[data-brand]` without relying on Tailwind class generation inside `node_modules`. `useTheme()` reads the same variables off `document.body` and falls back to a built-in dark palette when there's no `document`, so it's safe in SSR and thumbnail capture. Override any primitive with `className` or `style`.
 
+## Upgrading from 0.3
+
+Move every `@liebstoeckel/*` package of a deck to 0.4 together with `liebstoeckel update` (a plain `bun update` stays on 0.3). A deck bundles one copy of each package, so a deck that mixes 0.3 and 0.4 copies fails to build. A plugin package that depends on this one with `^0.3.x` needs a release that accepts `^0.4.0`. What changed: [Upgrading to 0.4](https://docs.liebstoeckel.app/guides/upgrading-to-0-4/).
+
 ## Links
 
 - [Building a plugin](https://docs.liebstoeckel.app/plugins/building-a-plugin/)

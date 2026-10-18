@@ -5,6 +5,7 @@ import { createRelay, type RelayStorage } from "./relay-server";
 import { relayPublicBaseFromPod } from "./addressing";
 import { initTracing } from "./tracing";
 import { LeaseHolder, holderIdentity, inClusterLeaseApi, samePodHolder } from "@liebstoeckel/live-server/placement";
+import { repeatGate } from "./repeat-gate";
 
 /** Object storage for session snapshots ((internal ADR)), wired from S3_* env when present.
  *  Absent → the relay runs without persistence (transient/CLI use). */
@@ -104,6 +105,9 @@ export const relayCommand = defineCommand({
     // sessions. Losing the lease changes nothing here: the relay keeps serving its
     // clients and stops a session only on a newer placement of it.
     const leaseApi = inClusterLeaseApi();
+    // A refused lease fails the same way on every renewal (every 5 s): say it once, then
+    // again every ten minutes with how often it repeated.
+    const leaseLog = repeatGate(10 * 60_000);
     const identity = holderIdentity();
     const liveness = leaseApi
       ? new LeaseHolder({
@@ -113,7 +117,10 @@ export const relayCommand = defineCommand({
           // A restarted relay (same pod, new process) takes its pod's lease over at once:
           // the new holder tells the control plane at once that the talks here are gone.
           isPredecessor: (holder) => samePodHolder(identity, holder),
-          onError: (name, err) => console.error(JSON.stringify({ level: "warn", msg: "relay liveness lease", lease: name, err: String(err) })),
+          onError: (name, err) => {
+            const { log, held } = leaseLog(`${name} ${String(err)}`);
+            if (log) console.error(JSON.stringify({ level: "warn", msg: "relay liveness lease", lease: name, err: String(err), ...(held ? { repeated: held } : {}) }));
+          },
         })
       : null;
     liveness?.start();

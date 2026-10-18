@@ -23,7 +23,11 @@ license: MPL-2.0
   tell the user and suggest running `liebstoeckel update` (it updates the deck's
   `@liebstoeckel/*` packages and/or a global CLI install, then refreshes this skill).
   Don't run it unprompted — it changes the deck's dependencies. A stale copy of this
-  skill needs no action: the CLI refreshes it automatically.
+  skill needs no action: the CLI refreshes it automatically. Exception: when `doctor`
+  reports `skill.held: true` (`code: "engine_behind_skill"`), the deck runs an older
+  engine than this skill describes, so features named here (e.g. `<JoinCard />`) may not
+  build. Tell the user and suggest `liebstoeckel update`; until then, check an export
+  exists in `node_modules/@liebstoeckel/engine` before using it.
 - **Bundler plugins** — `liebstoeckel doctor --json` (in the deck, or with `--dir`)
   also reports `pluginProblems: [{ plugin, message }]`: `[serve.static]` plugins in the
   deck's `bunfig.toml` that do not resolve. The dev server cannot serve the deck until

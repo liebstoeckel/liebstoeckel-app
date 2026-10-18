@@ -1,9 +1,9 @@
 import type { BunPlugin } from "bun";
 import { rm } from "node:fs/promises";
-import { basename, join, dirname } from "node:path";
+import { basename, join, dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import tailwind from "bun-plugin-tailwind";
-import { discoverFromPackageJson } from "@liebstoeckel/plugin-sdk/discovery";
+import { deckLocalPlugins, discoverFromPackageJson, type DeckLocalPlugin, type PkgJson } from "@liebstoeckel/plugin-sdk/discovery";
 import {
   embedManifest,
   encodeServerBundle,
@@ -61,15 +61,21 @@ export async function buildServerBundle(entry: string): Promise<string> {
 }
 
 /** Discover the deck's plugins (from package.json deps) and build a manifest:
- *  every plugin listed; server entries embedded as base64. */
+ *  every plugin listed; server entries embedded as base64. The deck's own plugins
+ *  (`liebstoeckel.plugins` in its package.json) are listed too, with the audience
+ *  fields the deck declares for them, so a relay lets those writes through. */
 export async function buildPluginManifest(pkgJsonPath: string): Promise<PluginManifest | null> {
   let plugins;
+  let pkg: PkgJson;
   try {
     plugins = await discoverFromPackageJson(pkgJsonPath);
+    pkg = (await Bun.file(pkgJsonPath).json()) as PkgJson;
   } catch {
     return null; // no package.json / unreadable → no plugins
   }
-  if (plugins.length === 0) return null;
+  const local = deckLocalPlugins(pkg, plugins.flatMap((p) => (p.id ? [p.id] : [])));
+  if (local.errors.length) throw new Error(`the deck's plugin declarations are invalid:\n  ${local.errors.join("\n  ")}`);
+  if (plugins.length === 0 && local.plugins.length === 0) return null;
 
   const entries: PluginManifestEntry[] = [];
   for (const p of plugins) {
@@ -83,7 +89,59 @@ export async function buildPluginManifest(pkgJsonPath: string): Promise<PluginMa
       audienceWrites: p.audienceWrites,
     });
   }
+  for (const p of local.plugins) {
+    entries.push({ name: `${pkg.name ?? "deck"}#${p.id}`, version: pkg.version ?? "0.0.0", hasServer: false, id: p.id, audienceWrites: p.audienceWrites });
+  }
   return { v: 1, plugins: entries };
+}
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Pure: warnings for the audience fields a deck declares for its own plugins
+ *  (`liebstoeckel.plugins` in package.json) that its source does not seem to back: no
+ *  loaded deck file defines a plugin with that id, or no deck file has a state field
+ *  of that name. A text check over the files the build loaded, so it can miss
+ *  unusual code, but it catches the typo that would silently drop every audience vote. */
+export function deckPluginWarnings(declared: DeckLocalPlugin[], files: Array<{ path: string; text: string }>): string[] {
+  const warnings: string[] = [];
+  for (const p of declared) {
+    const idRe = new RegExp(`\\bid\\s*:\\s*(["'\`])${escapeRe(p.id)}\\1`);
+    const defining = files.filter((f) => idRe.test(f.text));
+    if (defining.length === 0) {
+      warnings.push(
+        `⚠ package.json declares audience fields for plugin "${p.id}", but no deck file defines a plugin with that id: ` +
+          `the audience's writes to it would be refused on a relay`,
+      );
+      continue;
+    }
+    for (const field of p.audienceWrites) {
+      const fieldRe = new RegExp(`(^|[\\s{,])(["']?)${escapeRe(field)}\\2\\s*:`, "m");
+      // The schema may sit in another file than the definition, so any deck file counts.
+      if (!files.some((f) => fieldRe.test(f.text))) {
+        warnings.push(
+          `⚠ package.json lets the audience write "${field}" of plugin "${p.id}" (defined in ${defining.map((f) => f.path).join(", ")}), ` +
+            `but no deck file has a state field of that name`,
+        );
+      }
+    }
+  }
+  return warnings;
+}
+
+/** Read the deck's own plugin declarations and check them against the deck files this
+ *  build loaded (its own sources, never node_modules). Best-effort: never fails a build. */
+async function deckPluginCheck(pkgJsonPath: string, loaded: string[]): Promise<string[]> {
+  try {
+    const pkg = (await Bun.file(pkgJsonPath).json()) as PkgJson;
+    const declared = deckLocalPlugins(pkg, []).plugins;
+    if (declared.length === 0) return [];
+    const root = dirname(resolve(pkgJsonPath)) + sep;
+    const sources = loaded.filter((p) => p.startsWith(root) && !p.includes(`${sep}node_modules${sep}`) && /\.(m?[jt]sx?|mdx)$/.test(p));
+    const files = await Promise.all(sources.map(async (p) => ({ path: relative(root, p), text: await Bun.file(p).text() })));
+    return deckPluginWarnings(declared, files);
+  } catch {
+    return [];
+  }
 }
 
 /** The deck's own package name (so the license report can exclude it, a deck never
@@ -141,6 +199,14 @@ async function engineVersion(): Promise<string> {
   } catch {
     return "0.0.0";
   }
+}
+
+/** The engine version a bundle actually loaded, from the collector's per-package
+ *  versions; null when the deck bundles no engine (or, after a conflict that the build
+ *  refuses anyway, more than one). */
+export function bundledEngineVersion(versions: Map<string, string[]>): string | null {
+  const found = versions.get("@liebstoeckel/engine");
+  return found && found.length === 1 ? found[0]! : null;
 }
 
 /** Stamp the build's provenance into the document head: a human-readable comment
@@ -238,6 +304,7 @@ export async function bundleDeck({
   let html = escapeInlineModuleScript(stripDevMode(await Bun.file(built).text()));
   const manifest = await buildPluginManifest(pkgJson);
   if (manifest) html = embedManifest(html, manifest);
+  for (const w of await deckPluginCheck(pkgJson, licenses.loaded())) console.warn(w);
 
   // Re-add the third-party license notices that minify stripped, computed
   // from the modules this build actually bundled, so it tracks font/lib swaps.
@@ -261,8 +328,11 @@ export async function bundleDeck({
   const fontWarning = brandFontWarning(html);
   if (fontWarning) console.warn(fontWarning);
 
-  // Stamp the build's provenance (engine + invoking-tool versions) into the head.
-  html = stampGenerator(html, { engine: await engineVersion(), generator });
+  // Stamp the build's provenance (engine + invoking-tool versions) into the head. The
+  // engine is the one the bundle loaded: a newer CLI building a deck that still installs
+  // an older engine ships that older runtime, and relays, `eject` and support read this
+  // line to know what the file contains.
+  html = stampGenerator(html, { engine: bundledEngineVersion(licenses.versions()) ?? (await engineVersion()), generator });
 
   await Bun.write(outHtml, html);
   // Drop Bun's `index.html` emit when shipping under a different slug name.

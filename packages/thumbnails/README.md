@@ -69,6 +69,10 @@ A few sequencing notes:
 - It renders at `deviceScaleFactor` `scale` (default 2) for crisp text, and the manifest stores the scaled `w`/`h`.
 - The binary resolution order is `opts.executablePath`, then `$LIEBSTOECKEL_CHROMIUM`, then Playwright's installed Chromium, each with an `existsSync` check so `hasChromium()` stays honest in CI.
 
+## Upgrading from 0.3
+
+Move every `@liebstoeckel/*` package of a deck to 0.4 together with `liebstoeckel update` (a plain `bun update` stays on 0.3). A deck bundles one copy of each package, so a deck that mixes 0.3 and 0.4 copies fails to build. What changed: [Upgrading to 0.4](https://docs.liebstoeckel.app/guides/upgrading-to-0-4/).
+
 ## Links
 
 - [Thumbnails guide](https://docs.liebstoeckel.app/guides/thumbnails/) and [Chromium setup](https://docs.liebstoeckel.app/guides/chromium/)

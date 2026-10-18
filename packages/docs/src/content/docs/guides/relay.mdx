@@ -73,7 +73,10 @@ Three token layers keep roles separated:
 - **account token**: your deck-runner authenticating to the relay.
 - **session tokens**: presenter / viewer roles embedded in public URLs. A presenter link
   is exchanged for a cookie scoped to the session's page on its first load, so the
-  token does not stay in the presenter tab's address bar. A viewer's cookie holds only
+  token does not stay in the presenter tab's address bar. A deck whose
+  [generator stamp](/reference/file-format/#generator-header) names an engine older than
+  0.4 (or that has no stamp) keeps its token in the address bar as before, since its
+  "drive from your phone" link is built from it. A viewer's cookie holds only
   its participant id and never grants a role.
 - **runner token**: the privileged server-plugin peer (WebSocket-only; can't load the page).
 

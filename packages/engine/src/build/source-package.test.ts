@@ -2,7 +2,7 @@ import { test, expect, describe, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { collectDeckTarball, embedSource, extractSource, ejectSource } from "./source-package";
+import { appendToTar, collectDeckTarball, embedSource, extractSource, ejectSource, lockfileRegistries } from "./source-package";
 
 // A minimal deck dir with a `files` allowlist (so pack is deterministic and ignore-clean).
 function makeDeck(extra: Record<string, string> = {}): string {
@@ -64,6 +64,66 @@ describe("collectDeckTarball", () => {
     // explicit override lets it through
     const { files } = await collectDeckTarball(dir, { allowSecret: true });
     expect(files).toContain("slides/02.tsx");
+  });
+});
+
+describe("eject extras (lockfile and .gitignore)", () => {
+  // A minimal text lockfile (pack parses it, so it has to be a valid one).
+  const lock = `{\n  "lockfileVersion": 1,\n  "workspaces": { "": { "name": "fixture-deck" } },\n  "packages": {\n    "react": ["react@19.2.0", "", {}, "sha512-abc"],\n  },\n}\n`;
+
+  test("bun.lock and .gitignore ride in the embedded source, the .tgz stays pack's own", async () => {
+    const dir = track(makeDeck({ "bun.lock": lock, ".gitignore": "node_modules/\n" }));
+    const { gzip, zstd, files } = await collectDeckTarball(dir);
+    expect(files).toEqual(expect.arrayContaining(["bun.lock", ".gitignore"]));
+    const html = embedSource("<!doctype html><body></body></html>", zstd);
+    const out = track(mkdtempSync(join(tmpdir(), "ejected-")));
+    rmSync(out, { recursive: true, force: true });
+    const written = await ejectSource(html, out);
+    expect(written).toEqual(expect.arrayContaining(["bun.lock", ".gitignore", "slides/01.tsx"]));
+    expect(readFileSync(join(out, "bun.lock"), "utf8")).toBe(lock);
+    expect(readFileSync(join(out, ".gitignore"), "utf8")).toBe("node_modules/\n");
+    // the npm-compatible tarball is untouched
+    const tgzNames = new TextDecoder().decode(Bun.gunzipSync(gzip));
+    expect(tgzNames).not.toContain("package/bun.lock");
+  });
+
+  test("still deterministic with the extras", async () => {
+    const dir = track(makeDeck({ "bun.lock": lock, ".gitignore": "dist/\n" }));
+    const a = await collectDeckTarball(dir);
+    const b = await collectDeckTarball(dir);
+    expect(sameBytes(a.zstd, b.zstd)).toBe(true);
+  });
+
+  test("a lockfile with a password in a URL is refused like any secret", async () => {
+    const dir = track(makeDeck({ "bun.lock": lock.replace('"react@19.2.0", ""', '"react@19.2.0", "https://me:hunter2@npm.example.com/react.tgz"') }));
+    await expect(collectDeckTarball(dir)).rejects.toThrow(/bun.lock \(a URL with a password in it\)/);
+  });
+
+  test("lockfileRegistries names hosts other than npm's", () => {
+    expect(lockfileRegistries(`"a": ["a@1", "https://registry.npmjs.org/a/-/a-1.tgz"], "b": ["b@1", "http://verdaccio.local:4873/b.tgz"]`)).toEqual([
+      "verdaccio.local:4873",
+    ]);
+  });
+
+  test("appendToTar keeps the existing entries byte for byte", () => {
+    const base = new Uint8Array(2048);
+    const extra = appendToTar(base, [{ name: "package/x", body: new TextEncoder().encode("x") }]);
+    // an empty archive gets one entry (header + one block) and the closing blocks
+    expect(extra.length).toBe(512 + 512 + 1024);
+    expect(new TextDecoder().decode(extra.subarray(0, 9))).toBe("package/x");
+  });
+
+  test("warns about a plugins/ directory the files allowlist leaves out", async () => {
+    const dir = track(makeDeck({ "plugins/mood.tsx": "export default null\n" }));
+    const warn = console.warn;
+    const seen: string[] = [];
+    console.warn = (m: string) => void seen.push(String(m));
+    try {
+      await collectDeckTarball(dir);
+    } finally {
+      console.warn = warn;
+    }
+    expect(seen.some((m) => m.includes("plugins/ is not in the deck"))).toBe(true);
   });
 });
 

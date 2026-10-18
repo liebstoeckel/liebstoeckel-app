@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { bunGlobalDir, cliInstallRoot, duplicateScopeVersions, planUpdate } from "./update-cmd";
+import {
+  bunGlobalDir,
+  cliInstallRoot,
+  duplicateScopeVersions,
+  exactPins,
+  isExactPin,
+  planUpdate,
+  restoreExactPins,
+  versionChanges,
+} from "./update-cmd";
 
 const GLOBAL = "/home/u/.bun/install/global";
 const inGlobal = join(GLOBAL, "node_modules", "@liebstoeckel", "cli", "src", "update-cmd.ts");
@@ -139,5 +148,62 @@ describe("bunGlobalDir (pure)", () => {
   test("honours BUN_INSTALL, falls back to ~/.bun", () => {
     expect(bunGlobalDir({ BUN_INSTALL: "/opt/bun" })).toBe(join("/opt/bun", "install", "global"));
     expect(bunGlobalDir({ HOME: "/home/u" })).toBe(join("/home/u", ".bun", "install", "global"));
+  });
+});
+
+describe("exact pins (pure)", () => {
+  test("isExactPin tells a pin from a range", () => {
+    for (const v of ["0.3.10", "=0.3.10", "1.0.0-rc.1", "1.2.3+build.5"]) expect(isExactPin(v)).toBe(true);
+    for (const v of ["^0.3.10", "~0.3.10", ">=0.3", "latest", "0.3", "workspace:*", undefined]) expect(isExactPin(v)).toBe(false);
+  });
+
+  test("exactPins finds the pinned scope deps in either field", () => {
+    const pkg = {
+      dependencies: { "@liebstoeckel/engine": "0.3.10", "@liebstoeckel/theme": "^0.3.4" },
+      devDependencies: { "@liebstoeckel/thumbnails": "0.3.10" },
+    };
+    const names = ["@liebstoeckel/engine", "@liebstoeckel/theme", "@liebstoeckel/thumbnails"];
+    expect([...exactPins(pkg, names)]).toEqual([
+      ["@liebstoeckel/engine", "0.3.10"],
+      ["@liebstoeckel/thumbnails", "0.3.10"],
+    ]);
+  });
+
+  test("restoreExactPins puts the new exact version back where bun wrote a caret", () => {
+    const after = {
+      dependencies: { "@liebstoeckel/engine": "^0.4.0", "@liebstoeckel/theme": "^0.4.0", react: "^19.0.0" },
+      devDependencies: { "@liebstoeckel/thumbnails": "^0.4.0" },
+    };
+    const pins = new Map([
+      ["@liebstoeckel/engine", "0.3.10"],
+      ["@liebstoeckel/thumbnails", "0.3.10"],
+    ]);
+    const installed = new Map([
+      ["@liebstoeckel/engine", "0.4.0"],
+      ["@liebstoeckel/thumbnails", "0.4.0"],
+    ]);
+    const { pkg, restored } = restoreExactPins(after, pins, installed);
+    expect(pkg.dependencies).toEqual({ "@liebstoeckel/engine": "0.4.0", "@liebstoeckel/theme": "^0.4.0", react: "^19.0.0" });
+    expect(pkg.devDependencies).toEqual({ "@liebstoeckel/thumbnails": "0.4.0" });
+    expect(restored).toEqual(["@liebstoeckel/engine", "@liebstoeckel/thumbnails"]);
+    expect(after.dependencies["@liebstoeckel/engine"]).toBe("^0.4.0"); // input untouched
+  });
+
+  test("a pin with nothing installed is left as bun wrote it", () => {
+    const { restored } = restoreExactPins({ dependencies: { "@liebstoeckel/engine": "^0.4.0" } }, new Map([["@liebstoeckel/engine", "0.3.10"]]), new Map());
+    expect(restored).toEqual([]);
+  });
+
+  test("versionChanges lists what moved, sorted", () => {
+    const before = new Map([
+      ["@liebstoeckel/theme", "0.3.4"],
+      ["@liebstoeckel/engine", "0.3.10"],
+    ]);
+    const after = new Map([
+      ["@liebstoeckel/theme", "0.3.4"],
+      ["@liebstoeckel/engine", "0.4.0"],
+      ["@liebstoeckel/plugin-poll", "0.4.0"],
+    ]);
+    expect(versionChanges(before, after)).toEqual(["@liebstoeckel/engine 0.3.10 -> 0.4.0", "@liebstoeckel/plugin-poll (new) -> 0.4.0"]);
   });
 });

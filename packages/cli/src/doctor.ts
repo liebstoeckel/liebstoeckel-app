@@ -3,7 +3,7 @@ import { resolveChromium, systemChromiumCandidates, playwrightCoreVersion } from
 import { bunBin, bunVersionError, requiredBunRange } from "./bun";
 import { loadConfig, saveConfig, CONFIG_FILE } from "./config";
 import { cliVersion } from "./skill";
-import { cachedLatestVersion, isNewer } from "./update";
+import { cachedLatestVersion, deckEngineVersion, engineBehindSkill, installedSkillVersion, isNewer } from "./update";
 import { neededMigrations, type MigrationStatus } from "./migrations";
 import {
   checkServePlugins,
@@ -55,6 +55,34 @@ export function buildReport(parts: {
       updateAvailable: isNewer(parts.latestKnown, parts.cliVersion),
     },
     configFile: CONFIG_FILE,
+  };
+}
+
+/** The deck's engine against the agent skill: `held` when the deck runs an older engine
+ *  minor than this CLI's skill, so the installed skill was kept at its version. */
+export interface SkillReport {
+  installed: string | null;
+  cli: string;
+  deckEngine: string | null;
+  held: boolean;
+  code?: "engine_behind_skill";
+  hint?: string;
+}
+
+/** Pure: the skill part of the report (unit-tested). */
+export function skillReport(parts: { installed: string | null; cliVersion: string; deckEngine: string | null }): SkillReport {
+  const held = parts.deckEngine !== null && engineBehindSkill(parts.deckEngine, parts.cliVersion);
+  return {
+    installed: parts.installed,
+    cli: parts.cliVersion,
+    deckEngine: parts.deckEngine,
+    held,
+    ...(held
+      ? {
+          code: "engine_behind_skill" as const,
+          hint: `the deck runs engine ${parts.deckEngine}; the agent skill of CLI ${parts.cliVersion} describes newer features, so the skill was kept as it is. Run \`liebstoeckel update\` in the deck.`,
+        }
+      : {}),
   };
 }
 
@@ -151,13 +179,18 @@ export const doctorCommand = defineCommand({
     // Bundler plugins from the deck's bunfig.toml, resolved the way `dev` does
     // at startup (resolve only, never import).
     const pluginProblems: PluginProblem[] = inDeck ? checkServePlugins(deckDir) : [];
+    const skill = skillReport({
+      installed: await installedSkillVersion(deckDir),
+      cliVersion: report.cli.version,
+      deckEngine: inDeck ? await deckEngineVersion(deckDir) : null,
+    });
 
     // On a miss, show where we actually looked: turns "not found" from a dead
     // end into something a user (or agent) can act on.
     const probed = report.chromium.ok ? undefined : systemChromiumCandidates();
 
     if (json) {
-      console.log(JSON.stringify({ ...report, migrations, migrationWarnings, pluginProblems, storedChromium: stored ?? null, ...(probed ? { probedCandidates: probed } : {}) }));
+      console.log(JSON.stringify({ ...report, skill, migrations, migrationWarnings, pluginProblems, storedChromium: stored ?? null, ...(probed ? { probedCandidates: probed } : {}) }));
     } else {
       const ok = (b: boolean) => (b ? "✓" : "✗");
       console.error(`${ok(report.bun.ok)} Bun ${report.bun.version} (needs ${report.bun.required})`);
@@ -176,6 +209,7 @@ export const doctorCommand = defineCommand({
           ? `↑ CLI ${report.cli.version} (${report.cli.latestKnown} is available, run \`liebstoeckel update\`)`
           : `${ok(true)} CLI ${report.cli.version}${report.cli.latestKnown ? " (latest known)" : ""}`,
       );
+      if (skill.held) console.error(`⚠ ${skill.hint}`);
       for (const line of pluginProblemLines(deckDir, pluginProblems)) console.error(line);
       for (const w of migrationWarnings) console.error(`⚠ ${w}`);
       for (const m of migrations) {

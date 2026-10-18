@@ -173,6 +173,12 @@ export function createRelayMetrics(version = "unknown") {
       ),
     ),
     grantDenials: r.register(new Counter("liebstoeckel_relay_grant_denials_total", "Deck/sync requests denied (bad/expired grant)")),
+    legacyPresenterPages: r.register(
+      new Counter(
+        "liebstoeckel_relay_legacy_presenter_pages_total",
+        "Presenter pages served with the grant left in the address, for decks built before the cookie exchange",
+      ),
+    ),
     pageResponses: r.register(
       new Counter("liebstoeckel_relay_page_responses_total", "Deck pages served, by role and encoding (gzip, identity, not_modified)"),
     ),
@@ -183,7 +189,7 @@ export function createRelayMetrics(version = "unknown") {
   m.buildInfo.set(1, { version });
   // Failure counters start at 0: a series that first appears at 1 is no increase to
   // Prometheus, so an alert on the first failure would never fire.
-  for (const c of [m.snapshotFailures, m.audienceCapRejects, m.protocolRejects, m.grantDenials]) c.inc({}, 0);
+  for (const c of [m.snapshotFailures, m.audienceCapRejects, m.protocolRejects, m.grantDenials, m.legacyPresenterPages]) c.inc({}, 0);
   return m;
 }
 

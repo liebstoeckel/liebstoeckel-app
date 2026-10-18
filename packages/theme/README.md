@@ -51,6 +51,10 @@ A brand is one typed token object (`Theme` in `src/tokens.ts`), and it's the sin
 
 The `--brand-*` variables defined here are consumed by `@liebstoeckel/components` (the `Atmosphere` glow and the `mdxComponents` classes) and `@liebstoeckel/engine` (the css-variables Shiki theme that its MDX plugin and `code` macro emit). There's no JS runtime dependency, since the consuming Tailwind v4 build processes `styles.css`.
 
+## Upgrading from 0.3
+
+Move every `@liebstoeckel/*` package of a deck to 0.4 together with `liebstoeckel update` (a plain `bun update` stays on 0.3). A deck bundles one copy of each package, so a deck that mixes 0.3 and 0.4 copies fails to build. What changed: [Upgrading to 0.4](https://docs.liebstoeckel.app/guides/upgrading-to-0-4/).
+
 ## Links
 
 - [Theming guide](https://docs.liebstoeckel.app/guides/theming/)

@@ -52,7 +52,7 @@ Every build stamps its own provenance into the head, so you can tell what produc
 <meta name="generator" content="liebstoeckel engine 0.3.4, cli 0.3.6" />
 ```
 
-The `engine` version is the runtime that renders the deck; the second tool is whatever drove the build (the `cli` here). A deck built through its own `build.ts` rather than the CLI records the engine version on its own.
+The `engine` version is the runtime the file contains: the `@liebstoeckel/engine` the deck itself installs and the build bundled, which can be older than the engine the CLI builds with. The second tool is whatever drove the build (the `cli` here). A deck built through its own `build.ts` rather than the CLI records the engine version on its own. The [relay](/guides/relay/#tokens--quotas) reads the engine version to serve older decks the way they expect.
 
 The stamp carries versions only, never a build timestamp. That keeps the file byte-deterministic: the same deck built twice with the same toolchain produces the same bytes, which matters because the embedded source package is itself deterministic.
 

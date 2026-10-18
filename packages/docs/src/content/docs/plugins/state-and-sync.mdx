@@ -94,7 +94,7 @@ For transient effects (e.g. reactions floating up), store entries in a record ke
 
 ## Limits on audience writes
 
-When you present through the relay, it bounds what the audience can write into a plugin's `audienceWrites` fields, whatever the plugin's own schema allows:
+When you present through the relay, the audience may write only a plugin's `audienceWrites` fields: a plugin package lists them in its own package.json, a [plugin defined inside the deck](/plugins/building-a-plugin/#a-plugin-inside-the-deck) in the deck's. The relay also bounds what the audience can write into those fields, whatever the plugin's own schema allows:
 
 | What | Limit |
 | --- | --- |

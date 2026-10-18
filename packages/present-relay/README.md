@@ -75,6 +75,10 @@ A single `Bun.serve` HTTP and WebSocket process that holds many independent sess
 - Each session is in-memory and TTL-expiring (6h by default, up to 24h when the creator asks for it with `x-session-ttl-ms`). A timer calls `dropSession` to destroy the `Hub` and forget its tokens, and nothing is persisted. `originOf` derives public URLs from `publicBaseUrl` or the `x-forwarded-*` headers, since TLS terminates at your proxy.
 - `cli.ts` holds `runRelay`, which powers the `liebstoeckel-relay` bin. It parses `--port`, `--tokens`, and `--public-url` (with env fallbacks), generates a throwaway account token when none is given, and prints the base URL along with how to point `liebstoeckel live` at it.
 
+## Upgrading from 0.3
+
+Move every `@liebstoeckel/*` package of a deck to 0.4 together with `liebstoeckel update` (a plain `bun update` stays on 0.3). A deck bundles one copy of each package, so a deck that mixes 0.3 and 0.4 copies fails to build. A deck built with an engine before 0.4 keeps its presenter token in the address bar, since its phone link is built from it; rebuild it to get the cookie. What changed: [Upgrading to 0.4](https://docs.liebstoeckel.app/guides/upgrading-to-0-4/).
+
 ## Links
 
 - [Relay guide](https://docs.liebstoeckel.app/guides/relay/) and [live mode](https://docs.liebstoeckel.app/guides/live/)

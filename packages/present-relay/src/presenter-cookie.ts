@@ -43,6 +43,39 @@ export function pageToken(
   return { token: c, fromCookie: !!c };
 }
 
+// Decks built before the cookie move cannot follow it.
+//
+// An engine older than 0.4 builds its "drive from your phone" link from the address bar.
+// After the 303 the address has no `t`, so that link would carry no grant and the phone
+// would be refused. Such a deck keeps its `?t=` in the address, as it did on older relays;
+// rebuilding it with a current engine brings the cookie move back. The engine a deck
+// bundles is in its `<meta name="generator">` stamp (written by every build since mid
+// 2026). A deck without one is older still. The stamp is the author's own text, so a
+// deck that strips or edits it only gives up the protection of its own presenter tab.
+
+/** The first engine whose deck builds its phone link from the bootstrap, not the address. */
+export const PRESENTER_COOKIE_ENGINE: [number, number, number] = [0, 4, 0];
+
+/** The engine version a built deck names in its generator stamp, or null without one.
+ *  Only the document head is read, the first such meta wins. */
+export function stampedEngine(html: string): [number, number, number] | null {
+  const end = html.search(/<\/head\s*>/i);
+  const head = end >= 0 ? html.slice(0, end) : html.slice(0, 64 * 1024);
+  const meta = /<meta\s+name=["']generator["']\s+content=["']liebstoeckel engine v?(\d+)\.(\d+)\.(\d+)/i.exec(head);
+  return meta ? [Number(meta[1]), Number(meta[2]), Number(meta[3])] : null;
+}
+
+/** Whether a deck's presenter link may be answered with the cookie exchange: its engine
+ *  is at least {@link PRESENTER_COOKIE_ENGINE}. Decided once, when the deck arrives. */
+export function followsPresenterCookie(html: string): boolean {
+  const v = stampedEngine(html);
+  if (!v) return false;
+  for (let i = 0; i < 3; i++) {
+    if (v[i]! !== PRESENTER_COOKIE_ENGINE[i]!) return v[i]! > PRESENTER_COOKIE_ENGINE[i]!;
+  }
+  return true;
+}
+
 /** The deck page differs by cookie and may hold a grant, so no cache keeps it. */
 export const NO_STORE = "no-store, private";
 

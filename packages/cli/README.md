@@ -65,6 +65,10 @@ Where each command runs:
 - Local commands are implemented in this package: `new`, `add`, `registry`, `skill`, the cloud commands, and `build`/`eject`/`pack`/`licenses`. `build` drives `buildDeck` from `@liebstoeckel/thumbnails/build`; `--check` uses `checkDeck`, `eject` and `pack` use `@liebstoeckel/engine/build/source-package`, and `licenses` reads `collectDeckLicenses` and `extractLicenses`.
 - Delegated commands re-export a citty command straight out of a sibling package, so that package owns its own flags and `--help`: `live` (and the bare-deck shorthand) and `thumbs`/`export` come from `@liebstoeckel/live-server` and `@liebstoeckel/thumbnails`, and `relay` comes from `@liebstoeckel/present-relay`.
 
+## Upgrading from 0.3
+
+Move every `@liebstoeckel/*` package of a deck to 0.4 together with `liebstoeckel update` (a plain `bun update` stays on 0.3). A deck bundles one copy of each package, so a deck that mixes 0.3 and 0.4 copies fails to build. For scripts and agents: unknown options and usage errors exit 2, more commands print JSON when piped, and errors share one shape; `update` keeps exact pins exact. What changed: [Upgrading to 0.4](https://docs.liebstoeckel.app/guides/upgrading-to-0-4/).
+
 ## Links
 
 - [CLI reference](https://docs.liebstoeckel.app/reference/cli/) lists every command and flag

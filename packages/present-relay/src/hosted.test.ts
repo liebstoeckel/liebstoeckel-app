@@ -13,7 +13,7 @@ const MANIFEST = JSON.stringify({
   plugins: [{ name: "poll", version: "0", hasServer: false, id: "poll", audienceWrites: ["votes"] }],
 });
 const DECK =
-  `<!doctype html><html><head><title>deck</title></head><body><div id=root></div>` +
+  `<!doctype html><html><head><meta name="generator" content="liebstoeckel engine 0.4.0, cli 0.4.0" /><title>deck</title></head><body><div id=root></div>` +
   `<script type="application/json" data-liebstoeckel-plugins>${MANIFEST}</script></body></html>`;
 
 let relay: RelayServer | null = null;
@@ -40,11 +40,11 @@ function start(extra: Partial<Parameters<typeof createRelay>[0]> = {}) {
   return `http://127.0.0.1:${relay.port}`;
 }
 
-const create = (base: string, headers: Record<string, string> = {}) =>
+const create = (base: string, headers: Record<string, string> = {}, body = DECK) =>
   fetch(`${base}/api/sessions`, {
     method: "POST",
     headers: { authorization: `Bearer ${TOKEN}`, "content-type": "text/html", ...headers },
-    body: DECK,
+    body,
   }).then((r) => r.json());
 
 function wsOpen(url: string): Promise<{ ws: WebSocket; first: Promise<Uint8Array> }> {
@@ -178,6 +178,24 @@ describe("hosted relay: the presenter grant leaves the URL", () => {
     expect(cookie).toContain("SameSite=Lax");
     expect(cookie).not.toContain("Max-Age"); // gone with the browser session
     expect(res.headers.get("cache-control")).toContain("no-store");
+  });
+
+  test("a deck built before the cookie exchange keeps t in the address, so its phone link works", async () => {
+    const base = start();
+    // A 0.3 engine builds the phone link from the address bar; a 303 would strip the grant.
+    const old = DECK.replace("liebstoeckel engine 0.4.0", "liebstoeckel engine 0.3.10");
+    const s = await create(base, {}, old);
+    const grant = new URL(s.urls.presenter).searchParams.get("t")!;
+    const res = await fetch(`${base}/s/${s.id}?t=${grant}`, { redirect: "manual" });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie") ?? "").not.toContain("lst_presenter_");
+    expect(res.headers.get("cache-control")).toContain("no-store");
+    expect(res.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(await res.text()).toContain('"role":"presenter"');
+    // Unstamped HTML (built before the stamp existed) is treated the same way.
+    const bare = await create(base, {}, DECK.replace(/<meta name="generator"[^>]*>/, ""));
+    const bareGrant = new URL(bare.urls.presenter).searchParams.get("t")!;
+    expect((await fetch(`${base}/s/${bare.id}?t=${bareGrant}`, { redirect: "manual" })).status).toBe(200);
   });
 
   test("the cookie alone brings back the presenter, for a reload and the pop-out", async () => {

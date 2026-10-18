@@ -10,6 +10,8 @@ import {
   bundleDeck,
   escapeInlineModuleScript,
   stampGenerator,
+  bundledEngineVersion,
+  deckPluginWarnings,
   stripDevMode,
 } from "./buildDeck";
 
@@ -44,6 +46,59 @@ describe("buildServerBundle", () => {
 describe("buildPluginManifest", () => {
   test("returns null when package.json is missing", async () => {
     expect(await buildPluginManifest("/no/such/package.json")).toBeNull();
+  });
+
+  test("lists the deck's own plugins with the audience fields its package.json declares", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "localplugin-"));
+    try {
+      const pkg = { name: "my-deck", version: "1.0.0", liebstoeckel: { plugins: { mood: { audienceWrites: ["votes"] } } } };
+      writeFileSync(join(dir, "package.json"), JSON.stringify(pkg));
+      const manifest = await buildPluginManifest(join(dir, "package.json"));
+      expect(manifest?.plugins).toEqual([
+        { name: "my-deck#mood", version: "1.0.0", hasServer: false, id: "mood", audienceWrites: ["votes"] },
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a malformed declaration fails the build", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "localplugin-"));
+    try {
+      const pkg = { name: "my-deck", liebstoeckel: { plugins: { mood: { audienceWrites: "votes" } } } };
+      writeFileSync(join(dir, "package.json"), JSON.stringify(pkg));
+      await expect(buildPluginManifest(join(dir, "package.json"))).rejects.toThrow("audienceWrites must be a list");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("deckPluginWarnings", () => {
+  const def = {
+    path: "plugins/mood.tsx",
+    text: `const s = schema({ votes: t.record(t.string), "closed": t.boolean });\nexport default definePlugin({ id: "mood", state: s, client: { Slide } });`,
+  };
+
+  test("a declaration the source backs is quiet", () => {
+    expect(deckPluginWarnings([{ id: "mood", audienceWrites: ["votes", "closed"] }], [def])).toEqual([]);
+  });
+
+  test("an id no deck file defines is named", () => {
+    const [w] = deckPluginWarnings([{ id: "mod", audienceWrites: ["votes"] }], [def]);
+    expect(w).toContain('plugin "mod"');
+    expect(w).toContain("no deck file defines a plugin with that id");
+  });
+
+  test("a field no deck file has is named, with the file that defines the plugin", () => {
+    const [w] = deckPluginWarnings([{ id: "mood", audienceWrites: ["vots"] }], [def]);
+    expect(w).toContain('"vots"');
+    expect(w).toContain("plugins/mood.tsx");
+  });
+
+  test("a placement in a slide is not a definition", () => {
+    const slide = { path: "slides/a.mdx", text: `<Plugin id="mood" />` };
+    expect(deckPluginWarnings([{ id: "mood", audienceWrites: ["votes"] }], [slide])).toHaveLength(1);
   });
 });
 
@@ -85,6 +140,21 @@ describe("stampGenerator", () => {
   test("is deterministic, no timestamp, same input → same output", () => {
     const parts = { engine: "1.2.3", generator: { name: "cli", version: "4.5.6" } };
     expect(stampGenerator(html, parts)).toBe(stampGenerator(html, parts));
+  });
+});
+
+describe("bundledEngineVersion", () => {
+  test("names the engine the bundle loaded, not the build pipeline's", () => {
+    const versions = new Map([
+      ["@liebstoeckel/engine", ["0.3.10"]],
+      ["@liebstoeckel/plugin-sdk", ["0.3.4"]],
+    ]);
+    expect(bundledEngineVersion(versions)).toBe("0.3.10");
+  });
+
+  test("null without an engine in the bundle, or with two (a refused build)", () => {
+    expect(bundledEngineVersion(new Map())).toBeNull();
+    expect(bundledEngineVersion(new Map([["@liebstoeckel/engine", ["0.3.10", "0.4.0"]]]))).toBeNull();
   });
 });
 

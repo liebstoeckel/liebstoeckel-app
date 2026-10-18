@@ -115,6 +115,103 @@ export function duplicateScopeVersions(copies: Array<{ name: string; version: st
   return dups;
 }
 
+/** Pure: is this dependency range an exact version (`0.3.10`, `=0.3.10`, `1.0.0-rc.1`)?
+ *  An exact pin says "this version and no other", which a deck author chose on purpose. */
+export function isExactPin(range: string | undefined): boolean {
+  return !!range && /^=?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(range.trim());
+}
+
+/** Pure: the exact pins among the named deps of a package.json (name to old range). */
+export function exactPins(pkg: PkgJson, names: string[]): Map<string, string> {
+  const pins = new Map<string, string>();
+  for (const name of names) {
+    const range = pkg?.dependencies?.[name] ?? pkg?.devDependencies?.[name];
+    if (isExactPin(range)) pins.set(name, range!);
+  }
+  return pins;
+}
+
+/** Pure: `bun update --latest` writes `^<new>` over an exact pin; put the pin back as the
+ *  exact version now installed. Returns the edited package.json (the input is not
+ *  touched) and the names it changed. A dep with no installed version is left alone. */
+export function restoreExactPins<T extends NonNullable<PkgJson>>(
+  pkg: T,
+  pins: Map<string, string>,
+  installed: Map<string, string>,
+): { pkg: T; restored: string[] } {
+  const out = structuredClone(pkg);
+  const restored: string[] = [];
+  for (const name of pins.keys()) {
+    const version = installed.get(name);
+    if (!version) continue;
+    for (const field of ["dependencies", "devDependencies"] as const) {
+      const deps = out[field];
+      if (deps && name in deps && deps[name] !== version) {
+        deps[name] = version;
+        restored.push(name);
+      }
+    }
+  }
+  return { pkg: out, restored: [...new Set(restored)].sort() };
+}
+
+/** Pure: one line per scope package whose installed version changed, `name old -> new`. */
+export function versionChanges(before: Map<string, string>, after: Map<string, string>): string[] {
+  const lines: string[] = [];
+  for (const [name, version] of [...after].sort(([a], [b]) => a.localeCompare(b))) {
+    const was = before.get(name);
+    if (was !== version) lines.push(`${name} ${was ?? "(new)"} -> ${version}`);
+  }
+  return lines;
+}
+
+/** The installed version of each named package at the root's top level. */
+async function installedVersions(root: string, names: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (const name of names) {
+    try {
+      const pkg = (await Bun.file(join(root, "node_modules", ...name.split("/"), "package.json")).json()) as { version?: string };
+      if (pkg.version) out.set(name, pkg.version);
+    } catch {
+      // not installed
+    }
+  }
+  return out;
+}
+
+/** Update a root's scope deps, keep its exact pins exact, and say what moved. */
+async function updateRoot(root: string, deps: string[]): Promise<boolean> {
+  const pkgPath = join(root, "package.json");
+  const before = (await readDeckPkg(root)) ?? {};
+  const pins = exactPins(before, deps);
+  const was = await installedVersions(root, deps);
+  if (!(await run([bunBin, "update", "--latest", "--no-cache", ...deps], root))) return false;
+  if (pins.size > 0) {
+    // Depending on the Bun version, `bun update --latest` writes `^<new>` over an exact pin
+    // in package.json, or keeps the pin there but records `^<new>` in bun.lock.
+    const after = (await readDeckPkg(root)) ?? {};
+    const { pkg, restored } = restoreExactPins(after, pins, await installedVersions(root, [...pins.keys()]));
+    if (restored.length > 0) {
+      const text = await Bun.file(pkgPath).text();
+      const indent = /^[ \t]+(?=")/m.exec(text)?.[0] ?? "  ";
+      await Bun.write(pkgPath, JSON.stringify(pkg, null, indent) + "\n");
+    }
+    // Either way the lockfile has to record the pin as package.json now has it.
+    if (!(await run([bunBin, "install", "--no-cache"], root))) return false;
+    const kept = [...exactPins(pkg, [...pins.keys()]).keys()];
+    if (kept.length > 0) console.error(`kept ${kept.length} exact pin(s) exact: ${kept.join(", ")}`);
+  }
+  const changes = versionChanges(was, await installedVersions(root, deps));
+  for (const line of changes) console.error(`  ${line}`);
+  if (changes.some((l) => /@liebstoeckel\/engine (?:\(new\)|0\.3\.\d+) -> 0\.4\./.test(l))) {
+    console.error(`  moving to 0.4: what changed and what to check: ${UPGRADE_DOCS}`);
+  }
+  return true;
+}
+
+/** The public "upgrading to 0.4" page. */
+export const UPGRADE_DOCS = "https://docs.liebstoeckel.app/guides/upgrading-to-0-4/";
+
 /** Every resolved @liebstoeckel/* copy under the deck: top-level plus copies
  *  nested one level under another scope package (where bun places a conflicting
  *  resolution). Best-effort IO; unreadable entries are skipped. */
@@ -224,11 +321,11 @@ export const updateCommand = defineCommand({
     let ok = true;
     if (plan.deckDeps.length > 0) {
       console.error(`updating ${plan.deckDeps.length} @liebstoeckel/* package(s) in ${deckRoot}`);
-      ok = (await run([bunBin, "update", "--latest", "--no-cache", ...plan.deckDeps], deckRoot)) && ok;
+      ok = (await updateRoot(deckRoot, plan.deckDeps)) && ok;
     }
     if (plan.hostRoot && plan.hostDeps.length > 0) {
       console.error(`updating ${plan.hostDeps.length} @liebstoeckel/* package(s) in ${plan.hostRoot} (the CLI's install root)`);
-      ok = (await run([bunBin, "update", "--latest", "--no-cache", ...plan.hostDeps], plan.hostRoot)) && ok;
+      ok = (await updateRoot(plan.hostRoot, plan.hostDeps)) && ok;
     }
     if (plan.global) {
       console.error(`updating the global CLI install`);

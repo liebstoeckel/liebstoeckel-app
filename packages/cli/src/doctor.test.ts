@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { playwrightCoreVersion } from "@liebstoeckel/thumbnails";
-import { buildReport, diagnosticExitCode, installChromiumArgs, pluginProblemLines } from "./doctor";
+import { buildReport, diagnosticExitCode, installChromiumArgs, pluginProblemLines, skillReport } from "./doctor";
 import { bunBin } from "./bun";
 import { runAutoPatches, type MigrationStatus } from "./migrations";
 
@@ -171,5 +171,24 @@ describe("pluginProblemLines", () => {
 
   test("no problems, no lines", () => {
     expect(pluginProblemLines("/decks/q3", [])).toEqual([]);
+  });
+});
+
+describe("skillReport", () => {
+  test("a deck on an older engine minor reports the held skill with a code and the fix", () => {
+    const r = skillReport({ installed: "0.3.12", cliVersion: "0.4.0", deckEngine: "0.3.10" });
+    expect(r.held).toBe(true);
+    expect(r.code).toBe("engine_behind_skill");
+    expect(r.hint).toContain("liebstoeckel update");
+  });
+
+  test("a current deck, or no deck, is fine", () => {
+    expect(skillReport({ installed: "0.4.0", cliVersion: "0.4.0", deckEngine: "0.4.0" })).toEqual({
+      installed: "0.4.0",
+      cli: "0.4.0",
+      deckEngine: "0.4.0",
+      held: false,
+    });
+    expect(skillReport({ installed: null, cliVersion: "0.4.0", deckEngine: null }).held).toBe(false);
   });
 });

@@ -57,9 +57,12 @@ const off = state.subscribe((snap) => …);   // observe deep changes; returns u
 
 ## Client surfaces (`client`)
 
-`ClientProps<T>` is passed to every client component:
-`{ doc, state, snapshot, role, live, participantId, theme, ui, props, instance, refusal, synced }`
+`ClientProps<T>` is passed to `Slide`, the presenter `Console` and the `global` surfaces:
+`{ doc, state, snapshot, role, live, participantId, theme, ui, props, instance, refusal, synced, connected }`
 (`role` is `"presenter" | "viewer"`; `props` is the author's `<Plugin props={…}>`).
+`fallback` is the exception: it gets only `{ snapshot, props }` (no `state`, no `doc`,
+since nothing is connected), so type it as
+`(p: { snapshot: MyState; props: Record<string, unknown> }) => …`, not `ClientProps`.
 `synced` is `false` between joining a live session and receiving its state: `snapshot`
 is only the defaults then, and writes through `state` wait until the state is there.
 Show "connecting…" rather than empty results while it is `false`.
@@ -110,6 +113,24 @@ export default function server(ctx: PluginServerCtx<MyState>) {
 server entry is bundled and embedded in the deck; a live server decodes and runs it with
 an injected `ctx`. Because it executes on the presenter's machine, decks are trust-gated
 (`references/plugins.md`).
+
+## Audience writes: declare them, or the relay refuses them
+
+Through a relay the audience may write only the state fields the plugin declares; every
+other write is refused (the viewer sees "Your vote didn't reach the presenter"). A plugin
+defined **inside the deck** (the usual case: `plugins/<name>.tsx`) declares them in the
+**deck's** `package.json`, by plugin id:
+
+```json
+"liebstoeckel": { "plugins": { "myplugin": { "audienceWrites": ["votes"] } } }
+```
+
+List exactly the top-level fields viewers write (votes, questions, reactions), never the
+presenter-only ones (`closed`). Also keep `"plugins"` in the deck's `files` list, or the
+built deck's embedded source (and `eject`) lacks the plugin. `liebstoeckel build` warns
+when the id or a field matches nothing in the deck's source. A plugin published as its own
+package puts `"id"` and `"audienceWrites"` under `liebstoeckel` in its own package.json
+instead.
 
 ## After authoring
 

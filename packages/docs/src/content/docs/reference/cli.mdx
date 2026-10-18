@@ -275,7 +275,11 @@ liebstoeckel eject <deck.html> [outdir] [--force]
 errors clearly if the HTML carries no embedded source (e.g. it was built `--no-inline-package`).
 Rebuilding runs the deck's own build-time code (macros/build plugins) — `--ignore-scripts`
 only blocks npm lifecycle scripts, not that — so **only rebuild a deck you trust**.
-`liebstoeckel build` confirms an unfamiliar deck once (see the warning under [`build`](#build)):
+`liebstoeckel build` confirms an unfamiliar deck once (see the warning under [`build`](#build)).
+The ejected project gets the deck's `bun.lock` and `.gitignore` back as well (a build embeds
+them next to the `files` allowlist), so `bun install` restores the versions the deck was built
+with. A deck that keeps its own plugins in `plugins/` needs `"plugins"` in its `files` list
+(new decks have it); the build warns when it is missing.
 
 ```bash
 cd <outdir> && bun install --ignore-scripts && liebstoeckel build
@@ -543,7 +547,12 @@ rewrites the skill for the agent paths already present in the deck (plus the
 installed skill is a pure function of the CLI version, so whenever an installed copy
 is older than the CLI you run, any command refreshes it in place and prints a
 one-line note on stderr. This covers project installs and a `user`-scope install
-under `~` alike.
+under `~` alike. The one exception is a deck on an older engine minor than the CLI
+(engine 0.3.x under CLI 0.4): there the skill stays as it is, and so does the `user`-scope
+copy while you work in that deck, because the newer skill would tell an agent to use
+features that engine does not have. An interactive terminal gets one line saying so;
+[`doctor`](#doctor) reports it as `skill.held`. `liebstoeckel update` moves the deck
+forward, and the skill with it.
 
 ## `update`
 
@@ -567,7 +576,11 @@ What it does, in order:
 2. **Deck-local install:** runs `bun update --latest` for exactly the
    `@liebstoeckel/*` packages the deck declares, never your other dependencies.
    Updating the whole scope together keeps the framework packages on one version,
-   which the build requires.
+   which the build requires. An **exact pin stays exact**: a dependency written as
+   `"0.3.10"` becomes `"0.4.0"`, not `"^0.4.0"`, and the lockfile follows; a range
+   (`"^0.3.10"`) moves as `bun` moves it. The command then prints one line per package
+   that moved (`@liebstoeckel/engine 0.3.10 -> 0.4.0`), and a link to
+   [Upgrading to 0.4](/guides/upgrading-to-0-4/) when the engine crosses into 0.4.
 3. **The CLI's own install root**, when the running CLI lives in a different
    project than the deck (for example a project root holding `@liebstoeckel/cli`
    with decks in subdirectories): that root's declared `@liebstoeckel/*`
@@ -607,6 +620,12 @@ liebstoeckel doctor --install-chromium  # download Playwright's Chromium, record
 | `--dir <deck>` | Deck to check for scaffold migrations and bundler plugins (default: the current directory) |
 
 `doctor` resolves Chromium the same way builds do (see [Chromium setup](/guides/chromium/#resolution-order)): an existing system Chrome is found automatically, so often nothing needs installing. Only `export`/`thumbs` require a browser; `build` skips thumbnails without one. When no browser is found, the human output lists every probed location, and `--json` adds them as `probedCandidates`.
+
+Inside a deck, `--json` carries `skill: { installed, cli, deckEngine, held }`. `held` is
+`true`, with `code: "engine_behind_skill"` and a `hint`, when the deck runs an older engine
+minor than the CLI (say engine 0.3.10 under CLI 0.4.0): the CLI then leaves the installed
+agent skill as it is, since the newer skill describes features the deck's engine lacks.
+Run [`liebstoeckel update`](#update) in the deck; the skill follows.
 
 The report also includes CLI staleness from the cached registry check (never a live
 lookup, so `doctor` stays network-free): `--json` carries

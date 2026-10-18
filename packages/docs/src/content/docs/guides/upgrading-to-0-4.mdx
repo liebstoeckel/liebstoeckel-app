@@ -1,0 +1,131 @@
+---
+title: Upgrading to 0.4
+description: "Move a deck from liebstoeckel 0.3 to 0.4: the one command to run, what to rebuild, and what changed for scripts, agents and plugin authors."
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+0.4 brings the live audience work: the join card and stable join link, a phone-first audience
+view, clear audience states in English and German, and presenter links that keep their token
+out of the address bar. It also tightens the CLI's machine output. This page lists what to do
+and what behaves differently from 0.3.12.
+
+## Upgrade a deck
+
+<Steps>
+
+1. In each deck, run:
+
+   ```bash
+   liebstoeckel update
+   ```
+
+   It moves every `@liebstoeckel/*` package the deck declares to its latest release, updates a
+   global CLI install, and refreshes the agent skill. It prints one line per package that moved.
+   A plain `bun update` keeps a deck on 0.3: before 1.0, `^0.3.10` does not include 0.4.
+
+2. Rebuild the deck (`liebstoeckel build`), and rebuild any `.html` you present through a
+   relay (see [Presenting an older deck](#presenting-an-older-deck)).
+
+3. If the deck defines plugins of its own and presents them through a relay, declare their
+   audience fields (see [Plugins defined inside a deck](#plugins-defined-inside-a-deck)).
+
+</Steps>
+
+All `@liebstoeckel/*` packages in a deck have to be on the same release line. A deck is one
+inlined `.html`, so two copies of a package (say a 0.3 and a 0.4 `plugin-sdk`) would both be
+bundled, and the build refuses that. The error names the package that pulled in the older copy.
+
+**Exact pins stay exact.** A dependency written as `"0.3.10"` becomes `"0.4.0"`, not
+`"^0.4.0"`, so a deck that pins keeps pinning. Ranges move as `bun` moves them.
+
+**Plugin authors:** a plugin package that depends on `@liebstoeckel/plugin-sdk` or
+`@liebstoeckel/plugin-ui` with `^0.3.x` pulls in a 0.3 copy next to the deck's 0.4 one. Publish
+a release that accepts `^0.4.0`.
+
+## Presenting an older deck
+
+A 0.4 relay moves a presenter link's token from the address into a cookie on the first load,
+so a projected presenter tab shows nothing that grants control. A deck built with an engine
+before 0.4 builds its "drive from your phone" link from the address bar, so the relay leaves
+the token in the address for such a deck, as before, and the phone link keeps working. The
+relay tells the two apart by the engine in the deck's
+[generator stamp](/reference/file-format/#generator-header). Rebuild the deck with 0.4 to get
+the cookie.
+
+The other way round, a 0.4 deck on a 0.3 relay works, with the token left in the address bar
+(only the relay can move it), and a viewer's address may gain a `?pid=` (a 0.3 relay does not
+keep the participant id in a cookie, so the page keeps it in its address).
+
+## Plugins defined inside a deck
+
+A relay lets the audience write only the state fields a plugin declares. A plugin package
+declares them in its own package.json; a plugin defined with `definePlugin` inside the deck
+had no way to, so on a relay every audience write to it was lost (0.3 relays showed the viewer
+their own vote while the presenter saw none; 0.4 relays refuse it and say so). Declare them in
+the deck's package.json, by plugin id:
+
+```json title="package.json (the deck)"
+"liebstoeckel": {
+  "plugins": {
+    "mood": { "audienceWrites": ["votes"] }
+  }
+}
+```
+
+See [a plugin inside the deck](/plugins/building-a-plugin/#a-plugin-inside-the-deck). Add
+`"plugins"` to the deck's `files` list too (decks made with `liebstoeckel new` from 0.4 on have
+it), or the built deck's embedded source, and with it [`eject`](/reference/cli/#eject), lacks
+the plugin. The build warns when it is missing.
+
+## CLI changes for scripts and agents
+
+The CLI's [machine output](/reference/cli/#machine-output---json) follows one set of rules on
+every command. What a 0.3.12 script may notice:
+
+| Change | 0.3.12 | 0.4 |
+| --- | --- | --- |
+| Unknown options | ignored (`build --check --thumbs=false` ran) | refused before the command does anything, exit `2`, code `unknown_option`, with the closest option it takes |
+| `--version` | accepted after a command | only `liebstoeckel --version` |
+| Usage errors (a missing or invalid argument, e.g. `add` with nothing to add, `registry view` without a name, `build --visual` without `--check`, `eject` without a deck, `push` without a file, `new` without a name) | exit `1` | exit `2` |
+| JSON when piped | `build`, `licenses`, `add`, `registry`, `doctor` | also `pack`, `push`, `decks`, `orgs list`, `brand list`, and the new `pull`, `sync`, `folders` |
+| `--no-json` in a pipe | had no effect on the JSON commands | prints the human output |
+| Error output in JSON mode | `{ "error": "..." }`, or prose on stderr for build, pack and cloud HTTP errors | one document on stdout: `{ "ok": false, "error", "code", "hint" }` |
+| `dev poll` errors | on stderr, `{ "error": "poll_failed", "message": ... }` for a refused host or token too | on stdout with a code of their own: `unauthorized`, `forbidden_host`, `no_dev_server`, `poll_failed`; a bad `--reply` or `--data` exits `2` |
+| `orgs use`, `brand push`, `brand pull` without credentials | JSON on stdout when piped | prose on stderr (they have no JSON mode) |
+
+Everything a 0.3.12 command did successfully it still does; the codes are listed under
+[error codes](/reference/cli/#error-codes).
+
+**The agent skill follows the deck.** The CLI refreshes an installed skill to its own version
+on any command, except in a deck whose engine is an older minor (a deck still on 0.3 under a
+0.4 CLI): the 0.4 skill tells agents to use features such as `<JoinCard />` that a 0.3 engine
+does not have, so there the skill stays as it is until `liebstoeckel update` moves the deck.
+`liebstoeckel doctor --json` reports it as `skill.held`.
+
+## Other changes
+
+- **Default brand.** A deck that names no `brands` now uses the `liebstoeckel` house brand.
+  0.3 defaulted to a brand name with no theme behind it, so such a deck rendered without theme
+  tokens. An unknown brand name now prints a warning in development.
+- **Smaller files.** Builds always use React's production build (before, the builder's
+  `NODE_ENV` decided, and it was usually the development build): a typical deck is about 17 %
+  smaller.
+- **Generator stamp.** The `engine` version in a built file is the engine the deck bundles, not
+  the one the CLI builds with.
+- **Eject** gets the deck's `bun.lock` and `.gitignore` back, so `bun install` in the ejected
+  project restores the versions the deck was built with. The lockfile travels inside the built
+  `.html`; a build refuses a lockfile with a password in a URL and names any registry other than
+  npm's that it lists.
+- **Live connections** send a keepalive every 10 s (was 25 s), on the relay and on
+  `liebstoeckel live`, and a client gives up on a silent connection after 35 s (was 60 s), so a
+  dropped phone reconnects sooner.
+- **Relay sessions** can be requested for up to 24 h (the default stays 6 h). The relay takes up
+  to 10 000 entries in a plugin field holding objects and 50 000 in one holding single values
+  (was 5 000 for both); `PRESENT_RELAY_AUDIENCE_ENTRY_CAP` lowers both, for testing what a full
+  session looks like.
+
+<Aside type="note" title="Pre-1.0">
+Until 1.0, a minor release (0.3 to 0.4) may change behaviour; patch releases within 0.4 do not.
+That is why `liebstoeckel update` crosses minors and `bun update` does not.
+</Aside>

@@ -10,6 +10,7 @@ import {
   extractLicenses,
   fallbackLicenseText,
   firstPartyVersionConflicts,
+  firstPartyVersions,
   formatFirstPartyConflicts,
   normalizeLicense,
   renderNotices,
@@ -136,11 +137,14 @@ describe("firstPartyVersionConflicts (single-copy guard)", () => {
     "@liebstoeckel/plugin-sdk",
     "0.3.3",
   );
+  pkg("node_modules/@liebstoeckel/plugin-poll", "@liebstoeckel/plugin-poll", "0.3.4"); // owns the nested copy
   const deck = pkg("deck-src", "my-deck", "0.0.0");
 
   test("flags a package resolved at two versions", () => {
     const conflicts = firstPartyVersionConflicts([engine, sdkNew, sdkOld, deck], "my-deck");
-    expect(conflicts).toEqual([{ name: "@liebstoeckel/plugin-sdk", versions: ["0.3.3", "0.4.0"] }]);
+    expect(conflicts).toEqual([
+      { name: "@liebstoeckel/plugin-sdk", versions: ["0.3.3", "0.4.0"], via: { "0.3.3": ["@liebstoeckel/plugin-poll"] } },
+    ]);
   });
 
   test("a single version of each package is clean", () => {
@@ -159,10 +163,19 @@ describe("firstPartyVersionConflicts (single-copy guard)", () => {
     expect(firstPartyVersionConflicts([r1, r2])).toEqual([]);
   });
 
+  test("firstPartyVersions records the version each package was bundled at", () => {
+    const versions = firstPartyVersions([engine, sdkNew, sdkOld, deck], "my-deck");
+    expect(versions.get("@liebstoeckel/engine")).toEqual(["0.4.0"]);
+    expect(versions.get("@liebstoeckel/plugin-sdk")).toEqual(["0.3.3", "0.4.0"]);
+    expect(versions.has("my-deck")).toBe(false);
+  });
+
   test("formatFirstPartyConflicts is loud and actionable", () => {
-    const msg = formatFirstPartyConflicts([{ name: "@liebstoeckel/plugin-sdk", versions: ["0.3.3", "0.4.0"] }]);
-    expect(msg).toContain("@liebstoeckel/plugin-sdk → 0.3.3, 0.4.0");
-    expect(msg).toContain("bun update");
+    const msg = formatFirstPartyConflicts([
+      { name: "@liebstoeckel/plugin-sdk", versions: ["0.3.3", "0.4.0"], via: { "0.3.3": ["@acme/plugin-mood"] } },
+    ]);
+    expect(msg).toContain("@liebstoeckel/plugin-sdk → 0.3.3 (pulled in by @acme/plugin-mood), 0.4.0");
+    expect(msg).toContain("liebstoeckel update");
   });
 });
 

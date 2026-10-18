@@ -128,18 +128,72 @@ export async function cachedLatestVersion(): Promise<string | null> {
   return (await readState())?.latest ?? null;
 }
 
+/** Pure: the `major.minor` of a version or a simple range (`^0.3.10`, `0.3.10`, `~0.4.0`). */
+function minorOf(v: string | null | undefined): [number, number] | null {
+  const m = /(\d+)\.(\d+)\.\d+/.exec(v ?? "");
+  return m ? [Number(m[1]), Number(m[2])] : null;
+}
+
+/** Pure: the deck runs an engine of an older minor than the skill this CLI ships. The
+ *  skill describes the CLI's own release (0.4's tells agents to use `<JoinCard />`), so
+ *  in a deck still on 0.3 it would steer the agent to code that does not build. */
+export function engineBehindSkill(deckEngine: string | null, skillVersion: string): boolean {
+  const e = minorOf(deckEngine);
+  const k = minorOf(skillVersion);
+  if (!e || !k) return false;
+  return e[0] < k[0] || (e[0] === k[0] && e[1] < k[1]);
+}
+
+/** The engine version a deck runs: the installed copy, else the version in the range it
+ *  declares; null outside a deck. */
+export async function deckEngineVersion(deckDir: string): Promise<string | null> {
+  try {
+    const v = ((await Bun.file(join(deckDir, "node_modules", "@liebstoeckel", "engine", "package.json")).json()) as { version?: string }).version;
+    if (v) return v;
+  } catch {
+    // not installed
+  }
+  try {
+    const pkg = (await Bun.file(join(deckDir, "package.json")).json()) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    const range = pkg.dependencies?.["@liebstoeckel/engine"] ?? pkg.devDependencies?.["@liebstoeckel/engine"];
+    return /\d+\.\d+\.\d+/.exec(range ?? "")?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The one-line explanation for a skill held back by an older engine. */
+export function skillHeldMessage(deckEngine: string, installed: string, current: string): string {
+  return (
+    `! the deck runs engine ${deckEngine}, so its agent skill stays at v${installed}: the v${current} skill ` +
+    `describes features that engine lacks. Run \`liebstoeckel update\` to move the deck forward; the skill follows.`
+  );
+}
+
 /** Self-heal a stale installed skill instead of nagging about it: the installed
  *  copy is a pure function of the CLI version (stamped by `skill install`), so
  *  rewriting it in place cannot express an opinion the user needs to approve.
  *  Probes the deck AND the home dir (a `--scope user` install under e.g.
  *  `~/.claude/skills/` would otherwise age silently forever). Runs in all
  *  modes, agents/pipes included; one stderr line per healed root. */
-export async function healSkills(deckDir: string): Promise<void> {
+export async function healSkills(deckDir: string, argv: string[] = []): Promise<void> {
   const current = await cliVersion();
   const home = process.env.HOME || homedir();
+  // A deck on an older engine minor keeps the skill it has, and so does the user-scope
+  // skill while working in it (that copy serves this deck too). Said once per run, and
+  // only where a person reads it; `doctor` reports it for agents.
+  const deckEngine = await deckEngineVersion(resolve(deckDir));
+  const held = deckEngine !== null && engineBehindSkill(deckEngine, current);
   for (const root of new Set([resolve(deckDir), home])) {
     const installed = await installedSkillVersion(root);
     if (!installed || !isNewer(current, installed)) continue;
+    if (held) {
+      if (remindersEnabled(argv)) console.error(skillHeldMessage(deckEngine!, installed, current));
+      return;
+    }
     const { refreshInstalledSkill } = await import("./skill");
     // A home-root heal never touches AGENTS.md (that is a project convention).
     const written = await refreshInstalledSkill(root, { agents: root !== home });

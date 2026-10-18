@@ -39,6 +39,10 @@ Reactions are symmetric, so there's no presenter-only panel. Present the deck li
 | `@liebstoeckel/plugin-reactions` | Default export: the reactions `PluginDef` (`id: "reactions"`) |
 | `@liebstoeckel/plugin-reactions/logic` | Framework-free schema and helpers: `reactionsSchema`, `EMOJI`, `MAX_ENTRIES`, `recent`, `expired`, `allowEmit`, `overCapIds`, and the `ReactionsState` / `Reaction` types |
 
+## Upgrading from 0.3
+
+Move every `@liebstoeckel/*` package of a deck to 0.4 together with `liebstoeckel update` (a plain `bun update` stays on 0.3). A deck bundles one copy of each package, so a deck that mixes 0.3 and 0.4 copies fails to build. What changed: [Upgrading to 0.4](https://docs.liebstoeckel.app/guides/upgrading-to-0-4/).
+
 ## Links
 
 - [Plugins overview](https://docs.liebstoeckel.app/plugins/overview/)

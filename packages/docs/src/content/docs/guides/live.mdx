@@ -74,7 +74,7 @@ export default function Title() {
 
 | Prop | Default | |
 | --- | --- | --- |
-| `size` | `280` | QR size in pixels on the 1920×1080 stage; the link scales with it |
+| `size` | `280` | QR size in pixels on the 1280×720 stage; the link scales with it |
 | `label` | `"Scan to join"` | the line above the QR; `""` for none |
 | `fallback` | a placeholder | what to show without a live session; `null` shows nothing |
 
@@ -105,7 +105,9 @@ on the first load: the relay keeps it in a cookie for that page and redirects to
 same address without it, so a projected or screen-shared presenter tab shows nothing
 that grants control, and a reload or the <kbd>p</kbd> pop-out still opens as the
 presenter. The cookie lasts until you close the browser; after that, open the presenter
-link again. Audience links keep their token, since they are meant to be shared. Each
+link again. A deck built with an engine older than 0.4 keeps the token in the address bar
+instead, because its phone link is built from the address; rebuild it with a current
+engine to get the cookie. Audience links keep their token, since they are meant to be shared. Each
 audience browser is one participant there: a reload or a second scan of the QR code keeps
 its vote, and the address copied to another device is a new participant (see
 [untrusted-HTML isolation](/guides/relay/#untrusted-html-isolation) on the relay page). A viewer's

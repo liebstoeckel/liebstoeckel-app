@@ -34,11 +34,11 @@ export interface CollectOptions {
 }
 
 export interface DeckTarball {
-  /** pack's native gzip `.tgz` bytes, npm/`bun add`-compatible. */
+  /** pack's native gzip `.tgz` bytes, npm/`bun add`-compatible (without the eject extras). */
   gzip: Uint8Array<ArrayBuffer>;
   /** repacked zstd of pack's (already-normalized) tar, the in-HTML embed payload. */
   zstd: Uint8Array<ArrayBuffer>;
-  /** deck-relative paths in the package (the `package/` prefix stripped). */
+  /** deck-relative paths in the embedded source (the `package/` prefix stripped). */
   files: string[];
 }
 
@@ -58,6 +58,79 @@ function tarEntryNames(tar: Uint8Array): string[] {
     off += 512 + Math.ceil(size / 512) * 512;
   }
   return names;
+}
+
+/** Files `bun pm pack` never ships that an ejected deck still needs: the lockfile (so
+ *  the ejected project installs the versions the deck was built with) and `.gitignore`.
+ *  They go into the embedded source only, after pack's own entries; the `.tgz` stays
+ *  exactly what pack wrote. */
+export const EJECT_EXTRAS = ["bun.lock", ".gitignore"] as const;
+
+/** A registry or tarball URL with a user and password in it (`https://user:pass@host`). */
+const URL_CREDENTIALS = /\b[a-z][a-z0-9+.-]*:\/\/[^\s/"'@:]+:[^\s/"'@]+@/i;
+
+/** Registry hosts a bun.lock names other than npm's own, for the build's notice that the
+ *  embedded lockfile (which every audience copy carries) names them. */
+export function lockfileRegistries(lock: string): string[] {
+  const hosts = new Set<string>();
+  for (const m of lock.matchAll(/\bhttps?:\/\/([^/\s"']+)/g)) {
+    const host = m[1]!.replace(/^[^@]*@/, "").toLowerCase();
+    if (host !== "registry.npmjs.org") hosts.add(host);
+  }
+  return [...hosts].sort();
+}
+
+/** The end of a tar's last entry: where the zero blocks that close the archive start. */
+function tarEnd(tar: Uint8Array): number {
+  const dec = new TextDecoder();
+  let off = 0;
+  while (off + 512 <= tar.length) {
+    const header = tar.subarray(off, off + 512);
+    if (header.every((b) => b === 0)) break;
+    const size = parseInt(dec.decode(header.subarray(124, 136)).replace(/\0.*$/s, "").trim(), 8) || 0;
+    off += 512 + Math.ceil(size / 512) * 512;
+  }
+  return off;
+}
+
+/** One ustar entry (header + padded body) shaped like pack's own: mode 0664, uid/gid 0,
+ *  and pack's fixed mtime, so the archive stays reproducible. */
+function ustarEntry(name: string, body: Uint8Array, mtimeOctal: string): Uint8Array {
+  const enc = new TextEncoder();
+  const header = new Uint8Array(512);
+  const put = (at: number, text: string) => header.set(enc.encode(text), at);
+  put(0, name);
+  put(100, "000664 \0");
+  put(108, "000000 \0");
+  put(116, "000000 \0");
+  put(124, body.length.toString(8).padStart(11, "0") + " ");
+  put(136, mtimeOctal);
+  put(148, "        "); // checksum field counts as spaces while summing
+  put(156, "0");
+  put(257, "ustar\0" + "00");
+  let sum = 0;
+  for (const b of header) sum += b;
+  put(148, sum.toString(8).padStart(6, "0") + "\0 ");
+  const out = new Uint8Array(512 + Math.ceil(body.length / 512) * 512);
+  out.set(header, 0);
+  out.set(body, 512);
+  return out;
+}
+
+/** Append `entries` to a tar, keeping everything before them byte for byte, and close it
+ *  with the two zero blocks again. The mtime is copied from the first existing entry. */
+export function appendToTar(tar: Uint8Array, entries: Array<{ name: string; body: Uint8Array }>): Uint8Array<ArrayBuffer> {
+  const end = tarEnd(tar);
+  const mtime = end >= 512 ? new TextDecoder().decode(tar.subarray(136, 148)) : "00000000000 ";
+  const parts = entries.map((e) => ustarEntry(e.name, e.body, mtime));
+  const out = new Uint8Array(end + parts.reduce((n, p) => n + p.length, 0) + 1024);
+  out.set(tar.subarray(0, end), 0);
+  let at = end;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
 }
 
 function looksBinary(bytes: Uint8Array): boolean {
@@ -83,16 +156,23 @@ export async function collectDeckTarball(dir: string, opts: CollectOptions = {})
     }
 
     const gzip = new Uint8Array(await Bun.file(tgzPath).bytes());
-    const tar = Bun.gunzipSync(gzip);
-    const files = tarEntryNames(tar)
+    const packed = Bun.gunzipSync(gzip);
+    const packedFiles = tarEntryNames(packed)
       .filter((n) => n.startsWith(PACKAGE_PREFIX))
       .map((n) => n.slice(PACKAGE_PREFIX.length))
       .filter(Boolean);
+    const extras = EJECT_EXTRAS.filter((rel) => !packedFiles.includes(rel) && existsSync(join(dir, rel)));
+    const files = [...packedFiles, ...extras];
 
     // pack default-ignores bunfig.toml; if the deck has one but it wasn't packed (not in
     // `files`), the ejected deck loses its dev-server plugins, warn, don't fail.
     if (existsSync(join(dir, "bunfig.toml")) && !files.includes("bunfig.toml")) {
       console.warn('⚠ bunfig.toml is not in the deck\'s "files", the ejected deck won\'t run in dev mode');
+    }
+    // A deck's own plugins live in plugins/ by convention; decks scaffolded before it was
+    // listed there leave it out, and their ejected copy would not build.
+    if (existsSync(join(dir, "plugins")) && !files.some((f) => f.startsWith("plugins/"))) {
+      console.warn('⚠ plugins/ is not in the deck\'s "files", the ejected deck won\'t have its own plugins: add "plugins" to "files" in package.json');
     }
 
     // ── fail-closed gate ──────────────────────────────────────────────
@@ -107,6 +187,8 @@ export async function collectDeckTarball(dir: string, opts: CollectOptions = {})
       const bytes = readFileSync(abs);
       if (!looksBinary(bytes) && SECRET_SIGNATURE.test(bytes.toString("utf8"))) {
         violations.push(`${rel} (secret signature)`);
+      } else if (rel === "bun.lock" && URL_CREDENTIALS.test(bytes.toString("utf8"))) {
+        violations.push(`${rel} (a URL with a password in it)`);
       }
     }
     if (violations.length && !opts.allowSecret) {
@@ -116,8 +198,19 @@ export async function collectDeckTarball(dir: string, opts: CollectOptions = {})
       );
     }
 
-    // Preserve pack's reproducible tar (fixed mtimes); only swap the compressor.
-    // Re-taring via Bun.Archive.write would stamp wall-clock mtimes and break determinism.
+    if (extras.includes("bun.lock")) {
+      const registries = lockfileRegistries(readFileSync(join(dir, "bun.lock"), "utf8"));
+      if (registries.length) {
+        console.warn(`⚠ the embedded bun.lock names ${registries.join(", ")}: anyone with the built .html can read it`);
+      }
+    }
+
+    // Preserve pack's reproducible tar (fixed mtimes); only swap the compressor, after
+    // appending the extras with the same fixed mtime. Re-taring via Bun.Archive.write
+    // would stamp wall-clock mtimes and break determinism.
+    const tar = extras.length
+      ? appendToTar(packed, extras.map((rel) => ({ name: PACKAGE_PREFIX + rel, body: new Uint8Array(readFileSync(join(dir, rel))) })))
+      : packed;
     const zstd = new Uint8Array(Bun.zstdCompressSync(tar));
     return { gzip, zstd, files };
   } finally {

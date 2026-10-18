@@ -69,6 +69,10 @@ export function createLicenseCollector(opts: { selfName?: string } = {}): {
   report: () => LicenseReport;
   /** @liebstoeckel/* packages that resolved to >1 version in the captured graph. */
   conflicts: () => FirstPartyConflict[];
+  /** Every version each @liebstoeckel/* package resolved to in the captured graph. */
+  versions: () => Map<string, string[]>;
+  /** Every file the build loaded (absolute paths). */
+  loaded: () => string[];
 } {
   const paths = new Set<string>();
   const record = (p: string | undefined) => {
@@ -97,6 +101,8 @@ export function createLicenseCollector(opts: { selfName?: string } = {}): {
     plugin,
     report: () => buildReport(paths, opts.selfName),
     conflicts: () => firstPartyVersionConflicts(paths, opts.selfName),
+    versions: () => firstPartyVersions(paths, opts.selfName),
+    loaded: () => [...paths],
   };
 }
 
@@ -105,6 +111,9 @@ export function createLicenseCollector(opts: { selfName?: string } = {}): {
 export interface FirstPartyConflict {
   name: string;
   versions: string[];
+  /** For a version installed nested under another package, that package (the one whose
+   *  dependency range pulled the copy in), by version. Absent when no copy is nested. */
+  via?: Record<string, string[]>;
 }
 
 /** Detect `@liebstoeckel/*` packages that appear at more than one version across the
@@ -114,6 +123,45 @@ export interface FirstPartyConflict {
  *  a skewed/lagging plugin can pin an older sibling than `engine` resolves. A pure
  *  reduction over the same paths the license collector already records (no extra build). */
 export function firstPartyVersionConflicts(paths: Iterable<string>, selfName?: string): FirstPartyConflict[] {
+  const list = [...paths];
+  const conflicts: FirstPartyConflict[] = [];
+  for (const [name, versions] of firstPartyVersions(list, selfName)) {
+    if (versions.length <= 1) continue;
+    const via = nestedOwners(list, name);
+    conflicts.push(Object.keys(via).length ? { name, versions, via } : { name, versions });
+  }
+  return conflicts.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** For package `name`: each version installed in a `node_modules` nested inside another
+ *  package's directory, with that package's name (read from its package.json). */
+function nestedOwners(paths: string[], name: string): Record<string, string[]> {
+  const via: Record<string, Set<string>> = {};
+  const marker = `${NODE_MODULES}${name.split("/").join(sep)}${sep}`;
+  for (const p of paths) {
+    const at = p.lastIndexOf(marker);
+    if (at < 0) continue;
+    const ownerDir = p.slice(0, at);
+    if (!ownerDir.includes(NODE_MODULES)) continue; // top-level copy, no owner
+    let owner: { name?: string };
+    let version: string | undefined;
+    try {
+      owner = JSON.parse(readFileSync(join(ownerDir, "package.json"), "utf8"));
+      version = JSON.parse(readFileSync(join(p.slice(0, at + marker.length), "package.json"), "utf8")).version;
+    } catch {
+      continue;
+    }
+    if (!owner.name || !version) continue;
+    (via[version] ??= new Set()).add(owner.name);
+  }
+  return Object.fromEntries(Object.entries(via).map(([v, set]) => [v, [...set].sort()]));
+}
+
+/** The versions each `@liebstoeckel/*` package resolved to across a bundled module
+ *  graph (sorted; more than one is a conflict). Also what a built deck records as its
+ *  engine: the copy the bundle actually loaded, which is not necessarily the one the
+ *  build pipeline itself runs on. */
+export function firstPartyVersions(paths: Iterable<string>, selfName?: string): Map<string, string[]> {
   const versions = new Map<string, Set<string>>();
   for (const p of paths) {
     const pkgDir = nearestPackageDir(p);
@@ -133,22 +181,22 @@ export function firstPartyVersionConflicts(paths: Iterable<string>, selfName?: s
     }
     set.add(meta.version ?? "?");
   }
-  const conflicts: FirstPartyConflict[] = [];
-  for (const [name, set] of versions) {
-    if (set.size > 1) conflicts.push({ name, versions: [...set].sort() });
-  }
-  return conflicts.sort((a, b) => a.name.localeCompare(b.name));
+  return new Map([...versions].map(([name, set]) => [name, [...set].sort()]));
 }
 
 /** Loud, actionable message for a single-copy violation (used by `build`/`build --check`). */
 export function formatFirstPartyConflicts(conflicts: FirstPartyConflict[]): string {
-  const lines = conflicts.map((c) => `  ${c.name} → ${c.versions.join(", ")}`);
+  const lines = conflicts.map(
+    (c) => `  ${c.name} → ${c.versions.map((v) => (c.via?.[v] ? `${v} (pulled in by ${c.via[v]!.join(", ")})` : v)).join(", ")}`,
+  );
   return (
     "this deck bundles more than one version of a liebstoeckel package:\n" +
     lines.join("\n") +
     "\n\nA deck is inlined into one .html, so mixed versions ship duplicate, incompatible\n" +
     "copies (e.g. two plugin-sdk runtimes) side by side. Update the framework packages\n" +
-    "together so each resolves to a single version (e.g. `bun update`), then rebuild."
+    "together so each resolves to a single version (`liebstoeckel update`), then rebuild.\n" +
+    "A plugin package that still pulls in an older copy needs a release that accepts the\n" +
+    "newer one (its author widens the range it declares)."
   );
 }
 

@@ -6,7 +6,7 @@ import { createRelay, joinLink, type RelayServer } from "./relay-server";
 
 const TOKEN = "acct-secret-token";
 const OTHER = "other-account-token";
-const DECK = "<!doctype html><html><head><title>deck</title></head><body><div id=root></div></body></html>";
+const DECK = '<!doctype html><html><head><meta name="generator" content="liebstoeckel engine 0.4.0, cli 0.4.0" /><title>deck</title></head><body><div id=root></div></body></html>';
 
 let relay: RelayServer | null = null;
 afterEach(async () => {

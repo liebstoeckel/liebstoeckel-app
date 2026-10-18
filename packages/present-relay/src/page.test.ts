@@ -13,7 +13,7 @@ const SOURCE = `<script type="application/octet-stream" data-liebstoeckel-source
 const MANIFEST = `<script type="application/json" data-liebstoeckel-plugins>{"v":1,"plugins":[]}</script>`;
 // The engine's own bundle mentions the attribute in its code; only the block goes.
 const BUNDLE = `<script type="module">document.querySelector("script[data-liebstoeckel-thumbnails]");${"let x=1;".repeat(2000)}</script>`;
-const DECK = `<!doctype html><html><head><title>deck</title>${BUNDLE}</head><body><div id=root></div>${MANIFEST}${LICENSES}${SOURCE}${THUMBS}</body></html>`;
+const DECK = `<!doctype html><html><head><meta name="generator" content="liebstoeckel engine 0.4.0" /><title>deck</title>${BUNDLE}</head><body><div id=root></div>${MANIFEST}${LICENSES}${SOURCE}${THUMBS}</body></html>`;
 
 const BOOT: LiveBootstrap = {
   ws: "wss://live.example/sync/s1?t=grant",

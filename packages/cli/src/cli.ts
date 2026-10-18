@@ -160,7 +160,7 @@ async function main() {
     const dirIdx = argv.indexOf("--dir");
     const deckDir = dirIdx >= 0 ? argv[dirIdx + 1] ?? "." : ".";
     await updateReminder(argv);
-    await healSkills(deckDir);
+    await healSkills(deckDir, argv);
   } catch {
     // neither may ever break a command
   }

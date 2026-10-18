@@ -72,6 +72,10 @@ Three concerns live here: a build pipeline (`src/build/`), a React runtime (the 
 
 The engine re-exports `Magic` and `Atmosphere` from `@liebstoeckel/components`, reads brand tokens through `useTheme` in `@liebstoeckel/plugin-ui`, and uses the `--shiki-*` and `--brand-*` variables from `@liebstoeckel/theme` for on-palette code and atmosphere. Plugin discovery and manifest types come from `@liebstoeckel/plugin-sdk`.
 
+## Upgrading from 0.3
+
+Move every `@liebstoeckel/*` package of a deck to 0.4 together with `liebstoeckel update` (a plain `bun update` stays on 0.3). A deck bundles one copy of each package, so a deck that mixes 0.3 and 0.4 copies fails to build. Built decks now record the engine they bundle in their generator stamp, and a deck that names no `brands` gets the `liebstoeckel` house brand. What changed: [Upgrading to 0.4](https://docs.liebstoeckel.app/guides/upgrading-to-0-4/).
+
 ## Links
 
 - [Engine API reference](https://docs.liebstoeckel.app/reference/engine-api/)

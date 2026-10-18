@@ -13,7 +13,7 @@ import {
 } from "@liebstoeckel/live-server";
 import { bearer, matchAccount, safeEqual } from "./auth";
 import { mintGrant, verifyGrant } from "./grant";
-import { NO_STORE, deniedPage, pageToken, presenterRedirect, viewerIdentity } from "./presenter-cookie";
+import { NO_STORE, deniedPage, followsPresenterCookie, pageToken, presenterRedirect, viewerIdentity } from "./presenter-cookie";
 import { closeReason, createRelayMetrics } from "./metrics";
 import { containerMemoryLimit, memoryRoom, MEMORY_CEILING_SHARE } from "./memory";
 import { withSpan, SpanKind, ctxFromHeaders } from "./tracing";
@@ -118,6 +118,9 @@ interface RelaySession {
   hub: Hub;
   /** the built deck HTML (no bootstrap yet, injected per request) */
   html: string;
+  /** whether the deck's engine follows the presenter cookie exchange (0.4 and later);
+   *  an older deck keeps its presenter `?t=` in the address, which its phone link needs */
+  presenterCookie: boolean;
   /** The audience's copy of the page, compressed once, built at the first viewer request. */
   audience?: PreparedPage;
   session: Session;
@@ -662,6 +665,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       account,
       hub,
       html,
+      presenterCookie: followsPresenterCookie(html),
       session,
       runnerToken: hex(),
       createdAt: exp - ttlMs,
@@ -750,7 +754,9 @@ export function createRelay(opts: RelayOptions): RelayServer {
   // A presenter grant in `?t=` is moved into a cookie at once: the answer is a 303 to the
   // same page without `t`, so the grant never stays in the address bar or the history of
   // a tab that may be projected or screen-shared. Reloads and the `P` pop-out then come
-  // back with the cookie (or with `t` again, which repeats the exchange). Viewer links
+  // back with the cookie (or with `t` again, which repeats the exchange). A deck built
+  // with an engine older than 0.4 builds its phone link from the address, so it is served
+  // with `t` in place instead (still never cached). Viewer links
   // keep their `t`: they are meant to be shared. A viewer page sets a cookie of its own
   // that keeps the browser's participant id, never a role.
   const serveDeck = (req: Request, url: URL, id: string): Response => {
@@ -764,7 +770,10 @@ export function createRelay(opts: RelayOptions): RelayServer {
     }
     const { http, ws } = originOf(req, opts);
     const secure = http.startsWith("https:");
-    if (role === "presenter" && !fromCookie) return presenterRedirect(url, s.id, token, secure);
+    if (role === "presenter" && !fromCookie) {
+      if (s.presenterCookie) return presenterRedirect(url, s.id, token, secure);
+      metrics.legacyPresenterPages.inc();
+    }
     // A viewer's participant id (what its votes are keyed by) stays with the browser, not
     // the address: a copied link opened elsewhere is a new participant, a reload or a
     // re-scan here is the same one. The cookie ends with the grant (or the session).

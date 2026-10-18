@@ -120,7 +120,7 @@ import { JoinCard } from "@liebstoeckel/engine";
 <JoinCard size={300} />
 ```
 
-Props: `size` (QR px on the 1920×1080 stage, default 280), `label` (default "Scan to
+Props: `size` (QR px on the 1280×720 stage, default 280), `label` (default "Scan to
 join", `""` for none), `fallback` (shown without a live session; default a same-size
 placeholder note, `null` for nothing). A first slide with a `<JoinCard />` keeps the deck
 from opening the full-screen join card by itself when the talk starts.

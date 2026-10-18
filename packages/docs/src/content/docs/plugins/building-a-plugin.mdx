@@ -23,7 +23,7 @@ We'll build a small **"applause meter"** plugin: viewers tap to clap, and a bar 
   "name": "@liebstoeckel/plugin-applause",
   "version": "0.0.0", "private": true, "type": "module",
   "keywords": ["liebstoeckel-plugin"],
-  "liebstoeckel": { "client": "./src/client.tsx" },
+  "liebstoeckel": { "client": "./src/client.tsx", "id": "applause", "audienceWrites": ["claps"] },
   "exports": { ".": "./src/index.ts", "./logic": "./src/logic.ts" },
   "dependencies": {
     "@liebstoeckel/plugin-sdk": "workspace:*",
@@ -31,6 +31,11 @@ We'll build a small **"applause meter"** plugin: viewers tap to clap, and a bar 
   }
 }
 ```
+
+`id` is the plugin's id (the one in `definePlugin`), and `audienceWrites` lists the state
+fields the audience may write. A [relay](/guides/relay/) refuses audience writes to any other
+field, so a field the audience writes that is missing here shows up as a refused vote. The
+build reads both from this file into the deck, because the relay never runs plugin code.
 
 ## 2. State schema + pure logic
 
@@ -138,6 +143,32 @@ import applause from "@liebstoeckel/plugin-applause";
 <Plugin id="applause" />
 ```
 
+### A plugin inside the deck
+
+A plugin does not have to be a package: a deck can define one with `definePlugin` in its own
+source (say `plugins/applause.tsx`) and pass it to `<Present plugins={[...]}>` the same way.
+Such a plugin has no package.json of its own, so the **deck's** package.json names the
+fields its audience may write, by plugin id:
+
+```json title="package.json (the deck)"
+{
+  "files": ["index.html", "main.tsx", "slides", "plugins", "..."],
+  "liebstoeckel": {
+    "plugins": {
+      "applause": { "audienceWrites": ["claps"] }
+    }
+  }
+}
+```
+
+Without that entry a relay refuses every audience write to the plugin (the viewer sees a
+[refusal](/plugins/state-and-sync/#when-a-write-is-refused)). The build fails on an entry it
+cannot use: an id that an installed plugin package already has, the reserved `plugin-index`,
+an id with a `:`, or a field list that is not a list of names. It warns when no deck file
+defines a plugin with that id, or no deck file has a state field of that name. Keep
+`"plugins"` in the deck's `files` list as well, so the plugin's source travels with the built
+deck and an `eject` gets it back.
+
 ### Multiple independent instances
 
 `id` selects the plugin **type**; state lives at `plugin:<id>`. Place the same `id`
@@ -190,7 +221,7 @@ On touch, an interactive plugin opens in a breakout sheet, or on an audience pho
 | --- | --- |
 | `Slide` | a live server is connected: the interactive in-deck UI |
 | `presenter?` | optional **presenter console**, a tab in the presenter view (see below) |
-| `fallback?` | standalone `.html` **and** in build-time thumbnails; show real content from `snapshot`/`props` |
+| `fallback?` | standalone `.html` **and** in build-time thumbnails; show real content from `snapshot`/`props`. It gets only `{ snapshot, props }`, not `ClientProps` (nothing is connected, so there is no `state` or `doc`) |
 | `surfaces?` | named override points an author can replace per placement |
 | `interactive?` | `false` to suppress the mobile breakout for display-only plugins (default `true`) |
 | `global?` | deck-wide surfaces: an `Overlay`, and a chrome control declared as `icon` + `label` that toggles a `Panel` (see the [overview](/plugins/overview/)). `pinned: true` keeps the control in the mobile rail; otherwise it folds into the `⋮` menu on touch so the rail can't overflow. `panelMode: "sheet"` opens the panel full-viewport on touch (for a text input the keyboard would otherwise bury) |

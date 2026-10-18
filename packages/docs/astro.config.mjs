@@ -91,7 +91,7 @@ export default defineConfig({
       sidebar: [
         {
           label: "Start here",
-          items: ["guides/what-is-liebstoeckel", "guides/getting-started", "guides/your-first-deck"],
+          items: ["guides/what-is-liebstoeckel", "guides/getting-started", "guides/your-first-deck", "guides/upgrading-to-0-4"],
         },
         {
           label: "Authoring",
