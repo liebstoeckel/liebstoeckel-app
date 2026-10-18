@@ -5,6 +5,7 @@ import { createRelay, type RelayStorage } from "./relay-server";
 import { relayPublicBaseFromPod } from "./addressing";
 import { initTracing } from "./tracing";
 import { LeaseHolder, holderIdentity, inClusterLeaseApi, samePodHolder } from "@liebstoeckel/live-server/placement";
+import { legalLinksFrom } from "@liebstoeckel/live-server";
 import { repeatGate } from "./repeat-gate";
 
 /** Object storage for session snapshots ((internal ADR)), wired from S3_* env when present.
@@ -126,7 +127,17 @@ export const relayCommand = defineCommand({
     liveness?.start();
     // Test clusters only: a small per-field entry cap, to see what a full field looks like.
     const entryCap = Number(process.env.PRESENT_RELAY_AUDIENCE_ENTRY_CAP ?? "") || undefined;
+    // The operator's legal pages for the row on every live page; all three or none.
+    const legalLinks = legalLinksFrom({
+      imprint: process.env.PRESENT_RELAY_LEGAL_IMPRINT_URL,
+      privacy: process.env.PRESENT_RELAY_LEGAL_PRIVACY_URL,
+      report: process.env.PRESENT_RELAY_LEGAL_REPORT_URL,
+    });
+    if (!legalLinks && (process.env.PRESENT_RELAY_LEGAL_IMPRINT_URL || process.env.PRESENT_RELAY_LEGAL_PRIVACY_URL || process.env.PRESENT_RELAY_LEGAL_REPORT_URL)) {
+      console.warn("PRESENT_RELAY_LEGAL_*: set all three as http(s) URLs (imprint, privacy, report); the legal row stays off");
+    }
     const relay = createRelay({
+      legalLinks: legalLinks ?? undefined,
       accountTokens: tokens,
       port,
       publicBaseUrl,

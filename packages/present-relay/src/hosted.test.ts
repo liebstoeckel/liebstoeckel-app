@@ -465,6 +465,57 @@ describe("hosted relay: audience white-label ((internal ADR))", () => {
     expect(aud).not.toContain("Published with liebstoeckel");
   });
 
+  const LEGAL = {
+    imprint: "https://site.example/impressum",
+    privacy: "https://site.example/datenschutz",
+    report: "https://app.example/forms/abuse",
+  };
+  const legalRow = (html: string) => /<nav id="lst-legal"[^>]*>[\s\S]*?<\/nav>/.exec(html)?.[0] ?? null;
+
+  test("with legal links set, the audience page carries the row, white-label or not", async () => {
+    const base = start({ legalLinks: LEGAL });
+    for (const headers of [{ "x-watermark": "1" }, {}] as Record<string, string>[]) {
+      const { id, viewerToken } = await create(base, { ...headers, "x-join-url": "https://app.example/live/abc<x>" });
+      const aud = await fetch(`${base}/s/${id}?t=${viewerToken}`).then((r) => r.text());
+      const row = legalRow(aud)!;
+      expect(row).toContain('href="https://site.example/impressum"');
+      expect(row).toContain('href="https://site.example/datenschutz"');
+      // The report link names the session by its stable join link, escaped.
+      expect(row).toContain(`href="https://app.example/forms/abuse?url=${encodeURIComponent("https://app.example/live/abc%3Cx%3E")}"`);
+      expect(row).not.toContain("<x>");
+      expect(row.includes("Published with liebstoeckel")).toBe(headers["x-watermark"] === "1");
+      expect(aud.match(/id="lst-legal"/g)).toHaveLength(1);
+    }
+  });
+
+  test("the presenter page carries the row hidden outside the presenter view, and never a presenter grant in it", async () => {
+    const base = start({ legalLinks: LEGAL });
+    const { id, presenterToken, viewerGrant } = await create(base, { "x-watermark": "1" });
+    const pres = await (await presenterPage(base, id, presenterToken)).text();
+    const row = legalRow(pres)!;
+    expect(row).toMatch(/<nav id="lst-legal" lang="en" aria-label="Legal" hidden>/);
+    expect(pres).toContain('location.hash!=="#presenter"');
+    expect(row).not.toContain("Published with liebstoeckel");
+    // Without a join link, the report link carries the audience link with its viewer grant.
+    expect(row).toContain(encodeURIComponent(`/s/${id}?t=${viewerGrant}`));
+    expect(row).not.toContain(presenterToken);
+  });
+
+  test("without legal links, no row: the plain badge on free sessions as before", async () => {
+    const base = start();
+    const { id, viewerToken } = await create(base, { "x-watermark": "1" });
+    const aud = await fetch(`${base}/s/${id}?t=${viewerToken}`).then((r) => r.text());
+    expect(legalRow(aud)).toBeNull();
+    expect(aud).toContain("Published with liebstoeckel");
+  });
+
+  test("a tab the page opens may leave the sandbox, so a form there can be sent", async () => {
+    const base = start({ legalLinks: LEGAL });
+    const { id, viewerToken } = await create(base);
+    const res = await fetch(`${base}/s/${id}?t=${viewerToken}`);
+    expect(res.headers.get("content-security-policy")).toContain("sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox");
+  });
+
   test("a session whose plan keeps audience input tells the page how long; others say nothing", async () => {
     const base = start();
     const kept = await create(base, { "x-audience-input-kept-days": "365" });

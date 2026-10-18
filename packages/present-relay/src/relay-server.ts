@@ -3,9 +3,11 @@ import {
   createSession,
   roleForToken,
   injectBootstrap,
+  injectLegalLinks,
   injectWatermark,
   audienceScopeFromHtml,
   AudienceCounter,
+  type LegalLinks,
   type Peer,
   type PeerRole,
   type Role,
@@ -110,6 +112,11 @@ export interface RelayOptions {
    *  every created session and in /stats, so the control plane can tell a restarted
    *  pod (a new holder, empty memory) from the one it placed the session on. */
   holder?: string;
+  /** The operator's Impressum, privacy notice and report form. When set, every
+   *  audience and presenter page carries a small row linking the three (the report
+   *  link prefilled with the session's link), white-labelled sessions too. Absent →
+   *  no row, and free sessions keep the plain provenance badge. */
+  legalLinks?: LegalLinks;
 }
 
 interface RelaySession {
@@ -813,7 +820,20 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // (`new Image().src='https://evil/?x'`) that `connect-src` can't pin.
     // Mirrors the dashboard's static-share CSP, but keeps `connect-src`
     // to our sync socket and `allow-popups` for the presenter pop-out.
-    const csp = `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src ${ws} ${http}; frame-ancestors 'none'; sandbox allow-scripts allow-popups`;
+    // `allow-popups-to-escape-sandbox`: a tab the deck opens (the legal row's links, a
+    // link in a slide) is an ordinary page, not one stuck in this sandbox, so a form
+    // there can be sent. The relay's own pages carry this policy themselves, so the
+    // presenter pop-out stays sandboxed.
+    const csp = `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src ${ws} ${http}; frame-ancestors 'none'; sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox`;
+    // The legal row's report link names the session the way the audience knows it: the
+    // stable join link, else this relay's audience link (a viewer grant, never the
+    // presenter's).
+    const withLegal = (html: string, as: Role): string =>
+      cfg.legalLinks
+        ? injectLegalLinks(html, { links: cfg.legalLinks, page: s.joinUrl ?? `${http}/s/${s.id}?t=${s.viewerGrant}`, role: as, watermark: as === "viewer" && s.watermark })
+        : as === "viewer" && s.watermark
+          ? injectWatermark(html)
+          : html;
     const gzip = acceptsGzip(req.headers.get("accept-encoding"));
     const base: Record<string, string> = {
       "content-type": "text/html; charset=utf-8",
@@ -826,7 +846,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     if (role === "presenter") {
       // The deck exactly as uploaded. The same URL answers a presenter (by cookie) and
       // anyone else differently, and the page holds the presenter grant: never cached.
-      const body = injectBootstrap(s.html, boot);
+      const body = injectBootstrap(withLegal(s.html, "presenter"), boot);
       const headers = { ...base, "cache-control": NO_STORE, vary: "Cookie, Accept-Encoding" };
       metrics.pageResponses.inc({ role, encoding: gzip ? "gzip" : "identity" });
       if (!gzip) return new Response(body, { headers });
@@ -842,8 +862,8 @@ export function createRelay(opts: RelayOptions): RelayServer {
     // No `Vary: Cookie`: the first load comes without the cookie it sets, so the browser
     // would treat the first reload as a different response and not ask with its validator.
     // Free sessions carry the provenance badge in the audience copy; paid (white-label)
-    // sessions and the presenter never do.
-    s.audience ??= preparePage(audienceHtml(s.watermark ? injectWatermark(s.html) : s.html));
+    // sessions and the presenter never do. The legal row, when configured, is on both.
+    s.audience ??= preparePage(audienceHtml(withLegal(s.html, "viewer")));
     const page = s.audience;
     const etag = pageEtag(page, boot, csp);
     const headers = { ...base, "cache-control": "private, no-cache", etag, vary: "Accept-Encoding" };

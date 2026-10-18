@@ -39,10 +39,10 @@ The relay serves the deck on its own origin, but with a response header:
 ```
 Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline';
   connect-src <relay-ws> <relay-http>; frame-ancestors 'none';
-  sandbox allow-scripts allow-popups;
+  sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox;
 ```
 
-Omitting `allow-same-origin` puts the deck in a **unique opaque origin**: it can run scripts and sync over WebSocket, but it **cannot reach the relay's cookies, API, or storage**, and each context gets a fresh opaque origin (so decks are isolated from one another too). `allow-popups` is kept only for the presenter pop-out; `default-src 'none'` blocks any external fetch, since a built deck inlines all its assets. No separate origin or wildcard certificate needed.
+Omitting `allow-same-origin` puts the deck in a **unique opaque origin**: it can run scripts and sync over WebSocket, but it **cannot reach the relay's cookies, API, or storage**, and each context gets a fresh opaque origin (so decks are isolated from one another too). `allow-popups` is kept for the presenter pop-out and for links that open a new tab; `allow-popups-to-escape-sandbox` makes such a tab an ordinary page (a form there can be sent), while the presenter pop-out is a relay page and gets the sandbox from its own header again. `default-src 'none'` blocks any external fetch, since a built deck inlines all its assets. No separate origin or wildcard certificate needed.
 
 <Aside type="note" title="Plugin implication">
 In an opaque origin, `localStorage`/`IndexedDB` throw and cookies are denied. Plugin **client** parts must use WebSocket + shared state only; anything needing secrets or external HTTP belongs in the **server** part (which runs on your machine). WebSocket auth uses the **token in the URL**, so there's no CSWSH risk.
@@ -53,6 +53,27 @@ Because storage is blocked, the relay keeps each viewer's participant id (the ke
 - Every tab in one browser is the same participant. To try a poll as a second viewer while you rehearse, open the audience link in a private window or another browser.
 - A browser that blocks cookies for the relay's host gets a new id on every load, so after a reload its earlier vote no longer shows as its own and it can vote again.
 - Decks built with an older version ignore the relay's id and keep it in the tab's address (`?pid=…`), where a copied address shares it; rebuild the deck to change that.
+
+## Legal links on live pages
+
+A relay that serves the public can add a small row to every audience and presenter page
+linking your Impressum, your privacy notice and a form to report content. Set all three
+(http or https), or none:
+
+| Variable | Link |
+| --- | --- |
+| `PRESENT_RELAY_LEGAL_IMPRINT_URL` | your Impressum or legal notice |
+| `PRESENT_RELAY_LEGAL_PRIVACY_URL` | your privacy notice |
+| `PRESENT_RELAY_LEGAL_REPORT_URL` | a form to report content; the session's link is added as `?url=` |
+
+The row sits in the bottom right corner, in English or German by the reader's browser
+languages (`?lang=de` or `?lang=en` on the page wins). On a phone it folds into one
+**Legal** link at the top right. It is on white-labelled sessions too; on free sessions the
+"Published with liebstoeckel" badge joins it in the same pill. On the presenter's page it
+shows only in the presenter view (`#presenter`), not in the deck window the room sees. The
+links open a new tab. The row is part of the deck's own page, so a deck's code could hide
+it; the relay does not guard against that. Without the variables there is no row, and free
+sessions show the badge alone as before.
 
 ## What the audience downloads
 
