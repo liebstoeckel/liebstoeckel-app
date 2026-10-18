@@ -307,6 +307,7 @@
         "@liebstoeckel/dev-server": "workspace:*",
         "@liebstoeckel/engine": "workspace:*",
         "@liebstoeckel/live-server": "workspace:*",
+        "@liebstoeckel/model-route": "workspace:*",
         "@liebstoeckel/plugin-poll": "workspace:*",
         "@liebstoeckel/plugin-qa": "workspace:*",
         "@liebstoeckel/plugin-reactions": "workspace:*",
@@ -519,6 +520,10 @@
         "@types/react": "^19",
       },
     },
+    "packages/model-route": {
+      "name": "@liebstoeckel/model-route",
+      "version": "0.0.0",
+    },
     "packages/office": {
       "name": "@liebstoeckel/office",
       "version": "0.0.0",
@@ -555,6 +560,7 @@
         "@earendil-works/pi-ai": "0.87.1",
         "@liebstoeckel/app-ui": "workspace:*",
         "@liebstoeckel/mail": "workspace:*",
+        "@liebstoeckel/model-route": "workspace:*",
         "@modelcontextprotocol/server": "^2.0.0",
         "@simplewebauthn/browser": "13.3.0",
         "@simplewebauthn/server": "13.3.2",
@@ -1354,6 +1360,8 @@
     "@liebstoeckel/mail": ["@liebstoeckel/mail@workspace:packages/mail"],
 
     "@liebstoeckel/mcp": ["@liebstoeckel/mcp@workspace:packages/mcp"],
+
+    "@liebstoeckel/model-route": ["@liebstoeckel/model-route@workspace:packages/model-route"],
 
     "@liebstoeckel/office": ["@liebstoeckel/office@workspace:packages/office"],
 
