@@ -9,8 +9,9 @@ import { createCssVariablesTheme } from "shiki";
 const codeTheme = createCssVariablesTheme({ name: "brand", variablePrefix: "--shiki-", fontStyle: true });
 
 // Compiles `.mdx` → JS using the automatic React runtime. providerImportSource
-// wires MDX elements to <MDXProvider> components. Works in Bun.build() and, when
-// referenced from bunfig [serve.static].plugins, in the HMR dev server.
+// wires MDX elements to <MDXProvider> components. A Bun plugin, for the
+// deprecated Bun pipeline (`bundleDeck` here) only: liebstoeckel builds and
+// serves decks with @liebstoeckel/build, which compiles MDX itself.
 const mdxPlugin: BunPlugin = {
   name: "mdx",
   setup(build) {
@@ -20,7 +21,10 @@ const mdxPlugin: BunPlugin = {
         jsxImportSource: "react",
         providerImportSource: "@mdx-js/react",
         development: false,
-        rehypePlugins: [[rehypeShiki, { theme: codeTheme }]],
+        // Only the grammars the deck's fences use (all of them on the first MDX
+        // file cost about 6 s), no per-line time limit (a cold build otherwise
+        // ships wrongly split tokens). Unknown languages stay plain.
+        rehypePlugins: [[rehypeShiki, { theme: codeTheme, langs: [], lazy: true, onError: () => {}, tokenizeTimeLimit: 0 }]],
       });
       return { contents: String(compiled), loader: "js" };
     });

@@ -7,16 +7,13 @@
   "files": [
     "index.html",
     "main.tsx",
-    "server.ts",
-    "build.ts",
-    "bunfig.toml",
     "slides",
     "plugins",
     "!plugins/**/node_modules"
   ],
   "scripts": {
-    "dev": "bun --hot ./server.ts",
-    "build": "bun run build.ts"
+    "dev": "liebstoeckel dev",
+    "build": "liebstoeckel build"
   },
   "dependencies": {
     "@liebstoeckel/engine": "workspace:^",
@@ -29,6 +26,6 @@
     "the-room-tug": "file:./plugins/tug"
   },
   "devDependencies": {
-    "@liebstoeckel/thumbnails": "workspace:^"
+    "@liebstoeckel/cli": "workspace:^"
   }
 }

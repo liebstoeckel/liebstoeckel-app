@@ -108,7 +108,7 @@ export interface DeckLogEntry {
  *  replied to, so it cannot hold up a batch (Send and Revert only look at
  *  leased work). */
 export interface NoticeEvent {
-  type: "deck_log" | "plugin_status";
+  type: "deck_log" | "plugin_status" | "build_status";
   [key: string]: unknown;
 }
 
@@ -120,7 +120,7 @@ export interface DevProtocol {
   /** Whether an agent holds a leased batch it has not replied to yet. */
   agentBusy(): boolean;
   /** Queue an informational event for the next `dev poll` (the host's own
-   *  state, such as bundler plugins that do not resolve). */
+   *  state, such as a deck that does not build). */
   notify(event: NoticeEvent): void;
   stop(): void;
 }

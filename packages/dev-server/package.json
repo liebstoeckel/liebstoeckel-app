@@ -54,6 +54,7 @@
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/schibsted-grotesk": "^5.2.8",
+    "@liebstoeckel/build": "workspace:^",
     "@liebstoeckel/live-server": "workspace:^",
     "citty": "^0.2.2",
     "ignore": "^7.0.8",

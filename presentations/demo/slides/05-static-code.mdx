@@ -4,8 +4,8 @@ Fenced Markdown is highlighted at build time — on-brand, zero runtime cost:
 
 ```ts
 import { CodeMagic } from "@liebstoeckel/engine";
-import { codeStory } from "@liebstoeckel/engine/code" with { type: "macro" };
+// one fenced block per state, tokenized at build
+import story from "./greet.code.md";
 
-// tokenized at build, animated at runtime
-const story = codeStory([{ code: "const x = 1", lang: "ts" }]);
+<CodeMagic title="greet.ts" steps={story} />
 ```

@@ -6,9 +6,6 @@
   "files": [
     "index.html",
     "main.tsx",
-    "server.ts",
-    "build.ts",
-    "bunfig.toml",
     "liebstoeckel.json",
     "slides",
     "elements",
@@ -18,8 +15,8 @@
     "public"
   ],
   "scripts": {
-    "dev": "bun --hot ./server.ts",
-    "build": "bun run build.ts"
+    "dev": "liebstoeckel dev",
+    "build": "liebstoeckel build"
   },
   "dependencies": {
     "@liebstoeckel/engine": "workspace:*",
@@ -36,6 +33,6 @@
     "@visx/shape": "^3.12.0"
   },
   "devDependencies": {
-    "@liebstoeckel/thumbnails": "workspace:*"
+    "@liebstoeckel/cli": "workspace:*"
   }
 }

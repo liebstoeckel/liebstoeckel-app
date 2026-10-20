@@ -111,10 +111,11 @@ describe("doctor --json migrations surface", () => {
     expect(stale.migrations.map((m) => [m.id, m.needed, m.autoPatchable])).toEqual([
       ["0001-hmr-entry-boundary", true, true],
       ["0002-dev-loader-tag", true, true],
+      ["0003-scaffold-tooling-files", false, false],
     ]);
 
     // migrate it (what `dev` boot does), then doctor reports clean
-    runAutoPatches(deck, ["entry", "index.html"]);
+    runAutoPatches(deck, ["entry", "index.html", "tooling"]);
     const fresh = doctorJson(deck);
     expect(fresh.migrations.every((m) => !m.needed)).toBe(true);
   });
@@ -137,7 +138,7 @@ describe("doctor --json migrations surface", () => {
     expect(doctorJson(tmp).migrations).toEqual([]);
   });
 
-  test("an unresolvable [serve.static] plugin is reported in --json; a deck without plugins reports none", () => {
+  test("a Bun plugin in [serve.static] is reported in --json; the scaffold's are not", () => {
     tmp = mkdtempSync(join(tmpdir(), "pi-doctor-"));
     const deck = join(tmp, "deck");
     mkdirSync(deck, { recursive: true });
@@ -146,11 +147,11 @@ describe("doctor --json migrations surface", () => {
 
     expect(doctorJson(deck).pluginProblems).toEqual([]);
 
-    writeFileSync(join(deck, "bunfig.toml"), `[serve.static]\nplugins = ["bun-plugin-does-not-exist-xyz"]\n`);
+    writeFileSync(join(deck, "bunfig.toml"), `[serve.static]\nplugins = ["bun-plugin-tailwind", "bun-plugin-does-not-exist-xyz"]\n`);
     const out = doctorJson(deck);
     expect(out.pluginProblems).toHaveLength(1);
     expect(out.pluginProblems[0]!.plugin).toBe("bun-plugin-does-not-exist-xyz");
-    expect(out.pluginProblems[0]!.message).toContain("cannot be found");
+    expect(out.pluginProblems[0]!.message).toContain("no longer runs");
 
     // outside a deck nothing is checked
     expect(doctorJson(tmp).pluginProblems).toEqual([]);
@@ -160,12 +161,12 @@ describe("doctor --json migrations surface", () => {
 describe("pluginProblemLines", () => {
   test("one line per problem, each naming the plugin and the fix", () => {
     const lines = pluginProblemLines("/decks/q3", [
-      { plugin: "bun-plugin-tailwind", message: "cannot be found from /decks/q3" },
+      { plugin: "./svg-plugin.ts", message: "is a Bun plugin, which liebstoeckel no longer runs" },
       { plugin: "bunfig.toml", message: "is not valid TOML: bad" },
     ]);
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toContain('bunfig.toml plugin "bun-plugin-tailwind" cannot be found from /decks/q3');
-    expect(lines[0]).toContain("run `bun install` in /decks/q3");
+    expect(lines[0]).toContain('bunfig.toml plugin "./svg-plugin.ts" is a Bun plugin');
+    expect(lines[0]).toContain("remove it from [serve.static] plugins in bunfig.toml");
     expect(lines[1]).toStartWith("✗ bunfig.toml is not valid TOML");
   });
 

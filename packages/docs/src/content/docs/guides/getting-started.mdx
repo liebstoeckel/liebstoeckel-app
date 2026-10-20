@@ -35,15 +35,14 @@ The umbrella CLI scaffolds a workspace-wired deck:
    bun install
    ```
 
-3. Start the dev server (instant HMR + React Fast Refresh):
+3. Start the dev server (hot reload that keeps your place and your components' state):
 
    ```bash
-   cd my-talk && bun run dev           # http://localhost:3000 (set PORT to change it)
+   cd my-talk && bun run dev           # http://localhost:3000 (--port to change it)
    ```
 
-   `bun run dev` is the deck's plain hot-reload server. For the annotation
-   sidebar and the agent loop, run [`liebstoeckel dev`](/guides/dev-mode/)
-   instead.
+   `bun run dev` runs [`liebstoeckel dev`](/guides/dev-mode/): the deck with
+   hot reload, plus the annotation sidebar and the agent loop.
 
    To present a live session for a room instead (LAN by default, or through a
    public relay), use `liebstoeckel live my-talk`. See [Live presenting](/guides/live/).
@@ -57,9 +56,6 @@ A new deck looks like this:
   - package.json      deps, scripts, and the `files` allowlist
   - index.html        the page shell (sets `data-brand`)
   - main.tsx          mounts `<Present>` with your slides
-  - build.ts          single-file build (+ thumbnails)
-  - server.ts         HMR dev server
-  - bunfig.toml        dev-server plugins (tailwind + mdx)
   - .gitignore
   - slides/
     - 01-intro.tsx
@@ -78,7 +74,7 @@ import "@liebstoeckel/theme/styles.css";
 import Intro from "./slides/01-intro";
 
 // Hot-module boundary: slide edits re-render into the same root during dev,
-// so the deck keeps its position. Builds compile this down to a plain createRoot.
+// so the deck keeps its position. A built deck runs this once, as written.
 const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));
 root.render(
   <StrictMode>
@@ -100,8 +96,8 @@ liebstoeckel build my-talk            # → my-talk/dist/my-talk.html
 
 The output is one self-contained `.html` (named after the deck: `dist/<deck-slug>.html`) with JS/CSS inlined, assets base64'd, and slide thumbnails embedded. Open it directly, email it, or host it anywhere static.
 
-<Aside type="note" title="Bun-only build API">
-Decks are bundled with the **`Bun.build()` JS API** (in `build.ts`), not the `bun build` CLI. `compile: true` + `target: "browser"` is what inlines everything. See [Building & deploying](/guides/building/).
+<Aside type="note" title="No build script of your own">
+The CLI builds and serves the deck with liebstoeckel's own build core; a deck has no `build.ts`, `server.ts` or `bunfig.toml`. Decks from before 0.4 lose theirs on the next `liebstoeckel dev`. See [Building & deploying](/guides/building/).
 </Aside>
 
 ## Keyboard during a talk

@@ -28,8 +28,8 @@ async function gateBuildTrust(dir: string, trustFlag: boolean | undefined): Prom
       ? (d) => {
           console.error(
             `\n⚠ Building a deck runs its code on your machine.\n` +
-              `  A liebstoeckel deck is real code: building it executes the deck's build-time\n` +
-              `  modules (Bun macros, build plugins) with full access to your files and network.\n` +
+              `  A liebstoeckel deck is real code: the build reads its files and packages, and\n` +
+              `  renders every slide in a headless browser for the thumbnails.\n` +
               `  Only build decks you trust.\n\n  Deck: ${d}`,
           );
           // Bun's confirm() reads a yes/no from the TTY; defaults to no on empty/EOF.
@@ -112,7 +112,7 @@ async function runVisualLint(json: boolean): Promise<VisualLintReport> {
       findings: [],
     };
   }
-  const { bundleDeck } = await import("@liebstoeckel/engine/build");
+  const { bundleDeck } = await import("@liebstoeckel/build");
   const { mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const outdir = await mkdtemp(join(tmpdir(), "lst-visual-"));
@@ -185,20 +185,18 @@ async function runBuild(
     // structured diagnostics for an agent's fix loop. `--visual` adds a
     // headless render pass that lints every slide for cut-off/overflowing text.
     if (args.check) {
-      const { checkDeck } = await import("@liebstoeckel/engine/build");
+      const { checkDeck } = await import("@liebstoeckel/build");
       const { ok, diagnostics } = await withLogToStderr(json, () => checkDeck({ entry: "./index.html" }));
       const visual = ok && args.visual ? await runVisualLint(json) : undefined;
       const allOk = ok && (visual == null || visual.skipped != null || visual.findings.length === 0);
       if (json) {
         console.log(JSON.stringify({ ok: allOk, diagnostics, ...(visual ? { visual } : {}) }, null, 2));
       } else {
-        if (ok) console.log("✓ deck builds (check passed)");
-        else {
-          for (const d of diagnostics) {
-            const loc = d.file ? ` ${d.file}${d.line ? `:${d.line}` : ""}` : "";
-            console.error(`✕${loc} ${d.message}`);
-          }
+        for (const d of diagnostics) {
+          const loc = d.file ? ` ${d.file}${d.line ? `:${d.line}${d.column ? `:${d.column}` : ""}` : ""}` : "";
+          console.error(`${d.level === "error" ? "✕" : "⚠"}${loc} ${d.message}`);
         }
+        if (ok) console.log("✓ deck builds (check passed)");
         if (visual) {
           if (visual.skipped) {
             console.log(`- visual lint skipped: ${visual.skipped}`);
@@ -399,7 +397,7 @@ async function runLicenses(args: { deck?: string; dir?: string; check?: boolean;
   const prev = process.cwd();
   process.chdir(resolve(dir));
   try {
-    const { collectDeckLicenses } = await import("@liebstoeckel/engine/build");
+    const { collectDeckLicenses } = await import("@liebstoeckel/build");
     const report = await withLogToStderr(json, () => collectDeckLicenses({ entry: "./index.html" }));
     const ok = report.flagged.length === 0;
     if (json) {

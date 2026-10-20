@@ -63,19 +63,18 @@
         "react-dom": "^19.2.7",
       },
     },
-    "packages/build-spike": {
-      "name": "@liebstoeckel/build-spike",
+    "packages/build": {
+      "name": "@liebstoeckel/build",
       "version": "0.0.0",
       "dependencies": {
         "@liebstoeckel/engine": "workspace:^",
-        "@liebstoeckel/thumbnails": "workspace:^",
+        "@liebstoeckel/plugin-sdk": "workspace:^",
         "@mdx-js/mdx": "^3.1.1",
         "@shikijs/rehype": "^3.23.0",
         "esbuild": "0.28.2",
-        "esbuild-wasm": "0.28.2",
-        "playwright-core": "1.60.0",
+        "react-refresh": "^0.18.0",
         "shiki": "^3.23.0",
-        "tailwindcss": "4.1.14",
+        "tailwindcss": "^4.3.0",
       },
     },
     "packages/ci-poller": {
@@ -93,6 +92,7 @@
         "lst": "./src/cli.ts",
       },
       "dependencies": {
+        "@liebstoeckel/build": "workspace:^",
         "@liebstoeckel/dev-server": "workspace:^",
         "@liebstoeckel/engine": "workspace:^",
         "@liebstoeckel/live-server": "workspace:^",
@@ -287,6 +287,7 @@
         "@fontsource-variable/syne": "latest",
         "@fontsource-variable/unbounded": "latest",
         "@fontsource-variable/work-sans": "latest",
+        "@liebstoeckel/build": "workspace:*",
         "@liebstoeckel/cli": "workspace:^",
         "@liebstoeckel/components": "workspace:^",
         "@liebstoeckel/control-core": "workspace:^",
@@ -318,6 +319,7 @@
         "@fontsource-variable/hanken-grotesk": "^5.2.8",
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
         "@fontsource-variable/schibsted-grotesk": "^5.2.8",
+        "@liebstoeckel/build": "workspace:*",
         "@liebstoeckel/components": "workspace:*",
         "@liebstoeckel/dev-server": "workspace:*",
         "@liebstoeckel/engine": "workspace:*",
@@ -362,6 +364,7 @@
       "dependencies": {
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
         "@fontsource-variable/schibsted-grotesk": "^5.2.8",
+        "@liebstoeckel/build": "workspace:^",
         "@liebstoeckel/live-server": "workspace:^",
         "citty": "^0.2.2",
         "ignore": "^7.0.8",
@@ -410,6 +413,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@electric-sql/pglite": "^0.5.3",
+        "@liebstoeckel/build": "workspace:*",
         "@liebstoeckel/engine": "workspace:*",
         "@liebstoeckel/forms": "workspace:*",
         "@liebstoeckel/live-server": "workspace:*",
@@ -419,6 +423,7 @@
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@liebstoeckel/present-relay": "workspace:*",
         "@liebstoeckel/theme": "workspace:*",
+        "@liebstoeckel/thumbnails": "workspace:*",
         "playwright-core": "1.60.0",
       },
     },
@@ -494,6 +499,7 @@
       "name": "@liebstoeckel/live-server",
       "version": "0.3.10",
       "dependencies": {
+        "@liebstoeckel/build": "workspace:^",
         "@liebstoeckel/engine": "workspace:^",
         "@liebstoeckel/plugin-sdk": "workspace:^",
         "@liebstoeckel/thumbnails": "workspace:^",
@@ -721,6 +727,7 @@
         "liebstoeckel-thumbnails": "./src/cli.ts",
       },
       "dependencies": {
+        "@liebstoeckel/build": "workspace:^",
         "@liebstoeckel/engine": "workspace:^",
         "citty": "^0.2.2",
         "playwright-core": "1.60.0",
@@ -740,6 +747,14 @@
         "liebstoeckel-win-debug": "./src/cli.ts",
       },
     },
+    "presentations/_probe": {
+      "name": "probe",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liebstoeckel/engine": "workspace:*",
+        "@liebstoeckel/theme": "workspace:*",
+      },
+    },
     "presentations/backdrop-demo": {
       "name": "@liebstoeckel/backdrop-demo",
       "version": "0.0.0",
@@ -749,7 +764,7 @@
         "@liebstoeckel/theme": "workspace:*",
       },
       "devDependencies": {
-        "@liebstoeckel/thumbnails": "workspace:*",
+        "@liebstoeckel/cli": "workspace:*",
       },
     },
     "presentations/demo": {
@@ -761,7 +776,7 @@
         "@liebstoeckel/theme": "workspace:*",
       },
       "devDependencies": {
-        "@liebstoeckel/thumbnails": "workspace:*",
+        "@liebstoeckel/cli": "workspace:*",
       },
     },
     "presentations/poll-demo": {
@@ -775,7 +790,7 @@
         "@liebstoeckel/theme": "workspace:*",
       },
       "devDependencies": {
-        "@liebstoeckel/thumbnails": "workspace:*",
+        "@liebstoeckel/cli": "workspace:*",
       },
     },
     "presentations/registry-demo": {
@@ -796,7 +811,7 @@
         "@visx/shape": "^3.12.0",
       },
       "devDependencies": {
-        "@liebstoeckel/thumbnails": "workspace:*",
+        "@liebstoeckel/cli": "workspace:*",
       },
     },
     "presentations/step-lab": {
@@ -808,7 +823,7 @@
         "@liebstoeckel/theme": "workspace:*",
       },
       "devDependencies": {
-        "@liebstoeckel/thumbnails": "workspace:*",
+        "@liebstoeckel/cli": "workspace:*",
       },
     },
     "presentations/the-room": {
@@ -825,7 +840,7 @@
         "the-room-tug": "file:./plugins/tug",
       },
       "devDependencies": {
-        "@liebstoeckel/thumbnails": "workspace:^",
+        "@liebstoeckel/cli": "workspace:^",
       },
     },
     "presentations/visx-showcase": {
@@ -845,7 +860,7 @@
         "motion": "^12.40.0",
       },
       "devDependencies": {
-        "@liebstoeckel/thumbnails": "workspace:*",
+        "@liebstoeckel/cli": "workspace:*",
       },
     },
   },
@@ -1218,7 +1233,7 @@
 
     "@fontsource-variable/sora": ["@fontsource-variable/sora@5.3.0", "", {}, "sha512-h8kHta4Z8SkfUGeI82TUy1n3rbrKpBRGwuk4t4qCwto5oEHxlbOFD2yGP+Df5fbmTXwKGn+o667vYp0E4K8Whw=="],
 
-    "@fontsource-variable/source-serif-4": ["@fontsource-variable/source-serif-4@5.3.0", "", {}, "sha512-9vch9WqxjaaA+1o9Ur8pOgIGbCYLjRReOUel23A6lOpD1syptgjtkORevvNmldJ5kGXQL29onQUqI5Ltz0s3bQ=="],
+    "@fontsource-variable/source-serif-4": ["@fontsource-variable/source-serif-4@5.3.1", "", {}, "sha512-4Rtay22SC4lMvw11r/+9kxANB6P3M0X8s1NudBC2v0J1KU2y3DcMoNcT3lBoZ/CqLirzf+StlO6UlJilyrvaUg=="],
 
     "@fontsource-variable/space-grotesk": ["@fontsource-variable/space-grotesk@5.3.0", "", {}, "sha512-2IxmvfB08i9vnGB3Ym/AXvhRE+8XOjWMXIyDum03c+tPwH0FUoMNQfGpU8NXPxjbws0Vvss3AH0Zqt4oJBBAdw=="],
 
@@ -1334,7 +1349,7 @@
 
     "@liebstoeckel/backdrop-demo": ["@liebstoeckel/backdrop-demo@workspace:presentations/backdrop-demo"],
 
-    "@liebstoeckel/build-spike": ["@liebstoeckel/build-spike@workspace:packages/build-spike"],
+    "@liebstoeckel/build": ["@liebstoeckel/build@workspace:packages/build"],
 
     "@liebstoeckel/ci-poller": ["@liebstoeckel/ci-poller@workspace:packages/ci-poller"],
 
@@ -2456,8 +2471,6 @@
 
     "esbuild": ["esbuild@0.28.2", "", { "optionalDependencies": { "@esbuild/aix-ppc64": "0.28.2", "@esbuild/android-arm": "0.28.2", "@esbuild/android-arm64": "0.28.2", "@esbuild/android-x64": "0.28.2", "@esbuild/darwin-arm64": "0.28.2", "@esbuild/darwin-x64": "0.28.2", "@esbuild/freebsd-arm64": "0.28.2", "@esbuild/freebsd-x64": "0.28.2", "@esbuild/linux-arm": "0.28.2", "@esbuild/linux-arm64": "0.28.2", "@esbuild/linux-ia32": "0.28.2", "@esbuild/linux-loong64": "0.28.2", "@esbuild/linux-mips64el": "0.28.2", "@esbuild/linux-ppc64": "0.28.2", "@esbuild/linux-riscv64": "0.28.2", "@esbuild/linux-s390x": "0.28.2", "@esbuild/linux-x64": "0.28.2", "@esbuild/netbsd-arm64": "0.28.2", "@esbuild/netbsd-x64": "0.28.2", "@esbuild/openbsd-arm64": "0.28.2", "@esbuild/openbsd-x64": "0.28.2", "@esbuild/openharmony-arm64": "0.28.2", "@esbuild/sunos-x64": "0.28.2", "@esbuild/win32-arm64": "0.28.2", "@esbuild/win32-ia32": "0.28.2", "@esbuild/win32-x64": "0.28.2" }, "bin": { "esbuild": "bin/esbuild" } }, "sha512-HKVLS8dvII+xoKW9kmqxbRKrnWEXfJJr/FZhhJmiqIB0e053QNYFqOBouTMO/k5sID4MvCiUCvv8b9M4h32wIA=="],
 
-    "esbuild-wasm": ["esbuild-wasm@0.28.2", "", { "bin": { "esbuild": "bin/esbuild" } }, "sha512-GccVwhv3mmOUVQHCQm2Ox/rby8n/EqUwvZxE6Pjfikrq/lWw9g9WX/u9EykWnpot3Ko6j426DgQdea2xWKIAQA=="],
-
     "escalade": ["escalade@3.2.0", "", {}, "sha512-WUj2qlxaQtO4g6Pq5c29GTcWGDyd8itL8zTlipgECz3JesAiiOKotd8JU6otB3PACgG6xkJUyVhboMS+bje/jA=="],
 
     "escape-string-regexp": ["escape-string-regexp@4.0.0", "", {}, "sha512-TtpcNJ3XAzx3Gq8sWRzJaVajRs0uVxA2YAkdb1jm2YkPz4G6egUFAyA3n5vtEIZefPk5Wa4UXbKuS5fKkJWdgA=="],
@@ -3114,6 +3127,8 @@
 
     "prismjs": ["prismjs@1.30.0", "", {}, "sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw=="],
 
+    "probe": ["probe@workspace:presentations/_probe"],
+
     "process-ancestry": ["process-ancestry@0.1.0", "", {}, "sha512-tGqJW/UnclpYASFcM6Xh8D8l/BMtaQ9+CSG0vlJSJTcdMM4lDRv4c6H0Pdcsfted+bVczdYSfk2fdukg2gQkZg=="],
 
     "process-warning": ["process-warning@5.1.0", "", {}, "sha512-jQSaVHsPgtyw60e1rQ/A+/ArPEj/S8pS/vFnyGa/gYFXrKk/6RuDkoqVDQ5NI5MmS01698ltlAk0NoDBNLujRw=="],
@@ -3161,6 +3176,8 @@
     "react-dom": ["react-dom@19.2.7", "", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.7" } }, "sha512-t0BRVXvbiE/o20Hfw669rLbMCDWtYZLvmJigy2f0MxsXF+71pxhR3xOkspmsO8h3ZlNzyibAmtCa3l4lYKk6gQ=="],
 
     "react-is": ["react-is@16.13.1", "", {}, "sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ=="],
+
+    "react-refresh": ["react-refresh@0.18.0", "", {}, "sha512-QgT5//D3jfjJb6Gsjxv0Slpj23ip+HtOpnNgnb2S5zU3CB26G/IDPGoy4RJB42wzFE46DRsstbW6tKHoKbhAxw=="],
 
     "react-remove-scroll": ["react-remove-scroll@2.7.2", "", { "dependencies": { "react-remove-scroll-bar": "^2.3.7", "react-style-singleton": "^2.2.3", "tslib": "^2.1.0", "use-callback-ref": "^1.3.3", "use-sidecar": "^1.1.3" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha512-Iqb9NjCCTt6Hf+vOdNIZGdTiH1QSqr27H/Ek9sv/a97gfueI/5h1s3yRi1nngzMUaOOToin5dI1dXKdXiF+u0Q=="],
 
@@ -3574,7 +3591,7 @@
 
     "@img/sharp-wasm32/@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
 
-    "@liebstoeckel/build-spike/tailwindcss": ["tailwindcss@4.1.14", "", {}, "sha512-b7pCxjGO98LnxVkKjaZSDeNuljC4ueKUddjENJOADtubtdo8llTaJy7HwBMeLNSSo2N5QIAgklslK1+Ir8r6CA=="],
+    "@liebstoeckel/build/tailwindcss": ["tailwindcss@4.3.3", "", {}, "sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ=="],
 
     "@liebstoeckel/control-dashboard/tailwindcss": ["tailwindcss@4.3.3", "", {}, "sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ=="],
 

@@ -108,7 +108,7 @@ async function resolveDeckHtml(target: string): Promise<{ html: string; base: st
   }
 
   // treat as a deck source directory → bundle it to a throwaway dir
-  const { bundleDeck } = await import("@liebstoeckel/engine/build");
+  const { bundleDeck } = await import("@liebstoeckel/build");
   const outdir = mkdtempSync(join(tmpdir(), "lst-export-"));
   const prev = process.cwd();
   process.chdir(abs);

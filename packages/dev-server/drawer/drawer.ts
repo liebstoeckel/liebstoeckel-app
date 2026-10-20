@@ -32,7 +32,9 @@ import {
 
 const HOST_ID = "lst-dev-host";
 
-const CSS = `
+// Not `CSS`: this file loads as a classic script, where a top-level const would
+// shadow the browser's global CSS object (CSS.escape, CSS.supports) for the deck.
+const DRAWER_CSS = `
   :host { all: initial; }
   .overlay { position: fixed; z-index: 2147482000; cursor: crosshair; display: none; touch-action: none; }
   .overlay[data-on="true"] { display: block; }
@@ -118,7 +120,7 @@ function boot(): void {
     document.documentElement.appendChild(host);
     const root = host.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = CSS;
+    style.textContent = DRAWER_CSS;
     root.appendChild(style);
     overlay = document.createElement("canvas");
     overlay.className = "overlay";

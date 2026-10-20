@@ -1,6 +1,6 @@
 ---
 title: Animated code
-description: Build-time Shiki highlighting and CodeMagic, which morphs one code state into the next.
+description: Build-time Shiki highlighting, code files, and CodeMagic, which morphs one code state into the next.
 ---
 
 import { Aside, Steps, LinkCard } from "@astrojs/starlight/components";
@@ -25,28 +25,58 @@ Colors are **bound to the active brand**. Shiki runs with its css-variables them
 
 `<CodeMagic>` takes a list of code **states** and morphs between them as you advance: unchanged lines glide to their new position, edits fade in/out. It reuses the same `layoutId` machinery as [Magic Move](/guides/your-first-deck/#magic-move).
 
-Each state is tokenized at **build time** by a [Bun macro](https://bun.com/docs/bundler/macros), so, like static blocks, no Shiki ships to the runtime:
+The states live in a **code file**: a Markdown file whose name ends in `.code.md`, with one fenced block per state. The fence's language highlights it. Import the file, and you get the states, tokenized at **build time**, so, like static blocks, no Shiki ships to the browser:
+
+````md title="slides/greet.code.md"
+# greet.ts, three states
+
+Text outside the fences is ignored, so the file can explain itself.
+
+```ts
+function greet(name) {
+  return "hi " + name
+}
+```
+
+```ts
+function greet(name: string) {
+  return "hi " + name
+}
+```
+
+```ts
+function greet(name: string, loud = false) {
+  const msg = "hi " + name
+  return loud ? msg.toUpperCase() : msg
+}
+```
+````
 
 ```tsx title="slides/03-code.tsx"
-import { CodeMagic, type TokenizedStep } from "@liebstoeckel/engine";
-import { codeStory } from "@liebstoeckel/engine/code" with { type: "macro" };
-
-const STORY = codeStory([
-  { code: `function greet(name) {\n  return "hi " + name\n}`, lang: "ts" },
-  { code: `function greet(name: string) {\n  return "hi " + name\n}`, lang: "ts" },
-  { code: `function greet(name: string, loud = false) {\n  const msg = "hi " + name\n  return loud ? msg.toUpperCase() : msg\n}`, lang: "ts" },
-]) as unknown as TokenizedStep[];
+import { CodeMagic } from "@liebstoeckel/engine";
+import greet from "./greet.code.md";
 
 export default function CodeSlide() {
-  return <CodeMagic title="greet.ts" steps={STORY} />;
+  return <CodeMagic title="greet.ts" steps={greet} />;
 }
+```
+
+The same import works in an MDX slide:
+
+```mdx title="slides/04-code.mdx"
+import { CodeMagic } from "@liebstoeckel/engine";
+import greet from "./greet.code.md";
+
+## Watch it change
+
+<CodeMagic title="greet.ts" steps={greet} />
 ```
 
 <Steps>
 
-1. **Author states** as `{ code, lang }` objects. Use a template literal (no `${}` interpolation: the macro needs static strings).
+1. **Write the states** as fenced blocks in a `.code.md` file, in order. A fence without a language is plain text. One block makes a single, static state.
 
-2. **The macro tokenizes** each state with Shiki during `bun build` and inlines the result. The `as unknown as TokenizedStep[]` cast reconciles the macro's async type with the value it inlines synchronously.
+2. **The build tokenizes** each block with Shiki and the import is the result (`TokenizedStep[]`), in `liebstoeckel build` and `liebstoeckel dev` alike. Editing the file in dev mode updates the slide in place.
 
 3. **At runtime**, `<CodeMagic>` line-diffs consecutive states (LCS over line text) so unchanged lines keep their identity and FLIP to their new position; the deck's reveal steps drive which state shows.
 
@@ -56,16 +86,43 @@ export default function CodeSlide() {
 
 | Prop | Type | Notes |
 | --- | --- | --- |
-| `steps` | `TokenizedStep[]` | from the `codeStory` macro |
+| `steps` | `TokenizedStep[]` | the import of a `.code.md` file |
 | `title` | `string?` | filename shown in the chrome bar |
 | `lang` | `string?` | language tag (defaults to the first step's) |
+
+<Aside type="tip" title="Type-checking a deck">
+A deck that runs `tsc` needs to know what a `.code.md` import is. Add a declaration file, for example `code-files.d.ts` in the deck:
+
+```ts title="code-files.d.ts"
+declare module "*.code.md" {
+  const steps: import("@liebstoeckel/engine").TokenizedStep[];
+  export default steps;
+}
+```
+</Aside>
+
+## The `codeStory` macro (deprecated)
+
+Before code files, the states were written inline with the `codeStory` macro:
+
+```tsx
+import { CodeMagic, type TokenizedStep } from "@liebstoeckel/engine";
+import { codeStory } from "@liebstoeckel/engine/code" with { type: "macro" };
+
+const STORY = codeStory([
+  { code: `function greet(name) {\n  return "hi " + name\n}`, lang: "ts" },
+  { code: `function greet(name: string) {\n  return "hi " + name\n}`, lang: "ts" },
+]) as unknown as TokenizedStep[];
+```
+
+It still builds, locally and in the hosted preview: the build reads the call's arguments, which must be written out as literals (strings, arrays and objects, no variables or `${}`), and tokenizes them; nothing of the deck runs. The build warns that it is deprecated, and it will go in a later release. To move a slide to a code file, put each `code` string into a fenced block with its `lang`, in order, then replace the `codeStory([...])` call (and the cast) with the file's import. Any other macro import is an error.
 
 <Aside type="note" title="Reveals and static renders">
 `<CodeMagic>` claims one reveal step per transition via `useRevealState`. In a static render (a thumbnail, or a standalone open with no reveals driven) it shows the **final** state.
 </Aside>
 
 <Aside type="tip" title="Supported languages">
-The build-time highlighter loads a pragmatic default set (ts/tsx, js/jsx, json, bash, html, css, python, rust, go, sql, yaml, markdown, diff). Unknown languages fall back to plain text.
+Code files and `codeStory` highlight ts/tsx, js/jsx, json, bash, html, css, python, rust, go, sql, yaml, markdown and diff (with the usual short names: `ts`, `js`, `sh`, `py`, `yml`, ...); other languages show as plain text. Fenced blocks in MDX highlight any language Shiki knows. The build loads only the grammars a deck uses, and highlights every line in full however long it takes, so a cold build colors the same as a warm one.
 </Aside>
 
 <LinkCard title="Theming" href="/guides/theming/" description="Where the code colors come from." />

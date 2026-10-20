@@ -93,12 +93,11 @@ export function diagnosticExitCode(report: DoctorReport): number {
   return report.bun.ok ? 0 : 1;
 }
 
-/** Prose lines for bundler plugins that do not resolve: one per problem, each
- *  with the fix, so an author (or their agent) learns it before `dev` does. */
+/** Prose lines for Bun plugins in bunfig.toml that the build no longer runs: one
+ *  per problem, each with the fix, so an author (or their agent) learns it before
+ *  `dev` does. */
 export function pluginProblemLines(deckDir: string, problems: PluginProblem[]): string[] {
-  return problems.map(
-    (p) => `✗ ${describePluginProblem(p)}; the dev server cannot serve the deck until you ${pluginProblemFix(deckDir)}`,
-  );
+  return problems.map((p) => `✗ ${describePluginProblem(p)}; ${pluginProblemFix(deckDir)}`);
 }
 
 /** The shell-out that installs Playwright's Chromium. Pinned two ways: the Bun
@@ -176,8 +175,8 @@ export const doctorCommand = defineCommand({
     const { migrations, warnings: migrationWarnings } = inDeck
       ? neededMigrations(deckDir)
       : { migrations: [] as MigrationStatus[], warnings: [] as string[] };
-    // Bundler plugins from the deck's bunfig.toml, resolved the way `dev` does
-    // at startup (resolve only, never import).
+    // Bun plugins the deck's bunfig.toml still lists that the build core does
+    // not run (the ones the scaffold wrote are ignored); read only, never imported.
     const pluginProblems: PluginProblem[] = inDeck ? checkServePlugins(deckDir) : [];
     const skill = skillReport({
       installed: await installedSkillVersion(deckDir),
@@ -218,6 +217,7 @@ export const doctorCommand = defineCommand({
           ? "`liebstoeckel dev` applies it automatically"
           : `apply it per the skill guide ${m.reference}`;
         console.error(`↻ migration needed (${m.id}): ${m.reason}; ${how}, or opt out via package.json liebstoeckel.migrationOptOut`);
+        for (const d of m.details ?? []) console.error(`    ${d}`);
       }
       console.error(`  config: ${CONFIG_FILE}`);
     }

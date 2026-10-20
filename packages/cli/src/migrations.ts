@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, normalize } from "node:path";
 import { addDevLoaderTag, hasDevLoaderTag } from "./dev-loader";
 
@@ -22,7 +22,7 @@ import { addDevLoaderTag, hasDevLoaderTag } from "./dev-loader";
 // dev-server package imports it while the CLI umbrella soft-imports the dev
 // server, so importing any CLI command module from here is a load cycle.
 
-export type Surface = "entry" | "index.html";
+export type Surface = "entry" | "index.html" | "tooling";
 
 export interface Migration {
   /** "NNNN-slug", stable forever; the opt-out key and the guide's frontmatter id. */
@@ -39,9 +39,13 @@ export interface Migration {
   /** Present only when unattended application is safe for a recognized shape. */
   autoPatch?: {
     canApply(deckDir: string): boolean;
-    /** Returns the deck-relative path of the patched file (for the notice). */
+    /** Returns what it changed (the deck-relative path of the patched file, or
+     *  a short list), for the notice. */
     apply(deckDir: string): string;
   };
+  /** The exact next steps for the parts that need a person, one line each
+   *  (shown with the hint). */
+  details?(deckDir: string): string[];
 }
 
 export interface MigrationStatus {
@@ -52,6 +56,8 @@ export interface MigrationStatus {
   reason: string;
   /** True when `liebstoeckel dev` would fix this automatically right now. */
   autoPatchable: boolean;
+  /** The steps that need a person, when the migration knows them. */
+  details?: string[];
   suppressed?: boolean;
   suppressReason?: string;
 }
@@ -85,8 +91,8 @@ const ENTRY_CHAIN_RE = /(^[ \t]*)createRoot\s*\(\s*document\.getElementById\(\s*
 /** Same comment the scaffold ships, so migrated and fresh decks read alike. */
 const HMR_COMMENT = `// Hot-module boundary: a slide edit re-runs this entry into the SAME React root,
 // so the deck keeps its state (current slide, step) across dev-server hot
-// reloads instead of jumping back to slide 1. \`bun build\` compiles the
-// hot.data access to a plain createRoot and erases accept() in built decks.`;
+// reloads instead of jumping back to slide 1. A built deck has no hot reload:
+// the build gives it an inert import.meta.hot, so this runs once, as written.`;
 
 /** `import.meta.hot.accept()` and the optional-chained forms
  *  (`import.meta.hot?.accept()`, `import.meta.hot?.accept?.()`) all make the
@@ -170,8 +176,144 @@ const devLoaderTag: Migration = {
   },
 };
 
+
+// ---------------------------------------------------------------------------
+// 0003: the scaffold's Bun tooling files. Decks scaffolded before the build core
+// carry a bunfig.toml (Bun bundler plugins for Bun's dev server), a server.ts
+// (Bun's dev server) and a build.ts, and their package.json scripts run those.
+// `liebstoeckel dev` and `liebstoeckel build` do all of it now. Files still
+// byte-for-byte as some release scaffolded them (line endings and trailing
+// space aside) are removed, with the scripts that ran them; anything changed
+// stays, and the hint says what to do with it.
+
+/** Every version of the three files a release of `liebstoeckel new` wrote. */
+export const SCAFFOLD_TOOLING: Record<"bunfig.toml" | "server.ts" | "build.ts", string[]> = {
+  "bunfig.toml": [
+    "# Plugins for the HMR dev server (Bun.serve HTML routes). The build path uses\n# Bun.build()'s plugins array in build.ts instead.\n[serve.static]\nplugins = [\"bun-plugin-tailwind\", \"../../packages/engine/src/build/mdx-plugin.ts\", \"../../packages/engine/src/build/visx-esm-plugin.ts\"]\n",
+    "# Plugins for the HMR dev server (Bun.serve HTML routes). The build path uses\n# Bun.build()'s plugins array in build.ts instead.\n[serve.static]\nplugins = [\"bun-plugin-tailwind\", \"@liebstoeckel/engine/mdx-plugin\", \"@liebstoeckel/engine/visx-esm-plugin\"]\n",
+    "# Plugins for the HMR dev server (Bun.serve HTML routes). The build path uses\n# Bun.build()'s plugins array in build.ts instead.\n[serve.static]\nplugins = [\"bun-plugin-tailwind\", \"../../packages/engine/src/build/mdx-plugin.ts\"]\n",
+  ],
+  "server.ts": [
+    "import index from \"./index.html\";\n\n// Dev server with frontend HMR + React Fast Refresh.\nconst server = Bun.serve({\n  routes: { \"/\": index },\n  development: { hmr: true, console: true },\n  hostname: \"0.0.0.0\",\n  port: 3000,\n});\n\nconsole.log(`\u25b6  http://localhost:${server.port}`);\n",
+    "import index from \"./index.html\";\n\n// Dev server with frontend HMR + React Fast Refresh.\nconst server = Bun.serve({\n  routes: { \"/\": index },\n  development: { hmr: true, console: true },\n  hostname: \"0.0.0.0\",\n  port: Number(process.env.PORT) || 3000,\n});\n\nconsole.log(`\u25b6  http://localhost:${server.port}`);\n",
+  ],
+  "build.ts": [
+    "import { buildDeck } from \"@liebstoeckel/thumbnails/build\";\n\n// Single self-contained .html + slide thumbnails (skip with LIEBSTOECKEL_NO_THUMBS=1).\nawait buildDeck({ entry: \"./index.html\", outdir: \"./dist\" });\n",
+    "import { buildDeckWithThumbnails } from \"@liebstoeckel/thumbnails/build\";\n\n// Single self-contained .html + slide thumbnails (skip with LIEBSTOECKEL_NO_THUMBS=1).\nawait buildDeckWithThumbnails({ entry: \"./index.html\", outdir: \"./dist\" });\n",
+    "import { buildDeckWithThumbnails } from \"@present-it/thumbnails/build\";\n\n// Single self-contained .html + slide thumbnails (skip with PRESENT_IT_NO_THUMBS=1).\nawait buildDeckWithThumbnails({ entry: \"./index.html\", outdir: \"./dist\" });\n",
+  ],
+};
+
+const OLD_SCRIPTS: Record<string, { file: keyof typeof SCAFFOLD_TOOLING; was: string; now: string }> = {
+  dev: { file: "server.ts", was: "bun --hot ./server.ts", now: "liebstoeckel dev" },
+  build: { file: "build.ts", was: "bun run build.ts", now: "liebstoeckel build" },
+};
+
+const normalizeText = (s: string) => s.replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "").replace(/\s*$/, "\n");
+
+/** Each tooling file the deck has: "scaffold" when it is a released template, "changed" otherwise. */
+function toolingState(deckDir: string): Array<{ file: keyof typeof SCAFFOLD_TOOLING; state: "scaffold" | "changed" }> {
+  const out: Array<{ file: keyof typeof SCAFFOLD_TOOLING; state: "scaffold" | "changed" }> = [];
+  for (const file of Object.keys(SCAFFOLD_TOOLING) as Array<keyof typeof SCAFFOLD_TOOLING>) {
+    const p = join(deckDir, file);
+    if (!existsSync(p)) continue;
+    const text = normalizeText(readFileSync(p, "utf-8"));
+    out.push({ file, state: SCAFFOLD_TOOLING[file].some((t) => normalizeText(t) === text) ? "scaffold" : "changed" });
+  }
+  return out;
+}
+
+function readPkg(deckDir: string): { raw: string; pkg: Record<string, unknown> } | null {
+  const p = join(deckDir, "package.json");
+  if (!existsSync(p)) return null;
+  const raw = readFileSync(p, "utf-8");
+  try {
+    return { raw, pkg: JSON.parse(raw) as Record<string, unknown> };
+  } catch {
+    return null;
+  }
+}
+
+/** The package.json scripts that still run a tooling file. */
+function oldScripts(deckDir: string): string[] {
+  const scripts = readPkg(deckDir)?.pkg.scripts as Record<string, unknown> | undefined;
+  return Object.entries(OLD_SCRIPTS)
+    .filter(([name, s]) => scripts?.[name] === s.was)
+    .map(([name]) => name);
+}
+
+const scaffoldTooling: Migration = {
+  id: "0003-scaffold-tooling-files",
+  since: "0.4.0",
+  surfaces: ["tooling"],
+  reference: "references/migrations/0003-scaffold-tooling-files.md",
+  reason: "liebstoeckel dev and liebstoeckel build now do what the scaffold's bunfig.toml, server.ts and build.ts did (Bun's dev server and Bun.build), so those files and the scripts that ran them are no longer needed",
+  detect(deckDir) {
+    return toolingState(deckDir).length > 0 || oldScripts(deckDir).length > 0;
+  },
+  autoPatch: {
+    canApply(deckDir) {
+      return toolingState(deckDir).some((t) => t.state === "scaffold");
+    },
+    apply(deckDir) {
+      const removed = toolingState(deckDir)
+        .filter((t) => t.state === "scaffold")
+        .map((t) => t.file);
+      for (const file of removed) rmSync(join(deckDir, file), { force: true });
+      const done: string[] = removed.map((f) => `removed ${f}`);
+      const read = readPkg(deckDir);
+      if (read) {
+        const { raw, pkg } = read;
+        const scripts = (pkg.scripts ?? {}) as Record<string, unknown>;
+        let changed = false;
+        for (const [name, s] of Object.entries(OLD_SCRIPTS)) {
+          // Only a script whose file is gone now: a kept, changed server.ts still runs.
+          if (scripts[name] === s.was && !existsSync(join(deckDir, s.file))) {
+            scripts[name] = s.now;
+            done.push(`scripts.${name} = "${s.now}"`);
+            changed = true;
+          }
+        }
+        if (Array.isArray(pkg.files)) {
+          const kept = (pkg.files as unknown[]).filter((f) => !(typeof f === "string" && (removed as string[]).includes(f)));
+          if (kept.length !== pkg.files.length) {
+            pkg.files = kept;
+            done.push("dropped them from files");
+            changed = true;
+          }
+        }
+        if (changed) {
+          const indent = /^[ \t]+/m.exec(raw.split("\n")[1] ?? "")?.[0] ?? "  ";
+          const eol = raw.includes("\r\n") ? "\r\n" : "\n";
+          writeFileSync(join(deckDir, "package.json"), JSON.stringify(pkg, null, indent).replace(/\n/g, eol) + eol, "utf-8");
+        }
+      }
+      return done.join(", ");
+    },
+  },
+  details(deckDir) {
+    const lines: string[] = [];
+    for (const t of toolingState(deckDir)) {
+      if (t.state !== "changed") continue;
+      if (t.file === "server.ts") {
+        lines.push("server.ts differs from the scaffold: `liebstoeckel dev` replaces it (hot reload, dev mode); move what you added elsewhere, then delete it and set scripts.dev to \"liebstoeckel dev\"");
+      } else if (t.file === "build.ts") {
+        lines.push("build.ts differs from the scaffold: `liebstoeckel build` replaces it; move what you added elsewhere, then delete it and set scripts.build to \"liebstoeckel build\"");
+      } else {
+        lines.push("bunfig.toml differs from the scaffold: its [serve.static] plugins are no longer used, remove that section (keep anything else you set there)");
+      }
+    }
+    for (const name of oldScripts(deckDir)) {
+      const s = OLD_SCRIPTS[name]!;
+      if (existsSync(join(deckDir, s.file))) continue;
+      lines.push(`package.json scripts.${name} still runs ${s.file}, which is gone: set it to "${s.now}"`);
+    }
+    return lines;
+  },
+};
+
 /** Ordered registry. Append only; ids are stable forever. */
-export const MIGRATIONS: Migration[] = [hmrEntryBoundary, devLoaderTag];
+export const MIGRATIONS: Migration[] = [hmrEntryBoundary, devLoaderTag, scaffoldTooling];
 
 // ---------------------------------------------------------------------------
 // Opt-out: `liebstoeckel.migrationOptOut` in the deck's package.json.
@@ -224,6 +366,7 @@ export function neededMigrations(
       return { id: m.id, needed: false, since: m.since, reference: m.reference, reason: m.reason, autoPatchable: false, suppressed: true, suppressReason };
     }
     const needed = m.detect(deckDir);
+    const details = needed ? (m.details?.(deckDir) ?? []) : [];
     return {
       id: m.id,
       needed,
@@ -231,6 +374,7 @@ export function neededMigrations(
       reference: m.reference,
       reason: m.reason,
       autoPatchable: needed && !!m.autoPatch && m.autoPatch.canApply(deckDir),
+      ...(details.length ? { details } : {}),
     };
   });
   return { migrations, warnings };
@@ -238,7 +382,7 @@ export function neededMigrations(
 
 export interface AutoPatchResult {
   applied: Array<{ id: string; file: string; reason: string }>;
-  hinted: Array<{ id: string; reference: string; reason: string }>;
+  hinted: Array<{ id: string; reference: string; reason: string; details?: string[] }>;
   warnings: string[];
 }
 
@@ -253,9 +397,11 @@ export function runAutoPatches(deckDir: string, surfaces: Surface[]): AutoPatchR
     if (!m.detect(deckDir)) continue;
     if (m.autoPatch?.canApply(deckDir)) {
       result.applied.push({ id: m.id, file: m.autoPatch.apply(deckDir), reason: m.reason });
-    } else {
-      result.hinted.push({ id: m.id, reference: m.reference, reason: m.reason });
+      // What an application had to leave (a changed file) still needs a person.
+      if (!m.detect(deckDir)) continue;
     }
+    const details = m.details?.(deckDir) ?? [];
+    result.hinted.push({ id: m.id, reference: m.reference, reason: m.reason, ...(details.length ? { details } : {}) });
   }
   return result;
 }

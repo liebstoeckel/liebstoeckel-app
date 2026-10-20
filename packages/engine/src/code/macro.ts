@@ -1,7 +1,10 @@
-// Bun macro entrypoint. Import it with `with { type: "macro" }` from a deck so the
-// code is tokenized at BUILD time and the result inlined as a literal, no Shiki,
-// grammars, or WASM ship to the browser. Pass string literals so the bundler can
-// evaluate the call statically.
+// Deprecated: write code states into a `.code.md` file and import it instead.
+//
+// Imported `with { type: "macro" }` from a deck, the code is tokenized at BUILD
+// time and the result inlined as a literal, so no Shiki, grammars, or WASM ship to
+// the browser. @liebstoeckel/build reads the call's literal arguments (it never
+// evaluates them) and calls these functions; Bun's own macro runner did the same
+// in the deprecated Bun pipeline. Pass literals only.
 //
 //   import { codeStory } from "@liebstoeckel/engine/code" with { type: "macro" };
 //   <CodeMagic steps={codeStory([{ code: `const a = 1`, lang: "ts" }, …])} />

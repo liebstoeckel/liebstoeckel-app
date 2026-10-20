@@ -694,7 +694,7 @@ describe("deck log and notices", () => {
     p.notify({ type: "plugin_status", ok: true, problems: [] });
     const event = await body<{ type: string; ok: boolean; _instructions: string }>(await parked);
     expect(event).toMatchObject({ type: "plugin_status", ok: true });
-    expect(event._instructions).toContain("resolve again");
+    expect(event._instructions).toContain("no longer lists Bun plugins");
     p.stop();
   });
 

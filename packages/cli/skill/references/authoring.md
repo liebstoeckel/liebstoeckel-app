@@ -8,7 +8,11 @@ A deck is a project (under `presentations/<name>/`) with:
 - `charts/` — scaffolded components (owned source from `liebstoeckel add`). Most
   registry items are charts and land here, but `add` writes each item to its manifest's
   `target` (see `references/components.md`), so other component types may land elsewhere.
-- `package.json`, `build.ts`, `server.ts`, `bunfig.toml`.
+- `package.json` — its `dev` and `build` scripts call `liebstoeckel dev` and
+  `liebstoeckel build`. There is no `build.ts`, `server.ts` or `bunfig.toml` (decks from
+  before 0.4 lose them on the next `liebstoeckel dev`; see
+  `references/migrations/0003-scaffold-tooling-files.md`).
+- `slides/*.code.md` — optional code files for animated code (below).
 
 ## A slide
 
@@ -86,3 +90,33 @@ To **create a custom brand** (typed `defineTheme` in `brands/<name>.ts` wired vi
 A slide can be `.mdx` instead of `.tsx` for prose-heavy content; it still
 default-exports its content and may `export const notes`. Import components at the top
 of the MDX as usual.
+
+## Animated code (code files)
+
+Fenced code blocks in MDX are highlighted at build time. For code that changes
+step by step, write the states into a **code file**, `slides/<name>.code.md`, one
+fenced block per state (the fence's language highlights it; text outside the
+fences is ignored), and pass its import to `<CodeMagic>`:
+
+````md
+```ts
+function greet(name) {}
+```
+
+```ts
+function greet(name: string) {}
+```
+````
+
+```tsx
+import { CodeMagic } from "@liebstoeckel/engine";
+import greet from "./greet.code.md";
+
+export default function CodeSlide() {
+  return <CodeMagic title="greet.ts" steps={greet} />;
+}
+```
+
+Each state after the first takes one step (one press). Do not write new
+`codeStory` macro calls: they still build but are deprecated; when you touch a
+slide that uses one, suggest moving its states into a code file. No other macro builds.

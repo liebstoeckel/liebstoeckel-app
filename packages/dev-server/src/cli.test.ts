@@ -4,20 +4,19 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { serverInfoPath } from "./paths";
 
-// `dev --dir <elsewhere>` re-execs itself with the deck as cwd (Bun reads the
-// deck's bunfig.toml from the process cwd). The child is the real server, so
-// a signal aimed at the parent alone must take the child down with it.
+// `dev --dir <elsewhere>` serves the deck from any working directory, and a
+// signal to the process stops the server and removes its server.json.
 
 function makeDeck(): string {
   const dir = mkdtempSync(join(tmpdir(), "lst-dev-cli-"));
-  // A dependency-free deck: the HTML pipeline bundles it without any packages.
+  // A dependency-free deck: the dev server serves it without any packages.
   writeFileSync(join(dir, "index.html"), '<html><body><script type="module" src="./main.ts"></script></body></html>');
   writeFileSync(join(dir, "main.ts"), "console.log('deck');\n");
   return dir;
 }
 
-describe("dev --dir re-exec", () => {
-  test("SIGTERM to the parent stops the child server and removes server.json", async () => {
+describe("dev --dir from elsewhere", () => {
+  test("SIGTERM stops the server and removes server.json", async () => {
     const deck = makeDeck();
     const elsewhere = mkdtempSync(join(tmpdir(), "lst-dev-cwd-"));
     mkdirSync(elsewhere, { recursive: true });
@@ -44,7 +43,7 @@ describe("dev --dir re-exec", () => {
 
       proc.kill("SIGTERM");
       await proc.exited;
-      // The child had 300ms of shutdown grace; give it a little more.
+      // The server has 300ms of shutdown grace; give it a little more.
       let gone = false;
       for (let i = 0; i < 50 && !gone; i++) {
         await Bun.sleep(100);
@@ -119,10 +118,10 @@ describe("deck warnings in the dev terminal and dev poll", () => {
   }, 90_000);
 });
 
-describe("dev with a bundler plugin that does not resolve", () => {
-  test("serves an error page for the deck, stays up, and mounts the deck once the plugin appears", async () => {
+describe("dev with a Bun plugin in bunfig.toml", () => {
+  test("serves the deck, names the plugin in the terminal and on dev poll, and says so again once it is removed", async () => {
     const deck = makeDeck();
-    writeFileSync(join(deck, "bunfig.toml"), '[serve.static]\nplugins = ["./plugins/missing-plugin.ts"]\n');
+    writeFileSync(join(deck, "bunfig.toml"), '[serve.static]\nplugins = ["bun-plugin-tailwind", "./plugins/my-plugin.ts"]\n');
     const proc = Bun.spawn([process.execPath, join(import.meta.dir, "cli.ts"), "--port", "0", "--json"], {
       cwd: deck,
       stdout: "pipe",
@@ -147,33 +146,23 @@ describe("dev with a bundler plugin that does not resolve", () => {
         else await Bun.sleep(100);
       }
       if (!info?.url) throw new Error(`no startup JSON; output:\n${out}\n${err}`);
-      expect(info.pluginProblems?.map((p) => p.plugin)).toEqual(["./plugins/missing-plugin.ts"]);
-      expect(err).toContain('plugin "./plugins/missing-plugin.ts"');
-      expect(err).toContain("bun install");
-      // An agent on `dev poll` hears it too, with the fix.
+      // Only the plugin the scaffold did not write is a problem.
+      expect(info.pluginProblems?.map((p) => p.plugin)).toEqual(["./plugins/my-plugin.ts"]);
+      expect(err).toContain('plugin "./plugins/my-plugin.ts" is a Bun plugin');
       const status = await devPoll(deck);
-      expect(status).toMatchObject({ type: "plugin_status", ok: false, problems: [{ plugin: "./plugins/missing-plugin.ts" }] });
-      expect(String(status.fix)).toContain("bun install");
+      expect(status).toMatchObject({ type: "plugin_status", ok: false, problems: [{ plugin: "./plugins/my-plugin.ts" }] });
+      expect(String(status.fix)).toContain("remove it from [serve.static] plugins");
 
+      // The deck is served anyway (the plugin may not have mattered); the page's
+      // overlay names the problem.
       const token = JSON.parse(readFileSync(serverInfoPath(deck), "utf-8")).token as string;
       const page = await fetch(`${info.url}/deck/${token}/`);
-      expect(page.status).toBe(503);
-      expect(await page.text()).toContain("./plugins/missing-plugin.ts");
-      // The process is still there: the dev UI and the protocol keep answering.
-      expect((await fetch(`${info.url}/`)).status).toBe(200);
-      expect(JSON.parse(await (await fetch(`${info.url}/__dev/ping`)).text())).toEqual({ ok: true });
-      expect(await (await fetch(`${info.url}/deck/${token}/__plugins`)).json()).toMatchObject({ ok: false });
+      expect(page.status).toBe(200);
+      expect(await page.text()).toContain("@lst/runtime.js");
 
-      // Fix the install: the status turns ok and the deck route serves the deck.
-      mkdirSync(join(deck, "plugins"), { recursive: true });
-      writeFileSync(join(deck, "plugins", "missing-plugin.ts"), "export default { name: 'noop', setup() {} };\n");
-      // No browser needed: a waiting poll resolves the plugins again and reports it.
+      // Remove the entry: dev poll hears that it is fine now.
+      writeFileSync(join(deck, "bunfig.toml"), '[serve.static]\nplugins = ["bun-plugin-tailwind"]\n');
       expect(await devPoll(deck)).toMatchObject({ type: "plugin_status", ok: true, problems: [] });
-      expect(await (await fetch(`${info.url}/deck/${token}/__plugins`)).json()).toMatchObject({ ok: true });
-      const deckPage = await fetch(`${info.url}/deck/${token}/`);
-      expect(deckPage.status).toBe(200);
-      expect(await deckPage.text()).toContain("<script");
-      expect((await fetch(`${info.url}/__dev/ping`)).status).toBe(200);
     } finally {
       proc.kill();
       await proc.exited;

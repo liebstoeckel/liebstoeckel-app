@@ -74,10 +74,16 @@ export function instructionsForEvent(event: { type: string } & Record<string, un
       );
     case "plugin_status":
       return event.ok === true
-        ? "No reply: this event is information only. The bundler plugins in bunfig.toml resolve again and the deck is served. Run liebstoeckel dev poll again now."
-        : "No reply: this event is information only. The deck page cannot be served because the bundler plugins listed in `problems` " +
-            "(from [serve.static] plugins in the deck's bunfig.toml) do not resolve. Do what `fix` says, then run liebstoeckel dev poll again; " +
-            "a plugin_status event with ok: true follows once they resolve.";
+        ? "No reply: this event is information only. bunfig.toml no longer lists Bun plugins the build does not run. Run liebstoeckel dev poll again now."
+        : "No reply: this event is information only. The deck's bunfig.toml lists Bun bundler plugins (in `problems`, under [serve.static] plugins) " +
+            "that liebstoeckel no longer runs: its own build core compiles MDX, Tailwind and code files. Do what `fix` says (remove the entries; " +
+            "if the deck relied on what a plugin did, do that in the deck's source), then run liebstoeckel dev poll again.";
+    case "build_status":
+      return event.ok === true
+        ? "No reply: this event is information only. The deck builds again and the page shows it. Run liebstoeckel dev poll again now."
+        : "No reply: this event is information only. The deck does not build: each line in `problems` names a deck file (with line and column " +
+            "when known) and what is wrong there; the page shows the same as an overlay. Fix those files, then run liebstoeckel dev poll again; " +
+            "a build_status event with ok: true follows once it builds.";
     default:
       return undefined;
   }

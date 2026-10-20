@@ -23,7 +23,7 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 | `StepsProvider` | component | per-slide step tracker (the engine mounts this) |
 | `useRevealState(count)` | hook | claim `count-1` reveal slots, get the active state index (for `CodeMagic`-like components) |
 | `CodeMagic` | component | animated code; `steps`, `title?`, `lang?` |
-| `TokenizedStep` · `CodeToken` | types | shape of macro output |
+| `TokenizedStep` · `CodeToken` | types | the tokenized code states a `.code.md` import gives |
 | `Magic` | component | Magic Move via shared `layoutId` |
 | `Atmosphere` | component | the default backdrop: static gradient blooms + vignette (`still?`, opt-in `drift?` via CSS keyframes, honors `prefers-reduced-motion`) |
 | `Present`/`Deck` `backdrop` prop | prop | deck-wide decoration behind the slide transition stack: omit for `Atmosphere`, `null` for a flat background, or a component receiving `still?` (it must render motionless when set: thumbnails, print, capture, presenter previews) |
@@ -70,8 +70,10 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 
 | Import | Exports |
 | --- | --- |
-| `@liebstoeckel/engine/build` | `bundleDeck` (browser-free build primitive), `buildPluginManifest`, `buildServerBundle` |
-| `@liebstoeckel/engine/code` (macro) | `codeStory`, `code` (import `with { type: "macro" }`) |
+| `@liebstoeckel/build` | `bundleDeck` (the browser-free single-file build), `checkDeck` (does it build? structured diagnostics), `collectDeckLicenses`, `buildPluginManifest`, `buildServerBundle`. Options as before, plus `profile` and `log` |
+| `@liebstoeckel/build/dev` | `createDeckDev({ deckDir, base })`: the dev server as a `fetch` handler plus a WebSocket handler for `Bun.serve`, the one `liebstoeckel dev` mounts |
+| `@liebstoeckel/engine/build` | **deprecated**: the Bun pipeline `bundleDeck`, `checkDeck`, `collectDeckLicenses` (`Bun.build` with Bun plugins), kept one release for a `build.ts` that calls it. Use `@liebstoeckel/build` |
+| `@liebstoeckel/engine/code` (macro) | **deprecated**: `codeStory`, `code` (import `with { type: "macro" }`); the build reads their literal arguments. Use a [code file](/guides/animated-code/) |
 | `@liebstoeckel/engine/build/thumbnails` | `embedThumbnails`, `extractThumbnails`, `stripThumbnails` (the manifest format) |
 | `@liebstoeckel/engine/build/visual-audit` | `auditSlideDom`, the self-contained check behind `build --check --visual` (text cut off by its box, chart labels clipped by their svg, text off the stage), for running in a page that renders one slide at the stage size |
 | `@liebstoeckel/thumbnails` | `withThumbnails` (gated, never-fatal capture+embed), `captureThumbnails`, `addThumbnailsToFile`, `thumbnailsEnabled` |

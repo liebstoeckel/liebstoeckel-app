@@ -1,30 +1,7 @@
-import { CodeMagic, type TokenizedStep } from "@liebstoeckel/engine";
-// The macro tokenizes each code state with Shiki at BUILD time and inlines the
-// result — no highlighter ships to the browser. The cast reconciles the macro's
-// async type with the value it inlines synchronously.
-import { codeStory } from "@liebstoeckel/engine/code" with { type: "macro" };
-
-const STORY = codeStory([
-  {
-    code: `function greet(name) {
-  return "hi " + name
-}`,
-    lang: "ts",
-  },
-  {
-    code: `function greet(name: string) {
-  return "hi " + name
-}`,
-    lang: "ts",
-  },
-  {
-    code: `function greet(name: string, loud = false) {
-  const msg = "hi " + name
-  return loud ? msg.toUpperCase() : msg
-}`,
-    lang: "ts",
-  },
-]) as unknown as TokenizedStep[];
+import { CodeMagic } from "@liebstoeckel/engine";
+// Each fenced block in the code file is one state. The build highlights them with
+// Shiki and the import is the tokenized states: no highlighter ships to the browser.
+import STORY from "./greet.code.md";
 
 export const notes = (
   <div>

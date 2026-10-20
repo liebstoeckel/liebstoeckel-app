@@ -44,6 +44,7 @@
     "./build": "./src/build/buildDeck.ts",
     "./build/source-package": "./src/build/source-package.ts",
     "./build/licenses": "./src/build/licenses.ts",
+    "./build/font-audit": "./src/build/font-audit.ts",
     "./build/thumbnails": "./src/build/thumbnails.ts",
     "./build/capture-protocol": "./src/build/capture-protocol.ts",
     "./build/visual-audit": "./src/build/visual-audit.ts",

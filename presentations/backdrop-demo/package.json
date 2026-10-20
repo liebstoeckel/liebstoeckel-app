@@ -3,10 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "files": ["index.html", "main.tsx", "server.ts", "build.ts", "bunfig.toml", "slides", "elements"],
+  "files": [
+    "index.html",
+    "main.tsx",
+    "slides",
+    "elements"
+  ],
   "scripts": {
-    "dev": "bun --hot ./server.ts",
-    "build": "bun run build.ts"
+    "dev": "liebstoeckel dev --port 3003",
+    "build": "liebstoeckel build"
   },
   "dependencies": {
     "@liebstoeckel/engine": "workspace:*",
@@ -14,6 +19,6 @@
     "@liebstoeckel/theme": "workspace:*"
   },
   "devDependencies": {
-    "@liebstoeckel/thumbnails": "workspace:*"
+    "@liebstoeckel/cli": "workspace:*"
   }
 }

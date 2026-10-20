@@ -51,6 +51,7 @@
     "./source": "./src/source.ts"
   },
   "dependencies": {
+    "@liebstoeckel/build": "workspace:^",
     "@liebstoeckel/dev-server": "workspace:^",
     "@liebstoeckel/engine": "workspace:^",
     "@liebstoeckel/live-server": "workspace:^",

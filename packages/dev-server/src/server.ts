@@ -1,12 +1,15 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import type { Server } from "bun";
+import { createDeckDev, type DeckDev, type WsData } from "@liebstoeckel/build/dev";
 import { bootInstructions } from "./instructions";
 import { createLocalBackend, ensureDevGitignore, readServerInfo, removeServerInfo, writeServerInfo } from "./local-backend";
 import { createDevProtocol, type DeckLogEntry } from "./protocol";
-import { checkServePlugins, pluginErrorPage, pluginProblemFix, type PluginProblem } from "./serve-plugins";
+import { checkServePlugins, pluginProblemFix, type PluginProblem } from "./serve-plugins";
 
 // The dev-mode server: serves the dev shell (sidebar + the deck in a frame) at
-// /, the deck itself at /deck through Bun's dev pipeline (HMR, Fast Refresh),
+// /, the deck itself at /deck/<token>/ through the build core's dev server (hot
+// reload with React Fast Refresh, prebuilt dependencies, its own error overlay),
 // the in-frame bridge the deck's loader tag pulls in, and the /__dev/* protocol
 // over the local filesystem backend. One origin for everything so the drawer
 // needs no CORS. Security model: a per-boot random token required on every
@@ -17,35 +20,36 @@ import { checkServePlugins, pluginErrorPage, pluginProblemFix, type PluginProble
 // rebinding its own DNS name to 127.0.0.1 and reading the shell (and its
 // token) as if same-origin, so every request must also carry a Host header
 // naming this machine: localhost, a loopback literal, or the bound hostname.
+// The deck's routes sit under the token as well, so a page that cannot read the
+// shell cannot name them.
 
 export interface DevServerOptions {
   deckDir: string;
   port?: number;
   hostname?: string;
-  /** Skip the Bun HTML dev pipeline and serve only /__dev/* (integration tests). */
+  /** Skip the deck's dev server and serve only /__dev/* (integration tests). */
   apiOnly?: boolean;
   /** Called once the server has stopped itself (a `/__dev/stop` request). */
   onStop?: () => void;
   /** A `[liebstoeckel]` warning or error the open deck reported, once per
    *  repeat window; also queued for `dev poll` as a `deck_log` event. */
   onDeckLog?: (entry: DeckLogEntry) => void;
+  /** The deck's build problems whenever they change (empty: it builds again);
+   *  also queued for `dev poll` as a `build_status` event. */
+  onBuildStatus?: (problems: string[]) => void;
+  /** A notice about the deck's source (a deprecated form), once per file. */
+  onNotice?: (line: string) => void;
 }
 
 export interface DevServer {
   port: number;
   token: string;
   url: string;
-  /** Bundler plugins from the deck's bunfig.toml that did not resolve at
-   *  startup. While non-empty the deck route serves an error page instead of
-   *  the deck; it mounts the deck by itself once they resolve. */
+  /** Bun bundler plugins the deck's bunfig.toml asks for, which the build core
+   *  does not run; the deck page shows them until they are removed. */
   pluginProblems: PluginProblem[];
   stop: () => void;
 }
-
-// How often the bundler plugins are resolved again while one is missing, so an
-// agent that ran `bun install` hears on `dev poll` that it worked without
-// anyone opening the page. Resolving only, so this is cheap.
-const PLUGIN_RECHECK_MS = 2_000;
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1", "0.0.0.0"]);
 
@@ -64,7 +68,7 @@ export function hostAllowed(hostHeader: string | null, boundHostname: string): b
   return LOCAL_HOSTS.has(lower) || lower === boundHostname.toLowerCase() || lower === `[${boundHostname.toLowerCase()}]`;
 }
 
-/** Where the deck bundle is actually mounted; `/deck` redirects here. */
+/** Where the deck is mounted; `/deck` redirects here. */
 export function deckRoute(token: string): string {
   return `/deck/${token}`;
 }
@@ -75,15 +79,15 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
   const token = crypto.randomUUID();
   let bridgeJs: string | null = null;
   let shell: ShellBundle | null = null;
+  let deck: DeckDev | null = null;
 
   const protocol = createDevProtocol(
     createLocalBackend({
       deckDir,
       token,
       onStop: () => {
-        if (recheckTimer) clearInterval(recheckTimer);
-        recheckTimer = null;
         removeServerInfo(deckDir, process.pid);
+        deck?.close();
         server.stop(true);
         opts.onStop?.();
       },
@@ -91,83 +95,49 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     { onDeckLog: opts.onDeckLog },
   );
 
-  // The deck itself rides Bun's dev pipeline via a dynamic HTML import, which
-  // gives HMR + Fast Refresh exactly as a hand-written server.ts would.
-  const routes: Record<string, unknown> = {};
-  // Bun loads the deck's bunfig.toml plugins on the first deck request and
-  // exits the process when one does not resolve. So the HTML import is only
-  // mounted once they all resolve; until then `fetch` answers the deck route
-  // with an error page that polls `statusPath` and reloads when fixed.
   let pluginProblems: PluginProblem[] = [];
-  let deckMounted = false;
-  let mounting: Promise<void> | null = null;
-  const statusPath = `${deckRoute(token)}/__plugins`;
-  async function mountDeck(): Promise<void> {
-    const indexPath = join(deckDir, "index.html");
-    if (!existsSync(indexPath)) throw new Error(`No index.html in ${deckDir}`);
-    const mod = await import(indexPath);
-    // Bun answers `routes` before `fetch`, so the Host check below never sees
-    // a route. Keying the bundle by the session token keeps a rebinding page
-    // out: it cannot know the token without first reading the shell, which
-    // the check refuses. `/deck` stays the public name and redirects here.
-    routes[deckRoute(token)] = mod.default;
-    // A hand-typed trailing slash should not 404 the deck.
-    routes[`${deckRoute(token)}/`] = mod.default;
-    deckMounted = true;
-  }
-  /** Tell a polling agent where the plugins stand: the problems and the fix,
-   *  or that they resolve again. */
-  function announcePlugins(): void {
-    const ok = pluginProblems.length === 0;
-    protocol.notify({ type: "plugin_status", ok, problems: pluginProblems, ...(ok ? {} : { fix: pluginProblemFix(deckDir) }) });
-  }
-  const problemsKey = (problems: PluginProblem[]) => JSON.stringify(problems);
-  let recheckTimer: ReturnType<typeof setInterval> | null = null;
-  /** Resolve the plugins again while the deck is not mounted; mount it once
-   *  they all resolve and announce any change to `dev poll`. */
-  async function recheckPlugins(): Promise<void> {
-    if (deckMounted) return;
-    const before = problemsKey(pluginProblems);
-    pluginProblems = checkServePlugins(deckDir);
-    if (pluginProblems.length === 0) {
-      mounting ??= mountDeck().then(() => {
-        // The same fetch goes back in, so the Host check, the shell and
-        // the protocol stay as they were; only the deck route is added.
-        server.reload({ routes: routes as never, fetch: handle, development: { hmr: true, console: true } } as never);
-      });
-      await mounting;
-    }
-    if (problemsKey(pluginProblems) !== before) announcePlugins();
-    if (deckMounted && recheckTimer) {
-      clearInterval(recheckTimer);
-      recheckTimer = null;
-    }
-  }
   if (!opts.apiOnly) {
     if (!existsSync(join(deckDir, "index.html"))) throw new Error(`No index.html in ${deckDir}`);
     pluginProblems = checkServePlugins(deckDir);
-    if (pluginProblems.length === 0) await mountDeck();
-    else {
-      announcePlugins();
-      recheckTimer = setInterval(() => void recheckPlugins().catch(() => {}), PLUGIN_RECHECK_MS);
-      // Never the reason the process stays up.
-      recheckTimer.unref?.();
+    if (pluginProblems.length > 0) {
+      protocol.notify({ type: "plugin_status", ok: false, problems: pluginProblems, fix: pluginProblemFix(deckDir) });
     }
+    let firstStatus = true;
+    deck = await createDeckDev({
+      deckDir,
+      base: deckRoute(token),
+      onProblems: (lines) => {
+        // bunfig.toml's plugins come through plugin_status; the build's own problems here.
+        const now = checkServePlugins(deckDir);
+        if (JSON.stringify(now) !== JSON.stringify(pluginProblems)) {
+          pluginProblems = now;
+          protocol.notify({ type: "plugin_status", ok: now.length === 0, problems: now, ...(now.length ? { fix: pluginProblemFix(deckDir) } : {}) });
+        }
+        const problems = lines.filter((l) => !l.startsWith("bunfig.toml: "));
+        if (firstStatus && problems.length === 0) {
+          firstStatus = false;
+          return;
+        }
+        firstStatus = false;
+        opts.onBuildStatus?.(problems);
+        protocol.notify({ type: "build_status", ok: problems.length === 0, problems });
+      },
+      onNotice: opts.onNotice,
+    });
   }
 
-  const server = Bun.serve({
+  const server: Server<WsData> = Bun.serve<WsData>({
     port: opts.port ?? 0,
     hostname,
     // Bun closes idle connections after 10s by default, which kills a parked
     // long-poll and starves SSE between heartbeats. 255 is Bun's maximum; the
     // poll timeout (240s) stays below it so the server always answers first.
     idleTimeout: 255,
-    development: { hmr: true, console: true },
-    ...(Object.keys(routes).length > 0 ? { routes: routes as never } : {}),
     fetch: handle,
+    websocket: deck?.websocket ?? { message() {} },
   });
 
-  async function handle(req: Request): Promise<Response> {
+  async function handle(req: Request, srv: Server<WsData>): Promise<Response | undefined> {
     if (!hostAllowed(req.headers.get("host"), hostname)) {
       return new Response("Forbidden: unexpected Host header", { status: 403 });
     }
@@ -180,23 +150,13 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
       bridgeJs ??= await bridgeBundle();
       return new Response(bridgeJs, { headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" } });
     }
-    if (!opts.apiOnly && (p === statusPath || (!deckMounted && (p === deckRoute(token) || p === `${deckRoute(token)}/`)))) {
-      await recheckPlugins();
-      if (p === statusPath) {
-        return Response.json({ ok: pluginProblems.length === 0, problems: pluginProblems }, { headers: { "Cache-Control": "no-store" } });
-      }
-      if (pluginProblems.length > 0) {
-        return new Response(pluginErrorPage(deckDir, pluginProblems, statusPath), {
-          status: 503,
-          headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
-        });
-      }
-      // Mounted just now: the next request hits the route itself.
-      return Response.redirect(`${deckRoute(token)}/${url.search}`, 302);
-    }
     if (p === "/deck" || p === "/deck/") {
       // Host-checked above; the fragment (deck position) survives a redirect.
       return Response.redirect(`${deckRoute(token)}/${url.search}`, 302);
+    }
+    if (deck) {
+      const answered = await deck.fetch(req, srv);
+      if (answered !== null) return answered;
     }
     if (p === "/" || p === "/index.html" || p === "/__dev" || p === "/__dev/") {
       shell ??= await shellBundle();
@@ -221,18 +181,18 @@ export async function startDevServer(opts: DevServerOptions): Promise<DevServer>
     url: `http://${hostname === "0.0.0.0" ? "localhost" : hostname}:${server.port}`,
     pluginProblems,
     stop: () => {
-      if (recheckTimer) clearInterval(recheckTimer);
-      recheckTimer = null;
+      deck?.close();
       protocol.stop();
     },
   };
 }
 
-/** Build the in-frame bridge from the sibling drawer/ sources. The entry has
- *  no exports, so the output loads as a classic script. */
+/** Build the in-frame bridge from the sibling drawer/ sources. It loads as a
+ *  classic script, so it is wrapped in a function: nothing it declares may land in
+ *  the deck page's global scope (a top-level `CSS` once hid the browser's own). */
 async function bridgeBundle(): Promise<string> {
   const entry = join(import.meta.dir, "..", "drawer", "drawer.ts");
-  const result = await Bun.build({ entrypoints: [entry], target: "browser", minify: false });
+  const result = await Bun.build({ entrypoints: [entry], target: "browser", format: "iife", minify: false });
   if (!result.success) {
     const logs = result.logs.map(String).join("\n");
     throw new Error(`bridge bundle failed:\n${logs}`);

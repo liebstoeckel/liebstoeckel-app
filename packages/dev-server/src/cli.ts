@@ -6,7 +6,7 @@ import { readServerInfo, startDevServer } from "./server";
 import { formatPluginProblems } from "./serve-plugins";
 import { removeServerInfo } from "./local-backend";
 import { runAutoPatches } from "@liebstoeckel/cli/migrations";
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 /** The CLI's error document: one JSON object on stdout, `code` is what an agent
@@ -152,47 +152,15 @@ export const devCommand = defineCommand({
       process.exit(exit);
     };
     if (!existsSync(indexPath)) startupFail("not_a_deck", `No index.html in ${deckDir}`, "Run from a deck or pass --dir.");
-    // Bun reads the deck's bunfig.toml ([serve.static] plugins: Tailwind, MDX)
-    // from the process cwd at startup, so serving a --dir deck from elsewhere
-    // would silently lose the HTML pipeline's plugins. Re-exec with cwd set.
-    // Compared by real path so a symlinked deck dir does not re-exec forever.
-    if (realpathSync(deckDir) !== realpathSync(process.cwd())) {
-      // A filesystem path, not URL.pathname: that would percent-encode spaces
-      // and keep the leading slash before a Windows drive letter.
-      const self = import.meta.path;
-      const child = Bun.spawn({
-        cmd: [
-          process.execPath,
-          self,
-          // Absolute, so the child's printed `dev poll --dir` hint works from any cwd.
-          "--dir",
-          deckDir,
-          ...(args.port ? ["--port", String(args.port)] : []),
-          ...(args.host ? ["--host", String(args.host)] : []),
-          ...(args.json ? ["--json"] : []),
-          ...(args.live ? ["--live"] : []),
-        ],
-        cwd: deckDir,
-        stdout: "inherit",
-        stderr: "inherit",
-      });
-      // The child is the server. A signal aimed at this process alone (a
-      // supervisor, tmux, `kill`) must reach it, or it keeps serving behind a
-      // live server.json with nobody attached; a terminal Ctrl-C signals both,
-      // and the child's shutdown is idempotent, so forwarding is harmless then.
-      for (const signal of ["SIGINT", "SIGTERM"] as const) {
-        process.on(signal, () => child.kill(signal));
-      }
-      process.exit(await child.exited);
-    }
     // Scaffold migrations for the surfaces dev serves: decks scaffolded before
     // a convention change get patched here when the file still matches the
     // scaffolded shape, and a hint (never a rewrite) when it diverged.
-    const { applied, hinted, warnings } = runAutoPatches(deckDir, ["entry", "index.html"]);
+    const { applied, hinted, warnings } = runAutoPatches(deckDir, ["entry", "index.html", "tooling"]);
     for (const w of warnings) console.error(`⚠ ${w}`);
     for (const a of applied) console.error(`↻ migrated ${a.file} (${a.id}): ${a.reason}`);
     for (const h of hinted) {
       console.error(`⚠ migration needed (${h.id}): ${h.reason}; apply it per the skill guide ${h.reference}, or opt out via package.json liebstoeckel.migrationOptOut`);
+      for (const d of h.details ?? []) console.error(`    ${d}`);
     }
     const port = args.port === undefined ? 3000 : Number(args.port);
     if (!Number.isInteger(port) || port < 0 || port > 65535) startupFail("usage", `Invalid --port ${args.port}`, undefined, 2);
@@ -222,6 +190,11 @@ export const devCommand = defineCommand({
         // What the open deck warns about, so an author who only watches the
         // terminal (or an agent reading it) sees it too.
         onDeckLog: ({ level, message }) => console.error(`${level === "error" ? "✕" : "⚠"} deck: ${message}`),
+        onBuildStatus: (problems) => {
+          if (problems.length === 0) console.error("✓ the deck builds again");
+          for (const line of problems) console.error(`✕ build: ${line}`);
+        },
+        onNotice: (line) => console.error(`⚠ ${line}`),
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

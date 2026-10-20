@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEV_LOADER_TAG, addDevLoaderTag, hasDevLoaderTag } from "./dev-loader";
@@ -261,6 +261,7 @@ describe("neededMigrations", () => {
     expect(migrations.map((m) => [m.id, m.needed, m.autoPatchable])).toEqual([
       ["0001-hmr-entry-boundary", true, true],
       ["0002-dev-loader-tag", true, true],
+      ["0003-scaffold-tooling-files", false, false],
     ]);
     expect(migrations[0]!.reference).toBe("references/migrations/0001-hmr-entry-boundary.md");
   });
@@ -329,5 +330,54 @@ describe("runAutoPatches (the dev boot host)", () => {
     expect(result.applied.map((a) => a.id)).toEqual(["0002-dev-loader-tag"]);
     expect(result.warnings).toHaveLength(1);
     expect(readFileSync(join(d, "main.tsx"), "utf-8")).toBe(plainEntry());
+  });
+});
+
+describe("0003-scaffold-tooling-files", () => {
+  // The files `liebstoeckel new` wrote up to 0.4.0, as they were scaffolded.
+  const OLD = {
+    "bunfig.toml": '# Plugins for the HMR dev server (Bun.serve HTML routes). The build path uses\n# Bun.build()\'s plugins array in build.ts instead.\n[serve.static]\nplugins = ["bun-plugin-tailwind", "@liebstoeckel/engine/mdx-plugin", "@liebstoeckel/engine/visx-esm-plugin"]\n',
+    "server.ts":
+      'import index from "./index.html";\n\n// Dev server with frontend HMR + React Fast Refresh.\nconst server = Bun.serve({\n  routes: { "/": index },\n  development: { hmr: true, console: true },\n  hostname: "0.0.0.0",\n  port: Number(process.env.PORT) || 3000,\n});\n\nconsole.log(`▶  http://localhost:${server.port}`);\n',
+    "build.ts": 'import { buildDeck } from "@liebstoeckel/thumbnails/build";\n\n// Single self-contained .html + slide thumbnails (skip with LIEBSTOECKEL_NO_THUMBS=1).\nawait buildDeck({ entry: "./index.html", outdir: "./dist" });\n',
+  };
+  const OLD_PKG = {
+    files: ["index.html", "main.tsx", "server.ts", "build.ts", "bunfig.toml", "slides"],
+    scripts: { dev: "bun --hot ./server.ts", build: "bun run build.ts" },
+  };
+
+  test("an unchanged scaffold loses the three files and runs the CLI instead", () => {
+    const d = deck({ "index.html": INDEX_HTML, ...OLD, "server.ts": OLD["server.ts"].replace(/\n/g, "\r\n") }, OLD_PKG);
+    expect(byId("0003-scaffold-tooling-files").detect(d)).toBe(true);
+    const { applied, hinted } = runAutoPatches(d, ["tooling"]);
+    expect(applied).toHaveLength(1);
+    expect(applied[0]!.file).toBe('removed bunfig.toml, removed server.ts, removed build.ts, scripts.dev = "liebstoeckel dev", scripts.build = "liebstoeckel build", dropped them from files');
+    expect(hinted).toEqual([]);
+    for (const f of ["bunfig.toml", "server.ts", "build.ts"]) expect(existsSync(join(d, f))).toBe(false);
+    const pkg = JSON.parse(readFileSync(join(d, "package.json"), "utf-8"));
+    expect(pkg.scripts).toEqual({ dev: "liebstoeckel dev", build: "liebstoeckel build" });
+    expect(pkg.files).toEqual(["index.html", "main.tsx", "slides"]);
+    expect(byId("0003-scaffold-tooling-files").detect(d)).toBe(false);
+  });
+
+  test("a changed server.ts stays, with its script, and the hint says what to do", () => {
+    const d = deck({ "index.html": INDEX_HTML, ...OLD, "server.ts": OLD["server.ts"] + "// mine\n" }, OLD_PKG);
+    const { applied, hinted } = runAutoPatches(d, ["tooling"]);
+    expect(applied[0]!.file).toBe('removed bunfig.toml, removed build.ts, scripts.build = "liebstoeckel build", dropped them from files');
+    expect(existsSync(join(d, "server.ts"))).toBe(true);
+    const pkg = JSON.parse(readFileSync(join(d, "package.json"), "utf-8"));
+    expect(pkg.scripts.dev).toBe("bun --hot ./server.ts");
+    expect(hinted).toHaveLength(1);
+    expect(hinted[0]!.details).toEqual([
+      'server.ts differs from the scaffold: `liebstoeckel dev` replaces it (hot reload, dev mode); move what you added elsewhere, then delete it and set scripts.dev to "liebstoeckel dev"',
+    ]);
+    // Nothing safe is left to do: the next run only hints.
+    expect(byId("0003-scaffold-tooling-files").autoPatch!.canApply(d)).toBe(false);
+    expect(neededMigrations(d, ["tooling"]).migrations[0]).toMatchObject({ needed: true, autoPatchable: false, details: hinted[0]!.details });
+  });
+
+  test("a deck without the files needs nothing", () => {
+    const d = deck({ "index.html": INDEX_HTML }, { scripts: { dev: "liebstoeckel dev" } });
+    expect(byId("0003-scaffold-tooling-files").detect(d)).toBe(false);
   });
 });

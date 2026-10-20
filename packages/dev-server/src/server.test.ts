@@ -228,10 +228,11 @@ describe("restart requeue", () => {
 });
 
 describe("deck bundle", () => {
-  test("the HTML pipeline serves the deck only at the token route; a foreign Host cannot guess it", async () => {
+  test("the dev server serves the deck only at the token route; a foreign Host cannot guess it", async () => {
     const dir = mkdtempSync(join(tmpdir(), "lst-dev-bundle-"));
     writeFileSync(join(dir, "index.html"), '<!doctype html><html><head><script type="module" src="./main.ts"></script></head><body><div id="root">plain deck</div></body></html>');
     writeFileSync(join(dir, "main.ts"), 'document.title = "deck";\n');
+    writeFileSync(join(dir, ".env"), "SECRET=1\n");
     const full = await startDevServer({ deckDir: dir });
     const fullBase = `http://127.0.0.1:${full.port}`;
     try {
@@ -242,6 +243,19 @@ describe("deck bundle", () => {
       expect((await fetch(`${fullBase}/deck`, { redirect: "manual" })).status).toBe(302);
       expect((await fetch(`${fullBase}/deck`, { headers: { Host: "evil.example" }, redirect: "manual" })).status).toBe(403);
       expect((await fetch(`${fullBase}/deck/${crypto.randomUUID()}`, { headers: { Host: "evil.example" } })).status).toBe(403);
+      // Modules: what the page's graph resolved, nothing else under the project.
+      const html = await (await fetch(`${fullBase}${deckRoute(full.token)}/`)).text();
+      const main = /src="([^"]*main\.ts\?v=0)"/.exec(html)?.[1];
+      expect(main).toBeDefined();
+      expect(await (await fetch(`${fullBase}${main}`)).text()).toContain("document.title");
+      const fs = main!.slice(0, main!.indexOf("/main.ts"));
+      expect((await fetch(`${fullBase}${fs}/.env`)).status).toBe(404);
+      expect((await fetch(`${fullBase}${fs}/index.html`)).status).toBe(404);
+      expect((await fetch(`${fullBase}${deckRoute(full.token)}/.env`)).status).toBe(404);
+      expect((await fetch(`${fullBase}${main}`, { headers: { Host: "evil.example" } })).status).toBe(403);
+      // The change channel refuses a page from another origin.
+      const ws = await fetch(`${fullBase}${deckRoute(full.token)}/@lst/hmr`, { headers: { Origin: "http://evil.example", Upgrade: "websocket", Connection: "Upgrade", "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==" } });
+      expect(ws.status).toBe(403);
     } finally {
       full.stop();
     }

@@ -23,7 +23,10 @@ export interface ScaffoldOptions {
 export interface DeckDeps {
   engine?: string;
   theme?: string;
-  thumbnails?: string;
+  /** The CLI as a dev dependency, so the deck's `dev`/`build` scripts run the
+   *  version the deck pins; omitted when not given (a generated deck builds
+   *  elsewhere). */
+  cli?: string;
 }
 
 export function deckFiles(
@@ -32,7 +35,7 @@ export function deckFiles(
   deps: DeckDeps = {},
   orgBrand?: { name: string; source: string; dependencies?: string[] },
 ): Record<string, string> {
-  const range = (k: keyof DeckDeps) => deps[k] ?? "workspace:*";
+  const range = (k: "engine" | "theme") => deps[k] ?? "workspace:*";
   const title = titleCase(name);
   // When `new` is run logged-in, the org's default brand ((internal ADR)) is baked in:
   // a local brands/<name>.ts wired via <Present brandThemes>, self-contained.
@@ -54,15 +57,11 @@ export function deckFiles(
     type: "module",
     // Allowlist of what `bun pm pack` ships, and therefore what `liebstoeckel build`
     // embeds as recoverable source and `eject` restores ((internal ADR)). Deny-by-default:
-    // a stray .env / secret is never packed because it isn't listed here. bunfig.toml
-    // MUST stay listed, pack default-ignores it, and the ejected deck needs it for dev.
+    // a stray .env / secret is never packed because it isn't listed here.
     // Add new top-level source dirs here as the deck grows (the build warns if you forget).
     files: [
       "index.html",
       "main.tsx",
-      "server.ts",
-      "build.ts",
-      "bunfig.toml",
       "slides",
       "elements",
       "components",
@@ -72,13 +71,14 @@ export function deckFiles(
       "assets",
       "public",
     ],
-    scripts: { dev: "bun --hot ./server.ts", build: "bun run build.ts" },
+    // The CLI builds and serves the deck; there is no build or server script of its own.
+    scripts: { dev: "liebstoeckel dev", build: "liebstoeckel build" },
     dependencies: {
       "@liebstoeckel/engine": range("engine"),
       "@liebstoeckel/theme": range("theme"),
       ...fontDeps,
     },
-    devDependencies: { "@liebstoeckel/thumbnails": range("thumbnails") },
+    ...(deps.cli ? { devDependencies: { "@liebstoeckel/cli": deps.cli } } : {}),
   };
 
   return {
@@ -114,31 +114,6 @@ dist/
 </html>
 `,
 
-    "bunfig.toml": `# Plugins for the HMR dev server (Bun.serve HTML routes). The build path uses
-# Bun.build()'s plugins array in build.ts instead.
-[serve.static]
-plugins = ["bun-plugin-tailwind", "@liebstoeckel/engine/mdx-plugin", "@liebstoeckel/engine/visx-esm-plugin"]
-`,
-
-    "server.ts": `import index from "./index.html";
-
-// Dev server with frontend HMR + React Fast Refresh.
-const server = Bun.serve({
-  routes: { "/": index },
-  development: { hmr: true, console: true },
-  hostname: "0.0.0.0",
-  port: Number(process.env.PORT) || 3000,
-});
-
-console.log(\`▶  http://localhost:\${server.port}\`);
-`,
-
-    "build.ts": `import { buildDeck } from "@liebstoeckel/thumbnails/build";
-
-// Single self-contained .html + slide thumbnails (skip with LIEBSTOECKEL_NO_THUMBS=1).
-await buildDeck({ entry: "./index.html", outdir: "./dist" });
-`,
-
     "main.tsx": `import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Present } from "@liebstoeckel/engine";
@@ -148,8 +123,8 @@ import Intro from "./slides/01-intro";
 
 // Hot-module boundary: a slide edit re-runs this entry into the SAME React root,
 // so the deck keeps its state (current slide, step) across dev-server hot
-// reloads instead of jumping back to slide 1. \`bun build\` compiles the
-// hot.data access to a plain createRoot and erases accept() in built decks.
+// reloads instead of jumping back to slide 1. A built deck has no hot reload:
+// the build gives it an inert import.meta.hot, so this runs once, as written.
 const root = (import.meta.hot.data.root ??= createRoot(document.getElementById("root")!));
 root.render(
   <StrictMode>
@@ -174,7 +149,7 @@ export default function Intro() {
       <div className="mt-10 space-y-4 font-body text-2xl text-muted">
         <Step>▹ Edit slides/01-intro.tsx</Step>
         <Step>▹ Add slides and wire them up in main.tsx</Step>
-        <Step>▹ bun run build → one self-contained .html</Step>
+        <Step>▹ liebstoeckel build → one self-contained .html</Step>
       </div>
     </div>
   );
@@ -236,6 +211,14 @@ function depRange(name: string): string {
   return range;
 }
 
+/** The `^<version>` range of this CLI, from its own package.json. */
+function cliRange(): string {
+  const version = nearestPkgVersion(import.meta.path);
+  const range = caret(version);
+  if (!range) throw new Error(`scaffold: the CLI's own package.json has no usable version (found ${version ?? "none"})`);
+  return range;
+}
+
 /** Write a new minimal deck to disk. Throws on an invalid name or existing dir. */
 export async function scaffold(
   name: string,
@@ -261,7 +244,7 @@ export async function scaffold(
     {
       engine: depRange("@liebstoeckel/engine"),
       theme: depRange("@liebstoeckel/theme"),
-      thumbnails: depRange("@liebstoeckel/thumbnails"),
+      cli: cliRange(),
     },
     orgBrand ?? undefined,
   );
@@ -312,7 +295,7 @@ export const newCommand = defineCommand({
       console.log(`\n   next:`);
       console.log(`     bun install`);
       console.log(`     liebstoeckel dev --dir ${dir}    # dev mode: hot reload + the annotation sidebar`);
-      console.log(`     liebstoeckel live ${dir}         # or: bun --cwd ${dir} run dev\n`);
+      console.log(`     liebstoeckel build --dir ${dir}  # one self-contained .html in dist/\n`);
     } catch (e) {
       console.error(`✕ ${(e as Error).message}`);
       process.exit(1);

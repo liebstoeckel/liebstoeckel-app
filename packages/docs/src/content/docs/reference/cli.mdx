@@ -105,7 +105,7 @@ liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand]
 | `--dir <parent>` | parent directory for the deck (default: the current directory) |
 | `--no-org-brand` | don't bake the logged-in org's default brand; use the plain `liebstoeckel` brand |
 
-Generates `index.html`, `main.tsx`, `build.ts` (using `buildDeck` from `@liebstoeckel/thumbnails/build`), `server.ts`, `bunfig.toml`, and a starter `slides/01-intro.tsx`. The name must be lower-case letters/digits/hyphens; it won't overwrite an existing directory.
+Generates `package.json`, `index.html`, `main.tsx`, `.gitignore` and a starter `slides/01-intro.tsx`. The `package.json` scripts call the CLI (`dev`: `liebstoeckel dev`, `build`: `liebstoeckel build`), with `@liebstoeckel/cli` as a dev dependency, so `bun run dev` and `bun run build` use the version the deck pins; there is no `build.ts`, `server.ts` or `bunfig.toml`. The name must be lower-case letters/digits/hyphens; it won't overwrite an existing directory.
 
 When you're **logged in** (and didn't pass `--brand`), `new` automatically bakes your
 org's **default brand** into the deck as owned source: `brands/<name>.ts`, wired into
@@ -204,15 +204,21 @@ LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build [dir]   # skip thumbnails
 ```
 
 <Aside type="danger" title="Building a deck runs its code">
-A deck is **code**. Building it runs the deck's build-time modules (Bun macros such as the
-animated-code macro, and build plugins) in this process with full access to your files and
-network — so building a deck you did not write is arbitrary code execution on your machine.
-The first time you build an unfamiliar deck, `build` asks you to confirm trust and remembers
-your answer. Decks you scaffold with [`new`](#new) are trusted automatically. In a
-non-interactive shell (CI) it refuses unless you pass `--trust` or set
-`LIEBSTOECKEL_TRUST_BUILD=1`. **Only build decks you trust.** (Note: `--ignore-scripts`
-blocks npm lifecycle scripts, not a deck's macros — it is not a substitute for this.)
+A deck is **code**. The build itself runs none of it (no macros, no build plugins: the
+animated-code `codeStory` macro is read, not executed), but it reads the deck's files and
+everything it imports from the packages you installed for it, and the thumbnails step opens
+the built deck in a headless browser, which runs its JavaScript. The first time you build an
+unfamiliar deck, `build` asks you to confirm trust and remembers your answer. Decks you
+scaffold with [`new`](#new) are trusted automatically. In a non-interactive shell (CI) it
+refuses unless you pass `--trust` or set `LIEBSTOECKEL_TRUST_BUILD=1`. **Only build decks
+you trust.** (`--ignore-scripts` blocks npm lifecycle scripts when you install a deck's
+packages; it does not make the deck's code safe to run.)
 </Aside>
+
+`--check` with `--json` reports every problem as `{ level, message, file, line, column }`,
+the file relative to the deck: errors (a syntax error, an import that does not resolve, a
+macro other than `codeStory`, a Bun plugin in `bunfig.toml`) make `ok` false, warnings (such
+as the deprecated `codeStory`) do not.
 
 Thumbnails need a headless Chromium; the build skips them (never fails) when none is
 found. See [Chromium setup](/guides/chromium/) to install one or point at an existing
@@ -273,8 +279,8 @@ liebstoeckel eject <deck.html> [outdir] [--force]
 
 `outdir` defaults to `<deck>-source/`. Eject refuses a non-empty directory unless `--force`, and
 errors clearly if the HTML carries no embedded source (e.g. it was built `--no-inline-package`).
-Rebuilding runs the deck's own build-time code (macros/build plugins) — `--ignore-scripts`
-only blocks npm lifecycle scripts, not that — so **only rebuild a deck you trust**.
+Rebuilding reads the deck's code and its packages and renders it for thumbnails, so **only
+rebuild a deck you trust**.
 `liebstoeckel build` confirms an unfamiliar deck once (see the warning under [`build`](#build)).
 The ejected project gets the deck's `bun.lock` and `.gitignore` back as well (a build embeds
 them next to the `files` allowlist), so `bun install` restores the versions the deck was built
@@ -344,13 +350,17 @@ Useful for verifying your `"files"` allowlist before shipping. The `-o` tarball 
 
 Serve a deck for authoring: hot reload plus the dev shell (a sidebar beside
 the deck; the plain deck alone is behind `/deck`), whose first tool is [live annotations](/guides/dev-mode/) an AI agent can apply to
-your slide source while you watch. With `--dir`, the server re-executes with
-the deck as its working directory so the deck's own `bunfig.toml` plugins load;
-a port already in use fails with a message naming it. A `[serve.static]` plugin
-that cannot be found from the deck folder is reported before the URL (and in
-the `--json` startup line as `pluginProblems: [{ plugin, message }]`); the
-server keeps running and shows an error page in place of the deck until
-`bun install` in the deck folder makes it resolve.
+your slide source while you watch. An edit reaches the page without a reload:
+the deck stays on its slide and step, and the edited components keep their
+state. A file that does not build shows an overlay in the deck, prints
+`✕ build: <file>:<line>:<column>: <message>` and reaches `dev poll` as a
+`build_status` event. The deck's dependencies are prebuilt once and cached in
+`.liebstoeckel/cache/deps/`. A port already in use fails with a message naming it.
+A Bun plugin the deck's `bunfig.toml` still lists under `[serve.static]
+plugins` (anything but the three the 0.3 scaffold wrote) is reported before the
+URL and in the `--json` startup line as `pluginProblems: [{ plugin, message }]`:
+liebstoeckel no longer runs Bun plugins (see
+[Own Bun plugins](/guides/building/#own-bun-plugins)).
 
 ```bash
 liebstoeckel dev                     # the deck in the current directory
@@ -637,18 +647,19 @@ lookup, so `doctor` stays network-free): `--json` carries
 `updateAvailable` and suggest [`liebstoeckel update`](#update); `latestKnown` is
 `null` when no check has completed yet (for example offline).
 
-### Bundler plugins
+### Bun plugins
 
-Inside a deck (or with `--dir <deck>`), `doctor` also resolves the bundler
-plugins listed under `[serve.static] plugins` in the deck's `bunfig.toml`
-(Tailwind, MDX), the same check `liebstoeckel dev` runs at startup. Each plugin
-that cannot be found gets one line naming it, with the fix: run `bun install` in
-the deck, or correct the plugin list. `--json` carries the same data as
-`pluginProblems`, an array of `{ plugin, message }` that is empty when every
-plugin resolves or the deck has no `bunfig.toml`. A `bunfig.toml` that is not
-valid TOML shows up as one entry with `plugin: "bunfig.toml"`. An unresolved
-plugin does not change the exit code, which stays non-zero only for a Bun
-version that does not fit.
+Inside a deck (or with `--dir <deck>`), `doctor` also reads the Bun plugins
+listed under `[serve.static] plugins` in the deck's `bunfig.toml`, the same
+check `liebstoeckel dev` runs at startup. The three the 0.3 scaffold wrote
+(Tailwind, MDX, the visx fix) are ignored; each other one gets a line naming it,
+with the fix: remove it, since liebstoeckel no longer runs Bun plugins (see
+[Own Bun plugins](/guides/building/#own-bun-plugins)). `--json` carries the
+same data as `pluginProblems`, an array of `{ plugin, message }` that is empty
+when there is nothing to report or no `bunfig.toml`. A `bunfig.toml` that is not
+valid TOML shows up as one entry with `plugin: "bunfig.toml"`. A plugin entry
+does not change the exit code, which stays non-zero only for a Bun version that
+does not fit.
 
 ### Scaffold migrations
 
@@ -678,9 +689,16 @@ known migration:
 
 When `dev` starts, it applies every needed migration whose file still matches
 the scaffolded shape, printing one notice per patched file
-(`↻ migrated main.tsx (0001-hmr-entry-boundary): <reason>`); the patch always
+(`↻ migrated main.tsx (0001-hmr-entry-boundary): <reason>`); a patch to a file
 includes a comment explaining itself. A file that diverged from the scaffold
-is never rewritten, only hinted about.
+is never rewritten, only hinted about, and the hint (and the entry's `details`
+in `doctor --json`) says what to do with it.
+
+| Migration | What `dev` does |
+| --- | --- |
+| `0001-hmr-entry-boundary` | makes `main.tsx` a hot-module boundary that keeps the React root |
+| `0002-dev-loader-tag` | adds the dev-mode loader tag to `index.html` |
+| `0003-scaffold-tooling-files` | removes the 0.3 scaffold's `bunfig.toml`, `server.ts` and `build.ts` when unchanged, points the `dev`/`build` scripts at the CLI, and drops them from `files` (`↻ migrated removed bunfig.toml, removed server.ts, ...`); a changed one stays, with a line saying what to do |
 
 A deck that deliberately diverges can opt out per migration in its
 `package.json`, with a mandatory reason:

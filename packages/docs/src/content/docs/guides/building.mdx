@@ -13,15 +13,19 @@ A deck builds to a single self-contained file with JS and CSS inlined and assets
 liebstoeckel build my-talk        # → my-talk/dist/my-talk.html
 ```
 
-The scaffolded `build.ts` does the same thing, so `bun run build` inside the deck works too:
+The scaffolded deck's `build` script runs the same command, so `bun run build` inside the deck works too. The build bundles the deck with liebstoeckel's own build core (on [esbuild](https://esbuild.github.io)): it compiles MDX, generates the Tailwind CSS from the classes your slides use, highlights code, and inlines everything into one HTML file. The same source builds to the same bytes on every machine and from any folder.
 
-```ts title="build.ts"
-import { buildDeck } from "@liebstoeckel/thumbnails/build";
+Nothing of the deck runs while it builds. `.code.md` files and the deprecated `codeStory` macro are highlighted by the build itself (see [Animated code](/guides/animated-code/)), and Tailwind gets no JavaScript plugins. Only the thumbnails step opens the built file in a headless browser.
 
-// builds the single file, then embeds slide thumbnails (skips gracefully
-// if no Chromium / when LIEBSTOECKEL_NO_THUMBS=1)
-await buildDeck({ entry: "./index.html", outdir: "./dist" });
-```
+## Decks from before 0.4
+
+Decks scaffolded before 0.4 carry three files that the CLI does the work of now: a `bunfig.toml` (plugins for Bun's dev server), a `server.ts` and a `build.ts`, with `package.json` scripts that run them. `liebstoeckel dev` removes the ones still exactly as they were scaffolded and points the scripts at `liebstoeckel dev` and `liebstoeckel build`. A file you changed stays, and `dev` and [`doctor`](/reference/cli/#doctor) say what to do with it. Nothing breaks while they are there: the CLI never runs them.
+
+### Own Bun plugins
+
+A deck could add its own Bun bundler plugins to `bunfig.toml` under `[serve.static] plugins` (for Bun's dev server). The build core does not run Bun plugins, so `dev`, `build` and `doctor` name every entry there other than the three the scaffold wrote, which are simply ignored. Remove the entry. If the deck needs what the plugin did, do that in the deck's source instead. For example, import an SVG as a URL and put it in an `<img>` instead of turning it into a component, and write CSS utilities with Tailwind's `@utility` instead of a JavaScript plugin. In the same way, a macro other than `codeStory` is an error, and so is Tailwind's `@plugin` or `@config`, which load JavaScript.
+
+A `build.ts` you wrote yourself, which calls `bundleDeck` from `@liebstoeckel/engine/build`, still builds this release with Bun as before. That function is deprecated; `bundleDeck` from `@liebstoeckel/build` takes the same options, apart from `plugins` (Bun plugins).
 
 ## What ends up in the file
 
@@ -29,6 +33,7 @@ await buildDeck({ entry: "./index.html", outdir: "./dist" });
 - Your bundled, minified JS (engine + slides + plugins' client code). The build always uses React's production build and sets `process.env.NODE_ENV` to `"production"`, whatever your shell's `NODE_ENV` says, so the same source gives the same file on every machine. React's development warnings (missing `key` props, invalid hook calls) show up in the dev server, not in a built file.
 - The compiled CSS (Tailwind + brand variables + code/atmosphere styles).
 - Pre-tokenized highlighted code (no Shiki at runtime).
+- Colors exactly as the theme writes them, `color-mix()` included (earlier builds turned some translucent code-panel colors opaque).
 - The **plugin manifest**: a JSON `<script>` listing the deck's plugins, with any server bundles base64-encoded (decoded + run only by a live server, never in the browser).
 - **Slide thumbnails**: a manifest of WebP data-URIs for the overview grid (see below).
 - **Third-party license notices**: an inert `<script>` listing the licenses of everything

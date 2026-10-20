@@ -14,8 +14,9 @@ import type { CodeToken, TokenizedStep } from "./types";
 
 const THEME = createCssVariablesTheme({ name: "brand", variablePrefix: "--shiki-", fontStyle: true });
 
-// A pragmatic default language set; build-time cost only.
-const LANGS = [
+// The languages a code state can be highlighted in; anything else is plain text.
+// Build-time cost only, and each grammar loads the first time a state uses it.
+const LANGS = new Set([
   "typescript",
   "tsx",
   "javascript",
@@ -31,7 +32,7 @@ const LANGS = [
   "yaml",
   "markdown",
   "diff",
-] as const;
+]);
 
 let hl: Promise<Highlighter> | null = null;
 function highlighter(): Promise<Highlighter> {
@@ -40,13 +41,19 @@ function highlighter(): Promise<Highlighter> {
   // WebAssembly.compile can deadlock the build (the bundler blocks on the macro
   // promise while the completion needs the loop to tick). Pure-JS regexes have
   // nothing off-thread to await, and drop the WASM payload from build time.
-  if (!hl)
-    hl = createHighlighter({
-      themes: [THEME],
-      langs: LANGS as unknown as string[],
-      engine: createJavaScriptRegexEngine(),
-    });
+  if (!hl) hl = createHighlighter({ themes: [THEME], langs: [], engine: createJavaScriptRegexEngine() });
   return hl;
+}
+
+const loading = new Map<string, Promise<void>>();
+async function ensureLanguage(h: Highlighter, lang: string): Promise<boolean> {
+  if (!LANGS.has(lang)) return false;
+  if (!h.getLoadedLanguages().includes(lang)) {
+    let p = loading.get(lang);
+    if (!p) loading.set(lang, (p = h.loadLanguage(lang as BundledLanguage)));
+    await p;
+  }
+  return true;
 }
 
 function aliasLang(lang: string): string {
@@ -71,11 +78,13 @@ function aliasLang(lang: string): string {
 export async function tokenizeStep(code: string, lang = "ts"): Promise<TokenizedStep> {
   const h = await highlighter();
   const resolved = aliasLang(lang);
-  const useLang = (h.getLoadedLanguages().includes(resolved) ? resolved : "text") as
-    | BundledLanguage
-    | SpecialLanguage;
+  const useLang = ((await ensureLanguage(h, resolved)) ? resolved : "text") as BundledLanguage | SpecialLanguage;
   const src = code.replace(/\n+$/, "");
-  const { tokens } = h.codeToTokens(src, { lang: useLang, theme: "brand" });
+  // No time limit per line. Shiki's default (500 ms) gives up on a line and emits
+  // the rest as one token; the first line after a cold start can take that long
+  // while the grammar's expressions compile, so the result depended on how fast
+  // the machine was (a cold build shipped `greet(name) {` as one token).
+  const { tokens } = h.codeToTokens(src, { lang: useLang, theme: "brand", tokenizeTimeLimit: 0 });
   const lines: CodeToken[][] = tokens.map((line) =>
     line.map((t) => ({ content: t.content, color: t.color, fontStyle: t.fontStyle })),
   );

@@ -53,8 +53,8 @@ The CLI is a [citty](https://github.com/unjs/citty) dispatcher. `src/cli.ts` def
 |---|---|
 | `src/cli.ts` | The `liebstoeckel`/`lst` bin. It builds the root citty command, prints best-effort update and skill reminders, and resolves the bare-path shorthand (`liebstoeckel <deck>` becomes `live`) before calling `runMain`. |
 | `src/targeting.ts` | `looksLikeDeck()` decides whether a leading positional is a deck path, so the shorthand kicks in instead of citty reporting an unknown command. |
-| `src/new.ts` | `new` scaffolds a deck from a template (`index.html`, `main.tsx`, `build.ts`, `server.ts`, `bunfig.toml`, `slides/01-intro.tsx`) and bakes in the org's default brand when you're logged in. |
-| `src/build.ts` | Holds `build`, `eject`, `pack`, and `licenses`. Each one calls into `@liebstoeckel/engine` or `@liebstoeckel/thumbnails`. |
+| `src/new.ts` | `new` scaffolds a deck from a template (`package.json` whose scripts call `liebstoeckel dev`/`build`, `index.html`, `main.tsx`, `slides/01-intro.tsx`) and bakes in the org's default brand when you're logged in. |
+| `src/build.ts` | Holds `build`, `eject`, `pack`, and `licenses`. Each one calls into `@liebstoeckel/build`, `@liebstoeckel/engine` or `@liebstoeckel/thumbnails`. |
 | `src/add.ts`, `src/registry.ts` | Copy registry items into a deck as owned source, and browse the registry. |
 | `src/skill.ts` | `skill install` and `skill update` write the version-pinned agent skill into a deck for each agent target. |
 | `src/cloud.ts`, `src/creds.ts` | The cloud commands (`login` over the RFC 8628 device flow, plus `push`, `orgs`, `decks`, `brand`) and credential storage. |

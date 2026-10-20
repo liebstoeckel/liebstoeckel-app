@@ -1,26 +1,11 @@
-import { CodeMagic, Slot, type TokenizedStep } from "@liebstoeckel/engine";
-import { codeStory } from "@liebstoeckel/engine/code" with { type: "macro" };
+import { CodeMagic, Slot } from "@liebstoeckel/engine";
 import { Lab, Reveal } from "../elements/Reveal";
+import STORY from "./weighted.code.md";
 
-// Four code states claim THREE reveal slots (a state change per press), and the
-// Step below claims one more. So this slide's reveal count is 4 while it contains
+// The code file's four states claim THREE reveal slots (a state change per
+// press), and the Step below claims one more. So this slide's reveal count is 4 while it contains
 // only two reveal consumers: the interesting case for anything that assumes one
 // consumer means one step.
-const STORY = codeStory([
-  { code: `const total = steps.length`, lang: "ts" },
-  { code: `const total = steps.reduce((n, s) => n + s.weight, 0)`, lang: "ts" },
-  {
-    code: `const total = steps.reduce((n, s) => n + s.weight, 0)
-const shown = resolveStep(step, total)`,
-    lang: "ts",
-  },
-  {
-    code: `const total = steps.reduce((n, s) => n + s.weight, 0)
-const shown = resolveStep(step, total)
-// entering backwards: shown === total`,
-    lang: "ts",
-  },
-]) as unknown as TokenizedStep[];
 
 export const notes = (
   <div>

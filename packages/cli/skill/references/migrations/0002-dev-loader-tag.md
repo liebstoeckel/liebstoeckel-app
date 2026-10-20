@@ -34,7 +34,7 @@ an unusually shaped `index.html` needs a manual edit: add this line inside
 
 Keep it as an inline classic script: an external `src` would be resolved (and
 rejected) by the bundler, while the inline form passes through both the dev
-server and `Bun.build` verbatim.
+server and the build verbatim (the build then removes it).
 
 Detection is the `data-liebstoeckel-dev` attribute, not the exact script body:
 a tag written by an earlier CLI (one loading `/__dev/drawer.js`, which the dev

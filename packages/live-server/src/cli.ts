@@ -29,7 +29,7 @@ export async function loadDeckHtml(arg: string): Promise<string> {
   if (kind === "html") return Bun.file(abs).text();
   if (kind === "project") {
     const dir = abs.endsWith("package.json") ? dirname(abs) : abs;
-    const { bundleDeck } = await import("@liebstoeckel/engine/build");
+    const { bundleDeck } = await import("@liebstoeckel/build");
     // Build to a throwaway dir, NOT the deck's own dist/. `liebstoeckel build` owns
     // dist/<slug>.html ((internal ADR)); a stray dist/index.html written here would shadow
     // it for `push`'s default-file pick and confuse the two artifacts ((internal ticket)).

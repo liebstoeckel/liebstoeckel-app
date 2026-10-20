@@ -28,10 +28,12 @@ license: MPL-2.0
   engine than this skill describes, so features named here (e.g. `<JoinCard />`) may not
   build. Tell the user and suggest `liebstoeckel update`; until then, check an export
   exists in `node_modules/@liebstoeckel/engine` before using it.
-- **Bundler plugins** — `liebstoeckel doctor --json` (in the deck, or with `--dir`)
-  also reports `pluginProblems: [{ plugin, message }]`: `[serve.static]` plugins in the
-  deck's `bunfig.toml` that do not resolve. The dev server cannot serve the deck until
-  they do; run `bun install` in the deck (or fix the plugin name) and re-check.
+- **Bun plugins** — `liebstoeckel doctor --json` (in the deck, or with `--dir`)
+  also reports `pluginProblems: [{ plugin, message }]`: Bun plugins the deck's
+  `bunfig.toml` lists under `[serve.static]`, which liebstoeckel no longer runs (it
+  builds with its own core; the three the old scaffold wrote are ignored). Tell the user
+  and, with their go, remove the entry; if the deck relied on what the plugin did, that
+  has to move into the deck's source.
 - **Scaffold migrations** — `liebstoeckel doctor --json` (run in the deck, or with
   `--dir <deck>`) also reports `migrations: [...]`. For an entry with `needed: true`,
   read the skill file named by its `reference` (e.g.
@@ -152,8 +154,8 @@ reload plus the dev shell with the annotation sidebar) and enter the poll loop:
 as JSON, and exits. Apply the annotations to the slide source (hot reload shows the
 edit; do **not** run `build`), reply with `dev poll --reply <batchId> done --data
 '<json>'`, and poll again. Every event carries an `_instructions` field: follow it —
-it is the authoritative next step. Deck warnings (`deck_log`) and bundler-plugin
-state (`plugin_status`) arrive on the same poll and take no reply. Full contract, harness policy, and the reply
+it is the authoritative next step. Deck warnings (`deck_log`), build problems
+(`build_status`) and Bun-plugin entries (`plugin_status`) arrive on the same poll and take no reply. Full contract, harness policy, and the reply
 shape: `references/dev-mode.md`.
 
 ## Brand a deck (custom theme / fonts)

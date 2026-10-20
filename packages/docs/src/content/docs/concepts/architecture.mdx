@@ -13,7 +13,8 @@ liebstoeckel is a small Bun monorepo: reusable **engine / theme / components** p
 
 | Package | Role |
 | --- | --- |
-| `engine` | brand-agnostic deck runtime: slides, steps, Magic Move, `CodeMagic`, presenter view, nav, the live/plugin layer, the build API |
+| `engine` | brand-agnostic deck runtime: slides, steps, Magic Move, `CodeMagic`, presenter view, nav, the live/plugin layer |
+| `build` | the build core on esbuild: the single-file build (`bundleDeck`, `checkDeck`) and the dev server with hot reload |
 | `theme` | the token model + brand → CSS-variable pipeline (`defineTheme`, `themeToCss`) |
 | `components` | themed MDX element map, `Magic`, the atmospheric background |
 | `plugin-sdk` | `definePlugin`, the `schema`/`t` types, `pluginState`, discovery + manifest |
@@ -30,7 +31,7 @@ liebstoeckel is a small Bun monorepo: reusable **engine / theme / components** p
 
 ![the deck build pipeline](/diagrams/build-pipeline.svg)
 
-`Bun.build({ compile: true, target: "browser" })` runs with the Tailwind and MDX plugins. The MDX plugin highlights fenced code with Shiki at build time; `<CodeMagic>` is tokenized by a Bun macro. The plugin manifest (with base64 server bundles) and slide thumbnails are embedded into the single output `.html`.
+The build core (`@liebstoeckel/build`, on [esbuild](https://esbuild.github.io)) reads the deck's `index.html`, resolves and loads every module itself, and bundles in two passes: the first collects the class names Tailwind needs from the module graph, the second bundles with the generated stylesheet and inlines JS, CSS and assets into the one `.html`. MDX compiles in the same pipeline, fenced code and `.code.md` code files are highlighted with Shiki at build time, and nothing of the deck runs while it builds. The plugin manifest (with base64 server bundles), the license notices, the deck's source and slide thumbnails are embedded into the file. The same core serves `liebstoeckel dev`: each module transformed on its own, dependencies prebuilt once, and edits pushed to the page over a WebSocket, with React Fast Refresh keeping component state.
 
 ## Live state flow
 

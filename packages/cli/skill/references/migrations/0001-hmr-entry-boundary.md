@@ -10,18 +10,17 @@ reason: slide edits in dev mode reset the deck to slide 1 unless the entry is an
 
 ## Why
 
-In dev mode (`liebstoeckel dev`), editing a slide hot-reloads it. But a slide
-that exports `notes`, or any compiled MDX slide, breaks React Fast Refresh's
-boundary rules, so the update propagates up to the deck entry. An entry that
-just calls `createRoot(...).render(...)` re-runs from scratch on every such
-update: the page fully reloads and the deck jumps back to slide 1, losing the
-current slide and step mid-iteration.
+In dev mode (`liebstoeckel dev`), editing a slide hot-reloads it: the update
+propagates up to the deck entry, which re-runs. An entry that just calls
+`createRoot(...).render(...)` cannot take that update: the page fully reloads
+and the deck jumps back to slide 1, losing the current slide and step
+mid-iteration.
 
 The fix makes the entry itself the hot-module boundary: it self-accepts and
 renders into a React root persisted in `import.meta.hot.data`, so a slide edit
 re-runs the entry into the SAME root. React reconciles, the deck keeps its
-state, and only the edited slide remounts. `bun build` compiles the
-`import.meta.hot` accesses away, so built decks are unaffected.
+state, and the edited components keep theirs (React Fast Refresh). The build
+gives a built deck an inert `import.meta.hot`, so built decks are unaffected.
 
 ## The edit
 

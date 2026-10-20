@@ -11,18 +11,18 @@ describe("deckFiles (pure templates)", () => {
       expect.arrayContaining([
         "package.json",
         "index.html",
-        "build.ts",
-        "server.ts",
-        "bunfig.toml",
         "main.tsx",
         "slides/01-intro.tsx",
       ]),
     );
+    // The CLI builds and serves the deck: no Bun tooling files of its own.
+    for (const f of ["build.ts", "server.ts", "bunfig.toml"]) expect(files[f]).toBeUndefined();
     const pkg = JSON.parse(files["package.json"]!);
     expect(pkg.name).toBe("my-talk"); // bare name, not the framework npm scope ((internal ADR))
     expect(pkg.dependencies["@liebstoeckel/engine"]).toBe("workspace:*");
-    expect(pkg.devDependencies["@liebstoeckel/thumbnails"]).toBe("workspace:*");
-    expect(files["build.ts"]).toContain('buildDeck } from "@liebstoeckel/thumbnails/build"');
+    expect(pkg.scripts).toEqual({ dev: "liebstoeckel dev", build: "liebstoeckel build" });
+    expect(pkg.devDependencies).toBeUndefined();
+    expect(JSON.parse(deckFiles("x", "acme", { cli: "^0.4.0" })["package.json"]!).devDependencies).toEqual({ "@liebstoeckel/cli": "^0.4.0" });
     expect(files["index.html"]).toContain('data-brand="nocturne"');
     expect(files["main.tsx"]).toContain('brands={["nocturne"]}');
     expect(files["main.tsx"]).toContain("My Talk"); // title-cased from the name
@@ -33,9 +33,8 @@ describe("deckFiles (pure templates)", () => {
     const pkg = JSON.parse(files["package.json"]!);
     // deny-by-default allowlist governs `bun pm pack` → embedded source
     expect(Array.isArray(pkg.files)).toBe(true);
-    // bunfig.toml is default-ignored by pack; it MUST be allowlisted so eject's deck runs in dev
-    expect(pkg.files).toContain("bunfig.toml");
-    expect(pkg.files).toEqual(expect.arrayContaining(["index.html", "main.tsx", "build.ts", "slides"]));
+    expect(pkg.files).toEqual(expect.arrayContaining(["index.html", "main.tsx", "slides"]));
+    expect(pkg.files).not.toContain("bunfig.toml");
     // a stray .env must never be tracked nor packed
     expect(pkg.files).not.toContain(".env");
     expect(files[".gitignore"]).toMatch(/^\.env$/m);
@@ -96,7 +95,7 @@ describe("scaffold (writes to disk)", () => {
     // falling back to the CLI version, so a real scaffold emits concrete carets, // independently versioned, never the lockstep `workspace:*` placeholder.
     expect(pkg.dependencies["@liebstoeckel/engine"]).toMatch(/^\^\d+\.\d+\.\d+/);
     expect(pkg.dependencies["@liebstoeckel/theme"]).toMatch(/^\^\d+\.\d+\.\d+/);
-    expect(pkg.devDependencies["@liebstoeckel/thumbnails"]).toMatch(/^\^\d+\.\d+\.\d+/);
+    expect(pkg.devDependencies["@liebstoeckel/cli"]).toMatch(/^\^\d+\.\d+\.\d+/);
   });
 
   test("--no-org-brand scaffolds the default brand with no baked brand file", async () => {

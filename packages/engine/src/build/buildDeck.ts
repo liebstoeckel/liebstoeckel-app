@@ -224,14 +224,24 @@ export function stampGenerator(html: string, parts: { engine: string; generator?
     .replace(/<head[^>]*>/i, (m) => `${m}\n    <meta name="generator" content="${summary}" />`);
 }
 
-// Bundles a deck into a single self-contained .html, the browser-free build
-// primitive (no Chromium). Plugins (Tailwind, MDX) only run via the Bun.build()
-// JS API, NOT the `bun build` CLI. `compile:true` + target:"browser" inline
-// JS/CSS and base64 the assets. Verified on Bun 1.3.
-//
-// For the batteries-included default (this + slide thumbnails) use `buildDeck`
-// from `@liebstoeckel/thumbnails/build`, which wraps this. Kept here, dependency-
-// free, so engine never pulls in the headless-browser capturer (playwright-core).
+const DEPRECATED =
+  "⚠ bundleDeck, checkDeck and collectDeckLicenses from @liebstoeckel/engine/build (Bun.build with Bun plugins) are deprecated " +
+  "and go in a later release: use `liebstoeckel build`, or the same functions from @liebstoeckel/build";
+let warned = false;
+function warnDeprecated(): void {
+  if (warned) return;
+  warned = true;
+  console.warn(DEPRECATED);
+}
+
+/**
+ * Bundles a deck into a single self-contained .html with `Bun.build` and the Bun
+ * plugins (Tailwind, MDX, the visx fix).
+ *
+ * @deprecated The CLI and every host build decks with `@liebstoeckel/build` now
+ * (esbuild, the same options apart from `plugins`). This Bun pipeline stays one
+ * release for a deck's own `build.ts` that calls it.
+ */
 export async function bundleDeck({
   entry = "./index.html",
   outdir = "./dist",
@@ -268,6 +278,7 @@ export async function bundleDeck({
    *  bundle may read). */
   plugins?: BunPlugin[];
 } = {}) {
+  warnDeprecated();
   // The collector always runs (a pure onLoad observer): besides licenses it backs the
   // single-copy guard below, which must hold whether or not we embed notices.
   const licenses = createLicenseCollector({ selfName: await readPkgName(pkgJson) });
@@ -343,11 +354,13 @@ export async function bundleDeck({
 
 /** Resolve a deck's third-party license report WITHOUT emitting an artifact, runs
  *  the same plugin set as a real build so the module graph matches, then discards
- *  the output. Backs `liebstoeckel licenses` over a deck directory. */
+ *  the output.
+ *  @deprecated Use `collectDeckLicenses` from `@liebstoeckel/build`. */
 export async function collectDeckLicenses({
   entry = "./index.html",
   pkgJson = "./package.json",
 }: { entry?: string; pkgJson?: string } = {}): Promise<LicenseReport> {
+  warnDeprecated();
   const licenses = createLicenseCollector({ selfName: await readPkgName(pkgJson) });
   const result = await Bun.build({
     entrypoints: [entry],
@@ -392,6 +405,7 @@ function toDiagnostic(log: unknown): DeckDiagnostic {
  * ((internal ADR)). Runs the same plugin pipeline as `bundleDeck` with `throw: false` and
  * returns structured diagnostics for an agent's check → fix loop. It does **not**
  * type-check (Bun.build doesn't); it answers "does this deck build?".
+ * @deprecated Use `checkDeck` from `@liebstoeckel/build`.
  */
 export async function checkDeck({
   entry = "./index.html",
@@ -400,6 +414,7 @@ export async function checkDeck({
   ok: boolean;
   diagnostics: DeckDiagnostic[];
 }> {
+  warnDeprecated();
   try {
     const licenses = createLicenseCollector({ selfName: await readPkgName(pkgJson) });
     const result = await Bun.build({

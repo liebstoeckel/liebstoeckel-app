@@ -14,6 +14,8 @@
     "types": ["bun", "react", "react-dom"],
     "paths": {
       "@liebstoeckel/engine": ["./packages/engine/src/index.ts"],
+      "@liebstoeckel/build": ["./packages/build/src/index.ts"],
+      "@liebstoeckel/build/*": ["./packages/build/src/*"],
       "@liebstoeckel/engine/*": ["./packages/engine/src/*"],
       "@liebstoeckel/components": ["./packages/components/src/index.ts"],
       "@liebstoeckel/theme": ["./packages/theme/src/index.ts"],

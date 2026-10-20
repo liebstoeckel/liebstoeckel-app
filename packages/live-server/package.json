@@ -44,6 +44,7 @@
     "./placement/protocol": "./src/placement/protocol.ts"
   },
   "dependencies": {
+    "@liebstoeckel/build": "workspace:^",
     "@liebstoeckel/engine": "workspace:^",
     "@liebstoeckel/plugin-sdk": "workspace:^",
     "@liebstoeckel/thumbnails": "workspace:^",
