@@ -4,7 +4,7 @@
 // has to pass the gate) and native and WASM esbuild see exactly the same inputs.
 import type { Plugin } from "./esbuild.ts";
 import { loadModule, type LoadContext } from "./load.ts";
-import { dirname } from "./path.ts";
+import { dirname, virtualDir } from "./path.ts";
 import { CSS_RESOLVE, JS_RESOLVE, type ResolveOptions } from "./resolve.ts";
 
 export const NS = "vfs";
@@ -35,7 +35,8 @@ export function vfsPlugin(ctx: LoadContext, opts: VfsPluginOptions = {}): Plugin
     setup(build) {
       build.onResolve({ filter: /.*/ }, (args) => {
         if (args.path.startsWith("data:") || /^https?:\/\//.test(args.path)) return { path: args.path, external: true };
-        const fromDir = args.resolveDir || (args.importer ? dirname(args.importer) : "/");
+        // esbuild hands resolveDir back as a native path (`C:\slides` on Windows).
+        const fromDir = args.resolveDir ? virtualDir(args.resolveDir) : args.importer ? dirname(args.importer) : "/";
         const css = args.kind === "import-rule" || args.kind === "url-token" || args.kind === "composes-from";
         const ext = opts.external?.(args.path, args.importer);
         if (ext) return { path: ext, external: true };

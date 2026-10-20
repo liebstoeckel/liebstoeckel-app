@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { outputRelative } from "./build.ts";
+import { virtualDir } from "./path.ts";
 import { codeBlocks, compileCodeFile } from "./code-file.ts";
 import { cssProblem } from "./css-gate.ts";
 import { gatedFiles, GateError, MemoryFiles, recordingFiles } from "./files.ts";
@@ -166,5 +168,23 @@ describe("recording", () => {
     const replay = new MemoryFiles(rec.snapshot());
     expect(new TextDecoder().decode(replay.read("/a/b.txt")!)).toBe("hi");
     expect(replay.stat("/a")).toBe("dir");
+  });
+});
+
+describe("outputRelative", () => {
+  test("output files and metafile keys map to the same name on POSIX and Windows", () => {
+    expect(outputRelative("/deps/react-AB12.js", "/deps")).toBe("react-AB12.js");
+    expect(outputRelative("deps/chunks/X1.js", "/deps")).toBe("chunks/X1.js");
+    expect(outputRelative("C:\\deps\\chunks\\X1.js", "/deps")).toBe("chunks/X1.js");
+    expect(outputRelative("C:/deps/a.css", "/deps")).toBe("a.css");
+  });
+});
+
+describe("virtualDir", () => {
+  test("esbuild's native resolveDir maps back to the virtual tree", () => {
+    expect(virtualDir("/slides")).toBe("/slides");
+    expect(virtualDir("C:\\")).toBe("/");
+    expect(virtualDir("C:\\slides\\deep")).toBe("/slides/deep");
+    expect(virtualDir(undefined)).toBe("/");
   });
 });

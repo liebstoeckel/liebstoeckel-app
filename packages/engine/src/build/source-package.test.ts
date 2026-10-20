@@ -2,7 +2,7 @@ import { test, expect, describe, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { appendToTar, collectDeckTarball, embedSource, extractSource, ejectSource, lockfileRegistries } from "./source-package";
+import { appendToTar, normalizeTarModes, collectDeckTarball, embedSource, extractSource, ejectSource, lockfileRegistries } from "./source-package";
 
 // A minimal deck dir with a `files` allowlist (so pack is deterministic and ignore-clean).
 function makeDeck(extra: Record<string, string> = {}): string {
@@ -152,5 +152,19 @@ describe("embed / extract / eject round-trip", () => {
 
   test("extractSource is null for plain HTML", () => {
     expect(extractSource("<html><body>nothing</body></html>")).toBeNull();
+  });
+});
+
+describe("normalizeTarModes", () => {
+  test("every entry gets mode 0664 with a valid checksum, whatever the disk said", () => {
+    const enc = new TextEncoder();
+    const a = appendToTar(new Uint8Array(1024), [{ name: "package/a.txt", body: enc.encode("hi") }]);
+    // Pretend the file came from Windows: mode 0666, checksum recomputed for it.
+    const win = new Uint8Array(a);
+    win.set(enc.encode("000666 \0"), 100);
+    const norm = normalizeTarModes(win);
+    expect(new TextDecoder().decode(norm.subarray(100, 107))).toBe("000664 ");
+    expect(norm).toEqual(normalizeTarModes(a));
+    expect(normalizeTarModes(a)).toEqual(a);
   });
 });

@@ -19,7 +19,7 @@ import { readText, type Files } from "./files.ts";
 import { htmlEntries } from "./html.ts";
 import { formatMessage, toMessages, type BuildMessage, commonOptions } from "./build.ts";
 import { extractCandidates, isAsset, loadModule, newLoadContext, type LoadContext, type Notice } from "./load.ts";
-import { dirname, extname, join } from "./path.ts";
+import { dirname, extname, join, virtualDir } from "./path.ts";
 import { NS, resolveFor } from "./plugin.ts";
 import { refreshFooter } from "./refresh.ts";
 import { Resolver, type ResolverOptions } from "./resolve.ts";
@@ -259,7 +259,7 @@ export class DevCore {
                 const isBare = !/^[./#]/.test(spec);
                 let resolved;
                 try {
-                  resolved = resolveFor(ctx, spec, args.resolveDir, false);
+                  resolved = resolveFor(ctx, spec, virtualDir(args.resolveDir), false);
                 } catch (err) {
                   return { errors: [{ text: err instanceof Error ? err.message : String(err) }] };
                 }
@@ -392,7 +392,7 @@ export class DevCore {
               build.onResolve({ filter: /.*/ }, (args) => {
                 if (args.kind === "entry-point") return { path: args.path, namespace: NS };
                 if (args.path.startsWith("data:") || /^(https?:)?\/\//.test(args.path)) return { path: args.path, external: true };
-                const resolved = resolveFor(ctx, args.path, args.resolveDir, true);
+                const resolved = resolveFor(ctx, args.path, virtualDir(args.resolveDir), true);
                 if (!resolved || "empty" in resolved) return { errors: [{ text: `Could not resolve "${args.path}"` }] };
                 if (args.kind === "url-token") return { path: self.assetUrl(resolved.path), external: true };
                 deps.add(resolved.path);

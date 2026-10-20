@@ -117,6 +117,29 @@ function ustarEntry(name: string, body: Uint8Array, mtimeOctal: string): Uint8Ar
   return out;
 }
 
+/** Give every entry pack's own mode, 0664. `bun pm pack` copies each file's mode
+ *  from disk, which differs by umask and by platform (Windows has no mode bits and
+ *  reports 0666), so the same source would embed different bytes on two machines.
+ *  Rewrites the mode field and the header checksum in place; the rest stays. */
+export function normalizeTarModes(tar: Uint8Array): Uint8Array {
+  const out = new Uint8Array(tar);
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  const end = tarEnd(out);
+  let off = 0;
+  while (off < end) {
+    const header = out.subarray(off, off + 512);
+    header.set(enc.encode("000664 \0"), 100);
+    header.set(enc.encode("        "), 148);
+    let sum = 0;
+    for (const b of header) sum += b;
+    header.set(enc.encode(sum.toString(8).padStart(6, "0") + "\0 "), 148);
+    const size = parseInt(dec.decode(header.subarray(124, 136)).replace(/\0.*$/s, "").trim(), 8) || 0;
+    off += 512 + Math.ceil(size / 512) * 512;
+  }
+  return out;
+}
+
 /** Append `entries` to a tar, keeping everything before them byte for byte, and close it
  *  with the two zero blocks again. The mtime is copied from the first existing entry. */
 export function appendToTar(tar: Uint8Array, entries: Array<{ name: string; body: Uint8Array }>): Uint8Array<ArrayBuffer> {
@@ -156,7 +179,7 @@ export async function collectDeckTarball(dir: string, opts: CollectOptions = {})
     }
 
     const gzip = new Uint8Array(await Bun.file(tgzPath).bytes());
-    const packed = Bun.gunzipSync(gzip);
+    const packed = normalizeTarModes(Bun.gunzipSync(gzip));
     const packedFiles = tarEntryNames(packed)
       .filter((n) => n.startsWith(PACKAGE_PREFIX))
       .map((n) => n.slice(PACKAGE_PREFIX.length))

@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { DepsManifest } from "../core/dev.ts";
+import { ESBUILD_ROOT, outputRelative } from "../core/build.ts";
 import { readText } from "../core/files.ts";
 import { extractCandidates, newLoadContext } from "../core/load.ts";
 import { NS, vfsPlugin } from "../core/plugin.ts";
@@ -139,7 +140,7 @@ export async function prebuildDeps(tree: DeckTree, specs: string[], cacheDir: st
     splitting: true,
     write: false,
     outdir: "/deps",
-    absWorkingDir: "/",
+    absWorkingDir: ESBUILD_ROOT,
     format: "esm",
     platform: "browser",
     target: "esnext",
@@ -169,9 +170,9 @@ export async function prebuildDeps(tree: DeckTree, specs: string[], cacheDir: st
   const imports: Record<string, string> = {};
   const css: string[] = [];
   for (const [outPath, meta] of Object.entries(result.metafile!.outputs)) {
-    const rel = outPath.replace(/^\/?deps\//, "");
+    const rel = outputRelative(outPath, "/deps");
     if (meta.entryPoint?.startsWith("lst-dep:")) imports[meta.entryPoint.slice("lst-dep:".length)] = rel;
-    if (meta.cssBundle) css.push(meta.cssBundle.replace(/^\/?deps\//, ""));
+    if (meta.cssBundle) css.push(outputRelative(meta.cssBundle, "/deps"));
   }
   const inputs = Object.keys(result.metafile!.inputs)
     .filter((k) => k.startsWith(`${NS}:`))
@@ -185,7 +186,7 @@ export async function prebuildDeps(tree: DeckTree, specs: string[], cacheDir: st
   const tmp = `${dir}.tmp-${process.pid}-${Date.now()}`;
   rmSync(tmp, { recursive: true, force: true });
   for (const out of result.outputFiles) {
-    const file = join(tmp, out.path.replace(/^\/?deps\//, ""));
+    const file = join(tmp, outputRelative(out.path, "/deps"));
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, out.contents);
   }

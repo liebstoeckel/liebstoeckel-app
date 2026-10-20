@@ -42,3 +42,12 @@ export function relative(from: string, to: string): string {
   if (up === 0) return "./" + rest;
   return "../".repeat(up) + rest;
 }
+
+/** The virtual form of a directory esbuild hands back. A plugin's resolveDir (and
+ *  an entry point's working directory) is a native path to esbuild: on Windows it
+ *  turns `/slides` into `C:\\slides` against the `C:\\` working directory. */
+export function virtualDir(dir: string | undefined): string {
+  if (!dir) return "/";
+  if (dir.startsWith("/")) return normalize(dir);
+  return normalize(dir.replace(/^[A-Za-z]:/, "").replace(/\\/g, "/"));
+}

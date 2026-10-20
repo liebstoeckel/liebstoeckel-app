@@ -87,12 +87,28 @@ async function run<T>(fn: () => Promise<T>): Promise<T> {
 
 const now = () => performance.now();
 
+/** esbuild's working directory. Every file is read through the virtual tree, so
+ *  this only has to be an absolute path to esbuild: `/` everywhere but on
+ *  Windows, where native esbuild only takes a path with a drive. Output paths
+ *  (`/out`, `/deps`) are resolved against it, so they start with `C:\` there. */
+export const ESBUILD_ROOT = (globalThis as { process?: { platform?: string } }).process?.platform === "win32" ? "C:\\" : "/";
+
+/** An esbuild output path relative to its output directory (`/deps/a.js` or
+ *  `C:\deps\a.js` -> `a.js`), the same on every platform. */
+export function outputRelative(path: string, outdir: string): string {
+  // Metafile paths are relative to the working directory (`deps/a.js`), output
+  // files absolute (`/deps/a.js`, `C:\\deps\\a.js`): bring both to `/deps/a.js`.
+  const p = "/" + path.replace(/\\/g, "/").replace(/^[A-Za-z]:/, "").replace(/^\/+/, "");
+  const prefix = "/" + outdir.replace(/^\/+/, "").replace(/\/+$/, "") + "/";
+  return p.startsWith(prefix) ? p.slice(prefix.length) : p.slice(1);
+}
+
 /** The options both passes share, and the dev transform reuses where it can. */
 export function commonOptions(mode: "production" | "development") {
   return {
     bundle: true,
     write: false,
-    absWorkingDir: "/",
+    absWorkingDir: ESBUILD_ROOT,
     format: "esm" as const,
     platform: "browser" as const,
     target: "esnext",

@@ -20,7 +20,7 @@ import {
 } from "@liebstoeckel/engine/build/licenses";
 import { deckLocalPlugins, discoverFromPackageJson, type PkgJson } from "@liebstoeckel/plugin-sdk/discovery";
 import { embedManifest, encodeServerBundle, type PluginManifest, type PluginManifestEntry } from "@liebstoeckel/plugin-sdk/manifest";
-import { buildDeck, DeckBuildError, formatMessage, toMessages, type BuildMessage, type DeckBuildResult } from "./core/build.ts";
+import { buildDeck, DeckBuildError, ESBUILD_ROOT, formatMessage, toMessages, type BuildMessage, type DeckBuildResult } from "./core/build.ts";
 import { newLoadContext } from "./core/load.ts";
 import { vfsPlugin } from "./core/plugin.ts";
 import { Resolver } from "./core/resolve.ts";
@@ -95,7 +95,7 @@ export async function buildServerBundle(entry: string, profile: Profile = LOCAL)
       bundle: true,
       write: false,
       outdir: "/out",
-      absWorkingDir: "/",
+      absWorkingDir: ESBUILD_ROOT,
       format: "esm",
       platform: "node",
       target: "esnext",
