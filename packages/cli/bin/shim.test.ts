@@ -5,7 +5,7 @@
 // real machine.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PRIMARY } from "./resolve-bun.js";
@@ -148,7 +148,17 @@ describe.skipIf(!run)("liebstoeckel shim", () => {
 // workspace): a hard kill of the shim must not leave the CLI running.
 const REAL_SHIM = join(import.meta.dir, "liebstoeckel.js");
 const DEMO = join(import.meta.dir, "..", "..", "..", "presentations", "demo");
-describe.skipIf(!run)("real shim", () => {
+// Skipped where the workspace's own install has no usable binary (a CI cache can
+// hold the package without it; the shim then reports bun_binary_missing).
+const realBin = (() => {
+  try {
+    const dir = join(require.resolve(`${OVEN}/package.json`, { paths: [import.meta.dir] }), "..");
+    return existsSync(join(dir, "bin", "bun"));
+  } catch {
+    return false;
+  }
+})();
+describe.skipIf(!run || !realBin)("real shim", () => {
   test("SIGKILL to the shim stops the dev server it started", async () => {
     const child = spawn(NODE!, [REAL_SHIM, "dev", "--dir", DEMO, "--port", "0", "--json"], { stdio: ["ignore", "pipe", "pipe"] });
     let out = "";

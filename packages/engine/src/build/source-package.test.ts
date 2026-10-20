@@ -39,7 +39,8 @@ describe("collectDeckTarball", () => {
     expect(gzip.length).toBeGreaterThan(0);
     expect(zstd.length).toBeGreaterThan(0);
     // zstd payload round-trips to the same tar the gzip carries
-    expect(sameBytes(Bun.zstdDecompressSync(zstd), Bun.gunzipSync(gzip))).toBe(true);
+    // The same entries as pack's own tar, with the file modes normalized.
+    expect(sameBytes(Bun.zstdDecompressSync(zstd), normalizeTarModes(Bun.gunzipSync(gzip)))).toBe(true);
   });
 
   test("deterministic across runs (pack's fixed mtime + deterministic zstd)", async () => {
