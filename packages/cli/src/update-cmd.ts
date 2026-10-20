@@ -90,13 +90,14 @@ export function planUpdate(opts: {
   const cliManaged = global || deckDeps.includes(PKG) || hostDeps.includes(PKG);
   const unmanagedCli = cliManaged
     ? null
-    : `the running CLI (${opts.cliSrcPath}) is not managed by this command; update it yourself, e.g. \`bun add ${PKG}@latest\` where it is installed`;
+    : `the running CLI (${opts.cliSrcPath}) is not managed by this command; update it with the package manager that installed it, e.g. \`npm install -g ${PKG}@latest\` or \`bun add -g ${PKG}@latest\``;
   if (deckDeps.length === 0 && hostDeps.length === 0 && !global) {
     return {
       error:
         "nothing to update here: no @liebstoeckel/* dependencies declared at the target directory " +
-        "or the CLI's own install root, and the running CLI is not a global install. " +
-        "Run inside a deck, or pass --dir <deck>.",
+        "or the CLI's own install root, and the running CLI is not a `bun add -g` install. " +
+        "Run inside a deck, or pass --dir <deck>." +
+        (unmanagedCli ? ` To update the CLI itself: \`npm install -g ${PKG}@latest\` or \`bun add -g ${PKG}@latest\`, whichever installed it.` : ""),
     };
   }
   return { deckDeps, global, hostRoot, hostDeps, unmanagedCli };
@@ -359,7 +360,7 @@ export const updateCommand = defineCommand({
         for (const [name, versions] of dups) console.error(`    ${name}: ${versions.join(", ")}`);
         console.error(
           `  a stale nested copy survives targeted updates; collapse to one version with:\n` +
-            `    cd ${root} && rm -rf node_modules bun.lock && bun install`,
+            `    cd ${root} && rm -rf node_modules bun.lock && liebstoeckel install`,
         );
       }
     }

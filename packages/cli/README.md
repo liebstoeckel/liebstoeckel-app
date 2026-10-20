@@ -11,18 +11,21 @@ This is the umbrella CLI. One binary scaffolds a deck, runs a hot-reloading dev 
 ## Install
 
 ```sh
-bun add -d @liebstoeckel/cli
+npm install -g @liebstoeckel/cli   # or: bun add -g @liebstoeckel/cli
 # …or run it without installing:
-bunx @liebstoeckel/cli <command>
+npx @liebstoeckel/cli <command>    # or: bunx @liebstoeckel/cli <command>
 ```
 
-> Requires **Bun ≥ 1.3**.
+> Needs **Node.js 18+** (or any Bun) to start. The CLI runs on its own Bun, one exact version
+> installed from npm with it (Oven's `@oven/bun-<platform>` packages), never on a `bun` you
+> have installed. `liebstoeckel --version` shows which one runs.
 
 ## Commands
 
 ```sh
 liebstoeckel new <name>          # scaffold a new deck in ./<name>
 liebstoeckel add <name>...       # copy registry items (charts, …) into a deck as owned source
+liebstoeckel install [pkg...]    # install a deck's dependencies, or add npm packages, with the CLI's Bun
 liebstoeckel registry list|view  # browse the chart/component registry (--json for agents)
 liebstoeckel build [dir]         # build a deck into one self-contained .html (+ thumbnails)
 liebstoeckel eject <deck.html>   # recover a built deck's editable source

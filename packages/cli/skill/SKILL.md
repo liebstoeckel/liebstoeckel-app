@@ -16,8 +16,14 @@ license: MPL-2.0
 
 # General
 
-- **Environment** — liebstoeckel is a framework written in Bun; it requires the **Bun
-  runtime** (not Node). Drive everything through the `liebstoeckel` CLI via bash.
+- **Environment** — liebstoeckel is a framework written in Bun, and the `liebstoeckel` CLI
+  brings its own pinned Bun: the machine needs no Bun (Node with npm is enough), and a
+  `bun` on PATH is never used for it. Drive everything through the `liebstoeckel` CLI via
+  bash. Install or add a deck's npm packages with `liebstoeckel install [package...]`
+  (`--dev` for devDependencies), never `bun install`/`bun add`/`npm install` by hand.
+  If the CLI says its Bun runtime is not installed (`code` `bun_missing`,
+  `bun_variant_missing`, `bun_version_mismatch`, ...), show the user its `fix` line:
+  it is an install problem, not a deck problem.
 - **Staying current** — `liebstoeckel doctor --json` reports
   `cli: { version, latestKnown, updateAvailable }`. When `updateAvailable` is true,
   tell the user and suggest running `liebstoeckel update` (it updates the deck's
@@ -185,7 +191,7 @@ The built-ins:
   presenter moderates.
 - **reactions** (`@liebstoeckel/plugin-reactions`) — ephemeral floating emoji over the deck.
 
-Adding one is: `bun add` the package, register it on `<Present plugins={[…]}>`, and place
+Adding one is: `liebstoeckel install` the package, register it on `<Present plugins={[…]}>`, and place
 `<Plugin id="…" props={…} />` on a slide — see `references/plugins.md`. To author a new
 plugin, see `references/build-plugins.md`. To put the join QR on a slide (title or
 "questions?" slide), place `<JoinCard />` from `@liebstoeckel/engine` (props `size`,

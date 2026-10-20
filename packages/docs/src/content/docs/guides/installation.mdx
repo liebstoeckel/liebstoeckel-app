@@ -1,0 +1,143 @@
+---
+title: Installing the CLI
+description: Install the liebstoeckel CLI with npm, Bun, npx or bunx. It brings its own Bun, so no Bun is needed on the machine, and doctor shows what it runs on.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+The `liebstoeckel` CLI runs on its own copy of [Bun](https://bun.com), one exact version,
+installed from npm together with the CLI. You do not need Bun on the machine, and a Bun you
+already have is never used for it, whatever its version. Node.js 18 or newer with npm is
+enough.
+
+## Install
+
+<Tabs syncKey="pm">
+<TabItem label="npm">
+
+```bash
+npm install -g @liebstoeckel/cli
+```
+
+</TabItem>
+<TabItem label="Bun">
+
+```bash
+bun add -g @liebstoeckel/cli
+```
+
+</TabItem>
+<TabItem label="npx (no install)">
+
+```bash
+npx @liebstoeckel/cli new my-talk
+```
+
+</TabItem>
+<TabItem label="bunx (no install)">
+
+```bash
+bunx @liebstoeckel/cli new my-talk
+```
+
+</TabItem>
+</Tabs>
+
+Then check what it runs on:
+
+```bash
+liebstoeckel --version
+```
+
+```text
+liebstoeckel 0.4.0
+bun 1.3.14 (pinned, @oven/bun-linux-x64)
+esbuild 0.28.2 (@esbuild/linux-x64)
+```
+
+The second line names the Bun the CLI runs on and the npm package it came from. The CLI's
+own Bun comes from Oven's `@oven/bun-<platform>` packages, the official Bun binaries Oven
+publishes to npm. esbuild, which builds the decks, comes from `@esbuild/<platform>` the same
+way. Both are optional dependencies, so your package manager installs only the one for your
+machine: about 230 MB in total, 90 MB of it the Bun binary.
+
+Everything the CLI starts runs on that same Bun: `liebstoeckel new` and
+[`liebstoeckel install`](/reference/cli/#install) install a deck's dependencies with it, and
+`dev`, `build` and `live` serve and build with it. A deck's `package.json` scripts call
+`liebstoeckel`, so `npm run dev` works without Bun too.
+
+<Aside type="note" title="Decks that list the CLI">
+A new deck lists `@liebstoeckel/cli` as a dev dependency, so `npm run dev` in it uses the
+version the deck pins. That copy brings its own Bun binary into the deck's `node_modules`.
+Bun's install cache links it from one place on Linux and macOS; npm copies it into each deck.
+</Aside>
+
+## When the Bun binary is missing
+
+If the CLI cannot find its Bun, it says so before doing anything else, names the package it
+looked for, and prints the command that fixes it:
+
+```text
+liebstoeckel: the Bun runtime this CLI runs on is not installed.
+  looked for @oven/bun-linux-x64@1.3.14, an optional dependency of @liebstoeckel/cli
+  the install most likely skipped optional dependencies (--omit=optional, --no-optional,
+  or a registry mirror that does not carry the @oven/* packages)
+  fix: npm install -g @liebstoeckel/cli
+```
+
+With `--json` the same error is also printed to stdout as the usual
+[error document](/reference/cli/#machine-output---json), with one of these codes:
+
+| `code` | Meaning, and what to do |
+| --- | --- |
+| `bun_missing` | the package for your machine is not installed: install again **with** optional dependencies (no `--omit=optional`), and make sure a private registry mirror proxies the `@oven` scope from npm |
+| `bun_variant_missing` | your machine needs a Bun build that is not installed by default (see below); install it next to the CLI with the printed command |
+| `bun_version_mismatch` | the installed Bun package has another version than the CLI expects, usually a hand-installed variant after an update; install it again at the printed version |
+| `bun_binary_missing` | the package is there but its binary is not; reinstall, and delete `node_modules` if that does not bring it back |
+| `bun_start_failed` | the binary is there but would not start: it is not executable, or an antivirus or allowlisting policy blocks it |
+| `bun_unsupported_platform` | Bun has no build for this operating system or CPU |
+
+### Alpine, old CPUs and other variants
+
+Bun publishes extra builds that the CLI does not install by default, because a package
+manager would put all of them on every machine:
+
+- **musl** Linux (Alpine and similar): `@oven/bun-linux-x64-musl`, `@oven/bun-linux-aarch64-musl`
+- **baseline**, for x64 CPUs without AVX2 (older than about 2013, some virtual machines):
+  `@oven/bun-linux-x64-baseline`, `@oven/bun-darwin-x64-baseline`, `@oven/bun-windows-x64-baseline`
+
+On musl the CLI detects it and prints the exact command. On a CPU without AVX2 the default
+Bun build cannot start; install the baseline build. Install the variant next to the CLI, at
+the Bun version the CLI pins (`liebstoeckel --version` and the error message show it):
+
+```bash
+npm install -g @liebstoeckel/cli @oven/bun-linux-x64-musl@1.3.14
+```
+
+The CLI takes an installed variant before the default build. After an update that moves the
+pinned version, install the variant again at the new version; the CLI tells you which.
+
+## What doctor reports
+
+[`liebstoeckel doctor`](/reference/cli/#doctor) checks the same and more:
+
+```text
+✓ Bun 1.3.14, the CLI's pinned Bun (@oven/bun-linux-x64)
+✓ esbuild 0.28.2 (@esbuild/linux-x64)
+✗ Chromium not found, run `liebstoeckel doctor --install-chromium` or set LIEBSTOECKEL_CHROMIUM
+✓ CLI 0.4.0
+```
+
+If the Bun line says `not the CLI's pinned Bun`, something started the CLI's source on
+another Bun instead of through the `liebstoeckel` command (for example `bun src/cli.ts` in
+a checkout of the repository). Run it as `liebstoeckel`.
+
+## Windows
+
+The same commands work in PowerShell and in `cmd.exe`. Pressing <kbd>Ctrl</kbd>+<kbd>C</kbd>
+in `liebstoeckel dev` stops the server; in `cmd.exe`, npm's command wrapper then asks
+`Terminate batch job (Y/N)?`, which is npm's and safe to answer either way.
+
+When a tool stops the `liebstoeckel` process the hard way (Task Manager, `Stop-Process -Force`,
+an editor stopping a task), the CLI notices within a second that the command it was started
+by is gone and stops too, so no dev server is left holding its port.

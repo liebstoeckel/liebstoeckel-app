@@ -224,7 +224,7 @@ export function resolveChromium(opts: CaptureOptions = {}): string {
 
   throw new Error(
     "No Chromium found for slide capture. Run `liebstoeckel doctor --install-chromium`, " +
-      "set LIEBSTOECKEL_CHROMIUM to a Chrome/Chromium binary, or `bunx playwright install chromium`.",
+      "or set LIEBSTOECKEL_CHROMIUM to a Chrome/Chromium binary.",
   );
 }
 

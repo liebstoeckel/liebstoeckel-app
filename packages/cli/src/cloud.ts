@@ -621,12 +621,12 @@ const brandPullCommand = defineCommand({
       const noInstall = args.install === false;
       if (deps.length && !noInstall) {
         const { $ } = await import("bun");
-        console.log(`   installing fonts: bun add --ignore-scripts ${deps.join(" ")}`);
+        console.log(`   installing fonts: ${deps.join(" ")}`);
         // pin the interpreter; --ignore-scripts per the registry trust model
         await $`${bunBin} add --ignore-scripts ${deps}`.cwd(deckDir);
         console.log(`   ✓ fonts installed\n`);
       } else if (deps.length) {
-        console.log(`   → install its fonts: bun add --ignore-scripts ${deps.join(" ")}\n`);
+        console.log(`   → install its fonts: liebstoeckel install ${deps.join(" ")}\n`);
       }
       console.log(`   wire it in main.tsx:\n     import ${camel(name)} from "./brands/${name}";`);
       console.log(`     <Present brands={["${name}"]} brandThemes={[${camel(name)}]} … />\n`);

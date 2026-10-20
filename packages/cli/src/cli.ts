@@ -11,6 +11,7 @@ export const rootCommand = defineCommand({
   subCommands: {
     new: () => import("./new").then((m) => m.newCommand),
     add: () => import("./add").then((m) => m.addCommand),
+    install: () => import("./install").then((m) => m.installCommand),
     registry: () => import("./registry").then((m) => m.registryCommand),
     build: () => import("./build").then((m) => m.buildCommand),
     eject: () => import("./build").then((m) => m.ejectCommand),
@@ -71,7 +72,7 @@ export function isModuleNotFound(err: unknown): boolean {
 export function devLoadFailureMessage(err: unknown): string {
   const detail = err instanceof Error ? err.message : String(err);
   const hint = isModuleNotFound(err)
-    ? "the install looks incomplete. Try reinstalling (`bun install`)."
+    ? "the install looks incomplete. Reinstall the CLI the way you installed it (for example `npm install -g @liebstoeckel/cli`), or run `liebstoeckel install` in the deck."
     : "it loaded but failed. Set LIEBSTOECKEL_DEBUG=1 for the stack.";
   return `\`liebstoeckel dev\` could not load @liebstoeckel/dev-server; ${hint}\n  ${detail}`;
 }
@@ -116,8 +117,39 @@ async function refuseUnknownOptions(rawArgs: string[]): Promise<void> {
   );
 }
 
+/** Started by the `liebstoeckel` shim: stop when the shim is gone. A hard kill of the
+ *  shim (TerminateProcess on Windows, SIGKILL elsewhere) never reaches this process,
+ *  and a dev server left behind would hold its port. The command's own SIGTERM
+ *  handling runs, so a dev server still cleans up after itself. */
+export function watchShim(pid: number, alive: (pid: number) => boolean, stop: () => void, everyMs = 1000): ReturnType<typeof setInterval> {
+  const timer = setInterval(() => {
+    if (alive(pid)) return;
+    clearInterval(timer);
+    stop();
+  }, everyMs);
+  timer.unref();
+  return timer;
+}
+
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as { code?: string }).code === "EPERM";
+  }
+}
+
 async function main() {
   const argv = process.argv.slice(2);
+
+  const shimPid = Number(process.env.LIEBSTOECKEL_SHIM_PID);
+  if (Number.isInteger(shimPid) && shimPid > 0) {
+    watchShim(shimPid, pidAlive, () => {
+      if (process.listenerCount("SIGTERM") > 0) process.emit("SIGTERM");
+      else process.exit(143);
+    });
+  }
 
   // Preflight on every run: confirm the Bun interpreting this CLI satisfies
   // engines.bun. The same binary (bunBin === process.execPath) backs every
@@ -145,6 +177,15 @@ async function main() {
   }
   // Bare invocation → show the command surface (citty would otherwise error).
   if (rawArgs.length === 0) rawArgs = ["--help"];
+
+  // `--version` names the Bun and esbuild in use and where they came from, one
+  // line each (the first line stays `liebstoeckel <version>`).
+  if (rawArgs.length === 1 && (rawArgs[0] === "--version" || rawArgs[0] === "-v")) {
+    const { bunRuntime, esbuildRuntime, versionLines } = await import("./runtime");
+    const { cliVersion } = await import("./skill");
+    console.log(versionLines(await cliVersion(), await bunRuntime(), esbuildRuntime()).join("\n"));
+    return;
+  }
 
   // Refuse options the command does not declare, before anything with a side
   // effect runs (the update notice, the skill self-heal, the command itself):

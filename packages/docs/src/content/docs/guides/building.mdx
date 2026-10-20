@@ -25,7 +25,7 @@ Decks scaffolded before 0.4 carry three files that the CLI does the work of now:
 
 A deck could add its own Bun bundler plugins to `bunfig.toml` under `[serve.static] plugins` (for Bun's dev server). The build core does not run Bun plugins, so `dev`, `build` and `doctor` name every entry there other than the three the scaffold wrote, which are simply ignored. Remove the entry. If the deck needs what the plugin did, do that in the deck's source instead. For example, import an SVG as a URL and put it in an `<img>` instead of turning it into a component, and write CSS utilities with Tailwind's `@utility` instead of a JavaScript plugin. In the same way, a macro other than `codeStory` is an error, and so is Tailwind's `@plugin` or `@config`, which load JavaScript.
 
-A `build.ts` you wrote yourself, which calls `bundleDeck` from `@liebstoeckel/engine/build`, still builds this release with Bun as before. That function is deprecated; `bundleDeck` from `@liebstoeckel/build` takes the same options, apart from `plugins` (Bun plugins).
+A `build.ts` you wrote yourself, which calls `bundleDeck` from `@liebstoeckel/engine/build`, still builds this release with Bun as before, once the deck has `bun-plugin-tailwind` of its own (`liebstoeckel install --dev bun-plugin-tailwind`): the engine no longer installs it, since it would bring a second Bun into every install. That function is deprecated; `bundleDeck` from `@liebstoeckel/build` takes the same options, apart from `plugins` (Bun plugins), and needs nothing extra.
 
 ## What ends up in the file
 

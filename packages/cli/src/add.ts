@@ -255,7 +255,7 @@ export const addCommand = defineCommand({
       type: "boolean",
       default: true,
       description: "install npm dependencies the items need",
-      negativeDescription: "do not run bun add for dependencies",
+      negativeDescription: "do not install the dependencies",
     },
     json: { type: "boolean", description: "machine-readable JSON output (default when piped)" },
   },
@@ -343,14 +343,14 @@ async function runAdd(args: {
       if (json) await proc.quiet();
       else {
         console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped, use --force to overwrite)` : ""));
-        console.log(`   installing: bun add --ignore-scripts ${dependencies.join(" ")}`);
+        console.log(`   installing: ${dependencies.join(" ")}`);
         await proc;
         console.log(`   ✓ dependencies installed`);
       }
       installed = true;
     } else if (!json) {
       console.log(`\n   ✓ wrote ${writes.length} file(s)` + (writes.length < files.length ? ` (${files.length - writes.length} skipped, use --force to overwrite)` : ""));
-      if (deps.size) console.log(`   → install deps yourself: bun add --ignore-scripts ${dependencies.join(" ")}`);
+      if (deps.size) console.log(`   → install them yourself: liebstoeckel install ${dependencies.join(" ")}`);
     }
 
     if (json) {

@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: "The umbrella liebstoeckel command: new, add, registry, build, eject, pack, licenses, dev, live, relay, thumbs, export, skill, update, doctor, login, push, orgs, decks, folders, brand."
+description: "The umbrella liebstoeckel command: new, add, install, registry, build, eject, pack, licenses, dev, live, relay, thumbs, export, skill, update, doctor, login, push, orgs, decks, folders, brand."
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -12,11 +12,17 @@ liebstoeckel <command> [args]
 liebstoeckel <deck>            # shorthand for: liebstoeckel live <deck>
 liebstoeckel --help            # the command surface
 liebstoeckel <command> --help  # arguments and options for one command
-liebstoeckel --version
+liebstoeckel --version         # the CLI, and the Bun and esbuild it runs on
 ```
 
 Every command has its own `--help` listing its arguments, options, and defaults.
 The short alias `lst` is interchangeable with `liebstoeckel` (e.g. `lst build`).
+
+The command runs on the CLI's own Bun, one exact version installed from npm with it, never
+on a `bun` you have installed. Everything it starts (dependency installs, the dev server,
+builds) runs on that Bun too. `--version` prints three lines: `liebstoeckel <version>`, then
+`bun <version> (pinned, <package>)` and `esbuild <version> (<package>)`. See
+[Installing the CLI](/guides/installation/), also for what happens when that Bun is missing.
 
 ## Machine output (`--json`)
 
@@ -52,7 +58,7 @@ for every one of them.
 
 | Command | JSON mode |
 | --- | --- |
-| `add`, `registry list`/`view`, `build`, `pack`, `licenses`, `doctor` | yes |
+| `add`, `install`, `registry list`/`view`, `build`, `pack`, `licenses`, `doctor` | yes |
 | `push`, `pull`, `sync status`/`commit`, `orgs` (`orgs list`), `decks` (`list`/`move`/`delete`), `folders` (`list`/`create`/`rename`/`delete`), `brand list` | yes |
 | `dev` | startup line with `--json` |
 | `dev poll` | always |
@@ -70,7 +76,9 @@ for every one of them.
 | `untrusted_deck` | `build`, `licenses` | the deck has not been trusted on this machine. Building runs its code, so a human decides; an agent should ask, not approve it on its own |
 | `build_failed` | `build` | the build threw; `error` has the message |
 | `no_notices` | `licenses` | the built `.html` carries no license notices; run it on the deck source instead |
-| `add_failed`, `pack_failed`, `install_failed` | `add`, `pack`, `doctor --install-chromium` | the step failed; `error` has the message |
+| `add_failed`, `pack_failed`, `install_failed` | `add`, `pack`, `install`, `doctor --install-chromium` | the step failed; `error` has the message |
+| `not_a_deck` | `install` | the folder has no `package.json`; pass `--dir <deck>` |
+| `bun_missing`, `bun_variant_missing`, `bun_version_mismatch`, `bun_binary_missing`, `bun_start_failed`, `bun_unsupported_platform` | any command, before it starts | the CLI's own Bun is not usable; the `hint` is the command that fixes it. See [When the Bun binary is missing](/guides/installation/#when-the-bun-binary-is-missing). Only printed as JSON with an explicit `--json` |
 | `not_logged_in` | cloud commands | no credentials; liebstoeckel cloud is coming soon |
 | `session_expired` | cloud commands | run `liebstoeckel login` again |
 | `forbidden` | cloud commands | your role or plan does not allow this; `error` says which |
@@ -96,7 +104,7 @@ pass `--dir <parent>` to put it elsewhere (e.g. `--dir presentations` to drop it
 into a monorepo's workspace glob).
 
 ```bash
-liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand]
+liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand] [--no-install]
 ```
 
 | Flag | Meaning |
@@ -104,8 +112,9 @@ liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand]
 | `--brand <brand>` | brand theme to wire in (default: `liebstoeckel`, or your org's default brand when logged in) |
 | `--dir <parent>` | parent directory for the deck (default: the current directory) |
 | `--no-org-brand` | don't bake the logged-in org's default brand; use the plain `liebstoeckel` brand |
+| `--no-install` | write the files only; install the dependencies later with [`liebstoeckel install`](#install) |
 
-Generates `package.json`, `index.html`, `main.tsx`, `.gitignore` and a starter `slides/01-intro.tsx`. The `package.json` scripts call the CLI (`dev`: `liebstoeckel dev`, `build`: `liebstoeckel build`), with `@liebstoeckel/cli` as a dev dependency, so `bun run dev` and `bun run build` use the version the deck pins; there is no `build.ts`, `server.ts` or `bunfig.toml`. The name must be lower-case letters/digits/hyphens; it won't overwrite an existing directory.
+Generates `package.json`, `index.html`, `main.tsx`, `.gitignore` and a starter `slides/01-intro.tsx`, then installs the deck's dependencies with the CLI's own Bun (the same as `liebstoeckel install`; Bun's progress goes to stderr). If the install fails (offline, a registry that does not answer), the deck stays and the command exits `1` with the `liebstoeckel install --dir <deck>` to run later. The `package.json` scripts call the CLI (`dev`: `liebstoeckel dev`, `build`: `liebstoeckel build`), with `@liebstoeckel/cli` as a dev dependency, so `npm run dev` and `npm run build` (or `bun run …`) use the version the deck pins; there is no `build.ts`, `server.ts` or `bunfig.toml`. The name must be lower-case letters/digits/hyphens; it won't overwrite an existing directory.
 
 When you're **logged in** (and didn't pass `--brand`), `new` automatically bakes your
 org's **default brand** into the deck as owned source: `brands/<name>.ts`, wired into
@@ -133,15 +142,15 @@ liebstoeckel add bar-chart --dry                 # show the plan, write nothing
 | `--dir <deck>` | target deck directory (default: current directory) |
 | `--dry` | print the plan (files + dependencies) without writing |
 | `--force` | overwrite files that already exist (default: skip them) |
-| `--no-install` | don't run `bun add` for the items' dependencies |
+| `--no-install` | don't install the items' dependencies |
 | `--json` | structured plan/result output (default when stdout isn't a TTY) |
 
 `add` always **prints its plan before writing**: which files it will create,
 overwrite, or skip, plus the dependencies it will install. Files land under the
 deck's `charts/` (or the item's own path); existing files are skipped unless
-`--force` (so re-running is idempotent). Dependencies are installed with
-`bun add --ignore-scripts` (the registry trust model), or skipped with
-`--no-install` so you can run it yourself. With `--json` (or when piped), the plan
+`--force` (so re-running is idempotent). Dependencies are installed with the CLI's own
+Bun and without lifecycle scripts (the registry trust model), or skipped with
+`--no-install` so you can run [`liebstoeckel install`](#install) yourself. With `--json` (or when piped), the plan
 (`--dry`) or the result emits as JSON for an agent to consume.
 
 Items resolve through a registry **namespace**. A bare name (`bar-chart`) comes
@@ -150,6 +159,29 @@ comes from a registry you map in the deck's `liebstoeckel.json` under
 `"registries"`, which today accepts a `"default"` keyword or a local path, with
 npm/git/HTTP transports planned. Categories are `chart`, `hook`, `element`,
 `component`, `layout`, `motion`; the leading category word is optional sugar.
+
+## `install`
+
+Install a deck's dependencies, or add npm packages to it, with the CLI's own Bun. Use it
+wherever you would run `bun install` or `bun add`: it needs no Bun on the machine, and it
+installs with the same Bun the CLI builds with.
+
+```bash
+liebstoeckel install                                   # everything package.json lists
+liebstoeckel install @liebstoeckel/plugin-poll         # add a package to dependencies
+liebstoeckel install --dev @fontsource-variable/inter  # add to devDependencies
+liebstoeckel install --dir ./my-talk --json
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--dev` | add the packages as devDependencies |
+| `--dir <deck>` | the deck (default: current directory) |
+| `--json` | one result document on stdout, `{ ok, action: "install", dir, packages, dev }` (default when piped) |
+
+Lifecycle scripts (`postinstall` and the like) never run: a deck's dependencies need none,
+and a deck you got from someone else must not run code just by being installed. Bun's own
+output goes to stderr. The lockfile is Bun's `bun.lock`, the same one `bun install` writes.
 
 ## `registry`
 
@@ -602,7 +634,9 @@ What it does, in order:
    command cannot manage (not declared where it is installed) is called out
    explicitly instead of being skipped in silence.
 4. **Global install** (the CLI was installed with `bun add -g`): runs
-   `bun add -g @liebstoeckel/cli@latest`. Shapes combine when several apply.
+   `bun add -g @liebstoeckel/cli@latest` on the CLI's own Bun. A CLI installed with
+   `npm install -g` is not updated by this command; it prints the
+   `npm install -g @liebstoeckel/cli@latest` to run. Shapes combine when several apply.
 5. **Refreshes the agent skill** wherever it is installed (the deck and your user
    account), using the freshly installed CLI, so the skill version matches the new
    CLI.
@@ -615,14 +649,14 @@ resolved to a single version. Releases bump dependents together, so a split is
 rare, but a package published against an older sibling can keep a stale nested
 copy that targeted updates never re-resolve; when that happens the command
 prints the affected packages and the clean reinstall
-(`rm -rf node_modules bun.lock && bun install`) that collapses them.
+(`rm -rf node_modules bun.lock && liebstoeckel install`) that collapses them.
 
 ## `doctor`
 
-Check the build environment — the Bun version (must satisfy the CLI's `engines.bun`) and whether a Chrome/Chromium was found for thumbnails and PNG/PDF export. Optionally install one.
+Check the build environment: the Bun and esbuild the CLI runs on and where they came from, and whether a Chrome/Chromium was found for thumbnails and PNG/PDF export. Optionally install one.
 
 ```bash
-liebstoeckel doctor                     # human summary (Bun + Chromium + config path)
+liebstoeckel doctor                     # human summary (Bun, esbuild, Chromium, config path)
 liebstoeckel doctor --json              # machine-readable (default when piped)
 liebstoeckel doctor --install-chromium  # download Playwright's Chromium, record its path
 ```
@@ -632,6 +666,14 @@ liebstoeckel doctor --install-chromium  # download Playwright's Chromium, record
 | `--install-chromium` | Install Playwright's Chromium if none resolves, then record its path in `~/.config/liebstoeckel/config.json` so every later build/export reuses it |
 | `--json` | Machine-readable output (default when piped) |
 | `--dir <deck>` | Deck to check for scaffold migrations and bundler plugins (default: the current directory) |
+
+`--json` carries `bun: { version, required, ok, path, pinned, package, source }` and
+`esbuild: { version, package, binaryPath }`. `source` is `pinned` when the CLI runs on its own
+Bun (`package` names the `@oven/bun-*` package it came from) and `other` when something
+started the CLI's source on another Bun (for example `bun src/cli.ts` in a checkout); the
+human output then warns. `esbuild.package` is the `@esbuild/*` package holding the native
+binary, `null` when it is missing, and `binaryPath` is set when `ESBUILD_BINARY_PATH` points
+esbuild at another binary.
 
 `doctor` resolves Chromium the same way builds do (see [Chromium setup](/guides/chromium/#resolution-order)): an existing system Chrome is found automatically, so often nothing needs installing. Only `export`/`thumbs` require a browser; `build` skips thumbnails without one. When no browser is found, the human output lists every probed location, and `--json` adds them as `probedCandidates`.
 
@@ -720,7 +762,7 @@ reason, or an unknown id).
 
 The CLI checks its registry for a newer `@liebstoeckel/cli` at most **once an hour**,
 in a detached background process, and prints a one-line note on a later run when an
-update exists. The check shells out to `bun pm view`, so it follows the same registry
+update exists. The check runs `bun pm view` on the CLI's own Bun, so it follows the same registry
 configuration as your installs (a scoped registry in `.npmrc`/`bunfig.toml`, or the
 public npm registry); no command ever waits on the network for it. Acting on the note
 is one command:

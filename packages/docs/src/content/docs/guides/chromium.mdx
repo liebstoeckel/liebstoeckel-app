@@ -19,7 +19,7 @@ The split is deliberate. `build` and `live` treat thumbnails as a best-effort en
 
 ## Check what you have
 
-`liebstoeckel doctor` reports your build environment (Bun version, whether a Chromium was found, and where its path is recorded):
+`liebstoeckel doctor` reports your build environment (the Bun and esbuild the CLI runs on, whether a Chromium was found, and where its path is recorded):
 
 ```bash
 liebstoeckel doctor            # human summary; --json for the machine-readable form
@@ -40,7 +40,7 @@ liebstoeckel doctor --install-chromium     # installs, then records the path in 
 Or install it yourself (liebstoeckel ships `playwright-core`, which has no browser of its own):
 
 ```bash
-bunx playwright install chromium
+npx playwright install chromium
 ```
 
 Or point `LIEBSTOECKEL_CHROMIUM` at a Chrome or Chromium you already have:
@@ -87,7 +87,7 @@ export LIEBSTOECKEL_CHROMIUM_ARGS="--no-sandbox --disable-gpu --disable-dev-shm-
 
 Capture launches Chromium with container-friendly flags so it runs without a GPU or user namespace (see [Launch flags](#launch-flags) above for the list and the `LIEBSTOECKEL_CHROMIUM_ARGS` override).
 
-In a container image, either run `bunx playwright install chromium` during the build, or install your distro's Chromium package and set `LIEBSTOECKEL_CHROMIUM` to it.
+In a container image, either run `liebstoeckel doctor --install-chromium` during the build, or install your distro's Chromium package and set `LIEBSTOECKEL_CHROMIUM` to it.
 
 ## Windows
 

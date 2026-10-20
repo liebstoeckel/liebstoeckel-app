@@ -7,7 +7,8 @@ import { Steps, Aside, Tabs, TabItem, FileTree, LinkCard } from "@astrojs/starli
 
 ## Prerequisites
 
-- **[Bun](https://bun.com) 1.3+**: liebstoeckel uses Bun as runtime, bundler, and test runner.
+- **Node.js 18+ with npm**, or [Bun](https://bun.com). The CLI brings its own Bun, so you do not
+  need Bun installed (see [Installing the CLI](/guides/installation/)).
 - A browser. (Optional: a Chromium for build-time thumbnails and PNG/PDF export, see [Chromium setup](/guides/chromium/).)
 
 <Aside type="caution" title="Pre-1.0">
@@ -19,30 +20,28 @@ version bump; pin exact versions if a deck has to keep building unchanged
 
 ## Scaffold a deck
 
-The umbrella CLI scaffolds a workspace-wired deck:
-
 <Steps>
 
-1. Create a deck:
+1. Install the CLI:
 
    ```bash
-   liebstoeckel new my-talk            # or: bunx @liebstoeckel/cli new my-talk --brand acme
+   npm install -g @liebstoeckel/cli    # or: bun add -g @liebstoeckel/cli
    ```
 
-2. Install dependencies (links the workspace packages):
+2. Create a deck. `new` also installs its dependencies:
 
    ```bash
-   bun install
+   liebstoeckel new my-talk            # or: npx @liebstoeckel/cli new my-talk --brand acme
    ```
 
 3. Start the dev server (hot reload that keeps your place and your components' state):
 
    ```bash
-   cd my-talk && bun run dev           # http://localhost:3000 (--port to change it)
+   cd my-talk && liebstoeckel dev      # http://localhost:3000 (--port to change it)
    ```
 
-   `bun run dev` runs [`liebstoeckel dev`](/guides/dev-mode/): the deck with
-   hot reload, plus the annotation sidebar and the agent loop.
+   [`liebstoeckel dev`](/guides/dev-mode/) serves the deck with hot reload, plus the
+   annotation sidebar and the agent loop. `npm run dev` in the deck does the same.
 
    To present a live session for a room instead (LAN by default, or through a
    public relay), use `liebstoeckel live my-talk`. See [Live presenting](/guides/live/).

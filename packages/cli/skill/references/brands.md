@@ -109,7 +109,7 @@ Treat that warning as **must-fix**. Two correct options:
 - **Add another font** — install its Fontsource package and bundle **one latin
   variable face**, mirroring `@liebstoeckel/theme`'s `fonts.css`:
   ```bash
-  bun add @fontsource-variable/<id>          # e.g. nunito-sans, inter, manrope
+  liebstoeckel install @fontsource-variable/<id>   # e.g. nunito-sans, inter, manrope
   ```
   Create `brands/<name>.css`:
   ```css

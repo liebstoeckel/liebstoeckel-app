@@ -61,11 +61,11 @@ workflows above, then rebuild.
 ```bash
 liebstoeckel eject <deck.html> [outdir]   # default outdir: <deck>-source; --force to overwrite
 cd <outdir>
-bun install --ignore-scripts             # installs deps WITHOUT running npm lifecycle scripts
+liebstoeckel install                     # installs deps WITHOUT running npm lifecycle scripts
 liebstoeckel build                       # rebuild to a single .html
 ```
 
-`--ignore-scripts` only blocks npm lifecycle scripts — it does **not** make the deck safe:
+`liebstoeckel install` never runs lifecycle scripts, but that only blocks npm lifecycle scripts — it does **not** make the deck safe:
 `build` reads its code and packages and renders it in a headless browser for thumbnails. An ejected deck is **not**
 trusted (only `liebstoeckel new` auto-trusts), so this rebuild hits the trust gate. Per
 the trust rule above: if it fails with `untrusted deck`, **ask the user** — never add

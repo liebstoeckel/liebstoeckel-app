@@ -16,14 +16,14 @@ This guide takes you from a bare `.html` to an editing loop.
 
 ## 1. Install the CLI
 
-You need [Bun](https://bun.com) 1.3+. Then install the umbrella `liebstoeckel`
-command:
+Install the umbrella `liebstoeckel` command. It brings its own Bun, so Node.js with npm is
+enough:
 
 ```bash
-bun add -g @liebstoeckel/cli
+npm install -g @liebstoeckel/cli    # or: bun add -g @liebstoeckel/cli
 ```
 
-See [Getting started](/guides/getting-started/) for the full setup.
+See [Installing the CLI](/guides/installation/) for the details.
 
 ## 2. Eject the source
 
@@ -59,17 +59,18 @@ hot reload:
 
 <Steps>
 
-1. Install (keep lifecycle scripts off for a deck you didn't build yourself):
+1. Install its dependencies. `liebstoeckel install` never runs lifecycle scripts, which
+   matters for a deck you didn't build yourself:
 
    ```bash
    cd my-talk-source
-   bun install --ignore-scripts
+   liebstoeckel install
    ```
 
 2. Edit live:
 
    ```bash
-   liebstoeckel dev           # or: bun run dev
+   liebstoeckel dev           # or: npm run dev
    ```
 
 </Steps>

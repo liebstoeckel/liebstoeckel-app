@@ -14,6 +14,7 @@ import {
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { CliError, fail, wantsJson } from "./output";
+import { bunRuntime, bunRuntimeFrom, esbuildRuntime, type BunRuntime, type EsbuildRuntime } from "./runtime";
 
 /** Resolve a Chrome/Chromium path through the same order builds use, or null. */
 function findChromium(): string | null {
@@ -25,7 +26,11 @@ function findChromium(): string | null {
 }
 
 export interface DoctorReport {
-  bun: { version: string; required: string; ok: boolean };
+  /** `source` is `pinned` when the CLI runs on the Bun pinned in its package.json
+   *  (an `@oven/bun-*` package, which the `liebstoeckel` command starts), `other`
+   *  when something started it on another Bun. */
+  bun: { version: string; required: string; ok: boolean } & Omit<BunRuntime, "version">;
+  esbuild: EsbuildRuntime;
   chromium: { path: string | null; ok: boolean };
   /** CLI staleness from the CACHED registry check (never a live lookup here,
    *  doctor stays network-free): `latestKnown` is null with no or a failed
@@ -41,13 +46,23 @@ export function buildReport(parts: {
   chromium: string | null;
   cliVersion: string;
   latestKnown: string | null;
+  bunPath?: string;
+  bunPinned?: string | null;
+  esbuild?: EsbuildRuntime;
 }): DoctorReport {
+  const { version: _version, ...runtime } = bunRuntimeFrom({
+    version: parts.bunVersion,
+    execPath: parts.bunPath ?? bunBin,
+    pinned: parts.bunPinned ?? null,
+  });
   return {
     bun: {
       version: parts.bunVersion,
       required: parts.bunRange,
       ok: bunVersionError(parts.bunVersion, parts.bunRange, bunBin) === null,
+      ...runtime,
     },
+    esbuild: parts.esbuild ?? { version: null, package: null, binaryPath: null },
     chromium: { path: parts.chromium, ok: parts.chromium !== null },
     cli: {
       version: parts.cliVersion,
@@ -91,6 +106,29 @@ export function skillReport(parts: { installed: string | null; cliVersion: strin
  *  thumbnails without it), so a missing browser reports but does not fail. */
 export function diagnosticExitCode(report: DoctorReport): number {
   return report.bun.ok ? 0 : 1;
+}
+
+/** Pure: the Bun and esbuild lines of the prose report (unit-tested). */
+export function runtimeLines(report: DoctorReport): string[] {
+  const { bun, esbuild } = report;
+  const lines = [
+    bun.source === "pinned"
+      ? `${bun.ok ? "✓" : "✗"} Bun ${bun.version}, the CLI's pinned Bun (${bun.package})`
+      : `${bun.ok ? "✓" : "✗"} Bun ${bun.version} (needs ${bun.required}) at ${bun.path}`,
+  ];
+  if (bun.source === "other" && bun.pinned) {
+    lines.push(`⚠ not the CLI's pinned Bun ${bun.pinned}: this run bypassed the \`liebstoeckel\` command (for example \`bun src/cli.ts\`)`);
+  }
+  lines.push(
+    esbuild.version === null
+      ? "✗ esbuild not found, reinstall the CLI"
+      : esbuild.binaryPath
+        ? `✓ esbuild ${esbuild.version} (ESBUILD_BINARY_PATH=${esbuild.binaryPath})`
+        : esbuild.package
+          ? `✓ esbuild ${esbuild.version} (${esbuild.package})`
+          : `✗ esbuild ${esbuild.version}, but its native binary package is not installed; reinstall with optional dependencies`,
+  );
+  return lines;
 }
 
 /** Prose lines for Bun plugins in bunfig.toml that the build no longer runs: one
@@ -146,7 +184,7 @@ export const doctorCommand = defineCommand({
             json,
             new CliError("Chromium install failed", {
               code: "install_failed",
-              hint: "try `bunx playwright install chromium` and check its output",
+              hint: "check the installer's output above, or install Chrome or Chromium yourself and set LIEBSTOECKEL_CHROMIUM to it",
             }),
           );
         }
@@ -158,8 +196,12 @@ export const doctorCommand = defineCommand({
       process.exit(path ? 0 : 1);
     }
 
+    const bun = await bunRuntime();
     const report = buildReport({
       bunVersion: Bun.version,
+      bunPath: bun.path,
+      bunPinned: bun.pinned,
+      esbuild: esbuildRuntime(),
       bunRange: await requiredBunRange(),
       chromium: findChromium(),
       cliVersion: await cliVersion(),
@@ -192,7 +234,7 @@ export const doctorCommand = defineCommand({
       console.log(JSON.stringify({ ...report, skill, migrations, migrationWarnings, pluginProblems, storedChromium: stored ?? null, ...(probed ? { probedCandidates: probed } : {}) }));
     } else {
       const ok = (b: boolean) => (b ? "✓" : "✗");
-      console.error(`${ok(report.bun.ok)} Bun ${report.bun.version} (needs ${report.bun.required})`);
+      for (const line of runtimeLines(report)) console.error(line);
       console.error(
         report.chromium.ok
           ? `${ok(true)} Chromium ${report.chromium.path}`

@@ -22,23 +22,21 @@ The [what is liebstoeckel?](https://docs.liebstoeckel.app/guides/what-is-liebsto
 
 ## Getting started
 
-All you need is [Bun](https://bun.com) 1.3 or newer; the first line installs it through npm if you do not have it. A browser is enough to view a deck, and a Chromium is optional for build-time thumbnails.
+All you need is Node.js 18+ with npm (or [Bun](https://bun.com)): the CLI brings its own pinned Bun from npm and never uses the one on your machine. A browser is enough to view a deck, and a Chromium is optional for build-time thumbnails.
 
 Install the CLI and hand the authoring skill to your agent:
 
 ```bash
-npm install -g bun              # skip if you already have Bun 1.3+
-bun add -g @liebstoeckel/cli    # the liebstoeckel CLI
-liebstoeckel skill install      # teach your coding agent the workflow
+npm install -g @liebstoeckel/cli   # or: bun add -g @liebstoeckel/cli
+liebstoeckel skill install         # teach your coding agent the workflow
 ```
 
 Then scaffold a deck and run it:
 
 ```bash
-liebstoeckel new my-talk
+liebstoeckel new my-talk           # also installs its dependencies
 cd my-talk
-bun install
-bun run dev                     # liebstoeckel dev: hot reload + the annotation sidebar
+liebstoeckel dev                   # hot reload + the annotation sidebar
 ```
 
 Build to a single file when you are ready to share:

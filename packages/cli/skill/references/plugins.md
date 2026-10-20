@@ -27,7 +27,7 @@ registered on `<Present>`.
 Scaffolded decks ship **no** plugin packages, so add the ones you use:
 
 ```bash
-bun add @liebstoeckel/plugin-poll @liebstoeckel/plugin-qa @liebstoeckel/plugin-reactions
+liebstoeckel install @liebstoeckel/plugin-poll @liebstoeckel/plugin-qa @liebstoeckel/plugin-reactions
 ```
 
 Then import each (default export) and pass the set to `<Present plugins={…}>`:

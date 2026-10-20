@@ -2,7 +2,6 @@ import type { BunPlugin } from "bun";
 import { rm } from "node:fs/promises";
 import { basename, join, dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import tailwind from "bun-plugin-tailwind";
 import { deckLocalPlugins, discoverFromPackageJson, type DeckLocalPlugin, type PkgJson } from "@liebstoeckel/plugin-sdk/discovery";
 import {
   embedManifest,
@@ -27,8 +26,25 @@ export { firstPartyVersionConflicts, formatFirstPartyConflicts, type FirstPartyC
 
 /** The plugins every deck build runs (Tailwind CSS gen, MDX compile, visx ESM
  *  interop). Shared so the license collector and any collect-only build resolve
- *  the exact same module graph as a real build. */
-const DECK_PLUGINS = [tailwind, mdx, visxEsmInterop];
+ *  the exact same module graph as a real build.
+ *
+ *  bun-plugin-tailwind is not a dependency of the engine: it declares the `bun`
+ *  npm package as a peer, which package managers then install next to every
+ *  deck (several Bun binaries, and a `bun` on the deck's script PATH). Only this
+ *  deprecated pipeline needs it, so it is loaded from the deck when used. */
+async function deckPlugins(): Promise<BunPlugin[]> {
+  let tailwind: BunPlugin;
+  try {
+    tailwind = ((await import("bun-plugin-tailwind")) as { default: BunPlugin }).default;
+  } catch (err) {
+    throw new Error(
+      "@liebstoeckel/engine/build needs bun-plugin-tailwind, which the deck does not have. " +
+        "Build with `liebstoeckel build` (it does not need it), or add it to the deck: " +
+        `liebstoeckel install --dev bun-plugin-tailwind (${(err as Error).message})`,
+    );
+  }
+  return [tailwind, mdx, visxEsmInterop];
+}
 
 /** Compile-time constants every deck build pins. Without an explicit value Bun
  *  inlines `process.env.NODE_ENV` from the builder's environment and falls back
@@ -36,7 +52,7 @@ const DECK_PLUGINS = [tailwind, mdx, visxEsmInterop];
  *  ship its development build, and the same source would produce different
  *  bytes on two machines. A built deck is always a production artifact; the dev
  *  server keeps the development build and does not come through here. Shared
- *  like `DECK_PLUGINS` because packages pick their entry points by this value,
+ *  like `deckPlugins()` because packages pick their entry points by this value,
  *  so the license and check builds must see the same module graph. */
 const DECK_DEFINE = { "process.env.NODE_ENV": JSON.stringify("production") };
 
@@ -289,7 +305,7 @@ export async function bundleDeck({
     target: "browser",
     compile: true,
     define: DECK_DEFINE,
-    plugins: [...plugins, ...DECK_PLUGINS, licenses.plugin],
+    plugins: [...plugins, ...(await deckPlugins()), licenses.plugin],
   });
 
   if (!result.success) {
@@ -367,7 +383,7 @@ export async function collectDeckLicenses({
     minify: false,
     target: "browser",
     define: DECK_DEFINE,
-    plugins: [...DECK_PLUGINS, licenses.plugin],
+    plugins: [...(await deckPlugins()), licenses.plugin],
   });
   if (!result.success) {
     for (const log of result.logs) console.error(log);
@@ -421,7 +437,7 @@ export async function checkDeck({
       entrypoints: [entry],
       target: "browser",
       define: DECK_DEFINE,
-      plugins: [...DECK_PLUGINS, licenses.plugin],
+      plugins: [...(await deckPlugins()), licenses.plugin],
       throw: false,
     });
     const diagnostics = result.logs.map(toDiagnostic);

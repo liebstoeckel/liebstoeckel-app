@@ -78,6 +78,22 @@ See [a plugin inside the deck](/plugins/building-a-plugin/#a-plugin-inside-the-d
 it), or the built deck's embedded source, and with it [`eject`](/reference/cli/#eject), lacks
 the plugin. The build warns when it is missing.
 
+## The CLI brings its own Bun
+
+From 0.4 the `liebstoeckel` command runs on its own Bun, one exact version installed from npm
+with the CLI, and never on the Bun you have installed. You no longer need Bun at all:
+`npm install -g @liebstoeckel/cli` is enough. `liebstoeckel new` installs a new deck's
+dependencies itself, and [`liebstoeckel install`](/reference/cli/#install) replaces
+`bun install` and `bun add` in a deck. `liebstoeckel --version` and `doctor` show which Bun and
+esbuild run. If you installed the CLI with `--omit=optional`, or through a registry mirror that
+does not proxy the `@oven` scope, the command says what is missing; see
+[Installing the CLI](/guides/installation/#when-the-bun-binary-is-missing). On Alpine (musl)
+install the musl build of Bun next to the CLI, as the message says.
+
+A deck that still runs its own 0.3 `server.ts` or `build.ts` needs `bun-plugin-tailwind` in
+the deck now (`liebstoeckel install --dev bun-plugin-tailwind`), or moves to `liebstoeckel dev`
+and `liebstoeckel build`, which need nothing.
+
 ## CLI changes for scripts and agents
 
 The CLI's [machine output](/reference/cli/#machine-output---json) follows one set of rules on
@@ -86,7 +102,7 @@ every command. What a 0.3.12 script may notice:
 | Change | 0.3.12 | 0.4 |
 | --- | --- | --- |
 | Unknown options | ignored (`build --check --thumbs=false` ran) | refused before the command does anything, exit `2`, code `unknown_option`, with the closest option it takes |
-| `--version` | accepted after a command | only `liebstoeckel --version` |
+| `--version` | accepted after a command; prints the version | only `liebstoeckel --version`; prints `liebstoeckel <version>`, then the Bun and esbuild lines |
 | Usage errors (a missing or invalid argument, e.g. `add` with nothing to add, `registry view` without a name, `build --visual` without `--check`, `eject` without a deck, `push` without a file, `new` without a name) | exit `1` | exit `2` |
 | JSON when piped | `build`, `licenses`, `add`, `registry`, `doctor` | also `pack`, `push`, `decks`, `orgs list`, `brand list`, and the new `pull`, `sync`, `folders` |
 | `--no-json` in a pipe | had no effect on the JSON commands | prints the human output |
@@ -113,7 +129,7 @@ does not have, so there the skill stays as it is until `liebstoeckel update` mov
   smaller.
 - **Generator stamp.** The `engine` version in a built file is the engine the deck bundles, not
   the one the CLI builds with.
-- **Eject** gets the deck's `bun.lock` and `.gitignore` back, so `bun install` in the ejected
+- **Eject** gets the deck's `bun.lock` and `.gitignore` back, so `liebstoeckel install` in the ejected
   project restores the versions the deck was built with. The lockfile travels inside the built
   `.html`; a build refuses a lockfile with a password in a URL and names any registry other than
   npm's that it lists.

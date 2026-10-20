@@ -271,6 +271,12 @@ export const newCommand = defineCommand({
     },
     brand: { type: "string", description: "brand to apply", valueHint: "brand" },
     dir: { type: "string", description: "parent directory for the new deck", valueHint: "parent" },
+    install: {
+      type: "boolean",
+      default: true,
+      description: "install the deck's dependencies with the CLI's own Bun",
+      negativeDescription: "do not install the dependencies",
+    },
     "org-brand": {
       type: "boolean",
       default: true,
@@ -281,7 +287,7 @@ export const newCommand = defineCommand({
   async run({ args }) {
     const name = args.name;
     if (!name) {
-      console.error("usage: liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand]");
+      console.error("usage: liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand] [--no-install]");
       process.exit(2); // a usage error (exit codes: 0 ok, 1 failure, 2 usage)
     }
     try {
@@ -292,8 +298,19 @@ export const newCommand = defineCommand({
       });
       console.log(`\n✓ created deck "${name}" → ${dir}\n`);
       for (const f of files) console.log(`   ${f}`);
+      let installed = false;
+      if (args.install !== false) {
+        console.log(`\n   installing the dependencies (liebstoeckel install)…`);
+        const { runInstall } = await import("./install");
+        installed = await runInstall(dir);
+        if (!installed) {
+          console.error(`\n✕ the deck is created, but its dependencies did not install (see above)`);
+          console.error(`  once the registry is reachable: liebstoeckel install --dir ${dir}`);
+          process.exit(1);
+        }
+      }
       console.log(`\n   next:`);
-      console.log(`     bun install`);
+      if (!installed) console.log(`     liebstoeckel install --dir ${dir}`);
       console.log(`     liebstoeckel dev --dir ${dir}    # dev mode: hot reload + the annotation sidebar`);
       console.log(`     liebstoeckel build --dir ${dir}  # one self-contained .html in dist/\n`);
     } catch (e) {

@@ -13,6 +13,7 @@ import { rootCommand } from "./cli";
 const INVENTORY: Record<string, "json" | "always-json" | "explicit-json" | string> = {
   new: "writes files; prints the created paths as prose",
   add: "json",
+  install: "json",
   "registry list": "json",
   "registry view": "json",
   build: "json",
@@ -45,7 +46,7 @@ const INVENTORY: Record<string, "json" | "always-json" | "explicit-json" | strin
   "folders delete": "json",
   "brand list": "json",
   "brand push": "uploads a file",
-  "brand pull": "writes files and runs bun add",
+  "brand pull": "writes files and installs its fonts",
 };
 
 type AnyCommand = CommandDef<ArgsDef>;

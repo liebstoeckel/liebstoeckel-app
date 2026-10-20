@@ -60,8 +60,12 @@ and `doctor` print the next step for it:
   (`pluginProblems`); do in the deck's source what it did.
 
 The scripts call `liebstoeckel`: new decks list `@liebstoeckel/cli` as a dev
-dependency so `bun run dev` finds it; an older deck uses the CLI you run `dev`
-with, or add the dependency (`bun add -d @liebstoeckel/cli`).
+dependency so `npm run dev` (or `bun run dev`) finds it; an older deck uses the CLI
+you run `dev` with, or add the dependency (`liebstoeckel install --dev @liebstoeckel/cli`).
+
+A deck that keeps its own `server.ts` or `build.ts` for now runs them on the
+deprecated Bun pipeline, which needs `bun-plugin-tailwind` in the deck
+(`liebstoeckel install --dev bun-plugin-tailwind`): the engine no longer brings it.
 
 ## Opting out
 

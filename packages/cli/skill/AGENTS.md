@@ -9,7 +9,7 @@ self-contained HTML). To create or edit a deck, drive the `liebstoeckel` CLI:
 - Scaffold a chart into a deck (owned source + deps): `liebstoeckel add <name> --dir <deck>`.
 - Validate (run in a loop until `ok:true`): `liebstoeckel build --check --dir <deck>`.
 - Build / export: `liebstoeckel build <deck>` · `liebstoeckel export <deck> --format pdf -o deck.pdf` (printable handout: add `--page-size a4`).
-- Live plugins (not in the registry): `bun add @liebstoeckel/plugin-poll` (or `-qa`/`-reactions`), register on `<Present plugins={[poll]}>`, place `<Plugin id="poll" props={{ … }} />`; present with `liebstoeckel live <deck>`.
+- Live plugins (not in the registry): `liebstoeckel install @liebstoeckel/plugin-poll` (or `-qa`/`-reactions`), register on `<Present plugins={[poll]}>`, place `<Plugin id="poll" props={{ … }} />`; present with `liebstoeckel live <deck>`.
 
 Slides are MDX/TSX files in `<deck>/slides/`, listed in order in `main.tsx`; charts are
 owned source in `<deck>/charts/`. Never invent component names or data shapes — read

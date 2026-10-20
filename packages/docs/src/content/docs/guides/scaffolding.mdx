@@ -51,7 +51,7 @@ liebstoeckel add use-brand-colors, bar-chart  →  /path/to/deck
    dependencies: @visx/axis, @visx/grid, @visx/group, @visx/scale, @visx/shape
 
    ✓ wrote 2 file(s)
-   installing: bun add --ignore-scripts @visx/axis @visx/grid @visx/group @visx/scale @visx/shape
+   installing: @visx/axis @visx/grid @visx/group @visx/scale @visx/shape
    ✓ dependencies installed
 ```
 
@@ -108,11 +108,11 @@ liebstoeckel add [<category>] <name>... [--dir <deck>] [--dry] [--force] [--no-i
 | `--dir <deck>` | target deck directory (default: current directory) |
 | `--dry` | print the plan and stop: write nothing, install nothing |
 | `--force` | overwrite files that already exist (default: skip them) |
-| `--no-install` | scaffold the files but don't run `bun add` for their deps |
+| `--no-install` | scaffold the files but don't install their dependencies |
 
-Dependencies install with `bun add --ignore-scripts`. Lifecycle scripts are off by
-design, since registry items may come from third parties. With `--no-install`, `add`
-prints the exact `bun add` line for you to run yourself.
+Dependencies install with the CLI's own Bun, with lifecycle scripts off by design,
+since registry items may come from third parties. With `--no-install`, `add` prints
+the exact [`liebstoeckel install`](/reference/cli/#install) line for you to run yourself.
 
 ## Custom & third-party registries
 

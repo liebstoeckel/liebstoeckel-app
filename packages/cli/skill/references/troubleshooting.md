@@ -18,7 +18,7 @@ Loop: run it, fix each `diagnostic` (use `file`/`line`/`message`), re-run until
 
 - **`Could not resolve "X"`** — a missing dependency. If `X` is a chart you used,
   run `liebstoeckel add <chart> --dir <deck>`. If it's a node module, run
-  `bun install` in the deck. A relative path means a wrong import path to a slide or
+  `liebstoeckel install` in the deck. A relative path means a wrong import path to a slide or
   `charts/` file.
 - **`Could not resolve "../charts/Foo"`** — you imported a chart you haven't
   scaffolded, or used the wrong export name. Check `registry view <name> --json`
@@ -46,7 +46,7 @@ with `doctor` (it auto-detects an existing system/Puppeteer Chrome, so often
 nothing needs installing):
 
 ```bash
-liebstoeckel doctor --json                 # { chromium: { path, ok }, bun: {…} }
+liebstoeckel doctor --json                 # { chromium: { path, ok }, bun: { source, … }, esbuild: {…} }
 liebstoeckel doctor --install-chromium      # if ok:false — installs + remembers it
 ```
 

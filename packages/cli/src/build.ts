@@ -281,7 +281,7 @@ async function runEject(args: { deck?: string; outdir?: string; force?: boolean 
     // `--ignore-scripts` only blocks npm lifecycle scripts, not that, so the real
     // control is to rebuild only decks you trust. `liebstoeckel build` confirms it once.
     console.log(`\n   rebuild (runs the deck's code; only rebuild decks you trust):`);
-    console.log(`     cd ${outDir} && bun install --ignore-scripts && liebstoeckel build`);
+    console.log(`     liebstoeckel install --dir ${outDir} && liebstoeckel build --dir ${outDir}`);
     // An ejected deck isn't trusted yet, so the first rebuild asks you to confirm. Frame
     // that as a human decision, deliberately NOT "just add --trust", which trains an agent
     // to self-approve a deck it didn't write (the exact bypass the gate exists to prevent).
@@ -330,7 +330,7 @@ async function runPack(args: { deck?: string; dir?: string; out?: string; allowS
     }
     if (out) {
       // pack's native gzip, `bun add ./<file>.tgz`-installable (zstd is embed-only).
-      console.log(`\n✓ wrote ${files.length}-file source package → ${out}  (gzip; bun add-compatible)\n`);
+      console.log(`\n✓ wrote ${files.length}-file source package → ${out}  (gzip; npm/bun installable)\n`);
     } else {
       console.log(`\nsource package (${files.length} files), what a build would embed:\n`);
     }

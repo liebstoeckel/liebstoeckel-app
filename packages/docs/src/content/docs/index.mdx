@@ -63,8 +63,8 @@ liebstoeckel is a code-first presentation framework built around the live room: 
 ## The 30-second tour
 
 ```bash frame="none"
-bun add -g @liebstoeckel/cli       # or: bunx @liebstoeckel/cli …
-liebstoeckel new my-talk           # scaffold a deck
+npm install -g @liebstoeckel/cli   # or: bun add -g, npx, bunx; no Bun needed
+liebstoeckel new my-talk           # scaffold a deck and install its dependencies
 liebstoeckel live my-talk          # present live (audience joins by QR)
 liebstoeckel build my-talk         # → one self-contained dist/my-talk.html
 ```
