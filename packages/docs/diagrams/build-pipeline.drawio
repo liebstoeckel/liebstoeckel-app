@@ -2,13 +2,13 @@
   <root>
     <mxCell id="0"/>
     <mxCell id="1" parent="0"/>
-    <mxCell id="src" value="&lt;b&gt;Deck source&lt;/b&gt;&lt;br&gt;index.html · main.tsx&lt;br&gt;slides (.mdx / .tsx)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#1e3a5f;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
+    <mxCell id="src" value="&lt;b&gt;Deck source&lt;/b&gt;&lt;br&gt;index.html · main.tsx&lt;br&gt;slides (.mdx / .tsx)&lt;br&gt;code files (.code.md)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#1e3a5f;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
       <mxGeometry x="40" y="120" width="200" height="80" as="geometry"/>
     </mxCell>
-    <mxCell id="build" value="&lt;b&gt;Bun.build&lt;/b&gt; (compile: true, target: browser)&lt;br&gt;tailwind · mdx + Shiki · code macro" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#92660a;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
+    <mxCell id="build" value="&lt;b&gt;@liebstoeckel/build&lt;/b&gt;&lt;br&gt;esbuild, two passes&lt;br&gt;MDX + Shiki · code files · Tailwind" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#92660a;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
       <mxGeometry x="320" y="120" width="280" height="80" as="geometry"/>
     </mxCell>
-    <mxCell id="out" value="&lt;b&gt;dist/index.html&lt;/b&gt;&lt;br&gt;one self-contained file&lt;br&gt;(JS + CSS inlined)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#166534;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
+    <mxCell id="out" value="&lt;b&gt;dist/&amp;lt;deck&amp;gt;.html&lt;/b&gt;&lt;br&gt;one self-contained file&lt;br&gt;(JS + CSS inlined)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#166534;fontColor=#0f172a;fontSize=13;arcSize=10;" vertex="1" parent="1">
       <mxGeometry x="680" y="120" width="220" height="80" as="geometry"/>
     </mxCell>
     <mxCell id="manifest" value="plugin manifest&lt;br&gt;(base64 server bundles)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;fontSize=12;arcSize=12;dashed=1;" vertex="1" parent="1">
