@@ -747,14 +747,6 @@
         "liebstoeckel-win-debug": "./src/cli.ts",
       },
     },
-    "presentations/_probe": {
-      "name": "probe",
-      "version": "0.0.0",
-      "dependencies": {
-        "@liebstoeckel/engine": "workspace:*",
-        "@liebstoeckel/theme": "workspace:*",
-      },
-    },
     "presentations/backdrop-demo": {
       "name": "@liebstoeckel/backdrop-demo",
       "version": "0.0.0",
@@ -3126,8 +3118,6 @@
     "pretty-format": ["pretty-format@27.5.1", "", { "dependencies": { "ansi-regex": "^5.0.1", "ansi-styles": "^5.0.0", "react-is": "^17.0.1" } }, "sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ=="],
 
     "prismjs": ["prismjs@1.30.0", "", {}, "sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw=="],
-
-    "probe": ["probe@workspace:presentations/_probe"],
 
     "process-ancestry": ["process-ancestry@0.1.0", "", {}, "sha512-tGqJW/UnclpYASFcM6Xh8D8l/BMtaQ9+CSG0vlJSJTcdMM4lDRv4c6H0Pdcsfted+bVczdYSfk2fdukg2gQkZg=="],
 

@@ -254,7 +254,7 @@ describe("deck bundle", () => {
       expect((await fetch(`${fullBase}${deckRoute(full.token)}/.env`)).status).toBe(404);
       expect((await fetch(`${fullBase}${main}`, { headers: { Host: "evil.example" } })).status).toBe(403);
       // The change channel refuses a page from another origin.
-      const ws = await fetch(`${fullBase}${deckRoute(full.token)}/@lst/hmr`, { headers: { Origin: "http://evil.example", Upgrade: "websocket", Connection: "Upgrade", "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ==" } });
+      const ws = await fetch(`${fullBase}${deckRoute(full.token)}/@lst/hmr`, { headers: { Origin: "http://evil.example", Upgrade: "websocket", Connection: "Upgrade", "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": btoa("0123456789abcdef") } });
       expect(ws.status).toBe(403);
     } finally {
       full.stop();
