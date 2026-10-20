@@ -121,7 +121,10 @@ const META: ItemMeta[] = [
 // basename-without-ext → item id, for resolving relative (`./X`) imports to registryDependencies
 const idByBase = new Map(META.map((m) => [basename(m.file, extname(m.file)), m.id]));
 
-const IMPORT_RE = /from\s+"((?:@visx\/[a-z-]+)|(?:\.\/[A-Za-z0-9_-]+))"/g;
+// `motion` too: a chart that animates imports motion/react itself, so the deck has to
+// list it (a package manager that links only direct dependencies, pnpm or a workspace,
+// does not hand the engine's copy to the deck's own files).
+const IMPORT_RE = /from\s+"((?:@visx\/[a-z-]+)|(?:motion(?:\/[a-z-]+)?)|(?:\.\/[A-Za-z0-9_-]+))"/g;
 
 async function deriveItem(meta: ItemMeta): Promise<RegistryItem> {
   const src = await Bun.file(join(REGISTRY_ROOT, "files", "charts", meta.file)).text();
@@ -131,6 +134,8 @@ async function deriveItem(meta: ItemMeta): Promise<RegistryItem> {
     const spec = m[1]!;
     if (spec.startsWith("@visx/")) {
       deps.add(spec);
+    } else if (spec === "motion" || spec.startsWith("motion/")) {
+      deps.add("motion");
     } else {
       const id = idByBase.get(spec.replace("./", ""));
       if (id && id !== meta.id) regDeps.add(id);

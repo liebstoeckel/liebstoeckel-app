@@ -11,7 +11,7 @@ import { isAsset } from "../core/load.ts";
 import { assetType } from "../core/dev.ts";
 import { esbuild } from "../esbuild-native.ts";
 import { bunfigProblems, deckTree, LOCAL, type Profile } from "../profile.ts";
-import { EMPTY_DEPS, prebuildDeps } from "./deps.ts";
+import { EMPTY_DEPS, prebuildDeps, unresolvedProblem } from "./deps.ts";
 
 export interface DeckDevOptions {
   /** the deck folder (holding index.html) */
@@ -106,9 +106,11 @@ export async function createDeckDev(opts: DeckDevOptions): Promise<DeckDev> {
   let tooling = profile.name === "local" ? bunfigProblems(deckDir) : [];
 
   let prebuildError: string | null = null;
+  let unresolved: string[] = [];
   const problemLines = () => [
     ...tooling.map((p) => `${p.file}: ${p.message}`),
     ...(prebuildError ? [`the dependency prebuild failed: ${prebuildError}`] : []),
+    ...(unresolvedProblem(unresolved) ? [unresolvedProblem(unresolved)!] : []),
     ...core.problems().map((m) => {
       const file = m.file ? relative(deckDir, tree.disk.real(m.file)).split(sep).join("/") : "";
       return `${file ? `${file}${m.line ? `:${m.line}${m.column ? `:${m.column}` : ""}` : ""}: ` : ""}${m.text}`;
@@ -117,6 +119,7 @@ export async function createDeckDev(opts: DeckDevOptions): Promise<DeckDev> {
   const overlayErrors = () => [
     ...tooling.map((p) => ({ text: p.message, file: p.file })),
     ...(prebuildError ? [{ text: `the dependency prebuild failed: ${prebuildError}` }] : []),
+    ...(unresolvedProblem(unresolved) ? [{ text: unresolvedProblem(unresolved)! }] : []),
     ...core.problems().map((m) => ({ ...m, ...(m.file ? { file: relative(deckDir, tree.disk.real(m.file)).split(sep).join("/") } : {}) })),
   ];
   let lastProblems = "[]";
@@ -151,6 +154,7 @@ export async function createDeckDev(opts: DeckDevOptions): Promise<DeckDev> {
     }
     core.deps = built.manifest;
     core.missing.clear();
+    unresolved = built.unresolved;
     depsDir = built.dir;
     log(`${built.cached ? "dependencies from the cache" : "prebuilt dependencies"} (${Object.keys(built.manifest.imports).length} entries, ${Math.round(built.ms)} ms)`);
   }
@@ -173,6 +177,10 @@ export async function createDeckDev(opts: DeckDevOptions): Promise<DeckDev> {
         tooling = bunfigProblems(deckDir);
         broadcast(tooling.length || core.problems().length ? { type: "error", errors: [] } : { type: "ok" });
       }
+      // An install while dev runs changes the lockfile: prebuild again (from the cache
+      // when nothing it read changed), so a package installed now works without a restart.
+      const installed = paths.some((p) => p.endsWith("/package.json") || /\/(bun\.lockb?|package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(p));
+      if (installed) await prebuild().catch((err) => log(`the prebuild failed: ${err instanceof Error ? err.message : String(err)}`));
       const messages = await core.change(paths);
       if (core.missing.size > 0) {
         log(`new dependencies (${[...core.missing].join(", ")}): prebuilding again`);

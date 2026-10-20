@@ -11,7 +11,7 @@ import type { DepsManifest } from "../core/dev.ts";
 import { ESBUILD_ROOT, outputRelative } from "../core/build.ts";
 import { readText } from "../core/files.ts";
 import { extractCandidates, newLoadContext } from "../core/load.ts";
-import { NS, vfsPlugin } from "../core/plugin.ts";
+import { NS, resolveInjected, vfsPlugin } from "../core/plugin.ts";
 import { JS_RESOLVE, Resolver } from "../core/resolve.ts";
 import { esbuild } from "../esbuild-native.ts";
 import type { DeckTree } from "../profile.ts";
@@ -23,6 +23,8 @@ interface CacheManifest extends DepsManifest {
   key: string;
   /** what the prebuild read, to tell whether the cache still holds */
   inputs: Array<{ path: string; size: number; mtimeMs: number }>;
+  /** specifiers that did not resolve: the cache stops holding once one does */
+  unresolved?: string[];
 }
 
 export interface Prebuilt {
@@ -31,6 +33,8 @@ export interface Prebuilt {
   dir: string;
   ms: number;
   cached: boolean;
+  /** bare specifiers the deck imports that nothing installed provides */
+  unresolved: string[];
 }
 
 export const EMPTY_DEPS: DepsManifest = { imports: {}, css: [], candidates: [] };
@@ -51,7 +55,19 @@ function isCommonJs(source: string): boolean {
 
 /** Whether an ES module exports `default` itself: `export default`, `export { x as
  *  default }` or `export { default } from` (not `export { default as X }`). */
-export const hasDefaultExport = (source: string) => /\bexport\s+default\b|\bexport\s*\{[^}]*?(?:\bas\s+default\s*[,}]|(?:\{|,)\s*default\s*[,}])/.test(source);
+export function hasDefaultExport(source: string): boolean {
+  if (/\bexport\s+default\b/.test(source)) return true;
+  // `export { default } from`, `export { x as default }`; not `export { default as x }`,
+  // and nothing type-only.
+  for (const m of source.matchAll(/\bexport\s*\{([^}]*)\}/g)) {
+    for (const raw of m[1]!.split(",")) {
+      const part = raw.trim();
+      if (part.startsWith("type ")) continue;
+      if (part === "default" || /\bas\s+default$/.test(part)) return true;
+    }
+  }
+  return false;
+}
 
 /** The names a CommonJS module exports, read statically (nothing runs): `exports.x =`,
  *  `Object.defineProperty(exports, "x"`, `module.exports = { x, y: ... }`, and the
@@ -102,26 +118,35 @@ export async function prebuildDeps(tree: DeckTree, specs: string[], cacheDir: st
   const key = keyOf(sorted, mode);
   const dir = join(cacheDir, key);
   const manifestFile = join(dir, "manifest.json");
+  const resolver = new Resolver(tree.files, tree.resolver);
+  const resolve = (spec: string) => resolver.resolve(spec, tree.deck, JS_RESOLVE) ?? resolveInjected(resolver, spec, tree.deck);
+  const resolves = (spec: string) => {
+    const r = resolve(spec);
+    return !!r && "path" in r;
+  };
   if (existsSync(manifestFile)) {
     try {
       const m = JSON.parse(readFileSync(manifestFile, "utf8")) as CacheManifest;
-      if (m.format === FORMAT && m.key === key && stillValid(tree, m)) {
-        return { manifest: { imports: m.imports, css: m.css, candidates: m.candidates }, dir, ms: performance.now() - t0, cached: true };
+      // A package installed since (`liebstoeckel install` while dev runs) ends the cache.
+      const unresolved = m.unresolved ?? [];
+      if (m.format === FORMAT && m.key === key && stillValid(tree, m) && !unresolved.some(resolves)) {
+        return { manifest: { imports: m.imports, css: m.css, candidates: m.candidates }, dir, ms: performance.now() - t0, cached: true, unresolved };
       }
     } catch {
       // rebuild below
     }
   }
-  if (sorted.length === 0) return { manifest: EMPTY_DEPS, dir, ms: 0, cached: false };
+  if (sorted.length === 0) return { manifest: EMPTY_DEPS, dir, ms: 0, cached: false, unresolved: [] };
 
-  const resolver = new Resolver(tree.files, tree.resolver);
+  const unresolved: string[] = [];
   const ctx = newLoadContext(tree.files, resolver, mode);
   const candidates = new Set<string>();
   ctx.onSource = (_path, text) => extractCandidates(text, candidates);
   const entryCode = new Map<string, string>();
   for (const spec of sorted) {
-    const resolved = resolver.resolve(spec, tree.deck, JS_RESOLVE);
+    const resolved = resolve(spec);
     if (!resolved || !("path" in resolved)) {
+      unresolved.push(spec);
       entryCode.set(spec, `throw new Error(${JSON.stringify(`Could not resolve "${spec}" from the deck`)});\n`);
       continue;
     }
@@ -190,11 +215,18 @@ export async function prebuildDeps(tree: DeckTree, specs: string[], cacheDir: st
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, out.contents);
   }
-  const manifest: CacheManifest = { format: FORMAT, key, imports, css: css.sort(), candidates: [...candidates].sort(), inputs };
+  const manifest: CacheManifest = { format: FORMAT, key, imports, css: css.sort(), candidates: [...candidates].sort(), inputs, ...(unresolved.length ? { unresolved } : {}) };
   mkdirSync(tmp, { recursive: true });
   writeFileSync(join(tmp, "manifest.json"), JSON.stringify(manifest));
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dirname(dir), { recursive: true });
   renameSync(tmp, dir);
-  return { manifest: { imports, css: manifest.css, candidates: manifest.candidates }, dir, ms: performance.now() - t0, cached: false };
+  return { manifest: { imports, css: manifest.css, candidates: manifest.candidates }, dir, ms: performance.now() - t0, cached: false, unresolved };
+}
+
+/** The line the dev server shows for packages the deck imports but has not installed. */
+export function unresolvedProblem(specs: string[]): string | null {
+  if (specs.length === 0) return null;
+  const names = specs.map((s) => `"${s}"`).join(", ");
+  return `Could not resolve ${names} from the deck: install the deck's dependencies with \`liebstoeckel install\` (the dev server picks them up without a restart)`;
 }

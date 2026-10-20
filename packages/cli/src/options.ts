@@ -163,6 +163,20 @@ export function suggestOption(typed: string, args: Record<string, ArgSpec>): str
   return best && bestD <= Math.max(1, Math.floor(want.length / 3)) ? `--${best}` : undefined;
 }
 
+/** The closest command name to a typo, or undefined when none is close. */
+export function suggestCommand(typed: string, names: Iterable<string>): string | undefined {
+  let best: string | undefined;
+  let bestD = Infinity;
+  for (const c of names) {
+    const dd = distance(typed, c);
+    if (dd < bestD) {
+      bestD = dd;
+      best = c;
+    }
+  }
+  return best && bestD <= Math.max(1, Math.floor(typed.length / 3)) ? best : undefined;
+}
+
 export interface UnknownOption {
   /** The option as typed. */
   option: string;

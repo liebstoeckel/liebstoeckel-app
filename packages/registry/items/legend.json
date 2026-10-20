@@ -6,7 +6,8 @@
   "description": "Brand-styled ordinal legend (@visx/legend) for placing beside a chart.",
   "dependencies": [
     "@visx/legend",
-    "@visx/scale"
+    "@visx/scale",
+    "motion"
   ],
   "registryDependencies": [
     "use-brand-colors"

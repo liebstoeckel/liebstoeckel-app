@@ -7,7 +7,8 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
 0.4 brings the live audience work: the join card and stable join link, a phone-first audience
 view, clear audience states in English and German, and presenter links that keep their token
-out of the address bar. It also tightens the CLI's machine output. This page lists what to do
+out of the address bar. It builds decks with a new build core, and the CLI brings its own Bun,
+so you no longer need Bun installed. It also tightens the CLI's machine output. This page lists what to do
 and what behaves differently from 0.3.12.
 
 ## Upgrade a deck
@@ -22,6 +23,10 @@ and what behaves differently from 0.3.12.
 
    It moves every `@liebstoeckel/*` package the deck declares to its latest release, updates a
    global CLI install, and refreshes the agent skill. It prints one line per package that moved.
+   Then it brings the deck's scaffold files along (see
+   [The build core](#the-build-core-replaces-the-scaffolds-tooling-files)): it removes the 0.3
+   `bunfig.toml`, `server.ts` and `build.ts` where you never changed them, and says what to do
+   with one you did change.
    A plain `bun update` keeps a deck on 0.3: before 1.0, `^0.3.10` does not include 0.4.
 
 2. Rebuild the deck (`liebstoeckel build`), and rebuild any `.html` you present through a
@@ -78,6 +83,30 @@ See [a plugin inside the deck](/plugins/building-a-plugin/#a-plugin-inside-the-d
 it), or the built deck's embedded source, and with it [`eject`](/reference/cli/#eject), lacks
 the plugin. The build warns when it is missing.
 
+## The build core replaces the scaffold's tooling files
+
+0.4 builds and serves decks with its own build core on [esbuild](https://esbuild.github.io)
+instead of Bun's bundler and dev server. For a deck author that means:
+
+- **Three files fewer.** A 0.3 deck carries a `bunfig.toml`, a `server.ts` and a `build.ts`,
+  with `dev` and `build` scripts that run them. `liebstoeckel update` (and `liebstoeckel dev`)
+  removes the ones you never changed, points the scripts at `liebstoeckel dev` and
+  `liebstoeckel build`, and drops them from `files`. One you changed stays, and the CLI says
+  what to do with it: move what you added elsewhere, then delete it. Nothing breaks while it is
+  there, the CLI never runs it. This is migration `0003-scaffold-tooling-files`; see
+  [scaffold migrations](/reference/cli/#scaffold-migrations).
+- **No Bun plugins, no other macros.** The build runs nothing of the deck. A Bun plugin of
+  your own in `bunfig.toml` is reported by `dev`, `build` and `doctor`, with what to do instead
+  (see [Building](/guides/building/)); a macro import other than `codeStory`, and Tailwind's
+  `@plugin` or `@config`, are errors.
+- **Animated code moves to code files.** Write the states of a `<CodeMagic>` block as fenced
+  blocks in a `.code.md` file and import it. The `codeStory` macro still builds, with a warning
+  that it is deprecated; it goes in a later release. See
+  [Animated code](/guides/animated-code/) for how to move a slide.
+- **The same bytes everywhere.** The same source builds to the same file on every machine and
+  from any folder, and hot reload keeps the slide, the step and component state
+  across edits.
+
 ## The CLI brings its own Bun
 
 From 0.4 the `liebstoeckel` command runs on its own Bun, one exact version installed from npm
@@ -89,6 +118,11 @@ esbuild run. If you installed the CLI with `--omit=optional`, or through a regis
 does not proxy the `@oven` scope, the command says what is missing; see
 [Installing the CLI](/guides/installation/#when-the-bun-binary-is-missing). On Alpine (musl)
 install the musl build of Bun next to the CLI, as the message says.
+
+If you installed a deck with Bun 1.4, its `bun.lock` is in a format the CLI's Bun 1.3 does not
+read: the first `liebstoeckel install` or `update` in it prints "Unknown lockfile version",
+ignores the lockfile and writes it again, resolving its versions anew once. Nothing else is
+needed.
 
 A deck that still runs its own 0.3 `server.ts` or `build.ts` needs `bun-plugin-tailwind` in
 the deck now (`liebstoeckel install --dev bun-plugin-tailwind`), or moves to `liebstoeckel dev`
@@ -102,6 +136,7 @@ every command. What a 0.3.12 script may notice:
 | Change | 0.3.12 | 0.4 |
 | --- | --- | --- |
 | Unknown options | ignored (`build --check --thumbs=false` ran) | refused before the command does anything, exit `2`, code `unknown_option`, with the closest option it takes |
+| Unknown commands | the whole usage, exit `1` | one line with the closest command, exit `2`, code `unknown_command` |
 | `--version` | accepted after a command; prints the version | only `liebstoeckel --version`; prints `liebstoeckel <version>`, then the Bun and esbuild lines |
 | Usage errors (a missing or invalid argument, e.g. `add` with nothing to add, `registry view` without a name, `build --visual` without `--check`, `eject` without a deck, `push` without a file, `new` without a name) | exit `1` | exit `2` |
 | JSON when piped | `build`, `licenses`, `add`, `registry`, `doctor` | also `pack`, `push`, `decks`, `orgs list`, `brand list`, and the new `pull`, `sync`, `folders` |

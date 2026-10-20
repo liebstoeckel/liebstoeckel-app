@@ -7,7 +7,8 @@
   "dependencies": [
     "@visx/group",
     "@visx/heatmap",
-    "@visx/scale"
+    "@visx/scale",
+    "motion"
   ],
   "registryDependencies": [
     "use-brand-colors"

@@ -117,6 +117,25 @@ async function refuseUnknownOptions(rawArgs: string[]): Promise<void> {
   );
 }
 
+/** Exit 2 on a command the CLI does not have, like an unknown option: citty would
+ *  print the whole usage and exit 1, which reads as a failed command, not a typo. */
+async function refuseUnknownCommand(rawArgs: string[]): Promise<void> {
+  const lead = rawArgs.find((a) => !a.startsWith("-"));
+  if (!lead || KNOWN_COMMANDS.has(lead) || rawArgs.includes("--help") || rawArgs.includes("-h")) return;
+  const { suggestCommand } = await import("./options");
+  const { CliError, fail, wantsJson } = await import("./output");
+  const flag = rawArgs.includes("--json") ? true : rawArgs.includes("--no-json") ? false : undefined;
+  const near = suggestCommand(lead, KNOWN_COMMANDS);
+  fail(
+    wantsJson(flag),
+    new CliError(`unknown command ${lead}`, {
+      code: "unknown_command",
+      hint: near ? `did you mean \`liebstoeckel ${near}\`? (see \`liebstoeckel --help\`)` : "see `liebstoeckel --help`",
+      exit: 2,
+    }),
+  );
+}
+
 /** Started by the `liebstoeckel` shim: stop when the shim is gone. A hard kill of the
  *  shim (TerminateProcess on Windows, SIGKILL elsewhere) never reaches this process,
  *  and a dev server left behind would hold its port. The command's own SIGTERM
@@ -190,6 +209,7 @@ async function main() {
   // Refuse options the command does not declare, before anything with a side
   // effect runs (the update notice, the skill self-heal, the command itself):
   // citty would drop them silently, and a dropped `--json` changes the output.
+  await refuseUnknownCommand(rawArgs);
   await refuseUnknownOptions(rawArgs);
 
   // Best-effort, stderr-only (see update.ts): a cached "new CLI version" note

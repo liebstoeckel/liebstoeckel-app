@@ -7,6 +7,7 @@ import {
   exactPins,
   isExactPin,
   planUpdate,
+  reportAutoPatches,
   restoreExactPins,
   versionChanges,
 } from "./update-cmd";
@@ -205,5 +206,25 @@ describe("exact pins (pure)", () => {
       ["@liebstoeckel/plugin-poll", "0.4.0"],
     ]);
     expect(versionChanges(before, after)).toEqual(["@liebstoeckel/engine 0.3.10 -> 0.4.0", "@liebstoeckel/plugin-poll (new) -> 0.4.0"]);
+  });
+});
+
+describe("reportAutoPatches", () => {
+  test("prints what update migrated and what still needs a person, as dev does", () => {
+    const lines: string[] = [];
+    const orig = console.error;
+    console.error = (...a: unknown[]) => void lines.push(a.join(" "));
+    try {
+      reportAutoPatches({
+        applied: [{ id: "0003-scaffold-tooling-files", file: "removed build.ts", reason: "the CLI builds" }],
+        hinted: [{ id: "0003-scaffold-tooling-files", reference: "references/migrations/0003-scaffold-tooling-files.md", reason: "the CLI builds", details: ["server.ts differs from the scaffold"] }],
+        warnings: [],
+      });
+    } finally {
+      console.error = orig;
+    }
+    expect(lines[0]).toBe("↻ migrated removed build.ts (0003-scaffold-tooling-files): the CLI builds");
+    expect(lines[1]).toContain("⚠ migration needed (0003-scaffold-tooling-files)");
+    expect(lines[2]).toBe("    server.ts differs from the scaffold");
   });
 });

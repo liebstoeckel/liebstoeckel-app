@@ -60,3 +60,23 @@ test("destroy stops a pending message", async () => {
   await Bun.sleep(60);
   expect(sent).toEqual([1]);
 });
+
+test("connections that name the same viewer count once, and leave once the last is gone", () => {
+  const c = new AudienceCounter(() => {}, 0);
+  c.join("p:a");
+  c.join("p:a");
+  expect(c.n).toBe(1);
+  expect(c.has("p:a")).toBe(true);
+  c.join("p:b");
+  c.join();
+  expect(c.n).toBe(3);
+  c.leave("p:a");
+  expect(c.n).toBe(3);
+  c.leave("p:a");
+  expect(c.n).toBe(2);
+  expect(c.has("p:a")).toBe(false);
+  c.leave("p:a");
+  expect(c.n).toBe(2);
+  expect(c.peak).toBe(3);
+  c.destroy();
+});

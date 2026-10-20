@@ -82,7 +82,7 @@ import "@liebstoeckel/theme/styles.css";
 import "./brands/acme.css";          // bundle the face
 ```
 
-Bun resolves the bare `@fontsource-variable/…` `url()` and base64-inlines the woff2 (`bun add @fontsource-variable/manrope` first).
+The build resolves the bare `@fontsource-variable/…` `url()` and base64-inlines the woff2 (`liebstoeckel install @fontsource-variable/manrope` first). A font file inside the deck works the same way with a relative `url("../assets/fonts/my-font.woff2")`.
 
 <Aside type="caution" title="Don't let a font silently fall back">
 Reference the single `…-latin-wght-normal.woff2` directly. **Don't** `import "@fontsource-variable/<id>"` or its `/index.css`: those pull `unicode-range`-subset faces that don't survive inlining and silently fall back to a system font. The family name must match **exactly**, including a `Variable` suffix (`"Manrope Variable"` ≠ a system `"Manrope"`).

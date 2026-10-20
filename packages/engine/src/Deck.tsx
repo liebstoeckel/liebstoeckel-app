@@ -360,17 +360,54 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
   useEffect(() => {
     if (!phoneTarget) return;
     const typing = (el: EventTarget | null) => el instanceof HTMLElement && el.matches(TEXT_ENTRY);
+    // A tap on a poll option while the question box has focus blurs the box on the
+    // press, and leaving the typing layout then moves the option away before the
+    // release: the tap would be lost. So while a press is down, the layout waits for
+    // its click (or, without one, a moment after the release).
+    let pressed = false;
+    let leave = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const settle = (ms: number) => {
+      if (!leave) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        leave = false;
+        setPhoneTyping(false);
+      }, ms);
+    };
     const onIn = (e: FocusEvent) => {
-      if (typing(e.target)) setPhoneTyping(true);
+      if (!typing(e.target)) return;
+      leave = false;
+      clearTimeout(timer);
+      setPhoneTyping(true);
     };
     const onOut = (e: FocusEvent) => {
-      if (!typing(e.relatedTarget)) setPhoneTyping(false);
+      if (typing(e.relatedTarget)) return;
+      leave = true;
+      if (!pressed) settle(0);
     };
+    const onDown = () => {
+      pressed = true;
+    };
+    const onUp = () => {
+      pressed = false;
+      settle(400);
+    };
+    const onClick = () => settle(0);
     phoneTarget.addEventListener("focusin", onIn);
     phoneTarget.addEventListener("focusout", onOut);
+    window.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("pointerup", onUp, true);
+    window.addEventListener("pointercancel", onUp, true);
+    window.addEventListener("click", onClick, true);
     return () => {
+      clearTimeout(timer);
       phoneTarget.removeEventListener("focusin", onIn);
       phoneTarget.removeEventListener("focusout", onOut);
+      window.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("pointerup", onUp, true);
+      window.removeEventListener("pointercancel", onUp, true);
+      window.removeEventListener("click", onClick, true);
     };
   }, [phoneTarget]);
   const talkEnded = liveCtx?.connection?.status === "ended";

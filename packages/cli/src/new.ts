@@ -27,6 +27,11 @@ export interface DeckDeps {
    *  version the deck pins; omitted when not given (a generated deck builds
    *  elsewhere). */
   cli?: string;
+  /** React and React DOM, which main.tsx imports itself. They are peers of the
+   *  engine, so Bun and npm install them either way, but a package manager that
+   *  links only direct dependencies at the top (pnpm) leaves main.tsx unable to
+   *  resolve them unless the deck names them. Omitted when not given. */
+  react?: string;
 }
 
 export function deckFiles(
@@ -76,6 +81,7 @@ export function deckFiles(
     dependencies: {
       "@liebstoeckel/engine": range("engine"),
       "@liebstoeckel/theme": range("theme"),
+      ...(deps.react ? { react: deps.react, "react-dom": deps.react } : {}),
       ...fontDeps,
     },
     ...(deps.cli ? { devDependencies: { "@liebstoeckel/cli": deps.cli } } : {}),
@@ -219,6 +225,17 @@ function cliRange(): string {
   return range;
 }
 
+/** The React range this CLI's engine takes, from the CLI's own peerDependencies. */
+function reactRange(): string | undefined {
+  const pj = join(dirname(import.meta.path), "..", "package.json");
+  try {
+    const r = (JSON.parse(readFileSync(pj, "utf8")) as { peerDependencies?: Record<string, string> }).peerDependencies?.react;
+    return r && /^[\^~]?\d/.test(r) ? r : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Write a new minimal deck to disk. Throws on an invalid name or existing dir. */
 export async function scaffold(
   name: string,
@@ -245,6 +262,7 @@ export async function scaffold(
       engine: depRange("@liebstoeckel/engine"),
       theme: depRange("@liebstoeckel/theme"),
       cli: cliRange(),
+      react: reactRange(),
     },
     orgBrand ?? undefined,
   );

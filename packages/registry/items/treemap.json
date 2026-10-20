@@ -6,7 +6,8 @@
   "description": "Squarified treemap of hierarchical data, colored from the brand palette.",
   "dependencies": [
     "@visx/group",
-    "@visx/hierarchy"
+    "@visx/hierarchy",
+    "motion"
   ],
   "registryDependencies": [
     "use-brand-colors"

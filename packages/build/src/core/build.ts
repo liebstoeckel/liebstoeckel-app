@@ -64,7 +64,10 @@ interface EsbuildMessage {
 export function toMessages(list: EsbuildMessage[] | undefined): BuildMessage[] {
   return (list ?? []).map((m) => {
     const loc = m.location ?? undefined;
-    const file = loc?.file ? loc.file.replace(new RegExp(`^${NS}:`), "") : undefined;
+    // A virtual path, always absolute: esbuild prints a location a plugin gave it
+    // relative to its working directory (`slides/a.tsx`, `slides\\a.tsx` on Windows).
+    const bare = loc?.file ? loc.file.replace(new RegExp(`^${NS}:`), "").replace(/\\/g, "/") : undefined;
+    const file = bare ? (bare.startsWith("/") ? bare : "/" + bare) : undefined;
     return {
       text: m.text,
       ...(file ? { file } : {}),

@@ -7,7 +7,8 @@
   "dependencies": [
     "@visx/group",
     "@visx/scale",
-    "@visx/shape"
+    "@visx/shape",
+    "motion"
   ],
   "registryDependencies": [
     "use-brand-colors"

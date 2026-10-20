@@ -6,7 +6,8 @@
   "description": "Animated donut (Pie) with a legend and a centered total.",
   "dependencies": [
     "@visx/group",
-    "@visx/shape"
+    "@visx/shape",
+    "motion"
   ],
   "registryDependencies": [
     "chart-text",

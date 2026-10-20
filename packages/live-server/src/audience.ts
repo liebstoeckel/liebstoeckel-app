@@ -9,12 +9,16 @@ export const AUDIENCE_NOTICE_MS = 1_000;
  * change after a quiet second, then at most once per `everyMs`, always ending on the
  * latest number. A count that is back where the last message left it sends nothing.
  *
- * Counts connections, not people: a viewer with the link open in two tabs counts twice,
- * and so does a phone while its old connection has not timed out yet.
+ * Counts connections, not people: a viewer with the link open in two tabs counts twice.
+ * A connection that names who it is (`key`, the relay's owner of a viewer's writes)
+ * counts once with every other connection of that key: a page that opens two sockets
+ * (decks built before 0.4 do), or a phone back on a new connection while its old one has
+ * not timed out yet, is one in the count and one against the cap.
  */
 export class AudienceCounter {
   private count = 0;
   private max = 0;
+  private readonly keys = new Map<string, number>();
   private sent: number | undefined;
   private sentAt = -Infinity;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -35,13 +39,32 @@ export class AudienceCounter {
     return this.max;
   }
 
-  join(): void {
+  /** Whether a connection of this key is counted already (and so takes no new place). */
+  has(key: string | undefined): boolean {
+    return key !== undefined && this.keys.has(key);
+  }
+
+  join(key?: string): void {
+    if (key !== undefined) {
+      const n = this.keys.get(key) ?? 0;
+      this.keys.set(key, n + 1);
+      if (n > 0) return;
+    }
     this.count++;
     if (this.count > this.max) this.max = this.count;
     this.schedule();
   }
 
-  leave(): void {
+  leave(key?: string): void {
+    if (key !== undefined) {
+      const n = this.keys.get(key);
+      if (!n) return;
+      if (n > 1) {
+        this.keys.set(key, n - 1);
+        return;
+      }
+      this.keys.delete(key);
+    }
     if (this.count === 0) return;
     this.count--;
     this.schedule();

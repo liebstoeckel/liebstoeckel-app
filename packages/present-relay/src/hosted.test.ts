@@ -427,6 +427,30 @@ describe("hosted relay: plan limits ((internal ADR))", () => {
     a3.ws.close();
   });
 
+  test("a page built before 0.4 opens two sockets for one viewer: it takes one place", async () => {
+    const base = start();
+    const { id, viewerToken } = await create(base, { "x-audience-cap": "1" });
+    const wsBase = `ws://127.0.0.1:${relay!.port}/sync/${id}`;
+    // the same participant id twice, as a 0.3 phone connects
+    const a = await wsOpen(`${wsBase}?t=${viewerToken}&p=phone-1`);
+    await a.first;
+    const b = await wsOpen(`${wsBase}?t=${viewerToken}&p=phone-1`);
+    await b.first;
+    await settle();
+    expect(relay!.sessions.get(id)!.count.n).toBe(1);
+    // another phone is turned away at the cap
+    const c = new WebSocket(`${wsBase}?t=${viewerToken}&p=phone-2`);
+    const closed = await new Promise<CloseEvent>((r) => c.addEventListener("close", r, { once: true }));
+    expect(closed.code).toBe(CLOSE.FULL);
+    // the first phone leaves only when both of its sockets are gone
+    a.ws.close();
+    await settle();
+    expect(relay!.sessions.get(id)!.count.n).toBe(1);
+    b.ws.close();
+    await settle();
+    expect(relay!.sessions.get(id)!.count.n).toBe(0);
+  });
+
   test("a burst of joins cannot slip past the cap together", async () => {
     const base = start();
     const { id, viewerToken } = await create(base, { "x-audience-cap": "3" });

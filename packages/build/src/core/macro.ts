@@ -23,8 +23,35 @@ export function hasMacroImport(source: string): boolean {
   return ANY_MACRO.test(source) || PREFIX_MACRO.test(source);
 }
 
-/** A macro import the code step cannot stand in for, as a sentence about the file. */
-export class MacroError extends Error {}
+/** A macro import the code step cannot stand in for, as a sentence about the file;
+ *  `line` (1-based) and `column` (0-based) point at the argument it could not read. */
+export class MacroError extends Error {
+  constructor(
+    message: string,
+    readonly line?: number,
+    readonly column?: number,
+  ) {
+    super(message);
+  }
+}
+
+/** Whether the name found at `at` is prose rather than a call: inside a comment,
+ *  or (in a JSX file) in the text between tags, where a slide may well mention
+ *  `codeStory (...)` by name. A call follows an operator, a bracket or a keyword;
+ *  text follows another word or a tag's closing `>`. */
+function notACall(src: string, at: number, jsx: boolean): boolean {
+  const lineStart = src.lastIndexOf("\n", at - 1) + 1;
+  const before = src.slice(lineStart, at);
+  if (/^\s*(?:\/\/|\*|\/\*)/.test(before) || /(?:^|[\s;{}(),])\/\/[^"'`]*$/.test(before)) return true;
+  const open = src.lastIndexOf("/*", at);
+  if (open !== -1 && src.indexOf("*/", open) > at) return true;
+  if (!jsx) return false;
+  const m = /(\S+)\s*$/.exec(src.slice(Math.max(0, at - 200), at));
+  if (!m) return false;
+  const prev = m[1]!;
+  if (/[A-Za-z0-9_$]$/.test(prev)) return !/(?:^|[^\w$])(?:return|await|yield|typeof|void|case|in|of|new|default|throw|delete)$/.test(prev);
+  return prev.endsWith(">") && !prev.endsWith("=>");
+}
 
 /** What is wrong with a file's macro imports, statically, without running anything:
  *  an empty list when every macro import is the code step's. The hosted gateway
@@ -60,14 +87,17 @@ export async function expandMacros(source: string, file: string): Promise<string
   const problems = macroProblems(source);
   if (problems.length) throw new MacroError(`${file} ${problems[0]}`);
   const local = new Map<string, [string, MacroFn]>();
-  let out = source.replace(IMPORT_RE, (_m, names: string) => {
+  const jsx = /\.(?:tsx|jsx|mdx)$/.test(file);
+  // The import goes, its line breaks stay, so a line number in an error still
+  // points at the line in the file.
+  let out = source.replace(IMPORT_RE, (m, names: string) => {
     for (const raw of names.split(",")) {
       const part = raw.trim();
       if (!part || part.startsWith("type ")) continue;
       const [imported, alias] = part.split(/\s+as\s+/).map((s) => s.trim());
       local.set(alias ?? imported!, [imported!, ALLOWED[imported!]!]);
     }
-    return "";
+    return m.replace(/[^\n]/g, "");
   });
   for (const [name, [imported, fn]] of local) {
     const callRe = new RegExp(`(?<![\\w$.])${name}\\s*\\(`, "g");
@@ -75,6 +105,7 @@ export async function expandMacros(source: string, file: string): Promise<string
     let result = "";
     let last = 0;
     while ((m = callRe.exec(out))) {
+      if (notACall(out, m.index, jsx)) continue;
       const argsStart = m.index + m[0].length;
       const { values, end } = parseArgs(out, argsStart, file);
       // The result is a pure function of the literal arguments: cache it, so an
@@ -121,7 +152,14 @@ class LiteralParser {
   ) {}
 
   fail(msg: string): never {
-    throw new MacroError(`${this.file}: codeStory and code take literal arguments only, strings, arrays and objects written out in place, no variables or ${"${}"} substitutions (${msg} at offset ${this.pos})`);
+    const before = this.src.slice(0, this.pos);
+    const line = before.split("\n").length;
+    const column = this.pos - (before.lastIndexOf("\n") + 1);
+    throw new MacroError(
+      `${this.file}: codeStory and code take literal arguments only, strings, arrays and objects written out in place, no variables or ${"${}"} substitutions (${msg})`,
+      line,
+      column,
+    );
   }
   peek(): string {
     return this.src[this.pos] ?? "";

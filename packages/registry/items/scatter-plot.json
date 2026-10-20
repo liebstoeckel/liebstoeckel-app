@@ -7,7 +7,8 @@
   "dependencies": [
     "@visx/grid",
     "@visx/group",
-    "@visx/scale"
+    "@visx/scale",
+    "motion"
   ],
   "registryDependencies": [
     "brand-axis",

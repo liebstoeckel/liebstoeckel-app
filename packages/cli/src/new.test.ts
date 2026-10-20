@@ -23,6 +23,12 @@ describe("deckFiles (pure templates)", () => {
     expect(pkg.scripts).toEqual({ dev: "liebstoeckel dev", build: "liebstoeckel build" });
     expect(pkg.devDependencies).toBeUndefined();
     expect(JSON.parse(deckFiles("x", "acme", { cli: "^0.4.0" })["package.json"]!).devDependencies).toEqual({ "@liebstoeckel/cli": "^0.4.0" });
+    expect(pkg.dependencies.react).toBeUndefined();
+    // main.tsx imports React itself, so a deck installed by pnpm (which links only
+    // direct dependencies at the top) has to name it.
+    const withReact = JSON.parse(deckFiles("x", "acme", { react: "^19.2.7" })["package.json"]!).dependencies;
+    expect(withReact.react).toBe("^19.2.7");
+    expect(withReact["react-dom"]).toBe("^19.2.7");
     expect(files["index.html"]).toContain('data-brand="nocturne"');
     expect(files["main.tsx"]).toContain('brands={["nocturne"]}');
     expect(files["main.tsx"]).toContain("My Talk"); // title-cased from the name
@@ -95,6 +101,8 @@ describe("scaffold (writes to disk)", () => {
     // falling back to the CLI version, so a real scaffold emits concrete carets, // independently versioned, never the lockstep `workspace:*` placeholder.
     expect(pkg.dependencies["@liebstoeckel/engine"]).toMatch(/^\^\d+\.\d+\.\d+/);
     expect(pkg.dependencies["@liebstoeckel/theme"]).toMatch(/^\^\d+\.\d+\.\d+/);
+    expect(pkg.dependencies.react).toMatch(/^\^19\./);
+    expect(pkg.dependencies["react-dom"]).toBe(pkg.dependencies.react);
     expect(pkg.devDependencies["@liebstoeckel/cli"]).toMatch(/^\^\d+\.\d+\.\d+/);
   });
 

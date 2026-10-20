@@ -6,7 +6,8 @@
   "description": "A tiny animated visx bar chart that reads the active brand palette, the registry's hello world.",
   "dependencies": [
     "@visx/group",
-    "@visx/scale"
+    "@visx/scale",
+    "motion"
   ],
   "registryDependencies": [
     "use-brand-colors"

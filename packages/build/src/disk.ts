@@ -21,9 +21,38 @@ const real = (p: string) => {
 export function projectRoot(deckDir: string): string {
   const start = real(deckDir);
   for (let d = start; ; d = dirname(d)) {
-    if (LOCKFILES.some((f) => existsSync(join(d, f)))) return d;
+    if (LOCKFILES.some((f) => existsSync(join(d, f)))) return workspaceRoot(start, d) ?? d;
     if (dirname(d) === d) return start;
   }
+}
+
+const hasLock = (d: string) => LOCKFILES.some((f) => existsSync(join(d, f)));
+
+/** The workspace patterns a package.json declares (`workspaces: [...]` or
+ *  `workspaces: { packages: [...] }`), or none. */
+function workspacePatterns(dir: string): string[] {
+  try {
+    const pj = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as { workspaces?: string[] | { packages?: string[] } };
+    const w = Array.isArray(pj.workspaces) ? pj.workspaces : pj.workspaces?.packages;
+    return Array.isArray(w) ? w.filter((p): p is string => typeof p === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** A deck that is a member of a workspace further up installs into that root,
+ *  even when it still holds a lockfile of its own (a deck moved into a monorepo):
+ *  its node_modules then links into the root's store, so the root is the tree. */
+function workspaceRoot(deck: string, nearest: string): string | null {
+  for (let d = dirname(nearest); dirname(d) !== d; d = dirname(d)) {
+    if (!hasLock(d)) continue;
+    const rel = deck.slice(d.length + 1).split(sep).join("/");
+    for (const pattern of workspacePatterns(d)) {
+      const re = new RegExp(`^${pattern.replace(/^\.\//, "").replace(/\/+$/, "").replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "\u0000").replace(/\*/g, "[^/]*").replace(/\u0000/g, ".*")}$`);
+      if (re.test(rel)) return d;
+    }
+  }
+  return null;
 }
 
 export class DiskFiles implements Files {

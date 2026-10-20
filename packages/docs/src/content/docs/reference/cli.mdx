@@ -70,6 +70,7 @@ for every one of them.
 | `code` | From | Meaning, and what to do |
 | --- | --- | --- |
 | `unknown_option` | any command | an option the command does not take (exit 2); the hint names the closest one |
+| `unknown_command` | the root | a command the CLI does not have (exit 2); the hint names the closest one |
 | `usage` | any command | a missing or invalid argument (exit 2); the hint shows the usage |
 | `not_found` | `registry view`, `push`, `licenses`, cloud commands | the item, file or org does not exist |
 | `not_a_deck` | `pack`, `dev` | the folder has no `index.html`; pass `--dir <deck>` |
@@ -114,7 +115,7 @@ liebstoeckel new <name> [--brand <brand>] [--dir <parent>] [--no-org-brand] [--n
 | `--no-org-brand` | don't bake the logged-in org's default brand; use the plain `liebstoeckel` brand |
 | `--no-install` | write the files only; install the dependencies later with [`liebstoeckel install`](#install) |
 
-Generates `package.json`, `index.html`, `main.tsx`, `.gitignore` and a starter `slides/01-intro.tsx`, then installs the deck's dependencies with the CLI's own Bun (the same as `liebstoeckel install`; Bun's progress goes to stderr). If the install fails (offline, a registry that does not answer), the deck stays and the command exits `1` with the `liebstoeckel install --dir <deck>` to run later. The `package.json` scripts call the CLI (`dev`: `liebstoeckel dev`, `build`: `liebstoeckel build`), with `@liebstoeckel/cli` as a dev dependency, so `npm run dev` and `npm run build` (or `bun run …`) use the version the deck pins; there is no `build.ts`, `server.ts` or `bunfig.toml`. The name must be lower-case letters/digits/hyphens; it won't overwrite an existing directory.
+Generates `package.json`, `index.html`, `main.tsx`, `.gitignore` and a starter `slides/01-intro.tsx`, then installs the deck's dependencies with the CLI's own Bun (the same as `liebstoeckel install`; Bun's progress goes to stderr). If the install fails (offline, a registry that does not answer), the deck stays and the command exits `1` with the `liebstoeckel install --dir <deck>` to run later. The `package.json` scripts call the CLI (`dev`: `liebstoeckel dev`, `build`: `liebstoeckel build`), with `@liebstoeckel/cli` as a dev dependency, so `npm run dev` and `npm run build` (or `bun run …`) use the version the deck pins, and `react` and `react-dom` as dependencies, since `main.tsx` imports them (so `pnpm install` works in the deck too); there is no `build.ts`, `server.ts` or `bunfig.toml`. The name must be lower-case letters/digits/hyphens; it won't overwrite an existing directory.
 
 When you're **logged in** (and didn't pass `--brand`), `new` automatically bakes your
 org's **default brand** into the deck as owned source: `brands/<name>.ts`, wired into
@@ -315,12 +316,12 @@ Rebuilding reads the deck's code and its packages and renders it for thumbnails,
 rebuild a deck you trust**.
 `liebstoeckel build` confirms an unfamiliar deck once (see the warning under [`build`](#build)).
 The ejected project gets the deck's `bun.lock` and `.gitignore` back as well (a build embeds
-them next to the `files` allowlist), so `bun install` restores the versions the deck was built
-with. A deck that keeps its own plugins in `plugins/` needs `"plugins"` in its `files` list
+them next to the `files` allowlist), so `liebstoeckel install` restores the versions the deck
+was built with. A deck that keeps its own plugins in `plugins/` needs `"plugins"` in its `files` list
 (new decks have it); the build warns when it is missing.
 
 ```bash
-cd <outdir> && bun install --ignore-scripts && liebstoeckel build
+cd <outdir> && liebstoeckel install && liebstoeckel build
 ```
 
 For the full recover → edit (by hand or with an agent) → rebuild loop, see
@@ -637,7 +638,11 @@ What it does, in order:
    `bun add -g @liebstoeckel/cli@latest` on the CLI's own Bun. A CLI installed with
    `npm install -g` is not updated by this command; it prints the
    `npm install -g @liebstoeckel/cli@latest` to run. Shapes combine when several apply.
-5. **Refreshes the agent skill** wherever it is installed (the deck and your user
+5. **Migrates the deck's scaffold files** after a deck-local install, the same
+   [scaffold migrations](#scaffold-migrations) `dev` applies when it starts: an unchanged
+   0.3 `bunfig.toml`, `server.ts` or `build.ts` goes and the scripts point at the CLI; a
+   file you changed stays, with a line saying what to do.
+6. **Refreshes the agent skill** wherever it is installed (the deck and your user
    account), using the freshly installed CLI, so the skill version matches the new
    CLI.
 
@@ -726,10 +731,10 @@ known migration:
 
 `needed` says the deck predates the convention; `reference` names the guide
 (shipped inside the installed agent skill) with the why and the manual edit;
-`autoPatchable` says [`liebstoeckel dev`](#dev) would apply it automatically.
+`autoPatchable` says [`liebstoeckel dev`](#dev) (or `update`) would apply it automatically.
 `doctor` itself never modifies anything.
 
-When `dev` starts, it applies every needed migration whose file still matches
+When `dev` starts, and when [`update`](#update) has moved a deck's packages, the CLI applies every needed migration whose file still matches
 the scaffolded shape, printing one notice per patched file
 (`↻ migrated main.tsx (0001-hmr-entry-boundary): <reason>`); a patch to a file
 includes a comment explaining itself. A file that diverged from the scaffold

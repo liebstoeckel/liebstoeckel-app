@@ -41,6 +41,15 @@ bunx @liebstoeckel/cli new my-talk
 ```
 
 </TabItem>
+<TabItem label="pnpm">
+
+```bash
+pnpm add -g @liebstoeckel/cli
+# or without installing; the package has two commands, so name one:
+pnpm --package=@liebstoeckel/cli dlx liebstoeckel new my-talk
+```
+
+</TabItem>
 </Tabs>
 
 Then check what it runs on:
@@ -64,7 +73,9 @@ machine: about 230 MB in total, 90 MB of it the Bun binary.
 Everything the CLI starts runs on that same Bun: `liebstoeckel new` and
 [`liebstoeckel install`](/reference/cli/#install) install a deck's dependencies with it, and
 `dev`, `build` and `live` serve and build with it. A deck's `package.json` scripts call
-`liebstoeckel`, so `npm run dev` works without Bun too.
+`liebstoeckel`, so `npm run dev` works without Bun too. pnpm skips install scripts unless you
+approve them; neither the CLI nor esbuild needs one, so its "Ignored build scripts" note is safe
+to leave as it is.
 
 <Aside type="note" title="Decks that list the CLI">
 A new deck lists `@liebstoeckel/cli` as a dev dependency, so `npm run dev` in it uses the

@@ -6,7 +6,8 @@
   "description": "Radar/spider chart with concentric grid and 1-2 filled series.",
   "dependencies": [
     "@visx/group",
-    "@visx/scale"
+    "@visx/scale",
+    "motion"
   ],
   "registryDependencies": [
     "use-brand-colors"

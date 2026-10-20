@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { defineCommand } from "citty";
-import { findUnknownOptions, suggestOption, unknownIn } from "./options";
+import { findUnknownOptions, suggestCommand, suggestOption, unknownIn } from "./options";
 
 const leafA = defineCommand({
   meta: { name: "list" },
@@ -83,5 +83,7 @@ describe("unknown options", () => {
     expect(suggestOption("--josn", args)).toBe("--json");
     expect(suggestOption("--allow-secrets", args)).toBe("--allow-secret");
     expect(suggestOption("--frobnicate", args)).toBeUndefined();
+    expect(suggestCommand("biuld", ["build", "dev", "live"])).toBe("build");
+    expect(suggestCommand("frobnicate", ["build", "dev", "live"])).toBeUndefined();
   });
 });

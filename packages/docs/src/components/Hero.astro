@@ -9,10 +9,9 @@
 const { data } = Astro.locals.starlightRoute.entry;
 const { title = data.title, tagline, actions = [] } = data.hero || {};
 
-// the honest install set, identical to the landing page: npm gets you Bun,
-// Bun adds the CLI (raw TS under Bun), then the skill goes to your agent
-const INSTALL_LINES = `npm install -g bun
-bun add -g @liebstoeckel/cli
+// npm installs the CLI, which brings its own Bun, and the last line hands the skill
+// to every coding agent on this machine.
+const INSTALL_LINES = `npm install -g @liebstoeckel/cli
 liebstoeckel skill install --global`;
 ---
 

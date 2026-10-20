@@ -156,7 +156,7 @@ export const relayCommand = defineCommand({
       console.log(`   persist with PRESENT_RELAY_TOKENS=tok1,tok2 (or --tokens).`);
     }
     console.log(`\n   run a deck through it:`);
-    console.log(`       bunx liebstoeckel live <deck> --relay ${base} --relay-token <token>\n`);
+    console.log(`       liebstoeckel live <deck> --relay ${base} --relay-token <token>\n`);
     if (!publicBaseUrl) {
       console.log(`   note: serve behind TLS (wss://) for public use; set --public-url to the https origin.\n`);
     }

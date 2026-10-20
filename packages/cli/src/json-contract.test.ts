@@ -206,6 +206,13 @@ describe("backend-free commands print one JSON document when piped", () => {
   }, T);
 });
 
+describe("unknown commands", () => {
+  test("refused with exit 2 and the closest command", async () => {
+    const doc = expectError(await run(["biuld", "--json"]), "unknown_command", 2);
+    expect(doc.hint).toContain("liebstoeckel build");
+  }, T);
+});
+
 describe("unknown options", () => {
   test("refused with exit 2 and a suggestion, as JSON on a JSON command", async () => {
     const doc = expectError(await run(["decks", "--jsn"]), "unknown_option", 2);

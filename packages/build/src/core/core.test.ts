@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { outputRelative } from "./build.ts";
+import { outputRelative, toMessages } from "./build.ts";
 import { virtualDir } from "./path.ts";
 import { codeBlocks, compileCodeFile } from "./code-file.ts";
 import { cssProblem } from "./css-gate.ts";
 import { gatedFiles, GateError, MemoryFiles, recordingFiles } from "./files.ts";
 import { htmlEntries, inlineHtml } from "./html.ts";
-import { expandMacros, macroProblems } from "./macro.ts";
+import { expandMacros, MacroError, macroProblems } from "./macro.ts";
 import { findComponents, matchBrace } from "./refresh.ts";
+import { newLoadContext } from "./load.ts";
+import { resolveFor } from "./plugin.ts";
 import { Resolver } from "./resolve.ts";
 import { rebaseUrls } from "./tailwind.ts";
 
@@ -41,6 +43,23 @@ describe("resolver", () => {
     expect(hosted.resolve("./other.ts", "/deck")).toEqual({ path: "/deck/other.ts" });
     // Third-party packages keep their exports.
     expect(hosted.resolve("pkg", "/deck")).toEqual({ path: "/node_modules/pkg/b.js" });
+  });
+
+  test("an import the build injects comes from the engine when the deck does not list it", () => {
+    // an isolated install: the deck sees only its direct dependencies
+    const isolated = tree({
+      "/deck/slide.mdx": "",
+      "/deck/node_modules/@liebstoeckel/engine/package.json": JSON.stringify({ name: "@liebstoeckel/engine", exports: { ".": "./src/index.ts" } }),
+      "/deck/node_modules/@liebstoeckel/engine/src/index.ts": "",
+      "/deck/node_modules/@liebstoeckel/engine/node_modules/@mdx-js/react/package.json": JSON.stringify({ name: "@mdx-js/react", exports: { ".": "./index.js" } }),
+      "/deck/node_modules/@liebstoeckel/engine/node_modules/@mdx-js/react/index.js": "",
+      "/deck/node_modules/@liebstoeckel/engine/node_modules/other/package.json": JSON.stringify({ name: "other", main: "./i.js" }),
+      "/deck/node_modules/@liebstoeckel/engine/node_modules/other/i.js": "",
+    });
+    const ctx = newLoadContext(isolated, new Resolver(isolated), "production");
+    expect(resolveFor(ctx, "@mdx-js/react", "/deck", false)).toEqual({ path: "/deck/node_modules/@liebstoeckel/engine/node_modules/@mdx-js/react/index.js" });
+    // only the injected imports: anything else the deck imports, it has to list
+    expect(resolveFor(ctx, "other", "/deck", false)).toBeNull();
   });
 });
 
@@ -86,6 +105,39 @@ describe("the code step", () => {
 
   test("refuses arguments that are not literals", async () => {
     await expect(expandMacros('import { code } from "@liebstoeckel/engine/code" with { type: "macro" };\ncode(x);', "a.tsx")).rejects.toThrow(/literal arguments only/);
+  });
+
+  test("names the line and column of an argument it cannot read", async () => {
+    const src = 'import { codeStory } from "@liebstoeckel/engine/code"\n  with { type: "macro" };\nconst a = 1;\nexport const s = codeStory([steps]);';
+    const err = await expandMacros(src, "a.tsx").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(MacroError);
+    expect((err as MacroError).line).toBe(4);
+    expect((err as MacroError).column).toBe(28);
+    expect((err as MacroError).message).toMatch(/literal arguments only/);
+  });
+
+  test("leaves the name alone in comments and in JSX text", async () => {
+    const src = [
+      'import { codeStory } from "@liebstoeckel/engine/code" with { type: "macro" };',
+      "// codeStory (the old way) still builds",
+      "/* codeStory(steps) */",
+      "const S = codeStory([{ code: `a`, lang: \"ts\" }]);",
+      "export default () => <div><b>codeStory (deprecated)</b> and the codeStory (old) macro {S.length}</div>;",
+      "export const T = () => codeStory([{ code: `b`, lang: \"ts\" }]);",
+    ].join("\n");
+    const out = await expandMacros(src, "a.tsx");
+    expect(out).toContain("// codeStory (the old way)");
+    expect(out).toContain("<b>codeStory (deprecated)</b> and the codeStory (old) macro");
+    expect(out).toContain('const S = [{');
+    expect(out).toContain('() => [{');
+  });
+});
+
+describe("toMessages", () => {
+  test("gives every file as an absolute virtual path", () => {
+    expect(toMessages([{ text: "x", location: { file: "slides/a.tsx", line: 3, column: 4 } }])).toEqual([{ text: "x", file: "/slides/a.tsx", line: 3, column: 5 }]);
+    expect(toMessages([{ text: "x", location: { file: "slides\\a.tsx" } }])[0]!.file).toBe("/slides/a.tsx");
+    expect(toMessages([{ text: "x", location: { file: "vfs:/slides/a.tsx" } }])[0]!.file).toBe("/slides/a.tsx");
   });
 });
 

@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bunBin } from "./bun";
+import { runAutoPatches, type AutoPatchResult } from "./migrations";
 import { cliVersion } from "./skill";
 import { PKG, bunGlobalDir, fetchLatestVersion, installedSkillVersion, isNewer, writeCheckState } from "./update";
 
@@ -277,6 +278,16 @@ async function refreshSkills(freshCli: string, deckRoot: string): Promise<void> 
   if (resolve(deckRoot) !== home && (await installedSkillVersion(home))) await spawnSkill(["--scope", "user"]);
 }
 
+/** Print what the scaffold migrations did, as `dev` does on start. */
+export function reportAutoPatches({ applied, hinted, warnings }: AutoPatchResult): void {
+  for (const w of warnings) console.error(`⚠ ${w}`);
+  for (const a of applied) console.error(`↻ migrated ${a.file} (${a.id}): ${a.reason}`);
+  for (const h of hinted) {
+    console.error(`⚠ migration needed (${h.id}): ${h.reason}; apply it per the skill guide ${h.reference}, or opt out via package.json liebstoeckel.migrationOptOut`);
+    for (const d of h.details ?? []) console.error(`    ${d}`);
+  }
+}
+
 export const updateCommand = defineCommand({
   meta: {
     name: "update",
@@ -337,6 +348,11 @@ export const updateCommand = defineCommand({
       process.exit(1);
     }
     if (plan.unmanagedCli) console.error(`! ${plan.unmanagedCli}`);
+
+    // The deck is on the new release now: bring its scaffold files along too, the
+    // same patches `dev` applies on start, so an upgraded deck's `npm run build`
+    // does not still run a 0.3 build.ts (and with it a Bun the machine may lack).
+    if (plan.deckDeps.length > 0 && existsSync(join(deckRoot, "index.html"))) reportAutoPatches(runAutoPatches(deckRoot, ["entry", "index.html", "tooling"]));
 
     // Refresh from the freshest CLI available: the deck's, else the CLI's own
     // just-updated install root, else this install's entrypoint (a global shape

@@ -1059,13 +1059,15 @@ export function createRelay(opts: RelayOptions): RelayServer {
         // cannot read why an upgrade was refused, so the socket is let in and closed with
         // `full` before it joins anything: it gets no session state, and the client shows
         // that the session is full instead of retrying.
-        if (socket.data.role === "audience" && s.audienceCap !== undefined && s.count.n >= s.audienceCap) {
+        // A second socket of a viewer already in (a page built before 0.4 opens two) is
+        // the same person: it takes no new place.
+        if (socket.data.role === "audience" && s.audienceCap !== undefined && !s.count.has(socket.data.owner) && s.count.n >= s.audienceCap) {
           metrics.audienceCapRejects.inc();
           socket.close(CLOSE.FULL, "full");
           return;
         }
         s.sockets.add(socket);
-        if (socket.data.role === "audience") s.count.join();
+        if (socket.data.role === "audience") s.count.join(socket.data.owner);
         if (s.refusing && socket.data.presenter) notify(socket, { t: "refusing", reason: s.refusing.reason });
         metrics.wsOpens.inc({ role: socket.data.role });
         metrics.wsConnections.inc({ role: socket.data.role });
@@ -1119,7 +1121,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
         metrics.wsCloses.inc({ role: socket.data.role, reason: closeReason(code) });
         metrics.wsConnections.dec({ role: socket.data.role });
         const s = sessions.get(socket.data.sessionId);
-        if (s && s.sockets.delete(socket) && socket.data.role === "audience") s.count.leave();
+        if (s && s.sockets.delete(socket) && socket.data.role === "audience") s.count.leave(socket.data.owner);
       },
     },
   });
