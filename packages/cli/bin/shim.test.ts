@@ -121,6 +121,26 @@ describe.skipIf(!run)("liebstoeckel shim", () => {
     expect(code).toBe(0);
   }, 20_000);
 
+  test("takes the binary Oven's bun package moved into its own bin/ (its postinstall)", () => {
+    const fake = join(ovenDir, "bin", "bun");
+    const bunPkg = join(root, "node_modules", "bun");
+    mkdirSync(join(bunPkg, "bin"), { recursive: true });
+    writeFileSync(join(bunPkg, "package.json"), JSON.stringify({ name: "bun", version: "9.9.9" }));
+    // Padded past the size of the placeholder the package ships before its postinstall.
+    writeFileSync(join(bunPkg, "bin", "bun.exe"), readFileSync(fake, "utf8") + "#".repeat(1_100_000) + "\n");
+    chmodSync(join(bunPkg, "bin", "bun.exe"), 0o755);
+    rmSync(fake);
+    try {
+      const r = spawnSync(NODE!, [shim(), "moved"], { env, encoding: "utf8" });
+      expect(r.status).toBe(0);
+      expect(r.stdout).toContain(`args ["moved"]`);
+    } finally {
+      copyFileSync(join(bunPkg, "bin", "bun.exe"), fake);
+      chmodSync(fake, 0o755);
+      rmSync(bunPkg, { recursive: true });
+    }
+  });
+
   test("a version mismatch and a missing package fail with the fix, as JSON under --json", () => {
     writePkg("9.9.8");
     try {
@@ -150,14 +170,7 @@ const REAL_SHIM = join(import.meta.dir, "liebstoeckel.js");
 const DEMO = join(import.meta.dir, "..", "..", "..", "presentations", "demo");
 // Skipped where the workspace's own install has no usable binary (a CI cache can
 // hold the package without it; the shim then reports bun_binary_missing).
-const realBin = (() => {
-  try {
-    const dir = join(require.resolve(`${OVEN}/package.json`, { paths: [import.meta.dir] }), "..");
-    return existsSync(join(dir, "bin", "bun"));
-  } catch {
-    return false;
-  }
-})();
+const realBin = !!run && spawnSync(NODE!, [REAL_SHIM, "--version"], { encoding: "utf8" }).status === 0;
 describe.skipIf(!run || !realBin)("real shim", () => {
   test("SIGKILL to the shim stops the dev server it started", async () => {
     const child = spawn(NODE!, [REAL_SHIM, "dev", "--dir", DEMO, "--port", "0", "--json"], { stdio: ["ignore", "pipe", "pipe"] });

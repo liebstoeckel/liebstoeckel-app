@@ -7,7 +7,7 @@
 // the exit code and signals passed through. It never runs the `bun` on PATH,
 // also not when it is itself running under Bun (`bunx`).
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,6 +74,19 @@ if (version) {
       break;
     }
     empty ??= candidate;
+  }
+}
+
+// Oven's `bun` npm package, when something else in the tree depends on it and its
+// postinstall runs, moves the binary out of the matching `@oven/bun-*` package
+// into its own `bin/bun.exe` (on every platform). Same binary, same version: use it.
+if (!bin && empty && version) {
+  try {
+    const dir = dirname(require.resolve("bun/package.json"));
+    const moved = join(dir, "bin", "bun.exe");
+    if (readJson(join(dir, "package.json")).version === version && existsSync(moved) && statSync(moved).size > 1_000_000) bin = moved;
+  } catch {
+    // no `bun` package next to the CLI
   }
 }
 

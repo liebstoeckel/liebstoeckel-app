@@ -10,6 +10,7 @@ describe("ovenPackageOf", () => {
     expect(ovenPackageOf("/g/node_modules/@oven/bun-linux-x64/bin/bun")).toBe("@oven/bun-linux-x64");
     expect(ovenPackageOf("C:\\g\\node_modules\\@oven\\bun-windows-x64\\bin\\bun.exe")).toBe("@oven/bun-windows-x64");
     expect(ovenPackageOf("/repo/node_modules/.bun/@oven+bun-linux-x64@1.3.14/node_modules/@oven/bun-linux-x64/bin/bun")).toBe("@oven/bun-linux-x64");
+    expect(ovenPackageOf("/repo/node_modules/bun/bin/bun.exe")).toBe("bun");
     expect(ovenPackageOf("/usr/local/bin/bun")).toBeNull();
     expect(ovenPackageOf("/home/u/.bun/bin/bun")).toBeNull();
   });

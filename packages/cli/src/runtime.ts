@@ -32,7 +32,9 @@ export interface EsbuildRuntime {
 /** Pure: the `@oven/bun-*` package a binary path sits in, if any. */
 export function ovenPackageOf(execPath: string): string | null {
   const m = /[\\/]node_modules[\\/]@oven[\\/](bun-[a-z0-9-]+)[\\/]bin[\\/]bun(?:\.exe)?$/i.exec(execPath);
-  return m ? `@oven/${m[1]}` : null;
+  if (m) return `@oven/${m[1]}`;
+  // The same binary after Oven's `bun` package moved it into its own bin/ (its postinstall).
+  return /[\\/]node_modules[\\/]bun[\\/]bin[\\/]bun\.exe$/i.test(execPath) ? "bun" : null;
 }
 
 /** Pure: the one exact version every `@oven/bun-*` optional dependency names. */
