@@ -46,5 +46,5 @@
     }
   },
   "include": ["packages", "presentations", "types"],
-  "exclude": ["**/node_modules", "**/dist", "packages/docs"]
+  "exclude": ["**/node_modules", "**/dist", "packages/docs", "packages/e2e/release-fixture"]
 }
