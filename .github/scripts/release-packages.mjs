@@ -3,7 +3,7 @@
 // no Bun; only `pack` needs Bun.
 //
 //   node .github/scripts/release-packages.mjs pack <outdir>
-//       bun pm pack every package listed in release-please-config.json into
+//       bun pm pack every package under packages/ that is not private into
 //       <outdir>, and write <outdir>/packages.json: name, version, file and npm
 //       integrity of each tarball, in dependency order (a package after the
 //       packages it depends on).
@@ -18,13 +18,21 @@
 //       published unless every compared entry matched.
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** The package directories release-please versions, the one list of public packages. */
-export function packageDirs(config) {
-  return Object.keys(config.packages).filter((p) => p.startsWith("packages/"));
+/**
+ * The public packages: every directory under packages/ whose package.json is not
+ * private. (A test in the internal repo checks this is the set release-please
+ * versions.)
+ */
+export function packageDirs(root) {
+  return readdirSync(join(root, "packages"))
+    .filter((d) => existsSync(join(root, "packages", d, "package.json")))
+    .filter((d) => JSON.parse(readFileSync(join(root, "packages", d, "package.json"), "utf8")).private !== true)
+    .sort()
+    .map((d) => `packages/${d}`);
 }
 
 /** npm's integrity string for a tarball's bytes. */
@@ -88,10 +96,9 @@ export function compareIntegrity(packed, expected, published = new Set()) {
 
 function pack(outdir) {
   const root = process.cwd();
-  const config = JSON.parse(readFileSync(join(root, "release-please-config.json"), "utf8"));
   mkdirSync(outdir, { recursive: true });
   const abs = resolve(outdir);
-  const pkgs = packageDirs(config).map((dir) => ({ dir, ...JSON.parse(readFileSync(join(root, dir, "package.json"), "utf8")) }));
+  const pkgs = packageDirs(root).map((dir) => ({ dir, ...JSON.parse(readFileSync(join(root, dir, "package.json"), "utf8")) }));
   const packed = [];
   for (const p of dependencyOrder(pkgs)) {
     execFileSync("bun", ["pm", "pack", "--destination", abs, "--quiet"], { cwd: join(root, p.dir), stdio: ["ignore", "ignore", "inherit"] });
