@@ -1,0 +1,110 @@
+# Publishes a release of the framework packages to npm, from this public repo,
+# with npm's trusted publishing: no npm token exists anywhere, and every
+# package gets a provenance statement that names the commit it was built from.
+#
+# The internal release pipeline starts this workflow once the release commit
+# is mirrored here. It passes that commit's internal id and the npm integrity
+# of every tarball it released internally. This workflow then
+#   1. finds the mirrored commit (its GitOrigin-RevId line),
+#   2. packs it and installs it on Linux, Windows and macOS (os-matrix.yml),
+#   3. checks the packed tarballs are byte for byte the internal ones,
+#   4. publishes them, after a maintainer approves the `npm` environment.
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      origin_rev:
+        description: the internal commit id of the release commit (40 hex characters)
+        type: string
+        required: true
+      integrity:
+        description: 'JSON object, "name@version" to the npm integrity of the internally released tarball'
+        type: string
+        required: true
+      publish:
+        description: publish to npm after the checks (needs the npm environment's approval)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  locate:
+    if: github.repository == 'liebstoeckel/liebstoeckel-app'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.find.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 300
+      - id: find
+        env:
+          ORIGIN_REV: ${{ inputs.origin_rev }}
+        run: |
+          if ! printf '%s' "$ORIGIN_REV" | grep -qE '^[0-9a-f]{40}$'; then
+            echo "origin_rev is not a full commit id" >&2; exit 1
+          fi
+          sha=$(git log -n 300 --format='%H %(trailers:key=GitOrigin-RevId,valueonly,separator=)' main \
+            | awk -v r="$ORIGIN_REV" '$2 == r { print $1; exit }')
+          if [ -z "$sha" ]; then
+            echo "no commit on main mirrors $ORIGIN_REV (has the mirror run?)" >&2; exit 1
+          fi
+          echo "release commit: $sha (mirrors $ORIGIN_REV)" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  matrix:
+    needs: locate
+    uses: ./.github/workflows/os-matrix.yml
+    with:
+      ref: ${{ needs.locate.outputs.sha }}
+
+  verify:
+    needs: [locate, matrix]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.locate.outputs.sha }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packages
+          path: packed
+      - name: The tarballs are the internally released bytes
+        env:
+          EXPECTED_INTEGRITY: ${{ inputs.integrity }}
+        run: node .github/scripts/release-packages.mjs compare packed/packages.json
+
+  publish:
+    needs: [locate, verify]
+    if: inputs.publish
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.locate.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install -g npm@11.6.2 && npm --version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packages
+          path: packed
+      - name: npm publish
+        env:
+          EXPECTED_INTEGRITY: ${{ inputs.integrity }}
+        run: node .github/scripts/release-packages.mjs publish packed/packages.json

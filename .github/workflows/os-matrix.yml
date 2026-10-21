@@ -1,0 +1,140 @@
+# Installs the framework the way a user does, on Linux, Windows and macOS, from
+# the tarballs this commit packs: every package goes into a throwaway local
+# registry, then `npm i -g @liebstoeckel/cli` with Node only (a `bun` that fails
+# loudly comes first on PATH), `new`, `build --check` and `build`. The built
+# deck must have the same bytes on all three systems.
+#
+# Runs as part of the release workflow, every Monday on main (it reports drift
+# we don't cause: runner images, Windows, macOS), and by hand.
+name: os-matrix
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: commit or branch to test
+        type: string
+        default: main
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    if: github.repository == 'liebstoeckel/liebstoeckel-app'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
+      - run: node .github/scripts/release-packages.mjs pack packed
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: packages
+          path: packed/
+          if-no-files-found: error
+
+  install:
+    needs: pack
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      REGISTRY: http://127.0.0.1:4873/
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packages
+          path: packed
+      - name: A bun first on PATH that fails loudly
+        run: |
+          trap_dir="$RUNNER_TEMP/trap-bin"
+          mkdir -p "$trap_dir"
+          printf '#!/bin/sh\necho "the system bun was called: $*" >&2\nexit 97\n' > "$trap_dir/bun"
+          chmod +x "$trap_dir/bun"
+          printf '@echo the system bun was called: %%* 1>&2\r\n@exit /b 97\r\n' > "$trap_dir/bun.cmd"
+          echo "$trap_dir" >> "$GITHUB_PATH"
+      - name: A local registry with this commit's packages
+        run: |
+          vd="$RUNNER_TEMP/verdaccio"
+          mkdir -p "$vd/storage"
+          cat > "$vd/config.yaml" <<EOF
+          storage: ./storage
+          uplinks:
+            npmjs:
+              url: https://registry.npmjs.org/
+          packages:
+            '@liebstoeckel/*':
+              access: \$all
+              publish: \$all
+            '**':
+              access: \$all
+              proxy: npmjs
+          log: { type: stdout, format: pretty, level: warn }
+          EOF
+          (cd "$vd" && npx -y verdaccio@6.1.6 --config config.yaml --listen 127.0.0.1:4873 > verdaccio.log 2>&1 &)
+          for i in $(seq 1 60); do curl -fs -o /dev/null "${REGISTRY}-/ping" && break; sleep 2; done
+          curl -fs -o /dev/null "${REGISTRY}-/ping"
+          printf 'registry=%s\n//127.0.0.1:4873/:_authToken=local\n' "$REGISTRY" > "$HOME/.npmrc"
+          node -e '
+            const list = require(process.argv[1] + "/packages.json");
+            for (const p of list) console.log(p.file);
+          ' "$PWD/packed" | while read -r f; do npm publish "./packed/$f" --registry "$REGISTRY" --tag latest; done
+      - name: npm i -g @liebstoeckel/cli
+        run: |
+          v=$(node -p 'require("./packed/packages.json").find((p) => p.name === "@liebstoeckel/cli").version')
+          npm i -g "@liebstoeckel/cli@$v" --registry "$REGISTRY"
+          liebstoeckel --version | tee version.txt
+          grep -E '^bun [0-9.]+ \(pinned, @oven/bun-' version.txt
+      - name: new, build --check, build
+        run: |
+          work="$RUNNER_TEMP/work"
+          mkdir -p "$work" && cd "$work"
+          liebstoeckel new osdeck --no-org-brand
+          cd osdeck
+          liebstoeckel build --check --json
+          LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build
+          node -e 'const c = require("node:crypto"); process.stdout.write(c.createHash("sha256").update(require("node:fs").readFileSync(process.argv[1])).digest("hex") + "\n")' dist/osdeck.html > "$GITHUB_WORKSPACE/hash-${{ matrix.os }}.txt"
+          cat "$GITHUB_WORKSPACE/hash-${{ matrix.os }}.txt"
+      - if: failure()
+        run: cat "$RUNNER_TEMP/verdaccio/verdaccio.log" || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hash-${{ matrix.os }}
+          path: hash-${{ matrix.os }}.txt
+
+  same-bytes:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: hash-*
+          merge-multiple: true
+      - name: The deck has the same bytes on every system
+        run: |
+          {
+            echo "| system | sha256 of the built deck |"
+            echo "|---|---|"
+            for f in hash-*.txt; do echo "| ${f#hash-} | \`$(cat "$f")\` |"; done
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$(cat hash-*.txt | sort -u | wc -l)" -eq 1
