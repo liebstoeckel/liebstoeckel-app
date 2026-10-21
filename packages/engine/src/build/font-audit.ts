@@ -5,7 +5,7 @@
 // `@font-face` is bundled. The build inlines that face's woff2 into the single
 // file. When the bundled face is wrong (or absent), the browser silently falls
 // back to a system font: no error, and the "what you ship is what you see"
-// promise quietly breaks (the failure (internal ADR) describes; a real session shipped
+// promise quietly breaks (a real session once shipped
 // Noto Sans this way before a lucky `pdffonts` check caught it).
 //
 // Two failure modes, both detected from the final inlined CSS:

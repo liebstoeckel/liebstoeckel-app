@@ -110,7 +110,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
   const role = isLive ? liveCtx?.role : undefined;
   // A live viewer follows the presenter, overview + the presenter pop-out are
   // presenter-only (they'd reach the confidence monitor / drive nav). Standalone
-  // (no live role) drives its own deck, so canDrive is true ((internal ADR)).
+  // (no live role) drives its own deck, so canDrive is true.
   const canDrive = role !== "viewer";
   const ctrl = isLive ? liveDeck : sync;
   const { index, step, total } = ctrl;
@@ -527,7 +527,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
             <PersistentLayer items={persistent} currentIndex={index} />
 
             {/* deck-wide plugin overlays (e.g. reactions floaters), over the
-                slide, below chrome; non-interactive (live only, see (internal ADR)) */}
+                slide, below chrome; non-interactive (live only) */}
             <PluginOverlays />
 
             <HelpOverlay open={help} onClose={() => setHelp(false)} showBrand={brands.length > 1} role={role} ejectable={ejectable} legal={menuLegal} />

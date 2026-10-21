@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { SOURCE_ATTR } from "./source-attr";
 
-// Inline source package ((internal ADR)): the single-file deck carries a compressed copy of
+// Inline source package: the single-file deck carries a compressed copy of
 // its own source so a compiled `.html` can be ejected back to an editable project.
 // Collection reuses `bun pm pack` (npm's real ignore algorithm + `files` allowlist),
 // then repacks gzip→zstd for the in-HTML embed. Everything here is Bun-native (no deps),

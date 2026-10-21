@@ -154,13 +154,13 @@ export const exportCommand = defineCommand({
     margin: { type: "string", description: `PDF: paper margin on every side (default ${DEFAULT_PAPER_MARGIN})`, valueHint: "10mm" },
   },
   async run({ args }) {
-    // Deck targeting ((internal ADR)): a leading positional, else --dir, else cwd.
+    // Deck targeting: a leading positional, else --dir, else cwd.
     const target = args.deck ?? args.dir ?? ".";
 
     const out = args.out;
     const format = inferFormat(args.format, out);
     // PNG writes one file per slide into a directory; a `.png`-looking `-o` is almost
-    // always a mistake (you'd get a directory literally named "foo.png"), warn ((internal ticket)).
+    // always a mistake (you'd get a directory literally named "foo.png"), warn.
     if (format === "png" && out && /\.png$/i.test(out)) {
       process.stderr.write(
         `⚠  --format png writes one file per slide into a DIRECTORY; "-o ${out}" will be a directory (created if needed), not a single PNG.\n`,

@@ -31,8 +31,8 @@ export async function loadDeckHtml(arg: string): Promise<string> {
     const dir = abs.endsWith("package.json") ? dirname(abs) : abs;
     const { bundleDeck } = await import("@liebstoeckel/build");
     // Build to a throwaway dir, NOT the deck's own dist/. `liebstoeckel build` owns
-    // dist/<slug>.html ((internal ADR)); a stray dist/index.html written here would shadow
-    // it for `push`'s default-file pick and confuse the two artifacts ((internal ticket)).
+    // dist/<slug>.html; a stray dist/index.html written here would shadow
+    // it for `push`'s default-file pick and confuse the two artifacts.
     const outdir = mkdtempSync(join(tmpdir(), "lst-live-"));
     const prev = process.cwd();
     process.chdir(dir);
@@ -191,7 +191,7 @@ export const liveCommand = defineCommand({
     scale: { type: "string", description: "thumbnail device scale factor", valueHint: "N" },
   },
   async run({ args }) {
-    // Deck targeting ((internal ADR)): a leading positional, else --dir, else cwd.
+    // Deck targeting: a leading positional, else --dir, else cwd.
     const arg = args.deck ?? args.dir ?? ".";
     const thumbs = thumbSettings(args);
     const relayUrl = args.relay;

@@ -8,7 +8,7 @@
 // so a stale one is rewritten in place instead of nagging about it.
 //
 // Reminders are stderr-only and OFF for agents/CI/pipes (`remindersEnabled`),
-// so the machine-readable contract ((internal ADR)) stays clean. The skill self-heal
+// so the machine-readable contract stays clean. The skill self-heal
 // deliberately runs in ALL modes: agents are exactly who can't read reminders,
 // and its one-line notice goes to stderr, never a --json stdout.
 import { existsSync, mkdirSync } from "node:fs";

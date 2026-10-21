@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-// Signed control↔relay grants ((internal ADR)). For hosted live presenting the control
+// Signed control↔relay grants. For hosted live presenting the control
 // plane owns the session and authorizes relay actions by minting a short-lived,
 // HMAC-signed grant over a shared secret; the relay verifies it **statelessly**, it
 // never calls back to the control plane per connection. Same trust class as the

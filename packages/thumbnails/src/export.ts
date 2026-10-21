@@ -15,8 +15,8 @@ import { printDeckPdf, renderDeckSlides, type RenderDriveOptions } from "./captu
 import { PT_PER_PX, fitRect, type FitRect, type PageBox } from "./page-size";
 
 /**
- * Static export of a built deck to PNG files or a single PDF ((internal ADR)), riding on
- * the shared slide driver ((internal ADR)). PNGs come straight off the page; the PDF is
+ * Static export of a built deck to PNG files or a single PDF, riding on
+ * the shared slide driver. PNGs come straight off the page; the PDF is
  * one slide per page, each a JPEG drawn full-bleed, composed without a PDF library.
  *
  * `parseSlideRange` and `pdfFromJpegPages` are pure and unit-tested; `exportDeck`
@@ -212,7 +212,7 @@ export interface ExportResult {
   count: number;
 }
 
-/** Export a built single-file deck to PNG files or a PDF ((internal ADR)). **Loud**, *  throws if no Chromium is available (export is explicit, unlike thumbnails). */
+/** Export a built single-file deck to PNG files or a PDF. **Loud**, *  throws if no Chromium is available (export is explicit, unlike thumbnails). */
 export async function exportDeck(html: string, opts: ExportOptions): Promise<ExportResult> {
   const base = opts.baseName ?? "deck";
   const selectIndices =

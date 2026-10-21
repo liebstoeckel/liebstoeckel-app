@@ -42,7 +42,7 @@ export interface ConnectOptions {
   staleMs?: number;
   /** After this many consecutive failed (re)connect attempts the session is likely
    *  *gone* (re-provisioned to a new relay session) rather than a transient blip, so
-   *  retrying the same URL will 403 forever ((internal ADR) §5 / (internal ticket)). Fire
+   *  retrying the same URL will 403 forever. Fire
    *  `onUnrecoverable` once to recover via the stable link. 0 = never (default). */
   reloadAfterAttempts?: number;
   /** Recovery action when the session looks gone. Default: reload the page (which
@@ -247,7 +247,7 @@ export function connectLive(info: LiveInfo, participant: string, opts: ConnectOp
       return;
     }
     // Persistent failure → the session is likely gone (re-provisioned). Stop hammering
-    // the dead URL and escalate to stable-link recovery exactly once ((internal ticket)).
+    // the dead URL and escalate to stable-link recovery exactly once.
     if (reloadAfter > 0 && attempt >= reloadAfter && !escalated) {
       escalated = true;
       onUnrecoverable();

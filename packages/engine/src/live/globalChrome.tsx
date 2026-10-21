@@ -27,7 +27,7 @@ interface PanelController {
  *  anchored just above the chrome rail (bottom-left), with a transparent outside-
  *  click catcher and NO backdrop blur/dim. Unlike the focus-stealing `BreakoutSheet`
  *  (used for full interactive breakouts like Q&A), a quick, frequent action such as
- *  reacting shouldn't blur the whole deck behind it ((internal ADR)). */
+ *  reacting shouldn't blur the whole deck behind it. */
 function ChromePopover({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -118,7 +118,7 @@ function RailTrigger({ ctx, id, def, panel }: { ctx: LiveContextValue; id: strin
 
 /** A plugin's panel, hosted centrally so it survives the `⋮` sheet closing and so its
  *  open-state can be driven from either the rail or a menu row. A `"sheet"` panel opens
- *  full-viewport on touch (keyboard-friendly, (internal ADR)); otherwise a popover. */
+ *  full-viewport on touch (keyboard-friendly); otherwise a popover. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function PanelHost({ ctx, id, def, open, onClose, coarse }: { ctx: LiveContextValue; id: string; def: PluginDef<any>; open: boolean; onClose: () => void; coarse: boolean }) {
   const base = usePluginProps(ctx, id, def);
@@ -150,7 +150,7 @@ function PanelHost({ ctx, id, def, open, onClose, coarse }: { ctx: LiveContextVa
   );
 }
 
-/** Wires the global plugin controls into the chrome ((internal ADR)). Returns the rail
+/** Wires the global plugin controls into the chrome. Returns the rail
  *  triggers (pinned + custom on touch, all on desktop), the `⋮` menu rows for the rest
  *  (touch only, the rail can't overflow), and the centrally-hosted panels. One panel
  *  open at a time. */

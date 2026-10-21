@@ -185,7 +185,7 @@ export function legalMenuLinks(legal: LegalLinks | null | undefined, role: strin
 /** Deck chrome rendered at DEVICE scale, pinned to the real viewport, outside the
  *  scaled 1280×720 canvas, so the buttons stay tappable on a phone. Carries the
  *  progress bar, the slide counter, the help/menu affordance, and any plugin-
- *  registered global controls ((internal ADR)). On a coarse pointer the rail is upsized
+ *  registered global controls. On a coarse pointer the rail is upsized
  *  and the keyboard-shortcut help is swapped for a tappable `⋮` action menu. */
 export function DeckChrome({
   index,
@@ -217,10 +217,10 @@ export function DeckChrome({
   const fs = useIsFullscreen();
   const inset = "max(env(safe-area-inset-left), 1rem)";
   // plugin global controls: pinned ones sit in the rail; the rest overflow into the ⋮
-  // menu on touch so the rail can't run off-screen ((internal ADR)). Panels are hosted here.
+  // menu on touch so the rail can't run off-screen. Panels are hosted here.
   const { rail: pluginRail, menuActions: pluginMenu, panels: pluginPanels } = usePluginChrome();
 
-  // Switch this window to the presenter view ((internal ADR)), the touch counterpart to
+  // Switch this window to the presenter view, the touch counterpart to
   // the desktop `P` pop-out. `Present` selects the view by the #presenter hash at
   // mount, so set the hash and reload.
   const openPresenterView = () => {

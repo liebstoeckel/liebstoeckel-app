@@ -8,7 +8,7 @@ import { LeaseHolder, holderIdentity, inClusterLeaseApi, samePodHolder } from "@
 import { legalLinksFrom } from "@liebstoeckel/live-server";
 import { repeatGate } from "./repeat-gate";
 
-/** Object storage for session snapshots ((internal ADR)), wired from S3_* env when present.
+/** Object storage for session snapshots, wired from S3_* env when present.
  *  Absent → the relay runs without persistence (transient/CLI use). */
 function s3Storage(): RelayStorage | undefined {
   const endpoint = process.env.S3_ENDPOINT;
@@ -79,11 +79,11 @@ export const relayCommand = defineCommand({
     },
   },
   run({ args }) {
-    initTracing("present-relay"); // gated by OTEL_EXPORTER_OTLP_ENDPOINT ((internal ADR) step 3b)
+    initTracing("present-relay"); // gated by OTEL_EXPORTER_OTLP_ENDPOINT
     const port = Number(args.port ?? process.env.PORT ?? 0) || 0;
     // Public base: an explicit override wins (CLI / single-pod env); otherwise a
     // StatefulSet pod derives its OWN per-pod base from its ordinal + host template
-    // ((internal ADR) §3 / (internal ticket), POD_NAME via the downward API).
+    // (POD_NAME via the downward API).
     const publicBaseUrl =
       args["public-url"] ??
       process.env.PRESENT_RELAY_PUBLIC_URL ??
@@ -162,7 +162,7 @@ export const relayCommand = defineCommand({
     }
 
     // Await the snapshot flush before exiting so a rolling deploy / drain doesn't lose
-    // the last interval's live state ((internal ADR) §5 / (internal ticket)). k8s gives us
+    // the last interval's live state. k8s gives us
     // terminationGracePeriodSeconds (set on the StatefulSet) to finish.
     //
     // Order: close every socket and store every session first (nothing written after the

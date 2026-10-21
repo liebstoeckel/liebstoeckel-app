@@ -26,7 +26,7 @@ export type ThumbnailFormat = "webp" | "jpeg" | "png";
  *  (the install "succeeds" yet capture still reports no Chromium). */
 export const playwrightCoreVersion: string = createRequire(import.meta.url)("playwright-core/package.json").version;
 
-/** Thumbnail capture options, the slide driver's options ((internal ADR)) plus the
+/** Thumbnail capture options, the slide driver's options plus the
  *  image-encoding policy specific to the thumbnail sink. Default width 640 ×
  *  scale 2 = 1280×720, the native authoring canvas, so the overview is never
  *  upscaled even on large/hi-dpi screens. Lower `width` to shrink a big deck. */
@@ -321,7 +321,7 @@ function injectFlag(html: string, global: string, value: unknown): string {
 
 const injectCaptureFlag = (html: string): string => injectFlag(html, CAPTURE_FLAG, { index: 0 });
 
-/** Options for the sink-agnostic slide driver ((internal ADR)). The viewport/scale and
+/** Options for the sink-agnostic slide driver. The viewport/scale and
  *  the per-slide wait policy live here; what the rendered frame *becomes* (a
  *  data-URI thumbnail, a PNG file, a PDF page) is the caller's `onFrame`. */
 export interface RenderDriveOptions {
@@ -341,7 +341,7 @@ export interface RenderDriveOptions {
   timeoutMs?: number;
   /** 0-based slide indices to render, in order (default: every slide). Indices
    *  outside `[0, count)` are skipped. The capture protocol can jump to any
-   *  index, so a subset is just a shorter list ((internal ADR) / 0043). */
+   *  index, so a subset is just a shorter list. */
   indices?: number[];
   /** Resolve the index list once the deck's slide count is known, for specs that
    *  are open-ended (e.g. "from slide 3 to the end"). Overrides `indices`. */
@@ -496,7 +496,7 @@ export interface PrintDriveResult {
 
 /**
  * Render a built deck through `PrintView` and produce a **single, text-preserving**
- * PDF ((internal ADR)): every selected slide is stacked one-per-page in the DOM, so one
+ * PDF: every selected slide is stacked one-per-page in the DOM, so one
  * `page.pdf()` yields a multi-page vector PDF with selectable text. `emulateMedia`
  * keeps the deck's *screen* styles (not print CSS). **Loud**, throws if no Chromium.
  */

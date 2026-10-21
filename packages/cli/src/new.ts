@@ -12,13 +12,13 @@ export interface ScaffoldOptions {
   brand?: string;
   /** parent directory for the new deck (default: the current working directory) */
   dir?: string;
-  /** opt out of auto-applying the logged-in org's default brand ((internal ADR)) */
+  /** opt out of auto-applying the logged-in org's default brand */
   noOrgBrand?: boolean;
 }
 
 /** Pure: the file map for a new minimal deck (deck-relative path → contents).
  *  Kept as plain templates so a richer template library can grow from here. */
-/** Per-dependency version ranges for the scaffolded deck ((internal ADR)). Independently
+/** Per-dependency version ranges for the scaffolded deck. Independently
  *  versioned, so each is resolved from its OWN package. */
 export interface DeckDeps {
   engine?: string;
@@ -42,26 +42,26 @@ export function deckFiles(
 ): Record<string, string> {
   const range = (k: "engine" | "theme") => deps[k] ?? "workspace:*";
   const title = titleCase(name);
-  // When `new` is run logged-in, the org's default brand ((internal ADR)) is baked in:
+  // When `new` is run logged-in, the org's default brand is baked in:
   // a local brands/<name>.ts wired via <Present brandThemes>, self-contained.
   const brandId = orgBrand?.name ?? brand;
   const brandImport = orgBrand ? `import orgBrand from "./brands/${orgBrand.name}";\n` : "";
   const brandThemesProp = orgBrand ? " brandThemes={[orgBrand]}" : "";
-  // The default brand's catalog fonts ((internal ADR)) are @fontsource packages the baked
+  // The default brand's catalog fonts are @fontsource packages the baked
   // brands/<name>.ts imports, add them so the deck's `bun install` fetches the
   // webfont (built decks inline it). `latest` (a third-party dist-tag) since the CLI
   // can't resolve their version like the framework deps; the lockfile pins on install.
   const fontDeps = Object.fromEntries((orgBrand?.dependencies ?? []).map((p) => [p, "latest"]));
   const pkg = {
     // A scaffolded deck is the user's own private project, a BARE name, not the
-    // framework's `@liebstoeckel/` npm scope ((internal ADR)). Only the framework
+    // framework's `@liebstoeckel/` npm scope. Only the framework
     // *dependencies* below keep that scope.
     name,
     version: "0.0.0",
     private: true,
     type: "module",
     // Allowlist of what `bun pm pack` ships, and therefore what `liebstoeckel build`
-    // embeds as recoverable source and `eject` restores ((internal ADR)). Deny-by-default:
+    // embeds as recoverable source and `eject` restores. Deny-by-default:
     // a stray .env / secret is never packed because it isn't listed here.
     // Add new top-level source dirs here as the deck grows (the build warns if you forget).
     files: [
@@ -161,7 +161,7 @@ export default function Intro() {
   );
 }
 `,
-    // Org default brand baked in as owned source ((internal ADR)).
+    // Org default brand baked in as owned source.
     ...(orgBrand ? { [`brands/${orgBrand.name}.ts`]: orgBrand.source } : {}),
   };
 }
@@ -186,7 +186,7 @@ function nearestPkgVersion(entry: string): string | null {
 const caret = (v: string | null | undefined) => (v && v !== "0.0.0" ? `^${v}` : null);
 
 /** The `^<version>` range to scaffold for a framework dep, read from that dep's
- *  OWN resolved package (independently versioned, (internal ADR)).
+ *  OWN resolved package (independently versioned).
  *
  *  Invariant: every scaffolded dependency MUST be a direct dependency of
  *  `@liebstoeckel/cli`, so it is installed alongside the CLI and resolvable both
@@ -203,7 +203,7 @@ function depRange(name: string): string {
     throw new Error(
       `scaffold: cannot resolve ${name} to read its version. Every scaffolded ` +
         `dependency must be a direct dependency of @liebstoeckel/cli so it is ` +
-        `installed alongside the CLI ((internal ADR)). Original error: ${(err as Error).message}`,
+        `installed alongside the CLI. Original error: ${(err as Error).message}`,
     );
   }
   const version = nearestPkgVersion(resolved);
@@ -211,7 +211,7 @@ function depRange(name: string): string {
   if (!range) {
     throw new Error(
       `scaffold: resolved ${name} but its package.json has no usable version ` +
-        `(found ${version ?? "none"}); cannot emit a real range for it ((internal ADR)).`,
+        `(found ${version ?? "none"}); cannot emit a real range for it.`,
     );
   }
   return range;
@@ -246,7 +246,7 @@ export async function scaffold(
   }
   const brand = opts.brand ?? "liebstoeckel";
   // Unless a brand was named explicitly (or opted out), bake the logged-in org's
-  // default brand so new decks are on-brand instantly ((internal ADR)). Best effort, // never blocks scaffolding when offline / not logged in.
+  // default brand so new decks are on-brand instantly. Best effort, // never blocks scaffolding when offline / not logged in.
   const orgBrand = !opts.brand && !opts.noOrgBrand ? await (await import("./cloud")).fetchDefaultBrand() : null;
 
   // The deck materializes in the current directory as ./<name> (least surprising).

@@ -1,5 +1,5 @@
 // `liebstoeckel login` + `liebstoeckel push` + `liebstoeckel orgs`, the cloud
-// path ((internal ADR)/0053). login runs the OAuth 2.0 device-authorization grant
+// path. login runs the OAuth 2.0 device-authorization grant
 // (RFC 8628) against the control plane's /api/auth/device/* endpoints; push
 // uploads a single-file deck to the versioned /api/v1/decks with the resulting
 // bearer token; orgs lists/sets the active organization decks are pushed into.
@@ -44,7 +44,7 @@ export async function httpFailure(res: Response, what: string, forbidden?: strin
   return new CliError(`${what}: ${res.status} ${await bodyExcerpt(res)}`.trim(), { code: "request_failed" });
 }
 
-/** Uniform cloud org-targeting ((internal ADR)): an explicit `--org <slug>` wins, else
+/** Uniform cloud org-targeting: an explicit `--org <slug>` wins, else
  *  the stored default (`creds.org`), else undefined (= the personal workspace,
  *  the server's no-`x-org-slug` default). */
 export function resolveOrg(args: { org?: string }, defaultOrg?: string): string | undefined {
@@ -55,7 +55,7 @@ export function resolveOrg(args: { org?: string }, defaultOrg?: string): string 
 /** Default `push` target when no path is given: the single built `.html` in
  *  `./dist` (the deck slug, e.g. `dist/poll-demo.html`), preferring `index.html`
  *  if several exist. The server derives the title from the file's own `<title>`,
- *  so the CLI no longer parses it ((internal ADR), superseding 0054's client-side parse). */
+ *  so the CLI no longer parses it. */
 function defaultDeckHtml(): string | null {
   const dir = resolve("dist");
   if (!existsSync(dir)) return null;
@@ -74,7 +74,7 @@ function deckNameFromPath(absFile: string): string | null {
   return basename(dirname(absFile)) || null;
 }
 
-/** A stable, url-safe deck key from a name ((internal ADR): re-push upserts by it). */
+/** A stable, url-safe deck key from a name (re-push upserts by it). */
 function slugifyKey(name: string): string {
   return (
     name
@@ -185,7 +185,7 @@ async function runPush(args: {
 }, json: boolean): Promise<void> {
   const creds = await loadCreds();
   const org = resolveOrg(args, creds?.org);
-  // With no path, push the built deck in ./dist ((internal ADR)), matching `liebstoeckel build`.
+  // With no path, push the built deck in ./dist, matching `liebstoeckel build`.
   const file = args.deck ?? defaultDeckHtml();
   if (!file) {
     throw usageError(
@@ -205,7 +205,7 @@ async function runPush(args: {
   }
   const html = await Bun.file(path).text();
   const deckName = args.name ?? deckNameFromPath(path) ?? basename(file).replace(/\.html?$/i, "");
-  // Deck key ((internal ADR)): re-push upserts by it. `--new` forces a fresh deck by
+  // Deck key: re-push upserts by it. `--new` forces a fresh deck by
   // uniquifying the key, so the same folder can also start a separate deck.
   const fresh = !!args.new;
   const deckKey = fresh ? `${slugifyKey(deckName)}-${Math.random().toString(36).slice(2, 8)}` : slugifyKey(deckName);
@@ -215,7 +215,7 @@ async function runPush(args: {
     "content-type": "text/html",
     "x-deck-key": deckKey,
   };
-  // Title precedence ((internal ADR)): the server parses the deck's own `<title>`, so we
+  // Title precedence: the server parses the deck's own `<title>`, so we
   // only send a header when the user explicitly overrides it with `--title`. It's
   // URL-encoded because non-Latin1 chars (em-dash, smart quotes, emoji) are illegal
   // in HTTP header values.
@@ -499,7 +499,7 @@ export const orgsCommand = defineCommand({
   default: "list",
 });
 
-// ── brand registry ((internal ADR)): the org is an authenticated registry; brands are
+// ── brand registry: the org is an authenticated registry; brands are
 // items pulled into decks as owned source (brands/<name>.ts), baked at build. ──
 
 interface BrandRow {
@@ -524,7 +524,7 @@ export function themeToTokens(input: unknown): Record<string, unknown> {
     primary: c.primary, accent: c.accent, accent2: c.accent2 ?? "", onPrimary: c.onPrimary,
     fontHeading: f.heading ?? "", fontBody: f.body ?? "", fontMono: f.mono ?? "",
     glowA: g.a ?? "", glowB: g.b ?? "",
-    // The viz palette rides along ((internal ticket)); the server normalizes/bounds it.
+    // The viz palette rides along; the server normalizes/bounds it.
     ...(Array.isArray(m.viz) ? { viz: m.viz } : {}),
   };
 }
@@ -571,7 +571,7 @@ const brandPushCommand = defineCommand({
     });
     if (!res.ok) throw await httpFailure(res, "push failed", "forbidden: managing brands needs an admin or owner role on a paid org");
     console.log(`\n✓ pushed brand "${name}"${args.default ? " (default)" : ""}${org ? ` to ${org}` : ""}`);
-    // Warn about fonts the catalog can't ship a webfont for ((internal ADR)); they fall
+    // Warn about fonts the catalog can't ship a webfont for; they fall
     // back to system fonts on pull unless the deck supplies its own @font-face.
     const { warnings } = (await res.json().catch(() => ({}))) as {
       warnings?: { field: string; family: string; suggestion?: string }[];
@@ -657,7 +657,7 @@ const brandListCommand = defineCommand({
   },
 });
 
-/** `liebstoeckel brand list|push|pull`, share org brands (registry, (internal ADR)). */
+/** `liebstoeckel brand list|push|pull`, share org brands (registry). */
 export const brandCommand = defineCommand({
   meta: { name: "brand", description: "share org brands: push/pull theme token sets, coming soon" },
   subCommands: { list: brandListCommand, push: brandPushCommand, pull: brandPullCommand },
@@ -673,7 +673,7 @@ async function fetchBrands(api: string, token: string, org?: string): Promise<Br
 const camel = (s: string) => s.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
 
 /** For `liebstoeckel new`: the org default brand's source + name (+ its `@fontsource`
- *  deps, (internal ADR), so the scaffolded package.json installs them), or null. Best
+ *  deps, so the scaffolded package.json installs them), or null. Best
  *  effort, never blocks scaffolding if not logged in / no default. */
 export async function fetchDefaultBrand(): Promise<{ name: string; source: string; dependencies: string[] } | null> {
   try {

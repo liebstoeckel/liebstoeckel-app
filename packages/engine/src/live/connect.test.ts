@@ -136,7 +136,7 @@ describe("connectLive (mock WS)", () => {
   });
 });
 
-describe("connectLive recovery escalation ((internal ticket))", () => {
+describe("connectLive recovery escalation", () => {
   test("fires onUnrecoverable once after N consecutive failed reconnects", async () => {
     const created: MockWS[] = [];
     const WS = function (url: string) {

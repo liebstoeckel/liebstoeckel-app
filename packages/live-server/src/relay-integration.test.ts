@@ -15,7 +15,7 @@ const BASE_HTML = "<html><head><title>deck</title></head><body><div id=root></di
 // A synthetic plugin schema owned by this test. live-server / present-relay are
 // plugin-agnostic: they sync opaque, plugin-owned typed state addressed by id and
 // never reference any concrete plugin's schema (that's what lets a non-liebstoeckel
-// dev's plugin sync with zero server changes, (internal ADR)). So the test brings its
+// dev's plugin sync with zero server changes). So the test brings its
 // own schema rather than borrowing a real plugin's, same spirit as `@acme/seed`.
 const voteSchema = schema({ options: t.array(t.string), votes: t.record(t.string) });
 

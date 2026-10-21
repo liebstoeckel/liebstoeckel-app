@@ -18,7 +18,7 @@ describe("deckFiles (pure templates)", () => {
     // The CLI builds and serves the deck: no Bun tooling files of its own.
     for (const f of ["build.ts", "server.ts", "bunfig.toml"]) expect(files[f]).toBeUndefined();
     const pkg = JSON.parse(files["package.json"]!);
-    expect(pkg.name).toBe("my-talk"); // bare name, not the framework npm scope ((internal ADR))
+    expect(pkg.name).toBe("my-talk"); // bare name, not the framework npm scope
     expect(pkg.dependencies["@liebstoeckel/engine"]).toBe("workspace:*");
     expect(pkg.scripts).toEqual({ dev: "liebstoeckel dev", build: "liebstoeckel build" });
     expect(pkg.devDependencies).toBeUndefined();
@@ -34,7 +34,7 @@ describe("deckFiles (pure templates)", () => {
     expect(files["main.tsx"]).toContain("My Talk"); // title-cased from the name
   });
 
-  test("ships a packing-safe files allowlist + .gitignore ((internal ADR))", () => {
+  test("ships a packing-safe files allowlist + .gitignore", () => {
     const files = deckFiles("my-talk");
     const pkg = JSON.parse(files["package.json"]!);
     // deny-by-default allowlist governs `bun pm pack` → embedded source
@@ -53,7 +53,7 @@ describe("deckFiles (pure templates)", () => {
     expect(files["main.tsx"]).toContain('brands={["acme"]}');
   });
 
-  test("an org brand bakes its source + adds its @fontsource deps ((internal ADR))", () => {
+  test("an org brand bakes its source + adds its @fontsource deps", () => {
     const files = deckFiles("x", "liebstoeckel", {}, {
       name: "acme",
       source: `import "@fontsource-variable/inter";\nexport default {};\n`,
@@ -93,7 +93,7 @@ describe("scaffold (writes to disk)", () => {
     expect(JSON.parse(readFileSync(join(res.dir, "package.json"), "utf8")).name).toBe("demo-x");
   });
 
-  test("pins each framework dep to its OWN resolved caret version, not workspace:* ((internal ADR))", async () => {
+  test("pins each framework dep to its OWN resolved caret version, not workspace:*", async () => {
     root = mkdtempSync(join(tmpdir(), "pi-new-"));
     const res = await scaffold("ranges", { dir: root, noOrgBrand: true });
     const pkg = JSON.parse(readFileSync(join(res.dir, "package.json"), "utf8"));

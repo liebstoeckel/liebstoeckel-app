@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { fontPackagesFromSource, resolveOrg, themeToTokens } from "./cloud";
 
-describe("resolveOrg ((internal ADR))", () => {
+describe("resolveOrg", () => {
   test("explicit --org wins over the stored default", () => {
     expect(resolveOrg({ org: "acme" }, "stored")).toBe("acme");
   });
@@ -13,7 +13,7 @@ describe("resolveOrg ((internal ADR))", () => {
   });
 });
 
-describe("fontPackagesFromSource ((internal ADR))", () => {
+describe("fontPackagesFromSource", () => {
   test("extracts the brand's @fontsource side-effect imports, deduped + sorted", () => {
     const src = `// header
 import "@fontsource-variable/schibsted-grotesk";
@@ -30,7 +30,7 @@ export default defineTheme({});`;
   });
 });
 
-describe("themeToTokens (brand push, (internal ticket))", () => {
+describe("themeToTokens (brand push)", () => {
   test("flattens a defineTheme module incl. the viz palette", () => {
     const t = themeToTokens({
       name: "acme",

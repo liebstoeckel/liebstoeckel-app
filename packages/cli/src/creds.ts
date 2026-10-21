@@ -11,7 +11,7 @@ export const CONFIG_FILE = join(CONFIG_DIR, "credentials.json");
 export interface Creds {
   api: string;
   token: string;
-  /** Default organization slug for push/brand/@org ((internal ADR)); omitted = personal. */
+  /** Default organization slug for push/brand/@org; omitted = personal. */
   org?: string;
 }
 

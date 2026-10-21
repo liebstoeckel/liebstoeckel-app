@@ -162,7 +162,7 @@ const SR_ONLY = {
 
 /** Presenter console: the big live tally plus the privileged close/reopen control.
  *  Toggling `closed` is an audience-affecting action, the Slide reads it and locks
- *  voting on the audience screen ((internal ADR)). */
+ *  voting on the audience screen. */
 function PollConsole(p: ClientProps<PollState>) {
   const { snapshot, state, role } = p;
   if (p.synced === false) {
@@ -235,7 +235,7 @@ export default definePlugin<PollState>({
       label: "Poll",
       icon: <PollIcon />,
       badge: (s) => totalVotes(s) || undefined,
-      title: (s) => s.question || undefined, // tell sibling poll instances apart ((internal ADR))
+      title: (s) => s.question || undefined, // tell sibling poll instances apart
       Console: PollConsole,
     },
     fallback: PollFallback,

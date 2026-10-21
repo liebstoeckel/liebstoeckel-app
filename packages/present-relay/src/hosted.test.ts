@@ -4,7 +4,7 @@ import { createRelay, MAX_SESSION_TTL_MS, type RelayServer, type RelayStorage } 
 import { mintGrant } from "./grant";
 import { CLOSE } from "@liebstoeckel/live-server/placement/protocol";
 
-// Hosted live presenting ((internal ADR)): audience write-scope enforcement + snapshot
+// Hosted live presenting: audience write-scope enforcement + snapshot
 // persistence. A deck whose embedded manifest lets the audience write only `votes`
 // on plugin "poll".
 const TOKEN = "acct-secret-token";
@@ -132,7 +132,7 @@ describe("hosted relay: audience write-scope enforcement", () => {
   });
 });
 
-describe("hosted relay: signed-grant connection auth ((internal ADR))", () => {
+describe("hosted relay: signed-grant connection auth", () => {
   test("the returned links carry grants that authenticate; raw tokens still work", async () => {
     const base = start();
     const s = await create(base);
@@ -332,7 +332,7 @@ describe("hosted relay: a viewer's participant id stays with its browser", () =>
   });
 });
 
-describe("hosted relay: plan limits ((internal ADR))", () => {
+describe("hosted relay: plan limits", () => {
   test("a per-session TTL shortens expiry below the relay default", async () => {
     const base = start({ sessionTtlMs: 6 * 60 * 60 * 1000 });
     const r = await fetch(`${base}/api/sessions`, {
@@ -471,7 +471,7 @@ describe("hosted relay: plan limits ((internal ADR))", () => {
   });
 });
 
-describe("hosted relay: audience white-label ((internal ADR))", () => {
+describe("hosted relay: audience white-label", () => {
   test("the audience view carries the provenance badge when watermarked; presenter never does", async () => {
     const base = start();
     const { id, presenterToken, viewerToken } = await create(base, { "x-watermark": "1" });

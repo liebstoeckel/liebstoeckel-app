@@ -127,7 +127,7 @@ export function Plugin({
   components = {},
 }: {
   id: string;
-  /** instance discriminator ((internal ADR)); omit for the default slice. Two placements with
+  /** instance discriminator; omit for the default slice. Two placements with
    *  the same (id, instance) share state, that's how you intentionally mirror one. */
   instance?: string;
   /** optional human label for this instance, used in the presenter tabs to tell
@@ -165,7 +165,7 @@ export function Plugin({
     return state.subscribe(setSnap);
   }, [state]);
 
-  // Register this instance so the presenter console / server can discover it ((internal ADR)).
+  // Register this instance so the presenter console / server can discover it.
   useEffect(() => {
     if (ctx?.live && def) registerPluginInstance(ctx.doc, id, instance, { title });
   }, [ctx?.live, ctx?.doc, def, id, instance, title]);
@@ -195,7 +195,7 @@ export function Plugin({
   // the presenter console, the mobile breakout. Sharing one `layoutId` across them makes
   // Motion morph one into another (rows "disappear" from the slide). A per-surface
   // LayoutGroup namespaces the ids so intra-surface animation still works but they never
-  // collide across surfaces (the (internal ADR) hazard, generalised).
+  // collide across surfaces.
   // After the talk has ended a viewer's plugins stay readable (the results as they were)
   // but take no more input: nothing sent now would reach anyone.
   const ended = ctx.role === "viewer" && ctx.connection?.status === "ended";

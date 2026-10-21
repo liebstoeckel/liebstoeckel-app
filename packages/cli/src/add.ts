@@ -11,8 +11,8 @@ import { bunBin } from "./bun";
 import { CliError, fail, usageError, wantsJson } from "./output";
 
 /**
- * `liebstoeckel add`, scaffold registry items into a deck as owned source
- * ((internal ADR)), resolved over a pluggable transport ((internal ADR)). The resolver core
+ * `liebstoeckel add`, scaffold registry items into a deck as owned source,
+ * resolved over a pluggable transport. The resolver core
  * (`resolveScaffold`) is pure given a transport, so it is unit-tested with an
  * in-memory transport; only `runAdd` touches disk / spawns `bun add`.
  */
@@ -36,7 +36,7 @@ function assertSafeRelPath(p: string): void {
 
 /**
  * Reads a registry laid out as a local directory, the default/workspace registry,
- * and also how an npm/git carrier is read once installed to a temp dir ((internal ADR)).
+ * and also how an npm/git carrier is read once installed to a temp dir.
  */
 export function localTransport(root: string, id = "@liebstoeckel"): RegistryTransport {
   return {
@@ -55,7 +55,7 @@ export function localTransport(root: string, id = "@liebstoeckel"): RegistryTran
 
 /**
  * Reads a registry over authenticated HTTP, an org's cloud registry, or any
- * `https://…` registry configured in `liebstoeckel.json` ((internal ADR)/0059). Speaks
+ * `https://…` registry configured in `liebstoeckel.json`. Speaks
  * the same protocol: `<base>/items/<name>.json` and `<base>/files/<path>`.
  */
 export function httpTransport(baseUrl: string, headers: Record<string, string>, id: string): RegistryTransport {
@@ -192,7 +192,7 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
     const { REGISTRY_ROOT } = await import("@liebstoeckel/registry");
     return localTransport(REGISTRY_ROOT, ns);
   }
-  // @org: the logged-in org's authenticated cloud registry ((internal ADR)), no config needed
+  // @org: the logged-in org's authenticated cloud registry, no config needed
   if (ns === "@org" && (spec == null || spec === "org")) {
     const { baseUrl, headers } = await orgRegistryAuth();
     return httpTransport(baseUrl, headers, ns);
@@ -204,7 +204,7 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
     return localTransport(resolve(deckDir, spec), ns);
   }
   if (spec.startsWith("http://") || spec.startsWith("https://")) {
-    // Authenticated HTTP registry ((internal ADR)/0059). Auto-attach the stored bearer token
+    // Authenticated HTTP registry. Auto-attach the stored bearer token
     // ONLY when the registry's origin is *exactly* the host we logged into. The registry
     // URL comes from the deck's own liebstoeckel.json, so it is attacker-controlled for a
     // cloned/third-party deck — compare parsed origins (scheme + host + port), never a
@@ -219,16 +219,16 @@ async function transportFor(ns: string, deckDir: string, config: DeckConfig): Pr
     }
     return httpTransport(spec, headers, ns);
   }
-  // (internal ADR) also lists npm/git transports as planned; not wired yet.
+  // npm and git transports are planned; not wired yet.
   throw new Error(
     `registry transport "${spec}" (namespace ${ns}) is not implemented yet, ` +
-      `bundled default, local-path, @org, and http(s) registries are wired ((internal ADR) plans npm/git).`,
+      `bundled default, local-path, @org, and http(s) registries are wired (npm and git are planned).`,
   );
 }
 
 /** Optional `add <category> <name>...` sugar: strip a leading **singular** category
  *  keyword (`chart`, `hook`, …) when at least one item name follows it. Pure, the
- *  category words are exactly `CATEGORIES`, never their plurals ((internal ticket)). */
+ *  category words are exactly `CATEGORIES`, never their plurals. */
 export function stripCategory(positionals: string[]): string[] {
   if (positionals.length >= 2 && (CATEGORIES as readonly string[]).includes(positionals[0]!)) {
     return positionals.slice(1);
@@ -309,7 +309,7 @@ async function runAdd(args: {
       for (const d of plan.npmDependencies) deps.add(d);
     }
 
-    // plan, computed before writing ((internal ADR) review-before-write)
+    // plan, computed before writing (review before write)
     const plan = files.map((f) => {
       const exists = existsSync(join(deckDir, f.target));
       const action = exists && !force ? "skip" : exists ? "overwrite" : "create";
@@ -338,7 +338,7 @@ async function runAdd(args: {
     let installed = false;
     if (deps.size && !noInstall) {
       const { $ } = await import("bun");
-      // pin the interpreter; --ignore-scripts per the registry trust model ((internal ADR))
+      // pin the interpreter; --ignore-scripts per the registry trust model
       const proc = $`${bunBin} add --ignore-scripts ${dependencies}`.cwd(deckDir);
       if (json) await proc.quiet();
       else {

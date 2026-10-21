@@ -10,7 +10,7 @@ import { looksLikeDeck } from "./targeting";
 import { ensureBuildTrust } from "./trust";
 import { CliError, reporting, usageError, wantsJson, withLogToStderr } from "./output";
 
-/** Deck targeting ((internal ADR)): a leading positional, else `--dir`, else cwd. */
+/** Deck targeting: a leading positional, else `--dir`, else cwd. */
 const deckDir = (args: { deck?: string; dir?: string }): string => args.deck ?? args.dir ?? ".";
 
 /** Gate a build behind first-time trust: building a deck runs its build-time code on this

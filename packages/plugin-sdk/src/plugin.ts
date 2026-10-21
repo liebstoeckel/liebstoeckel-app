@@ -31,7 +31,7 @@ export interface ClientProps<T> {
   ui: Record<string, ComponentType<Record<string, unknown>>>;
   /** author config passed at placement, e.g. <Plugin id="poll" props={{ options }} /> */
   props: Record<string, unknown>;
-  /** instance discriminator ((internal ADR)); "" = the default slice. Lets one plugin *type*
+  /** instance discriminator; "" = the default slice. Lets one plugin *type*
    *  back many independent placements (e.g. two separate polls). */
   instance: string;
   /** Set on a viewer when the live server refused this viewer's latest write to this
@@ -83,18 +83,18 @@ export interface GlobalProps<T> extends ClientProps<T> {
 
 export type GlobalComponent<T> = ComponentType<GlobalProps<T>>;
 
-/** Optional deck-wide surfaces, mounted once per deck by the engine (see (internal ADR)).
+/** Optional deck-wide surfaces, mounted once per deck by the engine.
  *  Live-gated: rendered only when a server is connected. */
 export interface GlobalSurfaces<T> {
   /** full-deck, `pointer-events:none` float layer above the slide, below chrome */
   Overlay?: ClientComponent<T>;
   /** the panel's trigger label, used as the chrome button's `aria-label` and as its
-   *  row text when it overflows into the touch `⋮` menu ((internal ADR)). */
+   *  row text when it overflows into the touch `⋮` menu. */
   label?: string;
   /** the trigger glyph (a stroke SVG to match the engine's chrome icons). */
   icon?: ReactNode;
   /** keep this control in the chrome rail on mobile instead of overflowing into the
-   *  `⋮` menu, for quick, frequent actions like reactions ((internal ADR)). Default false:
+   *  `⋮` menu, for quick, frequent actions like reactions. Default false:
    *  on a coarse pointer the control becomes a `⋮` menu row so the rail can't overflow.
    *  Ignored on desktop, where the rail has room for everything. */
   pinned?: boolean;
@@ -107,11 +107,11 @@ export interface GlobalSurfaces<T> {
    *  chrome rail, right for quick, frequent actions (reactions). `"sheet"` opens a
    *  full-viewport breakout on touch (keyboard-friendly), right for panels with a text
    *  input (Q&A), where a bottom popover gets buried by the on-screen keyboard. On a
-   *  fine-pointer (desktop) it stays a popover regardless. See (internal ADR) / 0037. */
+   *  fine-pointer (desktop) it stays a popover regardless. */
   panelMode?: "popover" | "sheet";
 }
 
-/** A plugin's **presenter console**, one tab in the presenter view ((internal ADR)). It
+/** A plugin's **presenter console**, one tab in the presenter view. It
  *  may be a passive readout, an interactive moderator, or both: a plugin decides.
  *  Audience-affecting actions ("close voting", "pin question", "reveal results") are
  *  just role-gated writes to the plugin's own state, which its `Slide` reads, there
@@ -126,7 +126,7 @@ export interface PresenterSurface<T> {
    *  needs attention without switching to it. Return undefined/0 for none. */
   badge?: (snapshot: T) => number | string | undefined;
   /** optional per-instance title from live state (e.g. the poll's question), used to
-   *  tell sibling instances apart in the presenter tabs ((internal ADR)). Falls back to the
+   *  tell sibling instances apart in the presenter tabs. Falls back to the
    *  placement `title`, then the instance id. */
   title?: (snapshot: T) => string | undefined;
   /** the console itself: full-size, presenter-private. Same `ClientProps` as
@@ -137,7 +137,7 @@ export interface PresenterSurface<T> {
 export interface PluginClient<T> {
   /** rendered in the deck (audience + presenter) */
   Slide: ClientComponent<T>;
-  /** optional presenter console, a tab in the presenter view ((internal ADR)) */
+  /** optional presenter console, a tab in the presenter view */
   presenter?: PresenterSurface<T>;
   /** shown when no server is connected (standalone .html + thumbnail capture);
    *  receives the current snapshot and the author `props` from `<Plugin props>`. */
@@ -149,7 +149,7 @@ export interface PluginClient<T> {
    *  plugins so they don't show a misleading affordance. */
   interactive?: boolean;
   /** optional deck-wide surfaces (overlay / chrome control / panel), independent of
-   *  the slide-anchored `<Plugin>` placement. See (internal ADR). */
+   *  the slide-anchored `<Plugin>` placement. */
   global?: GlobalSurfaces<T>;
 }
 
@@ -160,7 +160,7 @@ export interface PluginServerCtx<T> {
   session: { id: string };
   /** the instance this invocation is for ("" = default). A server plugin that supports
    *  multiple instances enumerates the rest from the doc index, `readPluginInstances` /
-   *  `observePluginIndex` ((internal ADR) / 0034). */
+   *  `observePluginIndex`. */
   instance: string;
 }
 

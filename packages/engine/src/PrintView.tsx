@@ -31,7 +31,7 @@ const ALL_STEPS = 1e6;
  *  publishes SLIDE_COUNT, renders the indices it's handed (PRINT_SELECT_EVENT), and
  *  echoes the select token into PRINT_READY once that selection has painted.
  *
- *  Each slide gets its own PersistentProvider: persistent travel ((internal ADR)) is a
+ *  Each slide gets its own PersistentProvider: persistent travel is a
  *  live-nav concept, so in a static all-slides layout each slide just renders its
  *  own elements in final position. */
 export function PrintView({ slides, brands = DEFAULT_BRANDS, plugins = [] }: DeckProps) {

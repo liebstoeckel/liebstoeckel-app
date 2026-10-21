@@ -2,8 +2,8 @@
 import { defineCommand, runMain } from "citty";
 import { looksLikeDeck } from "./targeting";
 
-// The umbrella dispatches in-process to one citty command per subcommand ((internal ADR):
-// uniform deck targeting, (internal ADR): agent-readable surface). Heavy command modules
+// The umbrella dispatches in-process to one citty command per subcommand (uniform
+// deck targeting, an agent-readable surface). Heavy command modules
 // are imported lazily, a subCommand is a `() => import(...)` thunk, so e.g. `build`
 // never loads the live server and `live` never loads the bundler until invoked.
 export const rootCommand = defineCommand({

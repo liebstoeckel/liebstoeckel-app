@@ -82,7 +82,7 @@ export interface RelayOptions {
   /** Updates within this many ms of each other reach each peer as one merged frame
    *  (the first after a quiet spell goes out at once). 0 sends every update on its own. */
   broadcastCoalesceMs?: number;
-  /** object storage for session snapshots ((internal ADR)). Sessions created with an
+  /** object storage for session snapshots. Sessions created with an
    *  `x-snapshot-key` header are seeded from it on create and snapshotted to it on a
    *  timer + on end; absent → no persistence (the trusted/transient relay). */
   storage?: RelayStorage;
@@ -108,7 +108,7 @@ export interface RelayOptions {
   refusingQuietMs?: number;
   /** Shortest gap between two session states sent to one viewer after refusals (ms). */
   resetMinGapMs?: number;
-  /** image tag for the `liebstoeckel_relay_build_info` metric ((internal ADR)). */
+  /** image tag for the `liebstoeckel_relay_build_info` metric. */
   version?: string;
   /** The holder identity of this process's liveness lease (hosted). Reported with
    *  every created session and in /stats, so the control plane can tell a restarted
@@ -138,10 +138,10 @@ interface RelaySession {
   /** privileged peer token: the local deck-runner that applies server-plugin effects */
   runnerToken: string;
   createdAt: number;
-  /** effective lifetime (ms), the plan duration for hosted sessions ((internal ADR)),
+  /** effective lifetime (ms), the plan duration for hosted sessions,
    *  else the relay default. */
   ttlMs: number;
-  /** hosted live ((internal ADR)): write-scope enforce audience peers. */
+  /** hosted live: write-scope enforce audience peers. */
   enforce: boolean;
   /** max concurrent audience peers (plan's liveAudienceCap); undefined = uncapped. */
   audienceCap?: number;
@@ -153,7 +153,7 @@ interface RelaySession {
   joinUrl?: string;
   /** a signed viewer grant for this session, for the relay's own viewer link */
   viewerGrant: string;
-  /** show the "Published with liebstoeckel" provenance badge (free tier; (internal ADR)). */
+  /** show the "Published with liebstoeckel" provenance badge (free tier). */
   watermark: boolean;
   /** days the host keeps what the audience writes after the session (hosted, set by
    *  the control plane from the org's plan); undefined = not kept. Shown to viewers
@@ -193,7 +193,7 @@ export interface RelayServer {
   port: number;
   baseUrl: string;
   sessions: Map<string, RelaySession>;
-  /** operational counters ((internal ADR) / (internal ticket)), snapshot write failures so a
+  /** operational counters, snapshot write failures so a
    *  silently-lost result surfaces in logs/metrics instead of vanishing. */
   stats(): { snapshotFailures: number };
   /** Stop taking writes and store every session: close the sockets with `restarting`,
@@ -205,7 +205,7 @@ export interface RelayServer {
   drain(): Promise<void>;
   /** Flush every active session's final snapshot, then tear down. Awaitable so a
    *  SIGTERM handler can guarantee the writes land before the process exits
-   *  ((internal ADR) §5 / (internal ticket), the racy fire-and-forget path lost results). */
+   *  (the racy fire-and-forget path lost results). */
   stop(): Promise<void>;
 }
 
@@ -255,7 +255,7 @@ export const MAX_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULTS = {
   maxDeckBytes: 8 * 1024 * 1024,
-  // Per-pod safety valve, NOT the platform ceiling ((internal ADR) §2 / (internal ticket)): real
+  // Per-pod safety valve, NOT the platform ceiling: real
   // concurrency is gated by per-org entitlements + per-pod capacity in the control
   // plane's choosePod, and sessions spread across the StatefulSet's pods. This just
   // backstops a single pod's RAM.
@@ -313,7 +313,7 @@ function relayRole(s: RelaySession, token: string | null): Role | "runner" | nul
   return roleForToken(s.session, token);
 }
 
-/** Resolve a connection's role from `?t=…`, preferring a **signed grant** ((internal ADR)):
+/** Resolve a connection's role from `?t=…`, preferring a **signed grant**:
  *  the control plane mints presenter/viewer grants the relay verifies statelessly with
  *  the session's account token, no per-session token lookup. Falls back to the raw
  *  session tokens (CLI presenter/viewer) and the runner token. null = deny. */
@@ -350,14 +350,14 @@ export function createRelay(opts: RelayOptions): RelayServer {
   };
   // Process start time, reported in /stats so the reconciler can tell when a pod has
   // RESTARTED (same name, fresh memory) and re-provision sessions it lost, not just when
-  // a pod is gone ((internal ADR) §5 / (internal ticket)+0019).
+  // a pod is gone.
   const startedAt = Date.now();
-  // Drain flag ((internal ADR) §4 / (internal ticket)): the reconciler cordons a pod (POST /cordon)
+  // Drain flag: the reconciler cordons a pod (POST /cordon)
   // to stop NEW placement while existing sessions finish. Reported in /stats so the
   // control plane's choosePod skips it; in-memory, so a recreated pod starts uncordoned.
   let cordoned = false;
 
-  // Metrics ((internal ADR) / (internal ticket)). Per-instance registry; scrape-time gauges are read
+  // Metrics. Per-instance registry; scrape-time gauges are read
   // from the live `sessions` map. Served bearer-gated at GET /metrics below.
   const metrics = createRelayMetrics(opts.version ?? process.env.PRESENT_RELAY_VERSION ?? "unknown");
   metrics.registry.onCollect(() => {
@@ -382,7 +382,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       else await cfg.storage.put(s.snapshotKey!, s.hub.snapshot());
     } catch (e) {
       // Best-effort: a failed write must never crash the relay, but it must NOT be
-      // silent (results would vanish). Structured log + a counter ((internal ADR)).
+      // silent (results would vanish). Structured log + a counter.
       snapshotFailures++;
       metrics.snapshotFailures.inc();
       console.error(
@@ -505,7 +505,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     s.hub.destroy();
   };
 
-  // POST /api/sessions, create a live session from an uploaded deck ((internal ADR)). A closure over
+  // POST /api/sessions, create a live session from an uploaded deck. A closure over
   // cfg/sessions/metrics/persist/dropSession; returns the session-info JSON, or a reject response
   // (401/503/413/400/429) with the matching metric incremented.
   const handleCreateSession = async (req: Request): Promise<Response> => {
@@ -548,7 +548,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       return json({ error: "session quota reached" }, 429);
     }
 
-    // Hosted live ((internal ADR)): the control plane opts a session into audience
+    // Hosted live: the control plane opts a session into audience
     // write-scope enforcement (scope read from the deck's own embedded manifest)
     // and names the object-storage key its Yjs snapshot persists to.
     const enforce = req.headers.get("x-live-enforce") === "1";
@@ -564,7 +564,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     const joinUrl = joinLink(req.headers.get("x-join-url"));
     const keptHdr = Number(req.headers.get("x-audience-input-kept-days") ?? "");
     const audienceInputKeptDays = Number.isSafeInteger(keptHdr) && keptHdr > 0 ? keptHdr : undefined;
-    // Stable session id across re-provision ((internal ADR)): the control plane re-creates
+    // Stable session id across re-provision: the control plane re-creates
     // a recovered session under the SAME id on a new pod, so the audience URL
     // (`/s/<id>?t=<grant>`) and its stateless grant stay valid, only the pod the
     // multi-layer ForwardAuth route resolves to changes. Absent (CLI) → relay mints one.
@@ -733,7 +733,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
     sessions.set(rs.id, rs);
     metrics.sessionCreates.inc();
 
-    // Mint signed, expiring presenter/viewer grants ((internal ADR)), the links carry
+    // Mint signed, expiring presenter/viewer grants, the links carry
     // these, and the relay verifies them statelessly with the account token; no
     // per-session token is stored client-side. (Raw tokens are still returned for
     // CLI/runner back-compat.)
@@ -759,8 +759,8 @@ export function createRelay(opts: RelayOptions): RelayServer {
     });
   };
 
-  // GET /s/:id, serve the deck to a grant-bearing presenter/viewer in an opaque sandbox
-  // ((internal ADR)/0069). A closure over sessions; returns the sandboxed HTML, or a 403 on a
+  // GET /s/:id, serve the deck to a grant-bearing presenter/viewer in an opaque sandbox.
+  // A closure over sessions; returns the sandboxed HTML, or a 403 on a
   // missing/invalid/expired grant (runner tokens are WS-only and may not load the page).
   //
   // A presenter grant in `?t=` is moved into a cookie at once: the answer is a 303 to the
@@ -897,7 +897,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
 
     if (pathname === "/healthz") return new Response("ok");
 
-    // --- fleet stats: this pod's live load, for control-plane placement ((internal ADR) §2). ---
+    // --- fleet stats: this pod's live load, for control-plane placement. ---
     // Account-gated, the per-pod Ingress makes it publicly reachable.
     if (pathname === "/stats") {
       const account = matchAccount(cfg.accountTokens, bearer(req));
@@ -913,7 +913,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       return json({ ok: true, sessions: liveCount(), cordoned, startedAt, ...(opts.holder ? { holder: opts.holder } : {}), audience });
     }
 
-    // --- Prometheus metrics: this pod's logical state ((internal ADR)). Account-gated like /stats, so
+    // --- Prometheus metrics: this pod's logical state. Account-gated like /stats, so
     // the bearer keeps it off the public surface; Alloy scrapes it on the pod network. ---
     if (pathname === "/metrics") {
       if (!matchAccount(cfg.accountTokens, bearer(req))) return new Response("unauthorized", { status: 401 });
@@ -922,7 +922,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       });
     }
 
-    // --- drain control: cordon/uncordon this pod (reconciler only, (internal ADR) §4). Cordoned →
+    // --- drain control: cordon/uncordon this pod (reconciler only). Cordoned →
     // refuse NEW sessions; existing run to completion. `{ "cordoned": false }` lifts it. ---
     if (pathname === "/cordon" && req.method === "POST") {
       if (!matchAccount(cfg.accountTokens, bearer(req))) return json({ error: "unauthorized" }, 401);
@@ -931,7 +931,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       return json({ ok: true, cordoned });
     }
 
-    // --- control API: create / end a session ((internal ADR)). ---
+    // --- control API: create / end a session. ---
     if (pathname === "/api/sessions" && req.method === "POST") return handleCreateSession(req);
     // `x-session-epoch` (hosted) names the placement that supersedes this one: a
     // request for an epoch not above ours is late and must not drop the current
@@ -962,7 +962,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       return new Response(null, { status: 204 });
     }
 
-    // --- WebSocket sync: audience/presenter connect ((internal ADR)). ---
+    // --- WebSocket sync: audience/presenter connect. ---
     const sync = pathname.match(/^\/sync\/([^/]+)$/);
     if (sync) {
       const s = sessions.get(sync[1]!);
@@ -1008,7 +1008,7 @@ export function createRelay(opts: RelayOptions): RelayServer {
       return srv.upgrade(req, { data }) ? undefined : new Response("upgrade failed", { status: 400 });
     }
 
-    // --- serve the deck in an opaque sandbox ((internal ADR)/0069). ---
+    // --- serve the deck in an opaque sandbox. ---
     const serve = pathname.match(/^\/s\/([^/]+)$/);
     if (serve) return serveDeck(req, url, serve[1]!);
 

@@ -203,7 +203,7 @@ export function classifyClients(doc: Y.Doc, scope: AudienceScope): { audience: n
 }
 
 export interface AudiencePolicy {
-  /** which doc areas an audience peer may write ((internal ADR)). */
+  /** which doc areas an audience peer may write. */
   scope: AudienceScope;
   /** per-audience-peer write rate limit; omit for no limit. */
   rate?: { capacity: number; refillPerSec: number };
@@ -220,9 +220,9 @@ export interface HubOptions {
    *  sessions still surface a "message" on the client (drives its watchdog) and
    *  dead peers are pruned. 0/undefined = off. */
   keepaliveMs?: number;
-  /** if set, `audience`-role peers are write-scope enforced ((internal ADR)): updates that
+  /** if set, `audience`-role peers are write-scope enforced: updates that
    *  touch anything outside the scope are dropped, not applied. Absent → no
-   *  enforcement (every peer may write, the local/LAN trusted model, (internal ADR)). */
+   *  enforcement (every peer may write, the local/LAN trusted model). */
   audience?: AudiencePolicy;
   /** If set, updates that follow each other within this many ms go out as one merged
    *  frame per peer at the end of the window, instead of one frame per update per peer.
@@ -335,7 +335,7 @@ export class Hub {
   }
 
   /** Encode the full doc state as opaque Yjs update bytes, for persisting a session
-   *  snapshot to object storage ((internal ADR)). Persisting bytes runs no deck code. */
+   *  snapshot to object storage. Persisting bytes runs no deck code. */
   snapshot(): Uint8Array {
     return Y.encodeStateAsUpdate(this.doc);
   }
@@ -394,9 +394,9 @@ export class Hub {
     // hand the newcomer the full current state (late-join replay)
     this.deliver(key, send, Y.encodeStateAsUpdate(this.doc));
 
-    // An audience peer is write-scope enforced when a policy is configured ((internal ADR));
+    // An audience peer is write-scope enforced when a policy is configured;
     // presenter/runner peers are trusted and write the whole doc. With no policy the
-    // Hub is the open, trusted relay ((internal ADR)), every peer may write.
+    // Hub is the open, trusted relay, every peer may write.
     const enforced = role === "audience" && this.audience !== undefined;
     const bucket: TokenBucket | undefined =
       enforced && this.audience!.rate

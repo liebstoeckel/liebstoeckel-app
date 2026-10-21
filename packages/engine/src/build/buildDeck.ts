@@ -21,7 +21,7 @@ import {
 } from "./licenses";
 
 // The single-copy guard primitives are part of the public build surface (the e2e
-// upgrade tier reduces over a real installed tree with them; (internal ADR)).
+// upgrade tier reduces over a real installed tree with them).
 export { firstPartyVersionConflicts, formatFirstPartyConflicts, type FirstPartyConflict } from "./licenses";
 
 /** The plugins every deck build runs (Tailwind CSS gen, MDX compile, visx ESM
@@ -274,11 +274,11 @@ export async function bundleDeck({
   entry?: string;
   outdir?: string;
   /** Final artifact name within `outdir` (default `index.html`; the user-facing
-   *  `buildDeck` wrapper passes the deck slug, e.g. `poll-demo.html`, (internal ADR)). */
+   *  `buildDeck` wrapper passes the deck slug, e.g. `poll-demo.html`). */
   outfile?: string;
   minify?: boolean;
   pkgJson?: string;
-  /** Embed the deck's own source as a recoverable package so the .html is ejectable ((internal ADR)). */
+  /** Embed the deck's own source as a recoverable package so the .html is ejectable. */
   inlinePackage?: boolean;
   /** Embed a THIRD-PARTY-NOTICES block computed from the bundle's real module graph.
    *  Minify strips license comments, so we re-add the required notices. */
@@ -321,7 +321,7 @@ export async function bundleDeck({
   // Escape `</script>` inside the inlined bundle, then embed the plugin manifest
   // (incl. base64 server bundles) into the single file. Bun.build names its output
   // after the entry basename (`index.html`); we post-process that and ship it under
-  // `outfile` (the deck slug for the user-facing build, (internal ADR)).
+  // `outfile` (the deck slug for the user-facing build).
   const built = join(outdir, basename(entry));
   const outHtml = join(outdir, outfile);
   // Strip BEFORE escaping: escapeInlineModuleScript treats everything up to
@@ -392,7 +392,7 @@ export async function collectDeckLicenses({
   return licenses.report();
 }
 
-/** A single build diagnostic, shaped for machine consumption ((internal ADR)). */
+/** A single build diagnostic, shaped for machine consumption. */
 export interface DeckDiagnostic {
   level: string;
   message: string;
@@ -417,8 +417,8 @@ function toDiagnostic(log: unknown): DeckDiagnostic {
 
 /**
  * Validate that a deck **bundles**, resolves, transforms (MDX/Tailwind), and the
- * visx ESM-interop holds, without writing any artifact or capturing thumbnails
- * ((internal ADR)). Runs the same plugin pipeline as `bundleDeck` with `throw: false` and
+ * visx ESM-interop holds, without writing any artifact or capturing thumbnails.
+ * Runs the same plugin pipeline as `bundleDeck` with `throw: false` and
  * returns structured diagnostics for an agent's check → fix loop. It does **not**
  * type-check (Bun.build doesn't); it answers "does this deck build?".
  * @deprecated Use `checkDeck` from `@liebstoeckel/build`.
