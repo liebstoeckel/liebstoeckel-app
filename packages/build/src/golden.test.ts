@@ -4,7 +4,7 @@
 // the machine or the checkout's location. One full build with every extra (plugin
 // manifest, licenses, source package, stamp) is checked the same way.
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { buildDeck } from "./core/build.ts";
@@ -18,7 +18,8 @@ const decks = [
   ...readdirSync(join(repo, "presentations"))
     .filter((d) => !d.startsWith(".") && !d.startsWith("_"))
     .map((d) => `presentations/${d}`),
-  "packages/e2e/fixture",
+  // The e2e package is internal and not part of every checkout of this repo.
+  ...(existsSync(join(repo, "packages/e2e/fixture/index.html")) ? ["packages/e2e/fixture"] : []),
 ];
 
 /** The same tree under another virtual root, as if the checkout lived elsewhere. */
