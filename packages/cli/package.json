@@ -37,7 +37,7 @@
   ],
   "engines": {
     "node": ">=18",
-    "bun": ">=1.3"
+    "bun": ">=1.4"
   },
   "type": "module",
   "bin": {
@@ -65,12 +65,12 @@
     "citty": "^0.2.2"
   },
   "optionalDependencies": {
-    "@oven/bun-darwin-aarch64": "1.3.14",
-    "@oven/bun-darwin-x64": "1.3.14",
-    "@oven/bun-linux-aarch64": "1.3.14",
-    "@oven/bun-linux-x64": "1.3.14",
-    "@oven/bun-windows-aarch64": "1.3.14",
-    "@oven/bun-windows-x64": "1.3.14"
+    "@oven/bun-darwin-aarch64": "1.4.3",
+    "@oven/bun-darwin-x64": "1.4.3",
+    "@oven/bun-linux-aarch64": "1.4.3",
+    "@oven/bun-linux-x64": "1.4.3",
+    "@oven/bun-windows-aarch64": "1.4.3",
+    "@oven/bun-windows-x64": "1.4.3"
   },
   "peerDependencies": {
     "react": "^19.2.7",

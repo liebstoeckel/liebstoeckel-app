@@ -8,7 +8,7 @@ export const bunBin = process.execPath;
 const PKG_JSON = fileURLToPath(new URL("../package.json", import.meta.url));
 
 /** Fallback range if package.json can't be read; kept in sync with `engines.bun`. */
-const DEFAULT_RANGE = ">=1.3";
+const DEFAULT_RANGE = ">=1.4";
 
 /** The Bun range the CLI declares it needs (package.json `engines.bun`). */
 export async function requiredBunRange(): Promise<string> {
@@ -36,7 +36,8 @@ export function bunVersionError(current: string, range: string, binPath: string)
   return (
     `liebstoeckel needs Bun ${range}, but this CLI is running on Bun ${current}.\n` +
     `  binary: ${binPath}\n` +
-    `  fix:    bun upgrade   (then re-run)\n`
+    `  fix:    bun upgrade   (then re-run)\n` +
+    `  The installed liebstoeckel command brings its own Bun; this check only fails when the CLI is started with another one.\n`
   );
 }
 

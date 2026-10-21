@@ -7,7 +7,7 @@ import { buildReport, diagnosticExitCode, installChromiumArgs, pluginProblemLine
 import { bunBin } from "./bun";
 import { runAutoPatches, type MigrationStatus } from "./migrations";
 
-const base = { bunVersion: "1.3.14", bunRange: ">=1.3", chromium: null, cliVersion: "0.3.0", latestKnown: null };
+const base = { bunVersion: "1.4.3", bunRange: ">=1.3", chromium: null, cliVersion: "0.3.0", latestKnown: null };
 
 describe("buildReport", () => {
   test("bun.ok reflects whether the version satisfies the range", () => {
@@ -40,7 +40,7 @@ describe("buildReport", () => {
 
 describe("diagnosticExitCode", () => {
   const report = (bunOk: boolean, chromiumOk: boolean): Parameters<typeof diagnosticExitCode>[0] => ({
-    bun: { version: "1.3.14", required: ">=1.3", ok: bunOk, path: "/x/bun", pinned: "1.3.14", package: null, source: "other" },
+    bun: { version: "1.4.3", required: ">=1.3", ok: bunOk, path: "/x/bun", pinned: "1.4.3", package: null, source: "other" },
     esbuild: { version: "0.28.2", package: "@esbuild/linux-x64", binaryPath: null },
     chromium: { path: chromiumOk ? "/usr/bin/chromium" : null, ok: chromiumOk },
     cli: { version: "0.3.0", latestKnown: null, updateAvailable: false },

@@ -48,8 +48,8 @@ describe("pinnedVersion", () => {
   });
 
   test("disagreeing, ranged or missing pins are no pin", () => {
-    expect(pinnedVersion({ optionalDependencies: { "@oven/bun-linux-x64": "1.3.14", "@oven/bun-darwin-x64": "1.3.13" } })).toBeNull();
-    expect(pinnedVersion({ optionalDependencies: { "@oven/bun-linux-x64": "^1.3.14" } })).toBeNull();
+    expect(pinnedVersion({ optionalDependencies: { "@oven/bun-linux-x64": "1.4.3", "@oven/bun-darwin-x64": "1.4.2" } })).toBeNull();
+    expect(pinnedVersion({ optionalDependencies: { "@oven/bun-linux-x64": "^1.4.3" } })).toBeNull();
     expect(pinnedVersion({})).toBeNull();
   });
 });
@@ -71,12 +71,12 @@ describe("installKind", () => {
 });
 
 describe("bunProblem", () => {
-  const base = { platform: "linux", arch: "x64", musl: false, version: "1.3.14", needs: null, found: null, empty: null };
+  const base = { platform: "linux", arch: "x64", musl: false, version: "1.4.3", needs: null, found: null, empty: null };
 
   test("skipped optional dependencies: names the package and the reinstall", () => {
     const p = bunProblem({ ...base, tried: ["@oven/bun-linux-x64-baseline", "@oven/bun-linux-x64"], kind: "npm-global" });
     expect(p.code).toBe("bun_missing");
-    expect(p.details.join(" ")).toContain("@oven/bun-linux-x64@1.3.14");
+    expect(p.details.join(" ")).toContain("@oven/bun-linux-x64@1.4.3");
     expect(p.details.join(" ")).toContain("--omit=optional");
     expect(p.fix).toBe("npm install -g @liebstoeckel/cli");
   });
@@ -84,17 +84,17 @@ describe("bunProblem", () => {
   test("musl: names the variant at the pinned version, installed next to the CLI", () => {
     const p = bunProblem({ ...base, musl: true, tried: ["@oven/bun-linux-x64-musl", "@oven/bun-linux-x64-musl-baseline"], needs: "@oven/bun-linux-x64-musl", kind: "npm-global" });
     expect(p.code).toBe("bun_variant_missing");
-    expect(p.fix).toBe("npm install -g @liebstoeckel/cli @oven/bun-linux-x64-musl@1.3.14");
+    expect(p.fix).toBe("npm install -g @liebstoeckel/cli @oven/bun-linux-x64-musl@1.4.3");
     expect(bunProblem({ ...base, musl: true, tried: ["@oven/bun-linux-x64-musl"], needs: "@oven/bun-linux-x64-musl", kind: "local" }).fix).toContain(
-      "npm install --save-dev @oven/bun-linux-x64-musl@1.3.14",
+      "npm install --save-dev @oven/bun-linux-x64-musl@1.4.3",
     );
   });
 
   test("a stale variant after an update: reinstall it at the new pin", () => {
-    const p = bunProblem({ ...base, musl: true, tried: ["@oven/bun-linux-x64-musl"], needs: "@oven/bun-linux-x64-musl", kind: "bun-global", found: { pkg: "@oven/bun-linux-x64-musl", version: "1.3.13" } });
+    const p = bunProblem({ ...base, musl: true, tried: ["@oven/bun-linux-x64-musl"], needs: "@oven/bun-linux-x64-musl", kind: "bun-global", found: { pkg: "@oven/bun-linux-x64-musl", version: "1.4.2" } });
     expect(p.code).toBe("bun_version_mismatch");
-    expect(p.details[0]).toContain("1.3.13");
-    expect(p.fix).toBe("bun add -g @liebstoeckel/cli @oven/bun-linux-x64-musl@1.3.14");
+    expect(p.details[0]).toContain("1.4.2");
+    expect(p.fix).toBe("bun add -g @liebstoeckel/cli @oven/bun-linux-x64-musl@1.4.3");
   });
 
   test("an installed package without its binary, an unsupported machine, a broken pin", () => {

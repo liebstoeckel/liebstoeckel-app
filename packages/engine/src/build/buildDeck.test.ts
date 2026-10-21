@@ -227,7 +227,10 @@ describe("bundleDeck", () => {
           inlineLicenses: false,
         });
         const html = await Bun.file(join(outdir, "index.html")).text();
-        expect(html).toContain("createRoot");
+        // React is in the bundle as its production build (the minified error helper).
+        // Not the name `createRoot`: Bun 1.4 drops react-dom's unused export table and
+        // renames the one function the entry calls.
+        expect(html).toContain("react.dev/errors/");
         expect(html).not.toContain("jsxDEV");
         expect(html).not.toContain("Download the React DevTools");
         expect(html).not.toContain("react.development");
