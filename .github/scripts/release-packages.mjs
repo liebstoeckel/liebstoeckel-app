@@ -109,8 +109,17 @@ function pack(outdir) {
   for (const p of packed) console.log(`${p.name}@${p.version}  ${p.integrity}`);
 }
 
+/**
+ * The packed list with each integrity taken from the tarball's bytes on disk, not
+ * from the list: the list travels with the tarballs as one artifact, and the check
+ * must be about the bytes that get published.
+ */
+export function rehash(packed, dir) {
+  return packed.map((p) => ({ ...p, integrity: integrityOf(readFileSync(join(dir, p.file))) }));
+}
+
 function readCompare(listFile) {
-  const packed = JSON.parse(readFileSync(listFile, "utf8"));
+  const packed = rehash(JSON.parse(readFileSync(listFile, "utf8")), resolve(listFile, ".."));
   const raw = process.env.EXPECTED_INTEGRITY;
   if (!raw) throw new Error("EXPECTED_INTEGRITY is not set");
   const expected = JSON.parse(raw);

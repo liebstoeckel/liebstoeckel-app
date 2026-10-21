@@ -1,0 +1,4 @@
+# The fixture decks are built and compared byte for byte on every system, so their
+# text files stay LF in a Windows checkout too (git's autocrlf would turn them CRLF
+# and change the deck). Binary files are detected and left alone.
+* text=auto eol=lf

@@ -166,7 +166,7 @@ describe.skipIf(!hasChromium)("captureThumbnails (headless)", () => {
   }, 30_000);
 
   const BUILT = join(import.meta.dir, "../../../presentations/poll-demo/dist/index.html");
-  test.skipIf(!existsSync(BUILT))("captures the real built poll deck (engine CaptureView)", async () => {
+  test.skipIf(!existsSync(BUILT))(`captures the real built poll deck (engine CaptureView)${existsSync(BUILT) ? "" : " (skipped: presentations/poll-demo is not built)"}`, async () => {
     const html = await Bun.file(BUILT).text();
     const m = await captureThumbnails(html, { width: 320, settleMs: 50 });
     expect(Object.keys(m.thumbs).length).toBe(6); // title, poll, poll (pace), qa, reactions, outro

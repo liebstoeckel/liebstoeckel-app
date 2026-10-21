@@ -12,9 +12,10 @@ import {
   versionChanges,
 } from "./update-cmd";
 
-const GLOBAL = "/home/u/.bun/install/global";
+// Paths of this system (its separator), as the CLI sees them at run time.
+const GLOBAL = join("/home/u/.bun/install/global");
 const inGlobal = join(GLOBAL, "node_modules", "@liebstoeckel", "cli", "src", "update-cmd.ts");
-const inDeck = "/work/deck/node_modules/@liebstoeckel/cli/src/update-cmd.ts";
+const inDeck = join("/work/deck/node_modules/@liebstoeckel/cli/src/update-cmd.ts");
 const none = { hostRoot: null, hostDeps: [], unmanagedCli: null };
 
 describe("planUpdate (pure)", () => {
@@ -112,13 +113,13 @@ describe("planUpdate (pure)", () => {
 
 describe("cliInstallRoot (pure)", () => {
   test("a node_modules install maps to its project root", () => {
-    expect(cliInstallRoot("/work/proj/node_modules/@liebstoeckel/cli/src/update-cmd.ts")).toBe("/work/proj");
+    expect(cliInstallRoot(join("/work/proj/node_modules/@liebstoeckel/cli/src/update-cmd.ts"))).toBe(join("/work/proj"));
   });
   test("nested installs map to the innermost owning root", () => {
-    expect(cliInstallRoot("/a/node_modules/x/node_modules/@liebstoeckel/cli/src/cli.ts")).toBe("/a/node_modules/x");
+    expect(cliInstallRoot(join("/a/node_modules/x/node_modules/@liebstoeckel/cli/src/cli.ts"))).toBe(join("/a/node_modules/x"));
   });
   test("a repo checkout (no node_modules segment) is null", () => {
-    expect(cliInstallRoot("/home/dev/present-it/packages/cli/src/update-cmd.ts")).toBeNull();
+    expect(cliInstallRoot(join("/home/dev/present-it/packages/cli/src/update-cmd.ts"))).toBeNull();
   });
 });
 

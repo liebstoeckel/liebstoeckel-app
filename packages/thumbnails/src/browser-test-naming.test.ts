@@ -21,7 +21,7 @@ function misnamedBrowserTests(): string[] {
   const glob = new Glob("{packages,presentations}/*/**/*.test.{ts,tsx}");
   const found: string[] = [];
   for (const rel of glob.scanSync({ cwd: repoRoot })) {
-    if (rel.includes("node_modules/") || rel.startsWith("packages/e2e/")) continue;
+    if (rel.includes("node_modules/") || rel.startsWith("packages/e2e/") || rel.startsWith("packages/release-tests/")) continue;
     if (rel.endsWith(self) || /\.browser\.test\.tsx?$/.test(rel)) continue;
     // Comment lines may name the helpers without calling them.
     const src = readFileSync(join(repoRoot, rel), "utf8")

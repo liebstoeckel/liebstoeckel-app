@@ -74,7 +74,8 @@ describe("command inventory", () => {
       const expected = entry === "json" || entry === "explicit-json";
       expect({ path, hasJsonFlag }).toEqual({ path, hasJsonFlag: expected });
     }
-  });
+    // The walk imports every command module cold, which takes about 5 s on a Windows runner.
+  }, 30_000);
 });
 
 // ── spawned runs ────────────────────────────────────────────────────────────

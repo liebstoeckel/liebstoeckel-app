@@ -1,0 +1,9 @@
+/* A font file that lives in the deck (Fraunces italic, OFL-1.1), under a family
+   name of the deck's own. The build inlines the woff2 into the single file. */
+@font-face {
+  font-family: "Fixture Serif";
+  src: url("../assets/fonts/fixture-serif-italic.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}

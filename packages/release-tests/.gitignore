@@ -1,0 +1,3 @@
+# The dev hot-reload test writes its deck here (it resolves the workspace packages
+# up-tree); removed after the run.
+.test-tmp/

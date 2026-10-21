@@ -1,0 +1,26 @@
+{
+  "name": "@liebstoeckel/release-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The release tests: the registry install tier, the release fixture deck and its drivers, and the browser and live tests the release matrix runs on Linux, Windows and macOS. Not published.",
+  "license": "MPL-2.0",
+  "type": "module",
+  "files": [
+    "fixture"
+  ],
+  "exports": {
+    "./harness": "./src/harness.ts"
+  },
+  "dependencies": {
+    "@liebstoeckel/build": "workspace:*",
+    "@liebstoeckel/engine": "workspace:*",
+    "@liebstoeckel/live-server": "workspace:*",
+    "@liebstoeckel/plugin-poll": "workspace:*",
+    "@liebstoeckel/plugin-qa": "workspace:*",
+    "@liebstoeckel/plugin-reactions": "workspace:*",
+    "@liebstoeckel/plugin-sdk": "workspace:*",
+    "@liebstoeckel/present-relay": "workspace:*",
+    "@liebstoeckel/theme": "workspace:*",
+    "playwright-core": "1.60.0"
+  }
+}

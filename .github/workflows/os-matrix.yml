@@ -1,11 +1,28 @@
-# Installs the framework the way a user does, on Linux, Windows and macOS, from
-# the tarballs this commit packs: every package goes into a throwaway local
-# registry, then `npm i -g @liebstoeckel/cli` with Node only (a `bun` that fails
-# loudly comes first on PATH), `new`, `build --check` and `build`. The built
-# deck must have the same bytes on all three systems.
+# The release tests, on Linux, Windows and macOS, from the tarballs this commit
+# packs: every package goes into a throwaway local registry on the runner, and the
+# framework is installed and used the way a user does. Each area is a job of its
+# own, so a red run names the area and the system:
 #
-# Runs as part of the release workflow, every Monday on main (it reports drift
-# we don't cause: runner images, Windows, macOS), and by hand.
+#   suite         the unit and integration tests of the packages (bun test), with
+#                 the runner's Chrome for the browser tests
+#   install       npm i -g with Node only (a `bun` that fails loudly comes first on
+#                 PATH), the pinned Bun, doctor, the installed packages, no
+#                 quarantine on macOS, --omit=optional, PowerShell and cmd; the
+#                 scaffolded deck and the release fixture built, the fixture also
+#                 from a path with a space and an umlaut (and a long one on Windows)
+#   install-tier  packages/release-tests/src/cli-install.test.ts: the installed
+#                 CLI's whole offline surface
+#   browser       the fixture with thumbnails, export to PNG and PDF, `dev` with
+#                 hot reload in Chrome (and in WebKit on macOS)
+#   live          a local relay, a presenter and phones: join, vote, Q&A, reactions
+#   variants      npx, pnpm dlx, pnpm add -g, bunx and bun add -g with a real Bun
+#                 1.3 and 1.4, on macOS x64 Node under Rosetta: the pinned Bun
+#                 runs, never the system one
+#   summary       time and counts per job; every build of a kind has one hash
+#
+# Runs as part of the release workflow (all of it gates the npm publish), every
+# Monday on main (it reports drift we don't cause: runner images, Windows,
+# macOS), and by hand.
 name: os-matrix
 
 on:
@@ -26,6 +43,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # The node, npm and bun steps print less noise and never ask.
+  CI: "true"
+  FORCE_COLOR: "0"
+
 jobs:
   pack:
     if: github.repository == 'liebstoeckel/liebstoeckel-app'
@@ -44,6 +66,47 @@ jobs:
           path: packed/
           if-no-files-found: error
 
+  suite:
+    if: github.repository == 'liebstoeckel/liebstoeckel-app'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
+      - uses: ./.github/actions/release-env
+        with:
+          chrome: "true"
+      # Plain install (not frozen): the mirrored tree lacks the private workspace
+      # packages the lockfile records.
+      - run: bun install
+      # The two halves of the root `test` script, each with a JUnit report: the
+      # browser-free tests, then the browser tests in a process of their own.
+      - name: Unit and integration tests
+        run: >-
+          bun test packages scripts
+          --path-ignore-patterns '**/packages/release-tests/**'
+          --path-ignore-patterns '**/*.browser.test.*'
+          --reporter=junit --reporter-outfile="$RELEASE_OUT/junit-unit.xml"
+      - name: Browser tests
+        if: success() || failure()
+        run: bun run test:browser --reporter=junit --reporter-outfile="$RELEASE_OUT/junit-browser.xml"
+      - if: always()
+        uses: ./.github/actions/release-result
+        with:
+          job: suite
+          status: ${{ job.status }}
+
   install:
     needs: pack
     strategy:
@@ -55,56 +118,40 @@ jobs:
     defaults:
       run:
         shell: bash
-    env:
-      REGISTRY: http://127.0.0.1:4873/
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+          sparse-checkout: |
+            .github
+            packages/release-tests
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      # Defender stays on here: this job is the Windows machine as a user has it.
+      - uses: ./.github/actions/release-env
         with:
-          name: packages
-          path: packed
-      - name: A bun first on PATH that fails loudly
-        run: |
-          trap_dir="$RUNNER_TEMP/trap-bin"
-          mkdir -p "$trap_dir"
-          printf '#!/bin/sh\necho "the system bun was called: $*" >&2\nexit 97\n' > "$trap_dir/bun"
-          chmod +x "$trap_dir/bun"
-          printf '@echo the system bun was called: %%* 1>&2\r\n@exit /b 97\r\n' > "$trap_dir/bun.cmd"
-          echo "$trap_dir" >> "$GITHUB_PATH"
-      - name: A local registry with this commit's packages
-        run: |
-          vd="$RUNNER_TEMP/verdaccio"
-          mkdir -p "$vd/storage"
-          cat > "$vd/config.yaml" <<EOF
-          storage: ./storage
-          uplinks:
-            npmjs:
-              url: https://registry.npmjs.org/
-          packages:
-            '@liebstoeckel/*':
-              access: \$all
-              publish: \$all
-            '**':
-              access: \$all
-              proxy: npmjs
-          log: { type: stdout, format: pretty, level: warn }
-          EOF
-          (cd "$vd" && npx -y verdaccio@6.1.6 --config config.yaml --listen 127.0.0.1:4873 > verdaccio.log 2>&1 &)
-          for i in $(seq 1 60); do curl -fs -o /dev/null "${REGISTRY}-/ping" && break; sleep 2; done
-          curl -fs -o /dev/null "${REGISTRY}-/ping"
-          printf 'registry=%s\n//127.0.0.1:4873/:_authToken=local\n' "$REGISTRY" > "$HOME/.npmrc"
-          node -e '
-            const list = require(process.argv[1] + "/packages.json");
-            for (const p of list) console.log(p.file);
-          ' "$PWD/packed" | while read -r f; do npm publish "./packed/$f" --registry "$REGISTRY" --tag latest; done
+          defender: "false"
+          registry: "true"
+          trap: "true"
       - name: npm i -g @liebstoeckel/cli
         run: |
-          v=$(node -p 'require("./packed/packages.json").find((p) => p.name === "@liebstoeckel/cli").version')
-          npm i -g "@liebstoeckel/cli@$v" --registry "$REGISTRY"
-          liebstoeckel --version | tee version.txt
-          grep -E '^bun [0-9.]+ \(pinned, @oven/bun-' version.txt
+          npm i -g "@liebstoeckel/cli@$CLI_VERSION"
+          liebstoeckel --version | tee "$RELEASE_OUT/version.txt"
+          grep -E '^bun [0-9.]+ \(pinned, @oven/bun-' "$RELEASE_OUT/version.txt"
+      - name: doctor, the installed packages, Gatekeeper, --omit=optional
+        run: node packages/release-tests/matrix/install-checks.mjs
+      - name: The command from PowerShell
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = liebstoeckel --version
+          $out
+          if ($LASTEXITCODE -ne 0 -or -not ($out -match 'pinned, @oven/bun-')) { exit 1 }
+      - name: The command from cmd
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: liebstoeckel --version | findstr /C:"pinned, @oven/bun-"
       - name: new, build --check, build
         run: |
           work="$RUNNER_TEMP/work"
@@ -113,28 +160,260 @@ jobs:
           cd osdeck
           liebstoeckel build --check --json
           LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build
-          node -e 'const c = require("node:crypto"); process.stdout.write(c.createHash("sha256").update(require("node:fs").readFileSync(process.argv[1])).digest("hex") + "\n")' dist/osdeck.html > "$GITHUB_WORKSPACE/hash-${{ matrix.os }}.txt"
-          cat "$GITHUB_WORKSPACE/hash-${{ matrix.os }}.txt"
-      - if: failure()
-        run: cat "$RUNNER_TEMP/verdaccio/verdaccio.log" || true
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          echo "scaffold npm-i-g $(node "$GITHUB_WORKSPACE/packages/release-tests/matrix/sha256.mjs" dist/osdeck.html)" | tee -a "$RELEASE_OUT/hashes.txt"
+      - name: The release fixture
+        run: |
+          fx="$RUNNER_TEMP/fx/release-fixture"
+          node packages/release-tests/scripts/release-fixture.ts "$fx" latest
+          liebstoeckel install --dir "$fx"
+          LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build --trust --dir "$fx"
+          echo "fixture plain $(node packages/release-tests/matrix/sha256.mjs "$fx/dist/release-fixture.html")" | tee -a "$RELEASE_OUT/hashes.txt"
+      - name: The fixture in a folder with a space and an umlaut
+        run: |
+          at="$RUNNER_TEMP/Vorträge und Entwürfe/release-fixture"
+          node packages/release-tests/matrix/copy-deck.mjs "$RUNNER_TEMP/fx/release-fixture" "$at"
+          liebstoeckel install --dir "$at"
+          LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build --trust --dir "$at"
+          echo "fixture space-umlaut $(node packages/release-tests/matrix/sha256.mjs "$at/dist/release-fixture.html")" | tee -a "$RELEASE_OUT/hashes.txt"
+      - name: The fixture in a long path
+        if: runner.os == 'Windows'
+        run: |
+          long="$RUNNER_TEMP"
+          for part in a-rather-long-folder-name-for-a-talk another-level-of-folders-from-a-company-share yet-another-folder-with-a-long-name-2026 the-quarterly-review-final-v2 release-fixture; do long="$long/$part"; done
+          node packages/release-tests/matrix/copy-deck.mjs "$RUNNER_TEMP/fx/release-fixture" "$long"
+          echo "deck at a path of $(node -p 'require("node:path").resolve(process.argv[1]).length' "$long") characters"
+          liebstoeckel install --dir "$long"
+          LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build --trust --dir "$long"
+          echo "fixture long-path $(node packages/release-tests/matrix/sha256.mjs "$long/dist/release-fixture.html")" | tee -a "$RELEASE_OUT/hashes.txt"
+      - if: always()
+        uses: ./.github/actions/release-result
         with:
-          name: hash-${{ matrix.os }}
-          path: hash-${{ matrix.os }}.txt
+          job: install
+          status: ${{ job.status }}
 
-  same-bytes:
-    needs: install
+  install-tier:
+    needs: pack
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+          sparse-checkout: |
+            .github
+            packages/release-tests
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # The test runner. The CLI it installs runs on its own pinned Bun; the test
+      # puts a failing `bun` first on PATH for every command it starts.
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.3
+      - uses: ./.github/actions/release-env
+        with:
+          chrome: "true"
+          registry: "true"
+      - name: The installed CLI's offline surface
+        run: >-
+          LIEBSTOECKEL_E2E_REGISTRY="$REGISTRY" LIEBSTOECKEL_E2E_CLI_SPEC="$CLI_VERSION"
+          bun test packages/release-tests/src/cli-install.test.ts
+          --reporter=junit --reporter-outfile="$RELEASE_OUT/junit-install-tier.xml"
+      - if: always()
+        uses: ./.github/actions/release-result
+        with:
+          job: install-tier
+          status: ${{ job.status }}
+
+  browser:
+    needs: pack
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+          sparse-checkout: |
+            .github
+            packages/release-tests
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: ./.github/actions/release-env
+        with:
+          chrome: "true"
+          registry: "true"
+          trap: "true"
+      - name: npm i -g @liebstoeckel/cli, the drivers
+        run: |
+          npm i -g "@liebstoeckel/cli@$CLI_VERSION"
+          node packages/release-tests/matrix/drivers.mjs "$RUNNER_TEMP/drivers"
+      - name: WebKit
+        if: runner.os == 'macOS'
+        run: node "$RUNNER_TEMP/drivers/node_modules/playwright-core/cli.js" install webkit
+      - name: The release fixture with thumbnails
+        run: |
+          fx="$RUNNER_TEMP/fx/release-fixture"
+          node packages/release-tests/scripts/release-fixture.ts "$fx" latest
+          liebstoeckel install --dir "$fx"
+          liebstoeckel build --trust --dir "$fx"
+          node packages/release-tests/matrix/check-build.mjs "$fx/dist/release-fixture.html" --thumbnails 10
+      - name: Export to PNG and PDF
+        run: |
+          fx="$RUNNER_TEMP/fx/release-fixture"
+          liebstoeckel export "$fx/dist/release-fixture.html" --format png -o "$RELEASE_OUT/png"
+          liebstoeckel export "$fx/dist/release-fixture.html" --format pdf -o "$RELEASE_OUT/release-fixture.pdf"
+          node packages/release-tests/matrix/check-build.mjs --png "$RELEASE_OUT/png" 10 --pdf "$RELEASE_OUT/release-fixture.pdf" 10
+      - name: dev with hot reload in Chrome
+        run: node packages/release-tests/matrix/hot-reload.mjs "$RUNNER_TEMP/fx/release-fixture" chromium 3500
+      - name: dev with hot reload in WebKit
+        if: runner.os == 'macOS' && (success() || failure())
+        run: |
+          fx="$RUNNER_TEMP/fx-webkit/release-fixture"
+          node packages/release-tests/scripts/release-fixture.ts "$fx" latest
+          liebstoeckel install --dir "$fx"
+          node packages/release-tests/matrix/hot-reload.mjs "$fx" webkit 3510
+      - if: always()
+        uses: ./.github/actions/release-result
+        with:
+          job: browser
+          status: ${{ job.status }}
+
+  live:
+    needs: pack
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+          sparse-checkout: |
+            .github
+            packages/release-tests
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: ./.github/actions/release-env
+        with:
+          chrome: "true"
+          registry: "true"
+          trap: "true"
+      - name: npm i -g @liebstoeckel/cli, the drivers, the release fixture
+        run: |
+          npm i -g "@liebstoeckel/cli@$CLI_VERSION"
+          node packages/release-tests/matrix/drivers.mjs "$RUNNER_TEMP/drivers"
+          fx="$RUNNER_TEMP/fx/release-fixture"
+          node packages/release-tests/scripts/release-fixture.ts "$fx" latest
+          liebstoeckel install --dir "$fx"
+          LIEBSTOECKEL_NO_THUMBS=1 liebstoeckel build --trust --dir "$fx"
+      - name: A live session through a local relay
+        run: node packages/release-tests/matrix/live.mjs "$RUNNER_TEMP/fx/release-fixture/dist/release-fixture.html" 4600
+      - if: always()
+        uses: ./.github/actions/release-result
+        with:
+          job: live
+          status: ${{ job.status }}
+
+  variants:
+    needs: pack
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+          sparse-checkout: |
+            .github
+            packages/release-tests
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: ./.github/actions/release-env
+        with:
+          registry: "true"
+          trap: "true"
+      - name: npx
+        run: node packages/release-tests/matrix/variant.mjs npx --build
+      - name: pnpm dlx and pnpm add -g
+        if: success() || failure()
+        run: |
+          npm i -g pnpm@10.18.3
+          node packages/release-tests/matrix/variant.mjs pnpm-dlx --build
+          node packages/release-tests/matrix/variant.mjs pnpm-add-g
+      # From here on a real Bun is first on PATH, ahead of the failing one.
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: success() || failure()
+        with:
+          bun-version: 1.3.14
+      - name: bunx and bun add -g with Bun 1.3
+        if: success() || failure()
+        run: |
+          node packages/release-tests/matrix/variant.mjs bunx --build
+          node packages/release-tests/matrix/variant.mjs bun-add-g
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: success() || failure()
+        with:
+          bun-version: 1.4.3
+      - name: bunx with Bun 1.4
+        if: success() || failure()
+        run: node packages/release-tests/matrix/variant.mjs bunx
+      # x64 Node on Apple Silicon runs under Rosetta and installs the darwin-x64 Bun.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: runner.os == 'macOS' && (success() || failure())
+        with:
+          node-version: 22
+          architecture: x64
+      - name: npm i -g with x64 Node under Rosetta
+        if: runner.os == 'macOS' && (success() || failure())
+        run: node packages/release-tests/matrix/variant.mjs npm-x64 --build
+      - if: always()
+        uses: ./.github/actions/release-result
+        with:
+          job: variants
+          status: ${{ job.status }}
+
+  summary:
+    if: always() && github.repository == 'liebstoeckel/liebstoeckel-app'
+    needs: [suite, install, install-tier, browser, live, variants]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+          sparse-checkout: packages/release-tests
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: hash-*
-          merge-multiple: true
-      - name: The deck has the same bytes on every system
+          pattern: results-*
+          path: results
+      - name: Times, counts and the same bytes everywhere
         run: |
-          {
-            echo "| system | sha256 of the built deck |"
-            echo "|---|---|"
-            for f in hash-*.txt; do echo "| ${f#hash-} | \`$(cat "$f")\` |"; done
-          } >> "$GITHUB_STEP_SUMMARY"
-          test "$(cat hash-*.txt | sort -u | wc -l)" -eq 1
+          set -o pipefail
+          node packages/release-tests/matrix/summary.mjs results | tee -a "$GITHUB_STEP_SUMMARY"

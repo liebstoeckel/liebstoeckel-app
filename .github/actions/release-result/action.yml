@@ -1,0 +1,27 @@
+# The end of every release-test job of os-matrix.yml, also when it failed: its
+# time, test counts and skip reasons (from the JUnit and driver reports in
+# $RELEASE_OUT) into result.json, and the whole results directory (reports, logs,
+# hashes, screenshots) as an artifact of its own.
+name: release-result
+description: Write the job's result.json and upload its results directory.
+inputs:
+  job:
+    description: the job's area (suite, install, install-tier, browser, live, variants)
+    required: true
+  status:
+    description: the job's status so far (job.status)
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Result
+      shell: bash
+      env:
+        AREA: ${{ inputs.job }}
+        STATUS: ${{ inputs.status }}
+      run: node "$GITHUB_WORKSPACE/packages/release-tests/matrix/result.mjs" "$RELEASE_OUT" "$AREA" "$RUNNER_OS" "$STATUS" "$RELEASE_START"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: results-${{ inputs.job }}-${{ runner.os }}
+        path: ${{ runner.temp }}/results/
+        if-no-files-found: error

@@ -1,4 +1,5 @@
 import { test, expect, describe } from "bun:test";
+import { join } from "node:path";
 import { classifyPlugin, deckLocalPlugins, discoverFromDeps, type Lookup, type PkgJson } from "./discovery";
 
 const pluginPkg: PkgJson = {
@@ -9,21 +10,22 @@ const pluginPkg: PkgJson = {
 };
 
 describe("classifyPlugin", () => {
+  // Entries are file paths of this system (joined with its separator).
   test("recognizes a plugin and resolves entries against its dir", () => {
     const p = classifyPlugin(pluginPkg, "/n/@acme/poll");
     expect(p).toEqual({
       name: "@acme/poll",
       version: "1.2.3",
       dir: "/n/@acme/poll",
-      clientEntry: "/n/@acme/poll/client.tsx",
-      serverEntry: "/n/@acme/poll/server.ts",
+      clientEntry: join("/n/@acme/poll", "client.tsx"),
+      serverEntry: join("/n/@acme/poll", "server.ts"),
     });
   });
 
   test("client-only plugin has no serverEntry", () => {
     const p = classifyPlugin({ ...pluginPkg, liebstoeckel: { client: "./c.tsx" } }, "/d");
     expect(p?.serverEntry).toBeUndefined();
-    expect(p?.clientEntry).toBe("/d/c.tsx");
+    expect(p?.clientEntry).toBe(join("/d", "c.tsx"));
   });
 
   test("rejects non-plugins", () => {

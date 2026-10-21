@@ -15,8 +15,12 @@ function makeDeck(): string {
   return dir;
 }
 
+// Windows has no SIGTERM: killing a process there ends it without running its
+// handlers (Ctrl+C in a console arrives as SIGINT instead), so the test cannot run.
+const NO_SIGTERM = process.platform === "win32";
+
 describe("dev --dir from elsewhere", () => {
-  test("SIGTERM stops the server and removes server.json", async () => {
+  test.skipIf(NO_SIGTERM)(`SIGTERM stops the server and removes server.json${NO_SIGTERM ? " (skipped: Windows has no SIGTERM)" : ""}`, async () => {
     const deck = makeDeck();
     const elsewhere = mkdtempSync(join(tmpdir(), "lst-dev-cwd-"));
     mkdirSync(elsewhere, { recursive: true });

@@ -1,11 +1,11 @@
 // The `liebstoeckel` shim end to end, on a fake install: a package tree with the
 // shim, a stand-in `@oven/bun-*` package whose "binary" is a script that records
 // how it was called and runs the real Bun, and a `bun` first on PATH that fails
-// loudly. POSIX only (the fake binary is a shell script); Windows is checked on a
-// real machine.
+// loudly. POSIX only (the fake binary is a shell script); on Windows the release
+// matrix checks the real shim from npm, npx, pnpm and Bun installs.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PRIMARY } from "./resolve-bun.js";
@@ -43,7 +43,9 @@ function writePkg(version: string) {
 
 beforeAll(() => {
   if (!run) return;
-  root = mkdtempSync(join(tmpdir(), "lst-shim-"));
+  // The real path: on macOS the temp folder is a link (/var to /private/var), and
+  // the shim reports the resolved one.
+  root = realpathSync(mkdtempSync(join(tmpdir(), "lst-shim-")));
   cliDir = join(root, "node_modules", "@liebstoeckel", "cli");
   ovenDir = join(root, "node_modules", OVEN!);
   log = join(root, "calls.log");
@@ -78,7 +80,8 @@ const calls = () => {
   }
 };
 
-describe.skipIf(!run)("liebstoeckel shim", () => {
+const why = process.platform === "win32" ? " (skipped: the fake Bun is a shell script, POSIX only)" : run ? "" : " (skipped: no node, no Bun package for this system, or LIEBSTOECKEL_SKIP_SHIM_TEST)";
+describe.skipIf(!run)(`liebstoeckel shim${why}`, () => {
   test("runs src/cli.ts on the pinned binary with the arguments, under Node and under Bun", () => {
     for (const runtime of [NODE!, process.execPath]) {
       const r = spawnSync(runtime, [shim(), "hello", "--flag", "a b"], { env, encoding: "utf8" });
@@ -171,7 +174,7 @@ const DEMO = join(import.meta.dir, "..", "..", "..", "presentations", "demo");
 // Skipped where the workspace's own install has no usable binary (a CI cache can
 // hold the package without it; the shim then reports bun_binary_missing).
 const realBin = !!run && spawnSync(NODE!, [REAL_SHIM, "--version"], { encoding: "utf8" }).status === 0;
-describe.skipIf(!run || !realBin)("real shim", () => {
+describe.skipIf(!run || !realBin)(`real shim${why || (realBin ? "" : " (skipped: the workspace install has no runnable pinned Bun)")}`, () => {
   test("SIGKILL to the shim stops the dev server it started", async () => {
     const child = spawn(NODE!, [REAL_SHIM, "dev", "--dir", DEMO, "--port", "0", "--json"], { stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
