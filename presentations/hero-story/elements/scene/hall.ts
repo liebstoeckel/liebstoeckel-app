@@ -26,6 +26,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { EdgeBatch, lineMaterial } from "./lines";
 import { PALETTE } from "./palette";
+import { buildRoom, type Room } from "./room";
 
 export const SCREEN = { center: new Vector3(0, 3.7, -9.62), width: 8, height: 4.5 };
 export const LAPTOP_SCREEN = { width: 0.5, height: 0.31 };
@@ -50,6 +51,7 @@ export type Hall = {
   speakerHead: Vector3;
   laptop: Vector3;
   plant: Vector3;
+  room: Room;
   materials: { lines: ReturnType<typeof lineMaterial>[] };
 };
 
@@ -209,6 +211,9 @@ export function buildHall(): Hall {
   }
   structure.addSegments(stems, col(PALETTE.sage));
 
+  // the room around it all, quieter than the hall
+  const roomParts = buildRoom(group, addSolid);
+
   // filled faces: one merged mesh, flat-shaded so the facets read
   const fillMesh = new Mesh(
     mergeGeometries(fills, false)!,
@@ -253,6 +258,7 @@ export function buildHall(): Hall {
     speakerHead,
     laptop: lidCenter,
     plant,
-    materials: { lines: [roomMat, figureMat, structureMat, phoneMat] },
+    room: roomParts,
+    materials: { lines: [roomMat, figureMat, structureMat, phoneMat, ...roomParts.materials] },
   };
 }

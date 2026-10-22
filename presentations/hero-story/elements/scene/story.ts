@@ -8,6 +8,7 @@ import { Color, DirectionalLight, Fog, HemisphereLight, PerspectiveCamera, Scene
 import { Packets, QuestionCard } from "./effects";
 import { buildHall, SCREEN, type Hall, type Seat } from "./hall";
 import { recolor } from "./lines";
+import { setClock } from "./room";
 import { PALETTE } from "./palette";
 import { LaptopScreen, ProjectionScreen, type EditState, type Editor, type PollState, type Question } from "./screens";
 
@@ -399,6 +400,7 @@ export class Story {
     this.packetsSage.update(this.clock);
     this.upvotes.update(this.clock);
     this.drawScreen();
+    setClock(this.hall.room, new Date());
     this.renderer.render(this.scene, this.camera);
     this.onFrame?.(this.anchors());
   }
