@@ -497,7 +497,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
             {/* One backdrop per view, behind the transition stack: a slide change
                 crossfades transparent content over it instead of mounting a
                 second decorated frame. */}
-            <Backdrop />
+            <Backdrop slide={index} />
             <AnimatePresence
               custom={direction}
               onExitComplete={() => {
@@ -638,7 +638,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
                           : "border-border hover:border-text"
                     }`}
                   >
-                    <DeckThumb Component={s.Component} src={thumbs?.get(i)} alt={`Slide ${i + 1}`} />
+                    <DeckThumb Component={s.Component} index={i} src={thumbs?.get(i)} alt={`Slide ${i + 1}`} />
                     <span aria-hidden className="absolute bottom-1 right-2 font-mono text-xs text-muted">{i + 1}</span>
                   </button>
                 ))}

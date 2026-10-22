@@ -132,11 +132,14 @@ function Label({ children, dot }: { children: ReactNode; dot?: boolean }) {
 // reflecting live plugin state, unlike the static build-time thumbnails.
 function Thumb({
   Component,
+  slide,
   interactive = true,
   reveal,
   testId,
 }: {
   Component?: ComponentType;
+  /** The previewed slide's index, for the backdrop (defaults to `reveal.slideIndex`). */
+  slide?: number;
   interactive?: boolean;
   /** A stable hook for tests, set on the on-screen previews only, so the hidden
    *  measuring copy below never counts as a preview. */
@@ -155,7 +158,7 @@ function Thumb({
         <PersistentProvider>
           <BreakoutAllowedContext.Provider value={false}>
             <ScaledStage className="absolute inset-0">
-              <Backdrop still />
+              <Backdrop still slide={slide ?? reveal?.slideIndex} />
               <SlideFrame>
                 {reveal ? (
                   <StepsProvider step={reveal.step} slideIndex={reveal.slideIndex} onTotal={reveal.onTotal}>
@@ -432,7 +435,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
         {!focused && (
         <div className="flex shrink-0 items-center gap-3 border-t border-border px-4 py-2">
           <div className="h-12 w-[5.5rem] shrink-0 opacity-80">
-            {Next ? <div aria-hidden className="h-full w-full"><Thumb Component={Next} interactive={false} testId="presenter-preview-next" /></div> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
+            {Next ? <div aria-hidden className="h-full w-full"><Thumb Component={Next} slide={index + 1} interactive={false} testId="presenter-preview-next" /></div> : <div className="h-full w-full rounded-md border border-dashed border-border" />}
           </div>
           <div className="min-w-0 flex-1 font-mono text-[11px]">
             <div className="uppercase tracking-[0.2em] text-muted">
@@ -588,7 +591,7 @@ export function PresenterView({ slides, brands = DEFAULT_BRANDS, title = "liebst
             <div className="hidden min-h-[120px] shrink basis-[34%] flex-col gap-3 lg:flex">
               <Label>{ended ? "Deck ended" : Next ? "Next up" : "End of deck"}</Label>
               <div className="min-h-0 min-w-0 flex-1 opacity-80">
-                {Next ? <div aria-hidden className="h-full w-full"><Thumb Component={Next} interactive={false} testId="presenter-preview-next" /></div> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
+                {Next ? <div aria-hidden className="h-full w-full"><Thumb Component={Next} slide={index + 1} interactive={false} testId="presenter-preview-next" /></div> : <div className="h-full w-full rounded-2xl border border-dashed border-border" />}
               </div>
             </div>
           )}

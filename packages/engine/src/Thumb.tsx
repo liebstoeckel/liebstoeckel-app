@@ -10,7 +10,7 @@ import { PersistentProvider } from "./PersistentLayer";
  *  Prefers a pre-rendered image (`src`, from the build-time thumbnails manifest), *  a cheap `<img>` instead of a live React subtree. With no `src` it falls back to
  *  rendering the slide **statically** (atmosphere frozen, no persistent layer);
  *  Slots register harmlessly. */
-export function DeckThumb({ Component, src, alt }: { Component?: ComponentType; src?: string; alt?: string }) {
+export function DeckThumb({ Component, index, src, alt }: { Component?: ComponentType; index?: number; src?: string; alt?: string }) {
   if (src) {
     return (
       <img
@@ -28,7 +28,7 @@ export function DeckThumb({ Component, src, alt }: { Component?: ComponentType; 
       <MDXProvider components={mdxComponents}>
         <PersistentProvider>
           <ScaledStage className="absolute inset-0">
-            <Backdrop still />
+            <Backdrop still slide={index} />
             <SlideFrame>{Component ? <Component /> : null}</SlideFrame>
           </ScaledStage>
         </PersistentProvider>

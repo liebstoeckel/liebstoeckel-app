@@ -84,7 +84,7 @@ export function CaptureView({ slides, brands = DEFAULT_BRANDS, plugins = [] }: D
         <PersistentProvider>
           <ScaledStage className="fixed inset-0">
             <div data-capture-stage className="absolute inset-0 bg-bg">
-              <Backdrop still />
+              <Backdrop still slide={index} />
               <SlideFrame>
                 <StepsProvider step={ALL_STEPS} slideIndex={index}>
                   <Current />

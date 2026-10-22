@@ -179,7 +179,7 @@ html, body { height: auto !important; min-height: 0 !important; overflow: visibl
                     }}
                   >
                     <PersistentProvider>
-                      <Backdrop still />
+                      <Backdrop still slide={idx} />
                       <SlideFrame>
                         <StepsProvider step={ALL_STEPS} slideIndex={idx}>
                           <Current />
