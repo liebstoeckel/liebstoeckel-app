@@ -6,7 +6,8 @@
 
 import { Color, DirectionalLight, Fog, HemisphereLight, PerspectiveCamera, Scene, Vector3, WebGLRenderer } from "three";
 import { Packets, QuestionCard } from "./effects";
-import { buildHall, SCREEN, type Hall, type Seat } from "./hall";
+import { audienceLife } from "./features";
+import { buildHall, HEAD_DOWN, SCREEN, type Hall, type Seat } from "./hall";
 import { recolor } from "./lines";
 import { setClock } from "./room";
 import { PALETTE } from "./palette";
@@ -18,6 +19,7 @@ export const BEATS = 6;
 // so the room sits beside the slide's words instead of under them.
 type Shot = { pos: Vector3; target: Vector3; fov: number; drift: number; shift: number };
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
+const UP = new Vector3(0, 1, 0);
 
 export const SHOTS: Shot[] = [
   { pos: v(12.8, 8.8, 13.8), target: v(-0.2, 1.4, -2.6), fov: 30, drift: 1, shift: 0.15 }, // the hall
@@ -47,6 +49,13 @@ const pick = (w: number[]) => {
 };
 /** `text` typed out over [t0, t1]: the share of characters shown at time t. */
 const typed = (text: string, t: number, t0: number, t1: number) => text.slice(0, Math.round(text.length * Math.min(1, Math.max(0, (t - t0) / (t1 - t0)))));
+
+/** The speaker's pointing arm (Euler x, y, z at the shoulder): hanging down, an open gesture to the room, pointing at the screen. */
+const ARM_POSES: [number, number, number][] = [
+  [0.05, 0, Math.PI - 0.16],
+  [0.95, 0, 0.45],
+  [-0.55, 0, 1.05],
+];
 
 export type Anchor = { x: number; y: number; on: boolean };
 export type Anchors = Record<string, Anchor>;
@@ -89,6 +98,13 @@ export class Story {
   private readonly bubbleSeats: Seat[];
   private running = false;
   private disposed = false;
+  /** idle life: per head, its current and target angles and when it next changes */
+  private heads: { yaw: number; pitch: number; ty: number; tp: number; until: number }[] = [];
+  private headBase: Vector3[] = [];
+  private readonly lean = new Vector3();
+  private readonly leanTarget = new Vector3();
+  private armPose = 0; // 0 down, 1 open gesture, 2 pointing at the screen
+  private armUntil = 0;
   onFrame?: (anchors: Anchors) => void;
 
   constructor(
@@ -104,7 +120,9 @@ export class Story {
     sun.position.set(-6, 12, 8);
     this.scene.add(sun);
 
-    this.hall = buildHall();
+    this.hall = buildHall({ life: this.live && audienceLife() });
+    this.heads = this.hall.seats.map(() => ({ yaw: 0, pitch: HEAD_DOWN, ty: 0, tp: HEAD_DOWN, until: Math.random() * 6 }));
+    this.headBase = this.hall.seats.map((s) => (s.head3d ? s.head3d.position.clone() : new Vector3()));
     this.scene.add(this.hall.group, this.packets.mesh, this.packetsSage.mesh, this.upvotes.mesh, this.card.group);
     (this.hall.screenPlane.material as { map: unknown }).map = this.screen.texture;
     (this.hall.laptopScreen.material as { map: unknown }).map = this.laptop.texture;
@@ -150,6 +168,11 @@ export class Story {
     this.renderer.setAnimationLoop((t) => this.frame(t));
   }
 
+  /** The pointer over the deck, -1..1 each way; the camera leans a little toward it. */
+  setPointer(nx: number, ny: number) {
+    if (this.live) this.leanTarget.set(nx, ny, 0);
+  }
+
   /** Redraws the canvases once web fonts have arrived. */
   refreshText() {
     this.screenDirty = true;
@@ -171,6 +194,12 @@ export class Story {
 
   private enter(b: number) {
     this.beatAt = this.clock || 0.0001;
+    // a new slide: the room looks up at the screen, front rows first, and the
+    // speaker points at it
+    const now = this.clock;
+    this.hall.seats.forEach((s, i) => this.lookAtScreen(i, now + s.row * 0.12 + Math.random() * 0.35, 1.4 + Math.random() * 1.6));
+    this.armPose = 2;
+    this.armUntil = now + 2.2;
     this.packets.clear();
     this.packetsSage.clear();
     this.upvotes.clear();
@@ -372,6 +401,14 @@ export class Story {
       pos.y += Math.sin(time * 0.17 + 1) * d * 0.5;
       pos.z += Math.cos(time * 0.19) * d;
     }
+    if (this.live) {
+      // lean a little toward the pointer: a small orbit around the target
+      const f = target.clone().sub(pos);
+      const dist = f.length();
+      const right = f.clone().cross(UP).normalize();
+      const up = right.clone().cross(f).normalize();
+      pos.addScaledVector(right, this.lean.x * dist * 0.035).addScaledVector(up, -this.lean.y * dist * 0.022);
+    }
     this.camera.position.copy(pos);
     this.lookAt.copy(target);
     this.camera.lookAt(target);
@@ -382,6 +419,80 @@ export class Story {
     const dist = pos.distanceTo(target);
     this.fog.near = dist * 0.85;
     this.fog.far = dist * 2.7;
+  }
+
+  // ---- life ----
+
+  /** Head i looks at the screen from `at` for `hold` seconds. */
+  private lookAtScreen(i: number, at: number, hold: number) {
+    const seat = this.hall.seats[i]!;
+    const h = this.heads[i]!;
+    const p = seat.head;
+    const facing = Math.atan2(p.x, p.z - SCREEN.center.z); // the yaw that faces the screen's middle
+    const lift = Math.atan2(SCREEN.center.y - p.y, p.z - SCREEN.center.z);
+    h.until = at + hold;
+    // the turn starts at `at`: until then the head keeps what it does
+    const start = () => {
+      h.ty = facing - seat.turn;
+      h.tp = lift * 0.9;
+    };
+    if (at <= this.clock) start();
+    else this.pending.push({ at, run: start });
+  }
+  private pending: { at: number; run: () => void }[] = [];
+
+  private animateLife(dt: number) {
+    const now = this.clock;
+    if (this.pending.length) {
+      const due = this.pending.filter((x) => x.at <= now);
+      this.pending = this.pending.filter((x) => x.at > now);
+      due.forEach((x) => x.run());
+    }
+    const k = 1 - Math.exp(-dt * 5);
+    // the audience: back to their phones, a glance up, a word with a neighbour
+    this.hall.seats.forEach((seat, i) => {
+      const h = this.heads[i]!;
+      if (!seat.head3d) return;
+      if (now > h.until) {
+        const roll = Math.random();
+        if (roll < 0.12) this.lookAtScreen(i, now, 1.2 + Math.random() * 2);
+        else if (roll < 0.2) {
+          h.ty = (Math.random() < 0.5 ? -1 : 1) * (0.55 + Math.random() * 0.3);
+          h.tp = -0.12;
+          h.until = now + 1.4 + Math.random() * 1.6;
+        } else {
+          h.ty = (Math.random() - 0.5) * 0.25;
+          h.tp = HEAD_DOWN + (Math.random() - 0.5) * 0.15;
+          h.until = now + 3 + Math.random() * 6;
+        }
+      }
+      h.yaw += (h.ty - h.yaw) * k;
+      h.pitch += (h.tp - h.pitch) * k;
+      seat.head3d.rotation.set(h.pitch, seat.turn + h.yaw, 0, "YXZ");
+      // the neck: looking up lifts the head and draws it back a little
+      const lift = h.pitch - HEAD_DOWN;
+      const base = this.headBase[i]!;
+      seat.head3d.position.set(base.x + Math.sin(seat.turn) * lift * 0.08, base.y + lift * 0.09, base.z + Math.cos(seat.turn) * lift * 0.08);
+    });
+    // the speaker: shifts weight, turns to the room, gestures, points at the screen
+    const sp = this.hall.speaker;
+    const t = now;
+    sp.root.position.x = sp.home.x + Math.sin(t * 0.23) * 0.12;
+    sp.body.rotation.y = Math.sin(t * 0.41) * 0.14;
+    sp.body.rotation.z = Math.sin(t * 0.31) * 0.025;
+    if (now > this.armUntil) {
+      this.armPose = this.armPose === 1 ? 0 : Math.random() < 0.55 ? 1 : 0;
+      this.armUntil = now + 2 + Math.random() * 3;
+    }
+    const pose = ARM_POSES[this.armPose]!;
+    const a = sp.arm.rotation;
+    const ka = 1 - Math.exp(-dt * 3.5);
+    a.set(a.x + (pose[0] - a.x) * ka, a.y + (pose[1] - a.y) * ka, a.z + (pose[2] - a.z) * ka);
+    const lookYaw = this.armPose === 2 ? 0.75 : Math.sin(t * 0.5) * 0.45;
+    const hd = sp.head.rotation;
+    hd.set(hd.x + ((this.armPose === 2 ? 0.05 : -0.1) - hd.x) * ka, hd.y + (lookYaw - hd.y) * ka, 0, "YXZ");
+    // the camera's lean toward the pointer, eased
+    this.lean.lerp(this.leanTarget, 1 - Math.exp(-dt * 2.5));
   }
 
   // ---- frame ----
@@ -400,6 +511,7 @@ export class Story {
     this.packetsSage.update(this.clock);
     this.upvotes.update(this.clock);
     this.drawScreen();
+    if (this.live) this.animateLife(this.dt);
     setClock(this.hall.room, new Date());
     this.renderer.render(this.scene, this.camera);
     this.onFrame?.(this.anchors());

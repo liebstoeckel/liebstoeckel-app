@@ -17,6 +17,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
+  Object3D,
   OctahedronGeometry,
   PlaneGeometry,
   Quaternion,
@@ -39,7 +40,14 @@ export type Seat = {
   row: number;
   /** segment range of this phone's edges in the phone line batch */
   edges: [number, number];
+  /** which way the person's body faces (radians about y) */
+  turn: number;
+  /** the head as its own object, when the audience has idle life */
+  head3d?: Object3D;
 };
+
+/** The speaker, in parts that can move: the whole figure, the upper body, the head and the pointing arm. */
+export type Speaker = { root: Object3D; body: Object3D; head: Object3D; arm: Object3D; home: Vector3 };
 
 export type Hall = {
   group: Group;
@@ -49,6 +57,7 @@ export type Hall = {
   laptopScreen: Mesh;
   screenPlane: Mesh;
   speakerHead: Vector3;
+  speaker: Speaker;
   laptop: Vector3;
   plant: Vector3;
   room: Room;
@@ -71,8 +80,24 @@ function rng(seed: number) {
   };
 }
 
-export function buildHall(): Hall {
+/** A head looking down at the phone in its hands. */
+export const HEAD_DOWN = -0.45;
+
+export function buildHall(opts: { life: boolean }): Hall {
   const group = new Group();
+  const roomMat = lineMaterial(1);
+  const figureMat = lineMaterial(1.15);
+  const structureMat = lineMaterial(1.3);
+  const phoneMat = lineMaterial(1.35);
+  const fillMat = new MeshLambertMaterial({ color: PALETTE.fill, flatShading: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  /** A shape as its own object (faces plus edges), for the parts that move. */
+  const solid = (geo: BufferGeometry, color: Color) => {
+    const o = new Object3D();
+    const b = new EdgeBatch();
+    b.addEdges(geo, new Matrix4(), color);
+    o.add(new Mesh(geo, fillMat), b.build(figureMat));
+    return o;
+  };
   const fills: BufferGeometry[] = [];
   const room = new EdgeBatch(); // dim structure
   const figures = new EdgeBatch(); // people
@@ -99,7 +124,8 @@ export function buildHall(): Hall {
   const ROWS = 6;
   const seats: Seat[] = [];
   const torso = new CylinderGeometry(0.235, 0.17, 0.5, 6, 1);
-  const head = new IcosahedronGeometry(0.13, 0);
+  // heads are a little longer front to back, so where they look reads
+  const head = new IcosahedronGeometry(0.13, 0).scale(0.94, 1.04, 1.16);
   const thigh = new BoxGeometry(0.36, 0.13, 0.42);
   const arm = new CylinderGeometry(0.042, 0.036, 1, 4, 1);
   const chairBack = new BoxGeometry(0.54, 0.5, 0.05);
@@ -116,7 +142,8 @@ export function buildHall(): Hall {
     for (let i = 0; i < n; i++) {
       const x = (i - (n - 1) / 2) * spacing + (r() - 0.5) * 0.1;
       const pz = z + 0.2;
-      const turn = Math.atan2(-x, 9.6 + pz) * 0.75;
+      // everyone turns a little toward the middle of the screen
+      const turn = Math.atan2(x, 9.6 + pz) * 0.75;
       // every person is built in their own frame (facing -z) and placed once
       const person = new Matrix4().compose(new Vector3(x, y, pz), new Quaternion().setFromEuler(new Euler(0, turn, 0)), new Vector3(1, 1, 1));
       const at = (p: Vector3, e = new Euler(), sc = new Vector3(1, 1, 1)) =>
@@ -131,7 +158,15 @@ export function buildHall(): Hall {
       addSolid(thigh, at(new Vector3(0, seatY + 0.07, -0.14)), figures, col(PALETTE.figure));
       addSolid(torso, at(new Vector3(0, seatY + 0.39 * sz, 0.04), new Euler(slouch, 0, (r() - 0.5) * 0.08), new Vector3(sz, sz, sz * 0.62)), figures, col(PALETTE.figure));
       const headLocal = new Vector3((r() - 0.5) * 0.04, seatY + 0.8 * sz, -0.03 + slouch * 0.5);
-      addSolid(head, at(headLocal, new Euler(r() * 0.7, r() * 1.2, 0)), figures, col(PALETTE.figure));
+      let head3d: Object3D | undefined;
+      if (opts.life) {
+        head3d = solid(head, col(PALETTE.figure));
+        head3d.position.copy(headLocal.clone().applyMatrix4(person));
+        head3d.rotation.set(HEAD_DOWN, turn, 0, "YXZ");
+        group.add(head3d);
+      } else {
+        addSolid(head, at(headLocal, new Euler(HEAD_DOWN + (r() - 0.5) * 0.2, (r() - 0.5) * 0.3, 0, "YXZ")), figures, col(PALETTE.figure));
+      }
       // the phone, held low in front of the chest, screen tilted up to the face
       const phoneLocal = new Vector3((r() - 0.5) * 0.06, seatY + 0.36 * sz + r() * 0.06, -0.36);
       const pm = at(phoneLocal, new Euler(-0.75 - r() * 0.3, 0, (r() - 0.5) * 0.3, "YXZ"));
@@ -153,7 +188,7 @@ export function buildHall(): Hall {
       phoneTransforms.push(pm);
       const phonePos = new Vector3().setFromMatrixPosition(pm);
       const headPos = headLocal.clone().applyMatrix4(person);
-      seats.push({ phone: phonePos, head: headPos.add(new Vector3(0, 0.28, 0)), row, edges });
+      seats.push({ phone: phonePos, head: headPos.add(new Vector3(0, 0.28, 0)), row, edges, turn, head3d });
     }
   }
 
@@ -175,22 +210,36 @@ export function buildHall(): Hall {
   const lidCenter = hinge.clone().add(new Vector3(0, 0.155, 0).applyEuler(lidRot));
   addSolid(new BoxGeometry(0.5, 0.31, 0.016), place(lidCenter, lidRot), structure, col(PALETTE.structure));
 
+  // the speaker, built from parts that can move
   const speakerPos = new Vector3(3.45, 0.6, -7.45);
-  const sRot = new Euler(0, 0.18, 0);
-  const sMat = (p: Vector3, e = new Euler()) => new Matrix4().compose(
-    speakerPos.clone().add(p.clone().applyEuler(sRot)),
-    new Quaternion().setFromEuler(new Euler(e.x, e.y + sRot.y, e.z)),
-    new Vector3(1, 1, 1),
-  );
+  const paper = col(PALETTE.paper);
+  const part = (geo: BufferGeometry, p: Vector3, e = new Euler()) => {
+    const o = solid(geo, paper);
+    o.position.copy(p);
+    o.rotation.copy(e);
+    return o;
+  };
+  const speakerRoot = new Object3D();
+  speakerRoot.position.copy(speakerPos);
+  speakerRoot.rotation.y = 0.18;
+  group.add(speakerRoot);
   const leg = new BoxGeometry(0.13, 0.86, 0.15);
-  addSolid(leg, sMat(new Vector3(-0.1, 0.43, 0)), figures, col(PALETTE.paper));
-  addSolid(leg, sMat(new Vector3(0.1, 0.43, 0)), figures, col(PALETTE.paper));
-  addSolid(new CylinderGeometry(0.21, 0.17, 0.72, 5, 1), sMat(new Vector3(0, 1.22, 0)), figures, col(PALETTE.paper));
+  speakerRoot.add(part(leg, new Vector3(-0.1, 0.43, 0)), part(leg, new Vector3(0.1, 0.43, 0)));
+  // the upper body turns at the hips
+  const speakerBody = new Object3D();
+  speakerBody.position.set(0, 0.86, 0);
+  speakerRoot.add(speakerBody);
+  speakerBody.add(part(new CylinderGeometry(0.21, 0.17, 0.72, 5, 1), new Vector3(0, 0.36, 0)));
+  const speakerHeadObj = part(new IcosahedronGeometry(0.16, 0).scale(0.94, 1.04, 1.12), new Vector3(0, 0.94, 0), new Euler(-0.1, 0, 0, "YXZ"));
+  speakerBody.add(speakerHeadObj);
+  // the pointing arm hangs from the shoulder; the other rests on the lectern
+  const armPivot = new Object3D();
+  armPivot.position.set(-0.2, 0.66, 0);
+  armPivot.rotation.set(-0.55, 0, 1.05);
+  armPivot.add(part(new CylinderGeometry(0.045, 0.04, 0.72, 4, 1), new Vector3(0, 0.36, 0)));
+  speakerBody.add(armPivot);
+  speakerBody.add(part(new CylinderGeometry(0.045, 0.04, 0.6, 4, 1), new Vector3(0.27, 0.34, 0.22), new Euler(0.9, 0, -0.25)));
   const speakerHead = speakerPos.clone().add(new Vector3(0, 1.8, 0));
-  addSolid(new IcosahedronGeometry(0.16, 0), sMat(new Vector3(0, 1.8, 0), new Euler(0.3, 0.4, 0)), figures, col(PALETTE.paper));
-  // one arm toward the screen, one resting on the lectern
-  addSolid(new CylinderGeometry(0.045, 0.04, 0.72, 4, 1), sMat(new Vector3(-0.5, 1.64, -0.09), new Euler(-0.55, 0, 1.05)), figures, col(PALETTE.paper));
-  addSolid(new CylinderGeometry(0.045, 0.04, 0.6, 4, 1), sMat(new Vector3(0.27, 1.2, 0.22), new Euler(0.9, 0, -0.25)), figures, col(PALETTE.paper));
 
   // lovage in the corner: a pot, a few stems, flat umbels
   const plant = new Vector3(-5.7, 0.6, -6.9);
@@ -215,16 +264,9 @@ export function buildHall(): Hall {
   const roomParts = buildRoom(group, addSolid);
 
   // filled faces: one merged mesh, flat-shaded so the facets read
-  const fillMesh = new Mesh(
-    mergeGeometries(fills, false)!,
-    new MeshLambertMaterial({ color: PALETTE.fill, flatShading: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
-  );
+  const fillMesh = new Mesh(mergeGeometries(fills, false)!, fillMat);
   group.add(fillMesh);
 
-  const roomMat = lineMaterial(1);
-  const figureMat = lineMaterial(1.15);
-  const structureMat = lineMaterial(1.3);
-  const phoneMat = lineMaterial(1.35);
   group.add(room.build(roomMat), figures.build(figureMat), structure.build(structureMat));
   const phoneLines = phones.build(phoneMat);
   group.add(phoneLines);
@@ -256,6 +298,7 @@ export function buildHall(): Hall {
     laptopScreen,
     screenPlane,
     speakerHead,
+    speaker: { root: speakerRoot, body: speakerBody, head: speakerHeadObj, arm: armPivot, home: speakerPos.clone() },
     laptop: lidCenter,
     plant,
     room: roomParts,

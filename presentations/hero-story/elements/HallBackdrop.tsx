@@ -60,7 +60,23 @@ export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?
       s.start();
       void document.fonts?.ready.then(() => alive && s.refreshText());
     }
+    // the camera leans a little toward a mouse or trackpad pointer
+    const fine = matchMedia("(pointer: fine)").matches;
+    const onMove = (e: PointerEvent) => {
+      const r = el.getBoundingClientRect();
+      if (!r.width) return;
+      const nx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+      const ny = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1));
+      s.setPointer(nx, ny);
+    };
+    const onLeave = () => s.setPointer(0, 0);
+    if (!still && fine) {
+      window.addEventListener("pointermove", onMove);
+      document.documentElement.addEventListener("pointerleave", onLeave);
+    }
     return () => {
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("pointerleave", onLeave);
       alive = false;
       story.current = null;
       s.dispose();
