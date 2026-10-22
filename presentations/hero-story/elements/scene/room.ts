@@ -53,10 +53,13 @@ export function buildRoom(group: Group, addSolid: AddSolid): Room {
 
   // the left wall, lines only, so it never hides the room from a camera
   const X = -9;
+  // floor and ceiling edges, the back corner, and a rail at hip height that
+  // stops at the door instead of running through it
   for (const [y0, y1, z0, z1] of [
     [0, 0, -11, 9],
     [H, H, -11, 9],
-    [1.1, 1.1, -11, 9],
+    [1.1, 1.1, -11, -5.6],
+    [1.1, 1.1, -4.4, 9],
     [0, H, -11, -11],
   ] as const) line(v(X, y0, z0), v(X, y1, z1));
   // two tall windows with mullions
@@ -140,7 +143,7 @@ export function buildRoom(group: Group, addSolid: AddSolid): Room {
 
   // the clock, on the side wall facing into the room: a ring with ticks; the
   // hands are separate so they can turn. Seen from inside, 3 o'clock is -z.
-  const clockAt = v(X + 0.04, 4.6, 1.5); // between the two windows
+  const clockAt = v(X + 0.04, 5.4, -6.9); // up on the wall, past the door
   const R = 0.5;
   const ring = new EdgeBatch();
   ring.addEdges(new CylinderGeometry(R, R, 0.06, 24, 1), place(clockAt, new Euler(0, 0, Math.PI / 2)), DETAIL);
