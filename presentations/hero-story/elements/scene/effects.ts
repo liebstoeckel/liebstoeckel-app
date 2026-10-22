@@ -1,6 +1,6 @@
-// Things that move through the hall: vote packets flying from phones to the
-// screen, reactions rising over the rows, and a question card that travels from
-// a seat to the screen. All pooled, so nothing is allocated per frame.
+// Things that move through the hall: packets flying from phones to the screen
+// (votes, pulls, upvotes) and a question card that travels from a seat to the
+// screen. All pooled, so nothing is allocated per frame.
 
 import {
   CanvasTexture,
@@ -13,12 +13,9 @@ import {
   PlaneGeometry,
   Quaternion,
   SRGBColorSpace,
-  Sprite,
-  SpriteMaterial,
   Vector3,
   type Camera,
 } from "three";
-import { drawIcon } from "./icons";
 import { FONT_MONO, FONT_SANS, PALETTE } from "./palette";
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -85,70 +82,6 @@ export class Packets {
       this.mesh.setMatrixAt(i, this.m.compose(this.p, this.q, this.s));
     });
     this.mesh.instanceMatrix.needsUpdate = true;
-  }
-}
-
-function iconTexture(kind: number): CanvasTexture {
-  const c = document.createElement("canvas");
-  c.width = c.height = 128;
-  drawIcon(c.getContext("2d")!, kind, 64, 64, 1);
-  const t = new CanvasTexture(c);
-  t.colorSpace = SRGBColorSpace;
-  return t;
-}
-
-type Riser = { sprite: Sprite; from: Vector3; t0: number; dur: number; sway: number; live: boolean };
-
-export class Reactions {
-  readonly group = new Group();
-  private readonly pool: Riser[] = [];
-
-  constructor(capacity = 140) {
-    const mats = [0, 1, 2, 3].map((k) => new SpriteMaterial({ map: iconTexture(k), toneMapped: false, depthWrite: false, fog: false }));
-    for (let i = 0; i < capacity; i++) {
-      const sprite = new Sprite(mats[i % 4]!);
-      sprite.visible = false;
-      this.group.add(sprite);
-      this.pool.push({ sprite, from: new Vector3(), t0: 0, dur: 1, sway: 0, live: false });
-    }
-  }
-
-  /** kind 0..3: heart, spark, laugh, clap */
-  emit(from: Vector3, now: number, kind: number) {
-    const slot = this.pool.find((x) => !x.live && x.sprite.material === this.pool[kind]!.sprite.material);
-    if (!slot) return;
-    slot.from.copy(from);
-    slot.t0 = now;
-    slot.dur = 2.2 + Math.random() * 1.2;
-    slot.sway = (Math.random() - 0.5) * 2;
-    slot.live = true;
-    slot.sprite.visible = true;
-  }
-
-  clear() {
-    this.pool.forEach((x) => {
-      x.live = false;
-      x.sprite.visible = false;
-    });
-  }
-
-  update(now: number) {
-    for (const x of this.pool) {
-      if (!x.live) continue;
-      const t = (now - x.t0) / x.dur;
-      if (t >= 1) {
-        x.live = false;
-        x.sprite.visible = false;
-        continue;
-      }
-      x.sprite.position.set(
-        x.from.x + Math.sin(t * 5 + x.sway * 3) * 0.14 * x.sway,
-        x.from.y + 0.2 + t * 2.6,
-        x.from.z + t * -0.4,
-      );
-      const s = 0.42 * Math.min(1, t * 5) * (1 - Math.pow(t, 3));
-      x.sprite.scale.set(s, s, s);
-    }
   }
 }
 

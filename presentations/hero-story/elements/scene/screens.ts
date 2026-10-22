@@ -2,7 +2,6 @@
 // mapped onto planes in the hall, redrawn only when their content changes.
 
 import { CanvasTexture, LinearMipmapLinearFilter, SRGBColorSpace } from "three";
-import { drawIcon } from "./icons";
 import { FONT_MONO, FONT_SANS, PALETTE } from "./palette";
 
 export type PollState = { question: string; options: string[]; counts: number[] };
@@ -12,7 +11,18 @@ export type ScreenContent =
   | { kind: "title"; joined: number }
   | { kind: "poll"; poll: PollState }
   | { kind: "qa"; questions: Question[] }
-  | { kind: "reactions"; tally: number[] };
+  | { kind: "tug"; left: number; right: number }
+  | { kind: "edit"; edit: EditState };
+
+/** Who is editing the slide, shown as a name tag where their change lands. */
+export type Editor = { name: string; color: string };
+export type EditState = {
+  question: string;
+  options: string[];
+  note: string;
+  /** which part each editor is on right now: "question", "option:<i>" or "note" */
+  cursors: { who: Editor; at: string }[];
+};
 
 
 function texture(canvas: HTMLCanvasElement): CanvasTexture {
@@ -71,7 +81,8 @@ export class ProjectionScreen {
     if (c.kind === "title") this.title(c.joined);
     else if (c.kind === "poll") this.poll(c.poll);
     else if (c.kind === "qa") this.qa(c.questions);
-    else this.reactions(c.tally);
+    else if (c.kind === "tug") this.tug(c.left, c.right);
+    else this.edit(c.edit);
     this.texture.needsUpdate = true;
   }
 
@@ -165,21 +176,112 @@ export class ProjectionScreen {
     });
   }
 
-  private reactions(tally: number[]) {
+  /** Where the rope ends sit, in 0..1 screen coordinates. */
+  static ropeEnd(side: 0 | 1): [number, number] {
+    return [side === 0 ? 0.12 : 0.88, 0.6];
+  }
+
+  private tug(left: number, right: number) {
     const g = this.g;
+    const { W } = ProjectionScreen;
     g.fillStyle = PALETTE.text;
-    g.font = `700 96px ${FONT_SANS}`;
-    g.fillText("That was the demo.", 128, 360);
+    g.font = `700 84px ${FONT_SANS}`;
+    g.fillText("Tug of war", 128, 250);
     g.fillStyle = PALETTE.muted;
-    g.font = `500 44px ${FONT_SANS}`;
-    g.fillText("How did it land?", 128, 440);
-    tally.forEach((n, i) => {
-      const x = 170 + i * 340;
-      drawIcon(g, i, x, 640, 0.9);
-      g.fillStyle = PALETTE.goldSoft;
-      g.font = `500 56px ${FONT_MONO}`;
-      g.fillText(String(n), x + 76, 660);
+    g.font = `500 40px ${FONT_SANS}`;
+    g.fillText("Left half of the room against the right half. Tap to pull.", 128, 320);
+    const y = 0.6 * 900;
+    const x0 = 0.12 * W, x1 = 0.88 * W;
+    const p = Math.max(-1, Math.min(1, (right - left) / 26));
+    const knot = (x0 + x1) / 2 + p * (x1 - x0) * 0.32;
+    // the rope: each side in its team's color up to the knot
+    g.lineCap = "round";
+    g.lineWidth = 14;
+    g.strokeStyle = PALETTE.gold;
+    g.beginPath();
+    g.moveTo(x0, y);
+    g.lineTo(knot, y);
+    g.stroke();
+    g.strokeStyle = PALETTE.sage;
+    g.beginPath();
+    g.moveTo(knot, y);
+    g.lineTo(x1, y);
+    g.stroke();
+    // the middle line and the knot
+    g.strokeStyle = "#3a4530";
+    g.lineWidth = 3;
+    g.setLineDash([10, 10]);
+    g.beginPath();
+    g.moveTo(W / 2, y - 120);
+    g.lineTo(W / 2, y + 120);
+    g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = PALETTE.paper;
+    g.beginPath();
+    g.moveTo(knot, y - 46);
+    g.lineTo(knot + 30, y);
+    g.lineTo(knot, y + 46);
+    g.lineTo(knot - 30, y);
+    g.closePath();
+    g.fill();
+    g.font = `600 44px ${FONT_SANS}`;
+    g.fillStyle = PALETTE.goldSoft;
+    g.fillText("Left", x0, y + 120);
+    g.font = `500 44px ${FONT_MONO}`;
+    g.fillText(String(left), x0 + 110, y + 120);
+    g.textAlign = "right";
+    g.fillStyle = PALETTE.sage;
+    g.fillText(String(right), x1 - 140, y + 120);
+    g.font = `600 44px ${FONT_SANS}`;
+    g.fillText("Right", x1, y + 120);
+    g.textAlign = "left";
+  }
+
+  /** Where each part of the edited slide sits, in 0..1 screen coordinates. */
+  static editSpot(at: string): [number, number] {
+    if (at === "question") return [0.45, 0.27];
+    if (at === "note") return [0.78, 0.4];
+    const i = Number(at.split(":")[1] ?? 0);
+    return [0.2, 0.52 + i * 0.105];
+  }
+
+  private edit(e: EditState) {
+    const g = this.g;
+    const { W } = ProjectionScreen;
+    g.fillStyle = PALETTE.text;
+    g.font = `700 80px ${FONT_SANS}`;
+    g.fillText(e.question, 128, 280);
+    g.fillStyle = PALETTE.goldSoft;
+    g.font = `500 36px ${FONT_MONO}`;
+    g.textAlign = "right";
+    g.fillText(e.note, W - 128, 370);
+    g.textAlign = "left";
+    e.options.forEach((o, i) => {
+      const y = (0.52 + i * 0.105) * 900;
+      g.strokeStyle = "#35402c";
+      g.lineWidth = 3;
+      g.beginPath();
+      g.roundRect(128, y - 52, W * 0.58, 76, 16);
+      g.stroke();
+      g.fillStyle = PALETTE.text;
+      g.font = `600 40px ${FONT_SANS}`;
+      g.fillText(o, 164, y);
     });
+    // name tags: where each editor's change is landing
+    for (const c of e.cursors) {
+      const [u, v] = ProjectionScreen.editSpot(c.at);
+      g.font = `600 30px ${FONT_SANS}`;
+      const w = g.measureText(c.who.name).width + 36;
+      const x = c.at === "note" ? u * W - w + 120 : u * W;
+      const y = v * 900 - (c.at === "question" ? 120 : 70);
+      g.fillStyle = c.who.color;
+      g.beginPath();
+      g.roundRect(x, y - 40, w, 50, 10);
+      g.fill();
+      g.fillRect(x, y + 10, 4, 34);
+      g.fillStyle = PALETTE.bg;
+      g.fillText(c.who.name, x + 18, y - 5);
+    }
   }
 }
 

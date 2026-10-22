@@ -6,8 +6,8 @@ import { HallBackdrop } from "./elements/HallBackdrop";
 import * as hall from "./slides/01-hall";
 import * as poll from "./slides/02-poll";
 import * as ask from "./slides/03-ask";
-import * as react from "./slides/04-react";
-import * as code from "./slides/05-code";
+import * as plugin from "./slides/04-plugin";
+import * as together from "./slides/05-together";
 import * as file from "./slides/06-file";
 
 // Hot-module boundary: a slide edit re-runs this entry into the same React root,
@@ -19,7 +19,7 @@ root.render(
     brands={["liebstoeckel"]}
     backdrop={HallBackdrop}
     transition="fade"
-    slides={[hall, poll, ask, react, code, file]}
+    slides={[hall, poll, ask, plugin, together, file]}
   />,
 );
 import.meta.hot.accept();

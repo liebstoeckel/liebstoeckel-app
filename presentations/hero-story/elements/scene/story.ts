@@ -1,14 +1,15 @@
 // The story: one hall, one camera, six beats. Each slide of the deck is a beat;
-// entering a beat moves the camera to its shot and starts what the room does
-// there (phones join, votes fly, a question rises, reactions float up, the
-// speaker's laptop types the slide).
+// entering a beat moves the camera to its shot and starts what happens there:
+// phones join, votes fly to a poll, a question rises from a seat, the room plays
+// a game an agent just wrote, three people edit the same slide, and the whole
+// hall pulls back to one file.
 
-import { Color, Fog, PerspectiveCamera, Scene, Vector3, WebGLRenderer, HemisphereLight, DirectionalLight } from "three";
-import { Packets, QuestionCard, Reactions } from "./effects";
+import { Color, DirectionalLight, Fog, HemisphereLight, PerspectiveCamera, Scene, Vector3, WebGLRenderer } from "three";
+import { Packets, QuestionCard } from "./effects";
 import { buildHall, SCREEN, type Hall, type Seat } from "./hall";
 import { recolor } from "./lines";
 import { PALETTE } from "./palette";
-import { LaptopScreen, ProjectionScreen, type PollState, type Question } from "./screens";
+import { LaptopScreen, ProjectionScreen, type EditState, type Editor, type PollState, type Question } from "./screens";
 
 export const BEATS = 6;
 
@@ -21,8 +22,8 @@ export const SHOTS: Shot[] = [
   { pos: v(12.8, 8.8, 13.8), target: v(-0.2, 1.4, -2.6), fov: 30, drift: 1, shift: 0.15 }, // the hall
   { pos: v(2.2, 5.4, 6.4), target: v(-0.3, 2.8, -9.6), fov: 37, drift: 0.5, shift: 0.1 }, // over the rows to the poll
   { pos: v(12.5, 5.6, 5.8), target: v(-0.4, 1.5, -2.6), fov: 32, drift: 0.6, shift: 0.14 }, // side, a question rises
-  { pos: v(5.4, 3.6, -10.4), target: v(-0.9, 1.9, 1.6), fov: 46, drift: 0.4, shift: 0.06 }, // behind the speaker: the room reacts
-  { pos: v(5.2, 3.4, -9.9), target: v(2.7, 1.5, -5.4), fov: 32, drift: 0.15, shift: 0.18 }, // the speaker's corner
+  { pos: v(0, 9.6, 12.8), target: v(0, 2.6, -4.6), fov: 40, drift: 0.6, shift: 0.17 }, // from the back: the room plays
+  { pos: v(1.5, 4.0, 5.0), target: v(0.3, 3.35, -9.6), fov: 32, drift: 0.25, shift: 0.19 }, // close on the slide being edited
   { pos: v(17.5, 19.5, 18.5), target: v(0.2, 1.6, -3.2), fov: 27, drift: 0.8, shift: 0.14 }, // the whole room as one model
 ];
 
@@ -30,12 +31,21 @@ const POLL: PollState = { question: "Where do we go next?", options: ["Lisbon", 
 const WEIGHTS = [0.47, 0.31, 0.22];
 const ASKED = "Can I write my own plugin?";
 
+export const EDITORS: Record<"web" | "dev" | "agent", Editor> = {
+  web: { name: "Mara, browser", color: PALETTE.sage },
+  dev: { name: "Jonas, editor", color: PALETTE.goldSoft },
+  agent: { name: "Agent, terminal", color: PALETTE.paper },
+};
+const EDITED = { question: "Where should the offsite be?", option: "Porto", note: "Voting closes in 30 seconds" };
+
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const pick = (w: number[]) => {
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < w.length; i++) if ((r -= w[i]!) <= 0) return i;
   return w.length - 1;
 };
+/** `text` typed out over [t0, t1]: the share of characters shown at time t. */
+const typed = (text: string, t: number, t0: number, t1: number) => text.slice(0, Math.round(text.length * Math.min(1, Math.max(0, (t - t0) / (t1 - t0)))));
 
 export type Anchor = { x: number; y: number; on: boolean };
 export type Anchors = Record<string, Anchor>;
@@ -48,35 +58,43 @@ export class Story {
   private readonly screen = new ProjectionScreen();
   private readonly laptop = new LaptopScreen();
   private readonly packets = new Packets();
+  private readonly packetsSage = new Packets(160, PALETTE.sage);
   private readonly upvotes = new Packets(40, PALETTE.gold, 0.05);
-  private readonly reactions = new Reactions();
   private readonly card = new QuestionCard(ASKED);
   private readonly fog = new Fog(PALETTE.bg, 10, 40);
+  private readonly live: boolean;
 
   beat = 0;
   private beatAt = 0;
   private clock = 0;
   private last = 0;
+  private dt = 0;
   private from: Shot = SHOTS[0]!;
   private tweenAt = -10;
   private readonly lookAt = new Vector3();
   private shift = 0;
   private joinedAt: number[] = [];
-  private lit: boolean[] = [];
+  private lastJoined = -1;
+  private phoneColor: string[] = [];
   private poll: PollState = structuredClone(POLL);
+  private voted = 0;
   private questions: Question[] = [];
-  private tally = [0, 0, 0, 0];
+  private pulls = [0, 0];
+  private pullAcc = 0;
+  private edit: EditState = { question: POLL.question, options: [...POLL.options], note: "", cursors: [] };
+  private editKey = "";
   private screenDirty = true;
-  private reactAcc = 0;
-  private cardSeat: Seat;
-  private bubbleSeats: Seat[];
+  private readonly cardSeat: Seat;
+  private readonly bubbleSeats: Seat[];
   private running = false;
+  private disposed = false;
   onFrame?: (anchors: Anchors) => void;
 
   constructor(
     readonly canvas: HTMLCanvasElement,
     private readonly opts: { still: boolean; reduced: boolean },
   ) {
+    this.live = !opts.reduced && !opts.still;
     this.renderer = new WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: opts.still, powerPreference: "high-performance" });
     this.renderer.setClearColor(new Color(PALETTE.bg), 1);
     this.scene.fog = this.fog;
@@ -86,15 +104,16 @@ export class Story {
     this.scene.add(sun);
 
     this.hall = buildHall();
-    this.scene.add(this.hall.group, this.packets.mesh, this.upvotes.mesh, this.reactions.group, this.card.group);
+    this.scene.add(this.hall.group, this.packets.mesh, this.packetsSage.mesh, this.upvotes.mesh, this.card.group);
     (this.hall.screenPlane.material as { map: unknown }).map = this.screen.texture;
     (this.hall.laptopScreen.material as { map: unknown }).map = this.laptop.texture;
-    this.lit = this.hall.seats.map(() => false);
+    this.laptop.draw(LaptopScreen.TOTAL);
+    this.phoneColor = this.hall.seats.map(() => "");
 
     const nearest = (p: Vector3) => this.hall.seats.reduce((a, b) => (b.phone.distanceTo(p) < a.phone.distanceTo(p) ? b : a));
     this.cardSeat = nearest(v(-0.6, 0.3, -2.2));
     // whose phone each slide zooms into, picked where the bubble has room
-    this.bubbleSeats = [nearest(v(3.6, 1.2, 1.6)), nearest(v(2.6, 0.5, -2.2)), this.cardSeat, nearest(v(-2.2, 0.9, 0.6)), nearest(v(0, 0, 0)), nearest(v(0, 0, 0))];
+    this.bubbleSeats = [nearest(v(3.6, 1.2, 1.6)), nearest(v(2.6, 0.5, -2.2)), this.cardSeat, nearest(v(-2.4, 0.9, 3.0)), nearest(v(0, 0, 0)), nearest(v(0, 0, 0))];
 
     this.applyShot(SHOTS[0]!, 1, 0);
     this.enter(0);
@@ -105,7 +124,7 @@ export class Story {
     const b = Math.max(0, Math.min(BEATS - 1, i));
     if (b === this.beat && this.beatAt > 0) return;
     this.from = this.currentShot();
-    this.tweenAt = this.opts.reduced || this.opts.still ? -10 : this.clock;
+    this.tweenAt = this.live ? this.clock : -10;
     this.beat = b;
     this.enter(b);
     if (!this.running) this.frame(performance.now());
@@ -134,13 +153,17 @@ export class Story {
   refreshText() {
     this.screenDirty = true;
     this.laptop.reset();
+    this.laptop.draw(LaptopScreen.TOTAL);
     if (!this.running) this.frame(performance.now());
   }
 
   dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
     this.running = false;
     this.renderer.setAnimationLoop(null);
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
   }
 
   // ---- beats ----
@@ -148,24 +171,24 @@ export class Story {
   private enter(b: number) {
     this.beatAt = this.clock || 0.0001;
     this.packets.clear();
+    this.packetsSage.clear();
     this.upvotes.clear();
-    this.reactions.clear();
-    this.reactAcc = 0;
+    this.card.group.visible = false;
     const seats = this.hall.seats;
     if (b === 0) {
       // the room joins: a few phones are in, the rest arrive over a few seconds
-      this.joinedAt = seats.map((_, i) => (i % 7 === 0 ? 0 : 0.4 + Math.pow(Math.random(), 0.8) * 4.6));
-      if (this.opts.reduced || this.opts.still) this.joinedAt = seats.map(() => 0);
-      seats.forEach((_, i) => this.setLit(i, this.joinedAt[i] === 0));
+      this.joinedAt = seats.map((_, i) => (i % 7 === 0 || !this.live ? 0 : 0.4 + Math.pow(Math.random(), 0.8) * 4.6));
+      seats.forEach((_, i) => this.setPhone(i, this.joinedAt[i] === 0 ? PALETTE.gold : null));
+    } else if (b === 3) {
+      // two teams: the left half of the room against the right half
+      seats.forEach((s, i) => this.setPhone(i, s.phone.x < 0 ? PALETTE.gold : PALETTE.sage));
     } else {
-      seats.forEach((_, i) => this.setLit(i, true));
+      seats.forEach((_, i) => this.setPhone(i, PALETTE.gold));
     }
-    this.card.group.visible = false;
     if (b === 1) {
       this.voted = 0;
       this.poll = structuredClone(POLL);
-      this.poll.counts = [3, 2, 1];
-      if (this.opts.reduced || this.opts.still) this.poll.counts = [21, 14, 10];
+      this.poll.counts = this.live ? [3, 2, 1] : [21, 14, 10];
     }
     if (b === 2) {
       this.card.votes = 3;
@@ -173,46 +196,48 @@ export class Story {
         { text: "Will the slides be online afterwards?", votes: 9 },
         { text: "Does it work without wifi?", votes: 6 },
       ];
-      if (this.opts.reduced || this.opts.still) this.questions.unshift({ text: ASKED, votes: 14 });
+      if (!this.live) this.questions.unshift({ text: ASKED, votes: 14 });
     }
-    if (b === 3) this.tally = this.opts.reduced || this.opts.still ? [18, 11, 7, 23] : [0, 0, 0, 0];
-    if (b === 4 || b === 5) {
-      if (this.poll.counts.reduce((a, c) => a + c, 0) < 30) this.poll.counts = [21, 14, 10];
+    if (b === 3) {
+      this.pulls = this.live ? [0, 0] : [31, 27];
+      this.pullAcc = 0;
     }
+    if (b === 4) this.editKey = "";
+    if (b === 5 && this.poll.counts.reduce((a, c) => a + c, 0) < 30) this.poll.counts = [21, 14, 10];
     this.screenDirty = true;
   }
 
-  private setLit(i: number, on: boolean) {
-    if (this.lit[i] === on) return;
-    this.lit[i] = on;
+  /** Lights a phone in a color, or turns it off (null). */
+  private setPhone(i: number, color: string | null) {
+    const key = color ?? "";
+    if (this.phoneColor[i] === key) return;
+    this.phoneColor[i] = key;
     const seat = this.hall.seats[i]!;
-    recolor(this.hall.phoneLines, seat.edges, new Color(on ? PALETTE.gold : PALETTE.figure));
-    this.hall.phoneScreens.setColorAt(i, new Color(on ? PALETTE.goldSoft : PALETTE.fill));
+    recolor(this.hall.phoneLines, seat.edges, new Color(color ?? PALETTE.figure));
+    this.hall.phoneScreens.setColorAt(i, new Color(color ? (color === PALETTE.gold ? PALETTE.goldSoft : color) : PALETTE.fill));
     this.hall.phoneScreens.instanceColor!.needsUpdate = true;
   }
 
   private tick(t: number) {
     const now = this.clock;
     const seats = this.hall.seats;
-    const live = !this.opts.reduced && !this.opts.still;
     switch (this.beat) {
       case 0: {
         let joined = 0;
         seats.forEach((_, i) => {
           if (t >= this.joinedAt[i]!) {
-            if (!this.lit[i]) this.setLit(i, true);
+            this.setPhone(i, PALETTE.gold);
             joined++;
           }
         });
-        const shown = joined + 1;
-        if (shown !== this.lastJoined) {
-          this.lastJoined = shown;
+        if (joined + 1 !== this.lastJoined) {
+          this.lastJoined = joined + 1;
           this.screenDirty = true;
         }
         break;
       }
       case 1: {
-        if (!live) break;
+        if (!this.live) break;
         // most of the room votes in the first few seconds, a few stragglers after
         const want = Math.min(seats.length, Math.floor(seats.length * (1 - Math.pow(1 - Math.min(1, t / 6), 2.2))));
         while (this.voted < want) {
@@ -229,50 +254,65 @@ export class Story {
         break;
       }
       case 2: {
-        const T = 6;
-        const k = Math.min(1, Math.max(0, (t - 0.4) / T));
+        if (!this.live) break;
+        const k = Math.min(1, Math.max(0, (t - 0.4) / 6));
         const hover = this.cardSeat.head.clone().add(v(0, 1.25, -0.4));
         const [u, vv] = ProjectionScreen.qaSlot(0);
-        if (live) {
-          this.card.place(k, this.cardSeat.head, hover, this.onScreen(u, vv).add(v(0, 0, 0.2)), this.camera, 2.4);
-          // upvotes fly to the card while it hovers
-          if (k > 0.28 && k < 0.66 && this.card.votes - 3 < Math.floor(((k - 0.28) / 0.38) * 11)) {
-            const seat = seats[(this.card.votes * 11 + 5) % seats.length]!;
-            this.card.votes++;
-            this.upvotes.send(seat.phone, hover, now, 0.55, 0.6);
-          }
-          if (k >= 1 && this.questions[0]?.text !== ASKED) {
-            this.questions.unshift({ text: ASKED, votes: this.card.votes, fresh: true });
-            this.screenDirty = true;
-          }
+        this.card.place(k, this.cardSeat.head, hover, this.onScreen(u, vv).add(v(0, 0, 0.2)), this.camera, 2.4);
+        // upvotes fly to the card while it hovers
+        if (k > 0.28 && k < 0.66 && this.card.votes - 3 < Math.floor(((k - 0.28) / 0.38) * 11)) {
+          const seat = seats[(this.card.votes * 11 + 5) % seats.length]!;
+          this.card.votes++;
+          this.upvotes.send(seat.phone, hover, now, 0.55, 0.6);
         }
-        break;
-      }
-      case 3: {
-        if (!live) break;
-        const rate = 14 + 9 * Math.sin(t * 1.3) + (t < 1.5 ? 12 : 0);
-        this.reactAcc += rate * this.dt;
-        while (this.reactAcc >= 1) {
-          this.reactAcc -= 1;
-          const seat = seats[Math.floor(Math.random() * seats.length)]!;
-          const kind = pick([0.3, 0.15, 0.25, 0.3]);
-          this.reactions.emit(seat.phone, now, kind);
-          this.tally[kind]!++;
+        if (k >= 1 && this.questions[0]?.text !== ASKED) {
+          this.questions.unshift({ text: ASKED, votes: this.card.votes });
           this.screenDirty = true;
         }
         break;
       }
-      case 4:
-        this.laptop.draw(live ? Math.max(0, (t - 0.9) * 46) : LaptopScreen.TOTAL);
+      case 3: {
+        if (!this.live || t < 0.8) break;
+        // both halves pull; the lead swings from one side to the other
+        const rate = 16 + 6 * Math.sin(t * 2.1);
+        const leftShare = 0.5 + 0.22 * Math.sin(t * 0.9);
+        this.pullAcc += rate * this.dt;
+        while (this.pullAcc >= 1) {
+          this.pullAcc -= 1;
+          const side = Math.random() < leftShare ? 0 : 1;
+          const team = seats.filter((s) => (side === 0 ? s.phone.x < 0 : s.phone.x >= 0));
+          const seat = team[Math.floor(Math.random() * team.length)]!;
+          const [u, vv] = ProjectionScreen.ropeEnd(side);
+          (side === 0 ? this.packets : this.packetsSage).send(seat.phone, this.onScreen(u, vv), now, 0.7 + Math.random() * 0.4, 1 + Math.random(), () => {
+            this.pulls[side]!++;
+            this.screenDirty = true;
+          });
+        }
         break;
-      case 5:
-        this.laptop.draw(LaptopScreen.TOTAL);
+      }
+      case 4: {
+        // three people edit the same slide: the question in the browser, a new
+        // option in the editor, a note from the agent in the terminal
+        const done = !this.live;
+        const T = done ? 99 : t;
+        const q = T < 1.6 ? POLL.question : T < 2.4 ? POLL.question.slice(0, Math.round(POLL.question.length * (1 - (T - 1.6) / 0.8))) : typed(EDITED.question, T, 2.4, 4.0);
+        const opt = typed(EDITED.option, T, 4.4, 5.0);
+        const note = typed(EDITED.note, T, 5.6, 6.8);
+        const cursors: EditState["cursors"] = [];
+        if (T >= 1.6) cursors.push({ who: EDITORS.web, at: "question" });
+        if (T >= 4.2) cursors.push({ who: EDITORS.dev, at: "option:3" });
+        if (T >= 5.4) cursors.push({ who: EDITORS.agent, at: "note" });
+        const options = opt ? [...POLL.options, opt] : [...POLL.options];
+        const key = `${q}|${opt}|${note}|${cursors.length}`;
+        if (key !== this.editKey) {
+          this.editKey = key;
+          this.edit = { question: q, options, note, cursors };
+          this.screenDirty = true;
+        }
         break;
+      }
     }
   }
-  private lastJoined = -1;
-  private voted = 0;
-  private dt = 0;
 
   /** A point on the projection screen, from 0..1 coordinates (u right, v down). */
   private onScreen(u: number, vv: number): Vector3 {
@@ -282,23 +322,24 @@ export class Story {
   private drawScreen() {
     if (!this.screenDirty) return;
     this.screenDirty = false;
-    const slide = this.beat + 1;
     switch (this.beat) {
       case 0:
         this.screen.draw({ kind: "title", joined: Math.max(this.lastJoined, 1) }, 1, 9);
         break;
       case 1:
-      case 4:
         this.screen.draw({ kind: "poll", poll: this.poll }, 4, 9);
         break;
       case 2:
         this.screen.draw({ kind: "qa", questions: this.questions }, 6, 9);
         break;
       case 3:
-        this.screen.draw({ kind: "reactions", tally: this.tally }, 8, 9);
+        this.screen.draw({ kind: "tug", left: this.pulls[0]!, right: this.pulls[1]! }, 7, 9);
+        break;
+      case 4:
+        this.screen.draw({ kind: "edit", edit: this.edit }, 4, 9);
         break;
       default:
-        this.screen.draw({ kind: "title", joined: this.hall.seats.length + 1 }, slide, 9);
+        this.screen.draw({ kind: "title", joined: this.hall.seats.length + 1 }, 1, 9);
     }
   }
 
@@ -319,7 +360,7 @@ export class Story {
       this.shift = shift;
       this.camera.setViewOffset(1280, 720, -shift * 1280, 0, 1280, 720);
     }
-    if (!this.opts.reduced && !this.opts.still) {
+    if (this.live) {
       const d = to.drift * 0.16;
       pos.x += Math.sin(time * 0.21) * d;
       pos.y += Math.sin(time * 0.17 + 1) * d * 0.5;
@@ -340,6 +381,7 @@ export class Story {
   // ---- frame ----
 
   private frame(ms: number) {
+    if (this.disposed) return;
     const sec = ms / 1000;
     this.dt = this.last ? Math.min(0.05, sec - this.last) : 0.016;
     this.last = sec;
@@ -349,8 +391,8 @@ export class Story {
     this.applyShot(SHOTS[this.beat]!, k, this.clock);
     this.tick(t);
     this.packets.update(this.clock);
+    this.packetsSage.update(this.clock);
     this.upvotes.update(this.clock);
-    this.reactions.update(this.clock);
     this.drawScreen();
     this.renderer.render(this.scene, this.camera);
     this.onFrame?.(this.anchors());
@@ -364,11 +406,14 @@ export class Story {
     };
     put("phone", this.bubbleSeats[this.beat]!.phone);
     put("laptop", this.hall.laptop);
-    put("screen", SCREEN.center.clone().add(v(-2.6, 0.9, 0)));
-    put("speaker", this.hall.speakerHead);
+    put("screen", SCREEN.center.clone());
     put("plant", this.hall.plant.clone().add(v(0, 1.6, 0)));
     put("stageL", v(-6.5, 0.6, -6.2));
     put("stageR", v(6.5, 0.6, -6.2));
+    for (const at of ["question", "option:3", "note"]) {
+      const [u, vv] = ProjectionScreen.editSpot(at);
+      put(`edit:${at}`, this.onScreen(u, vv));
+    }
     return out;
   }
 }

@@ -1,7 +1,8 @@
 // Flat callouts pinned to points in the 3D hall: a close-up of one person's
-// phone, and blueprint labels with leader lines. The hall reports where its
-// anchor points land on screen every frame; positions are written straight to
-// the DOM, so following the camera costs no React renders.
+// phone, cards for the people and agents working on the deck, and blueprint
+// labels with leader lines. The hall reports where its anchor points land on
+// screen every frame; positions are written straight to the DOM, so following
+// the camera costs no React renders. Callouts are kept inside the frame.
 
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { Anchors } from "./scene/story";
@@ -15,16 +16,31 @@ const C = {
   text: "#e9e6d7",
   muted: "#9da28c",
   sage: "#9cae86",
+  paper: "#f4f1e6",
   ink: "#10140e",
+  code: "#d8c48e",
 };
 const SANS = '"Schibsted Grotesk Variable", system-ui, sans-serif';
 const MONO = '"JetBrains Mono Variable", ui-monospace, monospace';
+const W = 1280;
+const H = 720;
+const EDGE = 14;
 
-type Pinned = { id: string; kind: "phone" | "label"; anchor: string; dx: number; dy: number; body: ReactNode };
-type Dimension = { id: string; kind: "dim"; a: string; b: string; body: ReactNode };
-type Item = Pinned | Dimension;
+/** Pinned next to an anchor (offset dx, dy), or at a fixed spot in the frame with a line to the anchor. */
+type Callout = {
+  id: string;
+  kind: "pin" | "card" | "label";
+  anchor: string;
+  dx?: number;
+  dy?: number;
+  at?: { x: number; y: number };
+  delay?: number;
+  body: ReactNode;
+};
+type Dimension = { id: string; kind: "dim"; a: string; b: string; delay?: number; body: ReactNode };
+type Item = Callout | Dimension;
 
-// ---- the phone close-ups ----
+// ---- building blocks ----
 
 function Phone({ children }: { children: ReactNode }) {
   return (
@@ -49,10 +65,10 @@ function Phone({ children }: { children: ReactNode }) {
   );
 }
 
-function Status({ children }: { children: ReactNode }) {
+function Status({ children, color = C.sage }: { children: ReactNode; color?: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11.5, color: C.muted }}>
-      <span style={{ width: 7, height: 7, borderRadius: 9, background: C.sage }} />
+      <span style={{ width: 7, height: 7, borderRadius: 9, background: color, flex: "none" }} />
       {children}
     </div>
   );
@@ -79,61 +95,46 @@ function Choice({ on, children }: { on?: boolean; children: ReactNode }) {
   );
 }
 
-const ICONS = [
-  <path key="h" d="M12 20s-7-4.4-7-9.6A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.4C19 15.6 12 20 12 20z" fill="currentColor" />,
-  <path key="s" d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z" fill="currentColor" />,
-  <g key="l" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-    <circle cx="12" cy="12" r="8.5" />
-    <path d="M8 13.5a4.5 4.5 0 0 0 8 0M8.5 9.5l2 1M15.5 9.5l-2 1" />
-  </g>,
-  <g key="c" fill="none" stroke="currentColor" strokeWidth="1.8">
-    <rect x="5.5" y="4" width="5" height="14" rx="2.5" transform="rotate(-18 8 11)" />
-    <rect x="13.5" y="4" width="5" height="14" rx="2.5" transform="rotate(18 16 11)" />
-  </g>,
-];
-
-const CODE: [string, string][][] = [
-  [["#e0c580", "import"], ["#9da28c", " { "], ["#f4f1e6", "Plugin"], ["#9da28c", " } "], ["#e0c580", "from"], ["#d8c48e", ' "@liebstoeckel/engine"']],
-  [],
-  [["#9da28c", "<"], ["#f4f1e6", "Plugin"], ["#9cae86", " id"], ["#9da28c", "="], ["#d8c48e", '"poll"'], ["#9cae86", " props"], ["#9da28c", "={{"]],
-  [["#9cae86", "  question"], ["#9da28c", ": "], ["#d8c48e", '"Where do we go next?"'], ["#9da28c", ","]],
-  [["#9cae86", "  options"], ["#9da28c", ": ["], ["#d8c48e", '"Lisbon", "Berlin", "A cabin"'], ["#9da28c", "],"]],
-  [["#9da28c", "}} />"]],
-];
-
-function CodeCard() {
+/** A window: the browser editor, a code editor or a terminal. */
+function Pane({ title, who, color, width, children }: { title: string; who: string; color: string; width: number; children: ReactNode }) {
   return (
     <div
       style={{
-        width: 400,
+        width,
         borderRadius: 12,
         border: `1px solid ${C.line}`,
         background: "#0d110b",
         boxShadow: `0 0 0 5px ${C.bg}`,
-        fontFamily: MONO,
-        fontSize: 12.5,
-        lineHeight: 1.75,
         overflow: "hidden",
+        fontFamily: MONO,
+        fontSize: 12,
+        lineHeight: 1.7,
+        color: C.text,
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 14px", background: "#1a2114", color: C.muted, fontSize: 11.5 }}>
-        <span>slides/02-poll.mdx</span>
-        <span style={{ color: C.sage }}>saved, live on 52 phones</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "6px 12px", background: "#1a2114", color: C.muted, fontSize: 11 }}>
+        <span>{title}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color }}>
+          <span style={{ width: 7, height: 7, borderRadius: 9, background: color }} />
+          {who}
+        </span>
       </div>
-      <div style={{ padding: "10px 14px 12px" }}>
-        {CODE.map((line, i) => (
-          <div key={i} className="hs-line" style={{ animationDelay: `${2.0 + i * 0.28}s`, whiteSpace: "pre", minHeight: "1.75em" }}>
-            {line.map(([color, text], j) => (
-              <span key={j} style={{ color }}>
-                {text}
-              </span>
-            ))}
-          </div>
-        ))}
-      </div>
+      <div style={{ padding: "9px 12px 11px" }}>{children}</div>
     </div>
   );
 }
+
+function Line({ at, children }: { at: number; children: ReactNode }) {
+  return (
+    <div className="hs-line" style={{ animationDelay: `${at}s`, whiteSpace: "pre-wrap" }}>
+      {children}
+    </div>
+  );
+}
+const str = (text: string) => <span style={{ color: C.code }}>{text}</span>;
+const mute = (text: string) => <span style={{ color: C.muted }}>{text}</span>;
+
+// ---- what each slide shows ----
 
 function beats(): { items: Item[]; shade: string }[] {
   return [
@@ -142,7 +143,7 @@ function beats(): { items: Item[]; shade: string }[] {
       items: [
         {
           id: "join",
-          kind: "phone",
+          kind: "pin",
           anchor: "phone",
           dx: 70,
           dy: -40,
@@ -161,7 +162,7 @@ function beats(): { items: Item[]; shade: string }[] {
       items: [
         {
           id: "vote",
-          kind: "phone",
+          kind: "pin",
           anchor: "phone",
           dx: 60,
           dy: -40,
@@ -182,23 +183,14 @@ function beats(): { items: Item[]; shade: string }[] {
       items: [
         {
           id: "ask",
-          kind: "phone",
+          kind: "pin",
           anchor: "phone",
           dx: -60,
           dy: 70,
           body: (
             <Phone>
               <Status>Questions</Status>
-              <div
-                style={{
-                  fontSize: 13.5,
-                  lineHeight: 1.35,
-                  padding: "9px 11px",
-                  borderRadius: 11,
-                  border: `1px solid ${C.line}`,
-                  background: "rgba(255,255,255,0.03)",
-                }}
-              >
+              <div style={{ fontSize: 13.5, lineHeight: 1.35, padding: "9px 11px", borderRadius: 11, border: `1px solid ${C.line}`, background: "rgba(255,255,255,0.03)" }}>
                 Can I write my own plugin?
               </div>
               <Choice on>Send question</Choice>
@@ -208,66 +200,93 @@ function beats(): { items: Item[]; shade: string }[] {
       ],
     },
     {
-      shade: "linear-gradient(180deg, rgba(16,20,14,0.94) 0%, rgba(16,20,14,0.6) 34%, transparent 54%)",
+      shade: "linear-gradient(90deg, rgba(16,20,14,0.95) 0%, rgba(16,20,14,0.7) 36%, transparent 60%)",
       items: [
         {
-          id: "react",
-          kind: "phone",
-          anchor: "phone",
-          dx: 110,
-          dy: -60,
+          id: "agent",
+          kind: "card",
+          anchor: "screen",
+          at: { x: 96, y: 430 },
+          delay: 0.4,
           body: (
-            <Phone>
-              <Status>Slide 8 of 9</Status>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {ICONS.map((icon, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      height: 52,
-                      borderRadius: 14,
-                      display: "grid",
-                      placeItems: "center",
-                      color: i === 0 ? C.ink : C.goldSoft,
-                      background: i === 0 ? C.gold : "rgba(201, 162, 75, 0.08)",
-                      border: `1px solid ${i === 0 ? C.gold : "rgba(201, 162, 75, 0.3)"}`,
-                    }}
-                  >
-                    <svg width="24" height="24" viewBox="0 0 24 24">
-                      {icon}
-                    </svg>
-                  </div>
-                ))}
-              </div>
-              <div style={{ fontSize: 12, color: C.muted }}>Hold to send a stream</div>
-            </Phone>
+            <Pane title="terminal: offsite-talk" who="Agent" color={C.paper} width={470}>
+              <Line at={0.7}>
+                <span style={{ color: C.goldSoft }}>&gt; </span>add a tug of war after the Q&amp;A: the left half of the room against the right half
+              </Line>
+              <Line at={1.5}>{mute("● Wrote ")}plugins/tug/client.tsx</Line>
+              <Line at={1.9}>{mute("● Added ")}slides/05-tug.mdx</Line>
+              <Line at={2.3}>
+                <span style={{ color: C.sage }}>✓ </span>build --check: ok
+              </Line>
+            </Pane>
           ),
         },
       ],
     },
     {
-      shade: "linear-gradient(0deg, rgba(16,20,14,0.94) 0%, rgba(16,20,14,0.7) 34%, transparent 58%)",
+      shade: "linear-gradient(90deg, rgba(16,20,14,0.95) 0%, rgba(16,20,14,0.7) 30%, transparent 50%)",
       items: [
         {
-          id: "file",
-          kind: "phone",
-          anchor: "laptop",
-          dx: -140,
-          dy: -190,
-          body: <CodeCard />,
+          id: "web",
+          kind: "card",
+          anchor: "edit:question",
+          at: { x: 762, y: 548 },
+          delay: 1.2,
+          body: (
+            <Pane title="deck editor, browser" who="Mara" color={C.sage} width={236}>
+              <div style={{ fontFamily: SANS, fontSize: 11, color: C.muted }}>Question</div>
+              <div style={{ fontFamily: SANS, fontSize: 13, padding: "6px 9px", marginTop: 3, borderRadius: 8, border: `1px solid ${C.sage}` }}>Where should the offsite be?</div>
+              <div style={{ fontFamily: SANS, fontSize: 11, color: C.sage, marginTop: 6 }}>Saved</div>
+            </Pane>
+          ),
+        },
+        {
+          id: "dev",
+          kind: "card",
+          anchor: "edit:option:3",
+          at: { x: 506, y: 548 },
+          delay: 3.8,
+          body: (
+            <Pane title="02-poll.mdx, editor" who="Jonas" color={C.goldSoft} width={236}>
+              <div>{mute("options: [")}</div>
+              <div>
+                {"  "}
+                {str('"Lisbon"')}
+                {mute(", ")}
+                {str('"Berlin"')}
+                {mute(",")}
+              </div>
+              <div style={{ background: "rgba(201,162,75,0.16)", margin: "0 -12px", padding: "0 12px" }}>
+                {"  "}
+                {str('"A cabin"')}
+                {mute(", ")}
+                <span style={{ color: C.paper }}>"Porto"</span>
+              </div>
+              <div>{mute("],")}</div>
+            </Pane>
+          ),
+        },
+        {
+          id: "bot",
+          kind: "card",
+          anchor: "edit:note",
+          at: { x: 1018, y: 548 },
+          delay: 5.0,
+          body: (
+            <Pane title="terminal" who="Agent" color={C.paper} width={236}>
+              <div>
+                <span style={{ color: C.goldSoft }}>&gt; </span>add a 30 second timer to the poll
+              </div>
+              <div>{mute("● Edited ")}02-poll.mdx</div>
+            </Pane>
+          ),
         },
       ],
     },
     {
       shade: "linear-gradient(90deg, rgba(16,20,14,0.92) 0%, rgba(16,20,14,0.6) 36%, transparent 60%)",
       items: [
-        {
-          id: "dim",
-          kind: "dim",
-          a: "stageL",
-          b: "stageR",
-          body: <div>deck.html, the whole talk in one file</div>,
-        },
+        { id: "dim", kind: "dim", a: "stageL", b: "stageR", body: <div>deck.html, the whole talk in one file</div> },
         {
           id: "plant",
           kind: "label",
@@ -288,19 +307,26 @@ function beats(): { items: Item[]; shade: string }[] {
 
 const CSS = `
 @keyframes hs-in { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
-.hs-beat { animation: hs-in 700ms cubic-bezier(.16,1,.3,1) 1.7s both }
+.hs-item { animation: hs-in 700ms cubic-bezier(.16,1,.3,1) both }
 .hs-shade { transition: background 900ms ease }
 @keyframes hs-type { from { clip-path: inset(0 100% 0 0) } to { clip-path: inset(0 0 0 0) } }
 .hs-line { animation: hs-type 420ms steps(18) both }
-@media (prefers-reduced-motion: reduce) { .hs-beat, .hs-line { animation: none } }
+@media (prefers-reduced-motion: reduce) { .hs-item, .hs-line { animation: none } }
 `;
+
+type Nodes = { line?: SVGLineElement | null; dot?: SVGCircleElement | null; box?: HTMLDivElement | null; t1?: SVGLineElement | null; t2?: SVGLineElement | null };
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export function Overlay({ beat, still, register }: { beat: number; still: boolean; register: (fn: (a: Anchors) => void) => void }) {
   const cfg = beats()[beat] ?? beats()[0]!;
-  const nodes = useRef(new Map<string, { line?: SVGLineElement | null; dot?: SVGCircleElement | null; box?: HTMLDivElement | null; t1?: SVGLineElement | null; t2?: SVGLineElement | null }>());
+  const nodes = useRef(new Map<string, Nodes>());
 
   useLayoutEffect(() => {
     register((a) => {
+      const set = (el: Element | null | undefined, attrs: Record<string, number>) => {
+        for (const [k, v] of Object.entries(attrs)) el?.setAttribute(k, String(v));
+      };
       for (const it of cfg.items) {
         const n = nodes.current.get(it.id);
         if (!n) continue;
@@ -308,60 +334,65 @@ export function Overlay({ beat, still, register }: { beat: number; still: boolea
           const p = a[it.a];
           const q = a[it.b];
           if (!p || !q) continue;
-          n.line?.setAttribute("x1", String(p.x));
-          n.line?.setAttribute("y1", String(p.y + 26));
-          n.line?.setAttribute("x2", String(q.x));
-          n.line?.setAttribute("y2", String(q.y + 26));
-          for (const [t, s] of [[n.t1, p], [n.t2, q]] as const) {
-            t?.setAttribute("x1", String(s.x));
-            t?.setAttribute("x2", String(s.x));
-            t?.setAttribute("y1", String(s.y + 16));
-            t?.setAttribute("y2", String(s.y + 36));
-          }
+          set(n.line, { x1: p.x, y1: p.y + 26, x2: q.x, y2: q.y + 26 });
+          set(n.t1, { x1: p.x, x2: p.x, y1: p.y + 16, y2: p.y + 36 });
+          set(n.t2, { x1: q.x, x2: q.x, y1: q.y + 16, y2: q.y + 36 });
           if (n.box) n.box.style.transform = `translate(${(p.x + q.x) / 2}px, ${(p.y + q.y) / 2 + 40}px) translate(-50%, 0)`;
           continue;
         }
         const p = a[it.anchor];
-        if (!p) continue;
-        const x2 = p.x + it.dx;
-        const y2 = p.y + it.dy;
-        n.dot?.setAttribute("cx", String(p.x));
-        n.dot?.setAttribute("cy", String(p.y));
-        n.line?.setAttribute("x1", String(p.x));
-        n.line?.setAttribute("y1", String(p.y));
-        n.line?.setAttribute("x2", String(x2));
-        n.line?.setAttribute("y2", String(y2));
-        if (n.box) {
-          const sx = it.dx < 0 ? "-100%" : "0";
-          const sy = it.dy < 0 ? "-100%" : "0";
-          n.box.style.transform = `translate(${x2}px, ${y2}px) translate(${sx}, ${sy})`;
-          n.box.style.visibility = p.on ? "visible" : "hidden";
+        if (!p || !n.box) continue;
+        const bw = n.box.offsetWidth;
+        const bh = n.box.offsetHeight;
+        let left: number;
+        let top: number;
+        if (it.at) {
+          left = it.at.x;
+          top = it.at.y;
+        } else {
+          const x2 = p.x + (it.dx ?? 0);
+          const y2 = p.y + (it.dy ?? 0);
+          left = (it.dx ?? 0) < 0 ? x2 - bw : x2;
+          top = (it.dy ?? 0) < 0 ? y2 - bh : y2;
         }
+        // keep the whole callout inside the frame
+        left = clamp(left, EDGE, W - EDGE - bw);
+        top = clamp(top, EDGE, H - EDGE - bh);
+        n.box.style.transform = `translate(${left}px, ${top}px)`;
+        // the leader line meets the box at its nearest edge point
+        set(n.line, { x1: p.x, y1: p.y, x2: clamp(p.x, left, left + bw), y2: clamp(p.y, top, top + bh) });
+        set(n.dot, { cx: p.x, cy: p.y });
+        const show = p.on ? "visible" : "hidden";
+        n.box.style.visibility = show;
+        n.line?.setAttribute("visibility", show);
+        n.dot?.setAttribute("visibility", show);
       }
     });
   }, [cfg, register]);
 
-  const ref = (id: string, key: "line" | "dot" | "box" | "t1" | "t2") => (el: SVGLineElement | SVGCircleElement | HTMLDivElement | null) => {
+  const ref = (id: string, key: keyof Nodes) => (el: SVGLineElement | SVGCircleElement | HTMLDivElement | null) => {
     const n = nodes.current.get(id) ?? {};
     (n as Record<string, unknown>)[key] = el;
     nodes.current.set(id, n);
   };
+  const delay = (it: Item) => (still ? undefined : `${it.delay ?? 1.7}s`);
+  const cls = still ? undefined : "hs-item";
 
   return (
     <>
       <style>{CSS}</style>
       <div className="hs-shade" style={{ position: "absolute", inset: 0, background: cfg.shade }} />
-      <div key={beat} className={still ? "" : "hs-beat"} style={{ position: "absolute", inset: 0 }}>
-        <svg width="1280" height="720" viewBox="0 0 1280 720" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
+      <div key={beat} style={{ position: "absolute", inset: 0 }}>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: "absolute", inset: 0, overflow: "visible" }}>
           {cfg.items.map((it) =>
             it.kind === "dim" ? (
-              <g key={it.id} stroke={C.goldSoft} strokeWidth="1" opacity="0.8">
+              <g key={it.id} stroke={C.goldSoft} strokeWidth="1" opacity="0.8" className={cls} style={{ animationDelay: delay(it) }}>
                 <line ref={ref(it.id, "line")} strokeDasharray="5 4" />
                 <line ref={ref(it.id, "t1")} />
                 <line ref={ref(it.id, "t2")} />
               </g>
             ) : (
-              <g key={it.id}>
+              <g key={it.id} className={cls} style={{ animationDelay: delay(it) }}>
                 <line ref={ref(it.id, "line")} stroke={C.line} strokeWidth="1" />
                 <circle ref={ref(it.id, "dot")} r="4.5" fill={C.bg} stroke={C.goldSoft} strokeWidth="1.5" />
               </g>
@@ -369,29 +400,27 @@ export function Overlay({ beat, still, register }: { beat: number; still: boolea
           )}
         </svg>
         {cfg.items.map((it) => (
-          <div
-            key={it.id}
-            ref={ref(it.id, "box")}
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              willChange: "transform",
-              ...(it.kind === "phone"
-                ? {}
-                : {
-                    fontFamily: MONO,
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                    color: C.goldSoft,
-                    padding: "6px 10px",
-                    borderLeft: it.kind === "label" ? `1px solid ${C.line}` : undefined,
-                    background: "rgba(16,20,14,0.82)",
-                    whiteSpace: "nowrap",
-                  }),
-            }}
-          >
-            {it.body}
+          <div key={it.id} ref={ref(it.id, "box")} style={{ position: "absolute", left: 0, top: 0, willChange: "transform" }}>
+            <div
+              className={cls}
+              style={{
+                animationDelay: delay(it),
+                ...(it.kind === "label" || it.kind === "dim"
+                  ? {
+                      fontFamily: MONO,
+                      fontSize: 13,
+                      lineHeight: 1.5,
+                      color: C.goldSoft,
+                      padding: "6px 10px",
+                      borderLeft: it.kind === "label" ? `1px solid ${C.line}` : undefined,
+                      background: "rgba(16,20,14,0.82)",
+                      whiteSpace: "nowrap",
+                    }
+                  : {}),
+              }}
+            >
+              {it.body}
+            </div>
           </div>
         ))}
       </div>
