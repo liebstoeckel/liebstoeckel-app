@@ -206,7 +206,7 @@ function beats(): { items: Item[]; shade: string }[] {
           id: "agent",
           kind: "card",
           anchor: "screen",
-          at: { x: 96, y: 430 },
+          at: { x: 96, y: 290 },
           delay: 0.4,
           body: (
             <Pane title="terminal: offsite-talk" who="Agent" color={C.paper} width={470}>
@@ -291,8 +291,8 @@ function beats(): { items: Item[]; shade: string }[] {
           id: "plant",
           kind: "label",
           anchor: "plant",
-          dx: -50,
-          dy: -26,
+          dx: -30,
+          dy: 40,
           body: (
             <>
               <div>Lovage</div>
