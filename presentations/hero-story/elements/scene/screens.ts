@@ -11,7 +11,7 @@ export type ScreenContent =
   | { kind: "title"; joined: number }
   | { kind: "poll"; poll: PollState }
   | { kind: "qa"; questions: Question[] }
-  | { kind: "tug"; left: number; right: number }
+  | { kind: "tug"; cats: number; dogs: number }
   | { kind: "edit"; edit: EditState };
 
 /** Who is editing the slide, shown as a name tag where their change lands. */
@@ -81,7 +81,7 @@ export class ProjectionScreen {
     if (c.kind === "title") this.title(c.joined);
     else if (c.kind === "poll") this.poll(c.poll);
     else if (c.kind === "qa") this.qa(c.questions);
-    else if (c.kind === "tug") this.tug(c.left, c.right);
+    else if (c.kind === "tug") this.tug(c.cats, c.dogs);
     else this.edit(c.edit);
     this.texture.needsUpdate = true;
   }
@@ -181,19 +181,24 @@ export class ProjectionScreen {
     return [side === 0 ? 0.12 : 0.88, 0.6];
   }
 
-  private tug(left: number, right: number) {
+  /** Where the knot of the rope is, in 0..1 screen coordinates: it moves toward the side that leads. */
+  static knot(left: number, right: number): [number, number] {
+    const p = Math.max(-1, Math.min(1, (right - left) / 26));
+    return [0.5 + p * 0.76 * 0.32, 0.6];
+  }
+
+  private tug(cats: number, dogs: number) {
     const g = this.g;
     const { W } = ProjectionScreen;
     g.fillStyle = PALETTE.text;
     g.font = `700 84px ${FONT_SANS}`;
-    g.fillText("Tug of war", 128, 250);
+    g.fillText("Cats or dogs?", 128, 250);
     g.fillStyle = PALETTE.muted;
     g.font = `500 40px ${FONT_SANS}`;
-    g.fillText("Left half of the room against the right half. Tap to pull.", 128, 320);
+    g.fillText("Pick a side. Tap to pull.", 128, 320);
     const y = 0.6 * 900;
     const x0 = 0.12 * W, x1 = 0.88 * W;
-    const p = Math.max(-1, Math.min(1, (right - left) / 26));
-    const knot = (x0 + x1) / 2 + p * (x1 - x0) * 0.32;
+    const knot = ProjectionScreen.knot(cats, dogs)[0] * W;
     // the rope: each side in its team's color up to the knot
     g.lineCap = "round";
     g.lineWidth = 14;
@@ -224,23 +229,84 @@ export class ProjectionScreen {
     g.lineTo(knot - 30, y);
     g.closePath();
     g.fill();
+    // the two teams, each with a line drawing of its animal
+    this.cat(x0 + 40, y - 120, PALETTE.goldSoft);
+    this.dog(x1 - 40, y - 120, PALETTE.sage);
     g.font = `600 44px ${FONT_SANS}`;
     g.fillStyle = PALETTE.goldSoft;
-    g.fillText("Left", x0, y + 120);
+    g.fillText("Cats", x0, y + 120);
     g.font = `500 44px ${FONT_MONO}`;
-    g.fillText(String(left), x0 + 110, y + 120);
+    g.fillText(String(cats), x0 + 120, y + 120);
     g.textAlign = "right";
     g.fillStyle = PALETTE.sage;
-    g.fillText(String(right), x1 - 140, y + 120);
+    g.fillText(String(dogs), x1 - 130, y + 120);
     g.font = `600 44px ${FONT_SANS}`;
-    g.fillText("Right", x1, y + 120);
+    g.fillText("Dogs", x1, y + 120);
     g.textAlign = "left";
+  }
+
+  private cat(x: number, y: number, color: string) {
+    const g = this.g;
+    g.strokeStyle = color;
+    g.lineWidth = 6;
+    g.lineJoin = "round";
+    g.beginPath();
+    // head with two pointed ears
+    g.moveTo(x - 34, y + 30);
+    g.lineTo(x - 36, y - 16);
+    g.lineTo(x - 30, y - 44);
+    g.lineTo(x - 10, y - 24);
+    g.lineTo(x + 10, y - 24);
+    g.lineTo(x + 30, y - 44);
+    g.lineTo(x + 36, y - 16);
+    g.lineTo(x + 34, y + 30);
+    g.closePath();
+    g.stroke();
+    // whiskers
+    g.beginPath();
+    for (const s of [-1, 1]) {
+      g.moveTo(x + s * 14, y + 10);
+      g.lineTo(x + s * 50, y + 2);
+      g.moveTo(x + s * 14, y + 16);
+      g.lineTo(x + s * 50, y + 20);
+    }
+    g.stroke();
+  }
+
+  private dog(x: number, y: number, color: string) {
+    const g = this.g;
+    g.strokeStyle = color;
+    g.lineWidth = 6;
+    g.lineJoin = "round";
+    g.beginPath();
+    // head with two floppy ears and a snout
+    g.moveTo(x - 26, y - 34);
+    g.lineTo(x + 26, y - 34);
+    g.lineTo(x + 32, y + 6);
+    g.lineTo(x + 18, y + 34);
+    g.lineTo(x - 18, y + 34);
+    g.lineTo(x - 32, y + 6);
+    g.closePath();
+    g.stroke();
+    g.beginPath();
+    for (const s of [-1, 1]) {
+      g.moveTo(x + s * 26, y - 34);
+      g.lineTo(x + s * 50, y - 20);
+      g.lineTo(x + s * 44, y + 16);
+      g.lineTo(x + s * 32, y + 6);
+    }
+    g.stroke();
+    g.fillStyle = color;
+    g.beginPath();
+    g.arc(x, y + 18, 7, 0, Math.PI * 2);
+    g.fill();
   }
 
   /** Where each part of the edited slide sits, in 0..1 screen coordinates. */
   static editSpot(at: string): [number, number] {
-    if (at === "question") return [0.45, 0.27];
-    if (at === "note") return [0.78, 0.4];
+    // just under the question, past the end of the note, at the new option's start
+    if (at === "question") return [0.45, 0.345];
+    if (at === "note") return [0.94, 0.398];
     const i = Number(at.split(":")[1] ?? 0);
     return [0.2, 0.52 + i * 0.105];
   }
@@ -267,20 +333,35 @@ export class ProjectionScreen {
       g.font = `600 40px ${FONT_SANS}`;
       g.fillText(o, 164, y);
     });
-    // name tags: where each editor's change is landing
+    // name tags: where each editor's change is landing, clear of the text
     for (const c of e.cursors) {
-      const [u, v] = ProjectionScreen.editSpot(c.at);
       g.font = `600 30px ${FONT_SANS}`;
       const w = g.measureText(c.who.name).width + 36;
-      const x = c.at === "note" ? u * W - w + 120 : u * W;
-      const y = v * 900 - (c.at === "question" ? 120 : 70);
+      let x: number;
+      let top: number;
+      let caret: [number, number]; // x and top of the short line from tag to text
+      if (c.at === "question") {
+        x = 0.45 * W;
+        top = 146;
+        caret = [x, top + 50];
+      } else if (c.at === "note") {
+        // under the note, right-aligned with it, beside the option boxes
+        x = W - 128 - w;
+        top = 398;
+        caret = [x + w - 4, top - 14];
+      } else {
+        const [u, v] = ProjectionScreen.editSpot(c.at);
+        x = u * W;
+        top = v * 900 - 110;
+        caret = [x, top + 50];
+      }
       g.fillStyle = c.who.color;
       g.beginPath();
-      g.roundRect(x, y - 40, w, 50, 10);
+      g.roundRect(x, top, w, 50, 10);
       g.fill();
-      g.fillRect(x, y + 10, 4, 34);
+      g.fillRect(caret[0], caret[1], 4, 14);
       g.fillStyle = PALETTE.bg;
-      g.fillText(c.who.name, x + 18, y - 5);
+      g.fillText(c.who.name, x + 18, top + 35);
     }
   }
 }

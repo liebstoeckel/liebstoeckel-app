@@ -180,8 +180,8 @@ export class Story {
       this.joinedAt = seats.map((_, i) => (i % 7 === 0 || !this.live ? 0 : 0.4 + Math.pow(Math.random(), 0.8) * 4.6));
       seats.forEach((_, i) => this.setPhone(i, this.joinedAt[i] === 0 ? PALETTE.gold : null));
     } else if (b === 3) {
-      // two teams: the left half of the room against the right half
-      seats.forEach((s, i) => this.setPhone(i, s.phone.x < 0 ? PALETTE.gold : PALETTE.sage));
+      // two teams, picked by each person: cats (gold) against dogs (sage)
+      seats.forEach((_, i) => this.setPhone(i, this.team(i) === 0 ? PALETTE.gold : PALETTE.sage));
     } else {
       seats.forEach((_, i) => this.setPhone(i, PALETTE.gold));
     }
@@ -205,6 +205,11 @@ export class Story {
     if (b === 4) this.editKey = "";
     if (b === 5 && this.poll.counts.reduce((a, c) => a + c, 0) < 30) this.poll.counts = [21, 14, 10];
     this.screenDirty = true;
+  }
+
+  /** Which side a seat picked in the tug of war: 0 cats, 1 dogs (fixed per seat, about half each). */
+  private team(i: number): 0 | 1 {
+    return ((i * 2654435761) >>> 0) % 100 < 50 ? 0 : 1;
   }
 
   /** Lights a phone in a color, or turns it off (null). */
@@ -273,14 +278,14 @@ export class Story {
       }
       case 3: {
         if (!this.live || t < 0.8) break;
-        // both halves pull; the lead swings from one side to the other
+        // both teams pull; the lead swings from one side to the other
         const rate = 16 + 6 * Math.sin(t * 2.1);
-        const leftShare = 0.5 + 0.22 * Math.sin(t * 0.9);
+        const catShare = 0.5 + 0.22 * Math.sin(t * 0.9);
         this.pullAcc += rate * this.dt;
         while (this.pullAcc >= 1) {
           this.pullAcc -= 1;
-          const side = Math.random() < leftShare ? 0 : 1;
-          const team = seats.filter((s) => (side === 0 ? s.phone.x < 0 : s.phone.x >= 0));
+          const side = Math.random() < catShare ? 0 : 1;
+          const team = seats.filter((_, i) => this.team(i) === side);
           const seat = team[Math.floor(Math.random() * team.length)]!;
           const [u, vv] = ProjectionScreen.ropeEnd(side);
           (side === 0 ? this.packets : this.packetsSage).send(seat.phone, this.onScreen(u, vv), now, 0.7 + Math.random() * 0.4, 1 + Math.random(), () => {
@@ -333,7 +338,7 @@ export class Story {
         this.screen.draw({ kind: "qa", questions: this.questions }, 6, 9);
         break;
       case 3:
-        this.screen.draw({ kind: "tug", left: this.pulls[0]!, right: this.pulls[1]! }, 7, 9);
+        this.screen.draw({ kind: "tug", cats: this.pulls[0]!, dogs: this.pulls[1]! }, 7, 9);
         break;
       case 4:
         this.screen.draw({ kind: "edit", edit: this.edit }, 4, 9);
@@ -407,6 +412,8 @@ export class Story {
     put("phone", this.bubbleSeats[this.beat]!.phone);
     put("laptop", this.hall.laptop);
     put("screen", SCREEN.center.clone());
+    const [ku, kv] = ProjectionScreen.knot(this.pulls[0]!, this.pulls[1]!);
+    put("knot", this.onScreen(ku, kv));
     put("plant", this.hall.plant.clone().add(v(0, 1.6, 0)));
     put("stageL", v(-6.5, 0.6, -6.2));
     put("stageR", v(6.5, 0.6, -6.2));

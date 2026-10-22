@@ -205,13 +205,13 @@ function beats(): { items: Item[]; shade: string }[] {
         {
           id: "agent",
           kind: "card",
-          anchor: "screen",
+          anchor: "knot",
           at: { x: 96, y: 290 },
           delay: 0.4,
           body: (
             <Pane title="terminal: offsite-talk" who="Agent" color={C.paper} width={470}>
               <Line at={0.7}>
-                <span style={{ color: C.goldSoft }}>&gt; </span>add a tug of war after the Q&amp;A: the left half of the room against the right half
+                <span style={{ color: C.goldSoft }}>&gt; </span>add a tug of war after the Q&amp;A: cats against dogs
               </Line>
               <Line at={1.5}>{mute("● Wrote ")}plugins/tug/client.tsx</Line>
               <Line at={1.9}>{mute("● Added ")}slides/05-tug.mdx</Line>
