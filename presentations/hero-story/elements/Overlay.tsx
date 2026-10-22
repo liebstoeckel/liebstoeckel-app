@@ -233,7 +233,7 @@ function beats(): { items: Item[]; shade: string }[] {
           at: { x: 762, y: 548 },
           delay: 1.2,
           body: (
-            <Pane title="deck editor, browser" who="Mara" color={C.sage} width={236}>
+            <Pane title="deck editor, browser *" who="Mara" color={C.sage} width={236}>
               <div style={{ fontFamily: SANS, fontSize: 11, color: C.muted }}>Question</div>
               <div style={{ fontFamily: SANS, fontSize: 13, padding: "6px 9px", marginTop: 3, borderRadius: 8, border: `1px solid ${C.sage}` }}>Where should the offsite be?</div>
               <div style={{ fontFamily: SANS, fontSize: 11, color: C.sage, marginTop: 6 }}>Saved</div>
