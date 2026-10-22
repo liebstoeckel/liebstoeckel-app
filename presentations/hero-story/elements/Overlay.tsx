@@ -286,7 +286,7 @@ function beats(): { items: Item[]; shade: string }[] {
     {
       shade: "linear-gradient(90deg, rgba(16,20,14,0.92) 0%, rgba(16,20,14,0.6) 36%, transparent 60%)",
       items: [
-        { id: "dim", kind: "dim", a: "stageL", b: "stageR", body: <div>deck.html, the whole talk in one file</div> },
+        { id: "dim", kind: "dim", a: "stageL", b: "stageR", body: <div>deck.html</div> },
         {
           id: "plant",
           kind: "label",
@@ -295,8 +295,8 @@ function beats(): { items: Item[]; shade: string }[] {
           dy: -26,
           body: (
             <>
-              <div>Levisticum officinale</div>
-              <div style={{ color: C.muted }}>lovage, in German: Liebstöckel</div>
+              <div>Lovage</div>
+              <div style={{ color: C.muted }}>German: Liebstöckel</div>
             </>
           ),
         },
