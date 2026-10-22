@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/build",
-  "version": "0.0.0",
+  "version": "0.4.0",
   "description": "The liebstoeckel build core: bundles a deck into one self-contained HTML file and serves it with hot reload, on esbuild.",
   "keywords": [
     "liebstoeckel",

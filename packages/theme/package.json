@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/theme",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "Design tokens and the Tailwind v4 theme that style liebstoeckel decks.",
   "keywords": [
     "liebstoeckel",

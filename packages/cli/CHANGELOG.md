@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.12...cli-v0.4.0) (2026-10-22)
+
+
+### Features
+
+* a clean upgrade path from 0.3 to 0.4 ([422ad7d](https://github.com/liebstoeckel/liebstoeckel-app/commit/422ad7db744d1731f1bb302a748c24395015781f))
+* build and serve every deck with one esbuild build core ([ada3471](https://github.com/liebstoeckel/liebstoeckel-app/commit/ada34711663dc02d985daa46e1a1913872cab7bd))
+* the CLI runs on its own pinned Bun from npm ([4724e57](https://github.com/liebstoeckel/liebstoeckel-app/commit/4724e572903a8e366ad5c92f82019c6b62170c95))
+
+
+### Bug Fixes
+
+* **cli:** find the pinned Bun after Oven's bun package moved it ([8dfc8fc](https://github.com/liebstoeckel/liebstoeckel-app/commit/8dfc8fcfa14c80339ae3dc59ff5c9991548537ae))
+* problems found testing the 0.4.0 release candidate ([fd5f138](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd5f1385ba0f3039a01d2d3f77672f1fee15fe79))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/build bumped to 0.4.0
+    * @liebstoeckel/dev-server bumped to 0.4.0
+    * @liebstoeckel/engine bumped to 0.4.0
+    * @liebstoeckel/live-server bumped to 0.4.0
+    * @liebstoeckel/present-relay bumped to 0.4.0
+    * @liebstoeckel/registry bumped to 0.4.0
+    * @liebstoeckel/theme bumped to 0.4.0
+    * @liebstoeckel/thumbnails bumped to 0.4.0
+
 ## [0.3.12](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.11...cli-v0.3.12) (2026-08-31)
 
 

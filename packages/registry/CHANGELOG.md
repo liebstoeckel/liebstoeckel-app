@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/registry-v0.3.5...registry-v0.4.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* problems found testing the 0.4.0 release candidate ([fd5f138](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd5f1385ba0f3039a01d2d3f77672f1fee15fe79))
+
 ## [0.3.5](https://github.com/liebstoeckel/liebstoeckel-app/compare/registry-v0.3.4...registry-v0.3.5) (2026-08-31)
 
 

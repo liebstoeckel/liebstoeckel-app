@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.10...thumbnails-v0.4.0) (2026-10-22)
+
+
+### Features
+
+* a clean upgrade path from 0.3 to 0.4 ([422ad7d](https://github.com/liebstoeckel/liebstoeckel-app/commit/422ad7db744d1731f1bb302a748c24395015781f))
+* build and serve every deck with one esbuild build core ([ada3471](https://github.com/liebstoeckel/liebstoeckel-app/commit/ada34711663dc02d985daa46e1a1913872cab7bd))
+* the CLI runs on its own pinned Bun from npm ([4724e57](https://github.com/liebstoeckel/liebstoeckel-app/commit/4724e572903a8e366ad5c92f82019c6b62170c95))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/build bumped to 0.4.0
+    * @liebstoeckel/engine bumped to 0.4.0
+
 ## [0.3.10](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.9...thumbnails-v0.3.10) (2026-08-31)
 
 

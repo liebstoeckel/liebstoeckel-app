@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/plugin-ui-v0.3.4...plugin-ui-v0.4.0) (2026-10-22)
+
+
+### Features
+
+* a clean upgrade path from 0.3 to 0.4 ([422ad7d](https://github.com/liebstoeckel/liebstoeckel-app/commit/422ad7db744d1731f1bb302a748c24395015781f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/plugin-sdk bumped to 0.4.0
+
 ## [0.3.4](https://github.com/liebstoeckel/liebstoeckel-app/compare/plugin-ui-v0.3.3...plugin-ui-v0.3.4) (2026-06-22)
 
 

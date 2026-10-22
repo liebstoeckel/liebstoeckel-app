@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/dev-server-v0.3.2...dev-server-v0.4.0) (2026-10-22)
+
+
+### Features
+
+* a clean upgrade path from 0.3 to 0.4 ([422ad7d](https://github.com/liebstoeckel/liebstoeckel-app/commit/422ad7db744d1731f1bb302a748c24395015781f))
+* build and serve every deck with one esbuild build core ([ada3471](https://github.com/liebstoeckel/liebstoeckel-app/commit/ada34711663dc02d985daa46e1a1913872cab7bd))
+
+
+### Bug Fixes
+
+* drop a stray workspace from the lockfile, build a test's WebSocket key at run time ([e7ee3ad](https://github.com/liebstoeckel/liebstoeckel-app/commit/e7ee3ad6c396d32bcb97d032d72cc29862f559b4))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/build bumped to 0.4.0
+    * @liebstoeckel/live-server bumped to 0.4.0
+  * peerDependencies
+    * @liebstoeckel/cli bumped to 0.4.0
+
 ## [0.3.2](https://github.com/liebstoeckel/liebstoeckel-app/compare/dev-server-v0.3.1...dev-server-v0.3.2) (2026-08-31)
 
 

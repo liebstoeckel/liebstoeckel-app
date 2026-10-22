@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/present-relay-v0.3.10...present-relay-v0.4.0) (2026-10-22)
+
+
+### Features
+
+* a clean upgrade path from 0.3 to 0.4 ([422ad7d](https://github.com/liebstoeckel/liebstoeckel-app/commit/422ad7db744d1731f1bb302a748c24395015781f))
+* **relay:** legal links on every live page ([adfb6ee](https://github.com/liebstoeckel/liebstoeckel-app/commit/adfb6ee989cf23a6b74a6326a454fa022bcd7823))
+
+
+### Bug Fixes
+
+* problems found testing the 0.4.0 release candidate ([fd5f138](https://github.com/liebstoeckel/liebstoeckel-app/commit/fd5f1385ba0f3039a01d2d3f77672f1fee15fe79))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/live-server bumped to 0.4.0
+
 ## [0.3.10](https://github.com/liebstoeckel/liebstoeckel-app/compare/present-relay-v0.3.9...present-relay-v0.3.10) (2026-08-31)
 
 
