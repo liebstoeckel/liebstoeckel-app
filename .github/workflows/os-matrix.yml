@@ -59,6 +59,22 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.3
+      # Pack the way the internal release publishes, or the bytes differ. bun
+      # writes `workspace:^` ranges from the versions in bun.lock, which the
+      # release commit leaves at the previous release (only package.json is
+      # bumped), so the lockfile is rebuilt from scratch. The install also
+      # makes each package's bin file mode 777, as it is in the published
+      # tarballs. Inline here, not in the script: a release run takes this
+      # workflow from main but the script from the release commit.
+      - name: Rebuild bun.lock for the versions being packed
+        shell: bash
+        run: |
+          rm -f bun.lock
+          for attempt in 1 2 3; do
+            bun install --minimum-release-age=0 && break
+            [ "$attempt" = 3 ] && exit 1
+            sleep $((attempt * 15))
+          done
       - run: node .github/scripts/release-packages.mjs pack packed
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
