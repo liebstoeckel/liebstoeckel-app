@@ -14,6 +14,7 @@
     "showcase:dev": "bun packages/cli/src/cli.ts dev --dir presentations/visx-showcase --port 3001",
     "steplab:dev": "bun packages/cli/src/cli.ts dev --dir presentations/step-lab --port 3002",
     "steplab:build": "bun packages/cli/src/cli.ts build presentations/step-lab --trust",
+    "hero:dev": "bun packages/cli/src/cli.ts dev --dir presentations/hero-story --port 3004",
     "backdrop:dev": "bun packages/cli/src/cli.ts dev --dir presentations/backdrop-demo --port 3003",
     "backdrop:build": "bun packages/cli/src/cli.ts build presentations/backdrop-demo --trust",
     "showcase:build": "bun packages/cli/src/cli.ts build presentations/visx-showcase --trust",

@@ -1,0 +1,26 @@
+{
+  "name": "hero-story",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A story deck for the landing page: one low-poly 3D lecture hall stays on screen while the slides move the camera through what the room can do.",
+  "files": [
+    "index.html",
+    "main.tsx",
+    "slides",
+    "elements"
+  ],
+  "scripts": {
+    "dev": "liebstoeckel dev --port 3004",
+    "build": "liebstoeckel build"
+  },
+  "dependencies": {
+    "@liebstoeckel/engine": "workspace:^",
+    "@liebstoeckel/theme": "workspace:^",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@liebstoeckel/cli": "workspace:^",
+    "@types/three": "0.186.0"
+  }
+}
