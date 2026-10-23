@@ -7,7 +7,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { Anchors } from "./scene/story";
 
-const C = {
+export const C = {
   bg: "#10140e",
   card: "#161b12",
   line: "rgba(224, 197, 128, 0.55)",
@@ -20,8 +20,8 @@ const C = {
   ink: "#10140e",
   code: "#d8c48e",
 };
-const SANS = '"Schibsted Grotesk Variable", system-ui, sans-serif';
-const MONO = '"JetBrains Mono Variable", ui-monospace, monospace';
+export const SANS = '"Schibsted Grotesk Variable", system-ui, sans-serif';
+export const MONO = '"JetBrains Mono Variable", ui-monospace, monospace';
 const W = 1280;
 const H = 720;
 const EDGE = 14;
@@ -40,9 +40,9 @@ type Callout = {
 type Dimension = { id: string; kind: "dim"; a: string; b: string; delay?: number; body: ReactNode };
 type Item = Callout | Dimension;
 
-// ---- building blocks ----
+// ---- building blocks (the stills of the landing page reuse them) ----
 
-function Phone({ children }: { children: ReactNode }) {
+export function Phone({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
@@ -65,7 +65,7 @@ function Phone({ children }: { children: ReactNode }) {
   );
 }
 
-function Status({ children, color = C.sage }: { children: ReactNode; color?: string }) {
+export function Status({ children, color = C.sage }: { children: ReactNode; color?: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11.5, color: C.muted }}>
       <span style={{ width: 7, height: 7, borderRadius: 9, background: color, flex: "none" }} />
@@ -74,7 +74,7 @@ function Status({ children, color = C.sage }: { children: ReactNode; color?: str
   );
 }
 
-function Choice({ on, children }: { on?: boolean; children: ReactNode }) {
+export function Choice({ on, children }: { on?: boolean; children: ReactNode }) {
   return (
     <div
       style={{
@@ -96,7 +96,7 @@ function Choice({ on, children }: { on?: boolean; children: ReactNode }) {
 }
 
 /** A window: the browser editor, a code editor or a terminal. */
-function Pane({ title, who, color, width, children }: { title: string; who: string; color: string; width: number; children: ReactNode }) {
+export function Pane({ title, who, color, width, children }: { title: string; who: string; color: string; width: number; children: ReactNode }) {
   return (
     <div
       style={{
@@ -124,15 +124,15 @@ function Pane({ title, who, color, width, children }: { title: string; who: stri
   );
 }
 
-function Line({ at, children }: { at: number; children: ReactNode }) {
+export function Line({ at, children }: { at: number; children: ReactNode }) {
   return (
     <div className="hs-line" style={{ animationDelay: `${at}s`, whiteSpace: "pre-wrap" }}>
       {children}
     </div>
   );
 }
-const str = (text: string) => <span style={{ color: C.code }}>{text}</span>;
-const mute = (text: string) => <span style={{ color: C.muted }}>{text}</span>;
+export const str = (text: string) => <span style={{ color: C.code }}>{text}</span>;
+export const mute = (text: string) => <span style={{ color: C.muted }}>{text}</span>;
 
 // ---- what each slide shows ----
 

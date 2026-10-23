@@ -6,10 +6,15 @@
 // On still surfaces (thumbnails, the overview, print, presenter previews) it
 // renders its slide's shot once, keeps the picture as an image and lets the 3D
 // context go, so a grid of thumbnails does not hold a WebGL context each.
+//
+// Framed in a page (see the bridge), the live backdrop tells the page which slide
+// it shows once it has drawn, and stops drawing while the page has it out of view.
+// Where the browser gives no WebGL, the words stay on a plain ground.
 
 import { useEffect, useRef, useState } from "react";
 import { Story, type Anchors } from "./scene/story";
 import { Overlay } from "./Overlay";
+import { isVisible, markReady, onVisibility, reportSlide } from "./bridge";
 
 export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?: number }) {
   const beat = slide ?? 0;
@@ -18,11 +23,20 @@ export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?
   const place = useRef<((a: Anchors) => void) | null>(null);
   const first = useRef(beat);
   const [picture, setPicture] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const el = canvas.current!;
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const s = new Story(el, { still, reduced });
+    let s: Story;
+    try {
+      s = new Story(el, { still, reduced });
+    } catch (err) {
+      console.warn("[hero-story] no 3D hall here:", err);
+      setFailed(true);
+      if (!still) markReady();
+      return;
+    }
     story.current = s;
     s.setBeat(first.current);
     let w = 0;
@@ -40,6 +54,7 @@ export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?
       // sees, so the shown size is checked as part of each frame
       measure();
       place.current?.(a);
+      if (!still) markReady();
     };
 
     let alive = true;
@@ -60,6 +75,9 @@ export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?
       s.start();
       void document.fonts?.ready.then(() => alive && s.refreshText());
     }
+    const showing = (on: boolean) => (on ? s.resume() : s.pause());
+    const unwatch = still ? () => {} : onVisibility(showing);
+    if (!still && !isVisible()) s.pause();
     // the camera leans a little toward a mouse or trackpad pointer
     const fine = matchMedia("(pointer: fine)").matches;
     const onMove = (e: PointerEvent) => {
@@ -75,6 +93,7 @@ export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?
       document.documentElement.addEventListener("pointerleave", onLeave);
     }
     return () => {
+      unwatch();
       window.removeEventListener("pointermove", onMove);
       document.documentElement.removeEventListener("pointerleave", onLeave);
       alive = false;
@@ -85,13 +104,14 @@ export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?
 
   useEffect(() => {
     story.current?.setBeat(beat);
-  }, [beat]);
+    if (!still) reportSlide(beat);
+  }, [beat, still]);
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={{ background: "#10140e" }}>
-      <canvas ref={canvas} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: picture ? "none" : "block" }} />
+      <canvas ref={canvas} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: picture || failed ? "none" : "block" }} />
       {picture && <img src={picture} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />}
-      <Overlay beat={beat} still={still} register={(fn) => (place.current = fn)} />
+      {!failed && <Overlay beat={beat} still={still} register={(fn) => (place.current = fn)} />}
     </div>
   );
 }

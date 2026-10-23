@@ -65,12 +65,14 @@ export class Story {
   readonly scene = new Scene();
   readonly camera = new PerspectiveCamera(31, 16 / 9, 0.1, 120);
   readonly hall: Hall;
-  private readonly screen = new ProjectionScreen();
+  /** What the big screen shows (the landing page's stills draw their own). */
+  readonly screen = new ProjectionScreen();
   private readonly laptop = new LaptopScreen();
   private readonly packets = new Packets();
   private readonly packetsSage = new Packets(160, PALETTE.sage);
   private readonly upvotes = new Packets(40, PALETTE.gold, 0.05);
-  private readonly card = new QuestionCard(ASKED);
+  /** The question that rises from a seat on the Q&A slide. */
+  readonly card = new QuestionCard(ASKED);
   private readonly fog = new Fog(PALETTE.bg, 10, 40);
   private readonly live: boolean;
 
@@ -109,7 +111,7 @@ export class Story {
 
   constructor(
     readonly canvas: HTMLCanvasElement,
-    private readonly opts: { still: boolean; reduced: boolean },
+    private readonly opts: { still: boolean; reduced: boolean; people?: boolean },
   ) {
     this.live = !opts.reduced && !opts.still;
     this.renderer = new WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: opts.still, powerPreference: "high-performance" });
@@ -120,7 +122,7 @@ export class Story {
     sun.position.set(-6, 12, 8);
     this.scene.add(sun);
 
-    this.hall = buildHall({ life: this.live && audienceLife() });
+    this.hall = buildHall({ life: this.live && audienceLife(), people: opts.people ?? true });
     this.heads = this.hall.seats.map(() => ({ yaw: 0, pitch: HEAD_DOWN, ty: 0, tp: HEAD_DOWN, until: Math.random() * 6 }));
     this.headBase = this.hall.seats.map((s) => (s.head3d ? s.head3d.position.clone() : new Vector3()));
     this.scene.add(this.hall.group, this.packets.mesh, this.packetsSage.mesh, this.upvotes.mesh, this.card.group);
@@ -129,7 +131,8 @@ export class Story {
     this.laptop.draw(LaptopScreen.TOTAL);
     this.phoneColor = this.hall.seats.map(() => "");
 
-    const nearest = (p: Vector3) => this.hall.seats.reduce((a, b) => (b.phone.distanceTo(p) < a.phone.distanceTo(p) ? b : a));
+    // (an empty hall has no seats: nothing then rises from one or gets a close-up)
+    const nearest = (p: Vector3) => this.hall.seats.reduce<Seat | undefined>((a, b) => (!a || b.phone.distanceTo(p) < a.phone.distanceTo(p) ? b : a), undefined)!;
     this.cardSeat = nearest(v(-0.6, 0.3, -2.2));
     // whose phone each slide zooms into, picked where the bubble has room
     this.bubbleSeats = [nearest(v(3.6, 1.2, 1.6)), nearest(v(2.6, 0.5, -2.2)), this.cardSeat, nearest(v(-2.4, 0.9, 3.0)), nearest(v(0, 0, 0)), nearest(v(0, 0, 0))];
@@ -164,6 +167,21 @@ export class Story {
       this.frame(performance.now());
       return;
     }
+    this.running = true;
+    this.renderer.setAnimationLoop((t) => this.frame(t));
+  }
+
+  /** Stops drawing, for a deck scrolled out of view; `resume` picks up again. */
+  pause() {
+    if (!this.running) return;
+    this.running = false;
+    this.renderer.setAnimationLoop(null);
+  }
+
+  resume() {
+    if (this.running || this.disposed || this.opts.still) return;
+    // no catching up on the time away: the next frame steps as if none passed
+    this.last = 0;
     this.running = true;
     this.renderer.setAnimationLoop((t) => this.frame(t));
   }

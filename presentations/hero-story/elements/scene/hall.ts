@@ -83,7 +83,7 @@ function rng(seed: number) {
 /** A head looking down at the phone in its hands. */
 export const HEAD_DOWN = -0.45;
 
-export function buildHall(opts: { life: boolean }): Hall {
+export function buildHall(opts: { life: boolean; people?: boolean }): Hall {
   const group = new Group();
   const roomMat = lineMaterial(1);
   const figureMat = lineMaterial(1.15);
@@ -104,6 +104,9 @@ export function buildHall(opts: { life: boolean }): Hall {
   const structure = new EdgeBatch(); // stage, screen, lectern
   const phones = new EdgeBatch();
   const r = rng(20261022);
+  // an empty hall (before anyone arrives) still works out every person and then
+  // drops them, so the random numbers, and with them the chairs, come out the same
+  const people = opts.people !== false;
 
   const addSolid = (geo: BufferGeometry, m: Matrix4, batch: EdgeBatch, color: Color, threshold = 24) => {
     const c = geo.clone().applyMatrix4(m);
@@ -152,24 +155,26 @@ export function buildHall(opts: { life: boolean }): Hall {
       addSolid(chairBack, at(new Vector3(0, 0.74, 0.27), new Euler(0.12, 0, 0)), room, col(PALETTE.room));
       // a few empty seats, so the room reads as people and not a pattern
       if (r() < 0.12) continue;
+      const addPart: typeof addSolid = people ? addSolid : () => [0, 0];
       const seatY = 0.45;
       const slouch = -0.05 - r() * 0.14;
       const sz = 0.92 + r() * 0.14;
-      addSolid(thigh, at(new Vector3(0, seatY + 0.07, -0.14)), figures, col(PALETTE.figure));
-      addSolid(torso, at(new Vector3(0, seatY + 0.39 * sz, 0.04), new Euler(slouch, 0, (r() - 0.5) * 0.08), new Vector3(sz, sz, sz * 0.62)), figures, col(PALETTE.figure));
+      addPart(thigh, at(new Vector3(0, seatY + 0.07, -0.14)), figures, col(PALETTE.figure));
+      addPart(torso, at(new Vector3(0, seatY + 0.39 * sz, 0.04), new Euler(slouch, 0, (r() - 0.5) * 0.08), new Vector3(sz, sz, sz * 0.62)), figures, col(PALETTE.figure));
       const headLocal = new Vector3((r() - 0.5) * 0.04, seatY + 0.8 * sz, -0.03 + slouch * 0.5);
       let head3d: Object3D | undefined;
       if (opts.life) {
         head3d = solid(head, col(PALETTE.figure));
         head3d.position.copy(headLocal.clone().applyMatrix4(person));
         head3d.rotation.set(HEAD_DOWN, turn, 0, "YXZ");
-        group.add(head3d);
+        if (people) group.add(head3d);
       } else {
-        addSolid(head, at(headLocal, new Euler(HEAD_DOWN + (r() - 0.5) * 0.2, (r() - 0.5) * 0.3, 0, "YXZ")), figures, col(PALETTE.figure));
+        addPart(head, at(headLocal, new Euler(HEAD_DOWN + (r() - 0.5) * 0.2, (r() - 0.5) * 0.3, 0, "YXZ")), figures, col(PALETTE.figure));
       }
       // the phone, held low in front of the chest, screen tilted up to the face
       const phoneLocal = new Vector3((r() - 0.5) * 0.06, seatY + 0.36 * sz + r() * 0.06, -0.36);
       const pm = at(phoneLocal, new Euler(-0.75 - r() * 0.3, 0, (r() - 0.5) * 0.3, "YXZ"));
+      if (!people) continue;
       // both forearms reach from the shoulders to the phone
       for (const side of [-1, 1]) {
         const shoulder = new Vector3(side * 0.2 * sz, seatY + 0.58 * sz, 0.0);
@@ -222,7 +227,7 @@ export function buildHall(opts: { life: boolean }): Hall {
   const speakerRoot = new Object3D();
   speakerRoot.position.copy(speakerPos);
   speakerRoot.rotation.y = 0.18;
-  group.add(speakerRoot);
+  if (people) group.add(speakerRoot);
   const leg = new BoxGeometry(0.13, 0.86, 0.15);
   speakerRoot.add(part(leg, new Vector3(-0.1, 0.43, 0)), part(leg, new Vector3(0.1, 0.43, 0)));
   // the upper body turns at the hips
