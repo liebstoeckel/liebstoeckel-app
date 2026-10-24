@@ -41,7 +41,11 @@ export const EDITORS: Record<"web" | "dev" | "agent", Editor> = {
 };
 const EDITED = { question: "Where should the offsite be?", option: "Porto", note: "Voting closes in 30 seconds" };
 
-const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+/** A shot as one list of numbers (position, target, field of view, lens shift, drift),
+ *  so the camera can fly from one shot to the next as a single curve. */
+const poseOf = (s: Shot) => [s.pos.x, s.pos.y, s.pos.z, s.target.x, s.target.y, s.target.z, s.fov, s.shift, s.drift];
+/** Seconds the camera takes to reach a new slide's shot. */
+const FLIGHT = 1.3;
 const pick = (w: number[]) => {
   let r = Math.random() * w.reduce((a, b) => a + b, 0);
   for (let i = 0; i < w.length; i++) if ((r -= w[i]!) <= 0) return i;
@@ -81,9 +85,11 @@ export class Story {
   private clock = 0;
   private last = 0;
   private dt = 0;
-  private from: Shot = SHOTS[0]!;
-  private tweenAt = -10;
-  private readonly lookAt = new Vector3();
+  // the camera's shot now and how fast each of its numbers changes (per second), and
+  // the flight toward the slide's shot: when it began, from where and at what speed
+  private pose = poseOf(SHOTS[0]!);
+  private speed = this.pose.map(() => 0);
+  private flight: { at: number; from: number[]; speed: number[] } | null = null;
   private shift = 0;
   private joinedAt: number[] = [];
   private lastJoined = -1;
@@ -137,7 +143,7 @@ export class Story {
     // whose phone each slide zooms into, picked where the bubble has room
     this.bubbleSeats = [nearest(v(3.6, 1.2, 1.6)), nearest(v(2.6, 0.5, -2.2)), this.cardSeat, nearest(v(-2.4, 0.9, 3.0)), nearest(v(0, 0, 0)), nearest(v(0, 0, 0))];
 
-    this.applyShot(SHOTS[0]!, 1, 0);
+    this.applyShot(0);
     this.enter(0);
   }
 
@@ -145,8 +151,9 @@ export class Story {
   setBeat(i: number) {
     const b = Math.max(0, Math.min(BEATS - 1, i));
     if (b === this.beat && this.beatAt > 0) return;
-    this.from = this.currentShot();
-    this.tweenAt = this.live ? this.clock : -10;
+    // a new slide changes where the camera heads, never how fast it is going, so
+    // slides passed in quick succession read as one flight through the hall
+    this.flight = this.live ? { at: this.clock, from: [...this.pose], speed: [...this.speed] } : null;
     this.beat = b;
     this.enter(b);
     if (!this.running) this.frame(performance.now());
@@ -398,23 +405,43 @@ export class Story {
 
   // ---- camera ----
 
-  private currentShot(): Shot {
-    return { pos: this.camera.position.clone(), target: this.lookAt.clone(), fov: this.camera.fov, drift: SHOTS[this.beat]!.drift, shift: this.shift };
+  /** Moves the camera's shot along its flight: a cubic curve that leaves where the
+   *  camera was at the speed it had and comes to rest on the slide's shot. Without a
+   *  flight (still pictures, reduced motion, arrived) the camera is on the shot. */
+  private fly() {
+    const to = poseOf(SHOTS[this.beat]!);
+    const f = this.flight;
+    const s = f ? Math.min(1, (this.clock - f.at) / FLIGHT) : 1;
+    if (!f || s >= 1) {
+      this.pose = to;
+      this.speed.fill(0);
+      this.flight = null;
+      return;
+    }
+    const s2 = s * s;
+    const s3 = s2 * s;
+    // cubic Hermite basis for the start, the start speed and the end, and their slopes
+    const h0 = 2 * s3 - 3 * s2 + 1, h1 = s3 - 2 * s2 + s, h2 = 3 * s2 - 2 * s3;
+    const d0 = 6 * s2 - 6 * s, d1 = 3 * s2 - 4 * s + 1, d2 = 6 * s - 6 * s2;
+    for (let i = 0; i < to.length; i++) {
+      const p0 = f.from[i]!, v0 = f.speed[i]! * FLIGHT, p1 = to[i]!;
+      this.pose[i] = h0 * p0 + h1 * v0 + h2 * p1;
+      this.speed[i] = (d0 * p0 + d1 * v0 + d2 * p1) / FLIGHT;
+    }
   }
 
-  private applyShot(to: Shot, k: number, time: number) {
-    const from = this.from;
-    const e = ease(k);
-    const pos = from.pos.clone().lerp(to.pos, e);
-    const target = from.target.clone().lerp(to.target, e);
-    const fov = from.fov + (to.fov - from.fov) * e;
-    const shift = from.shift + (to.shift - from.shift) * e;
+  private applyShot(time: number) {
+    const p = this.pose;
+    const pos = new Vector3(p[0]!, p[1]!, p[2]!);
+    const target = new Vector3(p[3]!, p[4]!, p[5]!);
+    const fov = p[6]!;
+    const shift = p[7]!;
     if (shift !== this.shift) {
       this.shift = shift;
       this.camera.setViewOffset(1280, 720, -shift * 1280, 0, 1280, 720);
     }
     if (this.live) {
-      const d = to.drift * 0.16;
+      const d = p[8]! * 0.16;
       pos.x += Math.sin(time * 0.21) * d;
       pos.y += Math.sin(time * 0.17 + 1) * d * 0.5;
       pos.z += Math.cos(time * 0.19) * d;
@@ -428,7 +455,6 @@ export class Story {
       pos.addScaledVector(right, this.lean.x * dist * 0.035).addScaledVector(up, -this.lean.y * dist * 0.022);
     }
     this.camera.position.copy(pos);
-    this.lookAt.copy(target);
     this.camera.lookAt(target);
     if (this.camera.fov !== fov) {
       this.camera.fov = fov;
@@ -522,8 +548,8 @@ export class Story {
     this.last = sec;
     this.clock += this.dt;
     const t = this.clock - this.beatAt;
-    const k = this.tweenAt < 0 ? 1 : Math.min(1, (this.clock - this.tweenAt) / 2.1);
-    this.applyShot(SHOTS[this.beat]!, k, this.clock);
+    this.fly();
+    this.applyShot(this.clock);
     this.tick(t);
     this.packets.update(this.clock);
     this.packetsSage.update(this.clock);

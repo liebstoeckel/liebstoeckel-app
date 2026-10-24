@@ -5,7 +5,9 @@
 //
 // On still surfaces (thumbnails, the overview, print, presenter previews) it
 // renders its slide's shot once, keeps the picture as an image and lets the 3D
-// context go, so a grid of thumbnails does not hold a WebGL context each.
+// context go, so a grid of thumbnails does not hold a WebGL context each. A
+// still surface whose slide changes (the build's thumbnail capture walks every
+// slide through one backdrop) takes a new picture, on a new canvas, per slide.
 //
 // Framed in a page (see the bridge), the live backdrop tells the page which slide
 // it shows once it has drawn, and stops drawing while the page has it out of view.
@@ -24,9 +26,11 @@ export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?
   const first = useRef(beat);
   const [picture, setPicture] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const stillBeat = still ? beat : -1;
 
   useEffect(() => {
     const el = canvas.current!;
+    if (still) setPicture(null);
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     let s: Story;
     try {
@@ -38,7 +42,7 @@ export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?
       return;
     }
     story.current = s;
-    s.setBeat(first.current);
+    s.setBeat(still ? stillBeat : first.current);
     let w = 0;
     let h = 0;
     const measure = () => {
@@ -100,7 +104,7 @@ export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?
       story.current = null;
       s.dispose();
     };
-  }, [still]);
+  }, [still, stillBeat]);
 
   useEffect(() => {
     story.current?.setBeat(beat);
@@ -109,7 +113,7 @@ export function HallBackdrop({ still = false, slide }: { still?: boolean; slide?
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={{ background: "#10140e" }}>
-      <canvas ref={canvas} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: picture || failed ? "none" : "block" }} />
+      <canvas key={stillBeat} ref={canvas} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: picture || failed ? "none" : "block" }} />
       {picture && <img src={picture} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />}
       {!failed && <Overlay beat={beat} still={still} register={(fn) => (place.current = fn)} />}
     </div>
