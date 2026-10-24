@@ -33,12 +33,15 @@ export type Still = {
   lights?: boolean;
   /** a prop: only what is inside this box is drawn, on a transparent ground */
   clip?: { min: Vec; max: Vec };
+  /** ink on cream, for the page's light section: dark lines, light faces, darker gold */
+  paper?: boolean;
   callouts: Callout[];
 };
 
 
-// Props: single objects from the hall for the landing page's sections, cut out of
-// the scene by a box and drawn on a transparent ground (written to assets/props/).
+// Props: single objects from the hall for the landing page, cut out of the scene by a
+// box and drawn on a transparent ground (written to assets/props/). The box must hold
+// whole objects only: a cut through a merged part leaves half shapes and stray lines.
 export const PROPS: Still[] = [
   {
     id: "speaker",
@@ -48,41 +51,49 @@ export const PROPS: Still[] = [
     pos: [7.6, 3.3, -3.3],
     target: [3.45, 1.6, -7.1],
     fov: 25,
-    clip: { min: [2.55, 0.55, -8.3], max: [4.5, 3.4, -6.15] },
+    // from just above the stage: the speaker and the lectern stand on nothing drawn
+    clip: { min: [2.55, 0.605, -8.3], max: [4.5, 3.4, -6.15] },
     callouts: [],
   },
   {
     id: "laptop",
     beat: 0,
     width: 420,
-    height: 320,
-    pos: [3.0, 2.75, -8.45],
-    target: [3.52, 1.72, -6.62],
-    fov: 30,
-    clip: { min: [2.95, 1.7, -7.0], max: [4.05, 2.25, -6.2] },
+    height: 300,
+    pos: [2.95, 2.8, -8.5],
+    target: [3.5, 1.82, -6.72],
+    fov: 19,
+    // no people: the speaker's resting arm reaches over the lectern. The box holds the
+    // lectern's top plate whole, so the laptop and the glass stand on it.
+    people: false,
+    clip: { min: [3.0, 1.6, -7.2], max: [4.0, 2.3, -6.3] },
     callouts: [],
   },
   {
     id: "poll-screen",
     beat: 1,
     width: 560,
-    height: 380,
-    pos: [-4.2, 3.9, -0.6],
-    target: [0.2, 3.5, -9.6],
-    fov: 40,
-    clip: { min: [-4.7, 0.55, -10.0], max: [4.7, 6.7, -9.3] },
+    height: 400,
+    pos: [-4.4, 4.1, 1.2],
+    target: [0.15, 3.55, -9.6],
+    fov: 38,
+    // from the screen's lower edge up: the truss legs would end in mid-air
+    clip: { min: [-4.7, 1.3, -10.0], max: [4.7, 6.7, -9.3] },
     callouts: [],
   },
   {
-    id: "model",
+    // the stage as one file: the dimension line under its front edge
+    id: "stage",
     beat: 5,
-    width: 560,
-    height: 460,
-    pos: [10.5, 30, 9.0],
-    target: [0.4, 0.4, -1.4],
+    width: 640,
+    height: 400,
+    pos: [4.2, 5.6, 5.4],
+    target: [0.7, 3.0, -8.2],
     fov: 40,
-    clip: { min: [-9.2, -0.1, -11.4], max: [9.2, 7.6, 9.2] },
-    callouts: [],
+    paper: true,
+    // up to the ceiling: the loudspeakers' cables run out of the top of the picture
+    clip: { min: [-6.6, 0.02, -10.2], max: [7.5, 7.6, -6.19] },
+    callouts: [{ kind: "dim", a: [-6.5, 0.6, -6.2], b: [6.5, 0.6, -6.2], label: "deck.html" }],
   },
 ];
 

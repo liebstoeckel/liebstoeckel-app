@@ -13,12 +13,15 @@ import {
   Fog,
   Mesh,
   MeshBasicMaterial,
+  MeshLambertMaterial,
+  Color,
   Plane,
   PlaneGeometry,
   SRGBColorSpace,
   Vector3,
   type Camera,
 } from "three";
+import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { Story } from "../elements/scene/story";
 import { SCREEN, type Seat } from "../elements/scene/hall";
 import { setClock } from "../elements/scene/room";
@@ -43,7 +46,8 @@ function project(p: Vector3, camera: Camera, w: number, h: number): Point {
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
-function Callouts({ items, points, onPlaced }: { items: Callout[]; points: Point[]; onPlaced: () => void }) {
+function Callouts({ items, points, paper, onPlaced }: { items: Callout[]; points: Point[]; paper: boolean; onPlaced: () => void }) {
+  const gold = paper ? PAPER.gold : C.goldSoft;
   const boxes = useRef<(HTMLDivElement | null)[]>([]);
   const [sizes, setSizes] = useState<{ w: number; h: number }[] | null>(null);
   useLayoutEffect(() => {
@@ -60,7 +64,7 @@ function Callouts({ items, points, onPlaced }: { items: Callout[]; points: Point
             if (it.kind === "dim") {
               const q = points[items.length + i]!;
               return (
-                <g key={i} stroke={C.goldSoft} strokeWidth="1" opacity="0.85">
+                <g key={i} stroke={gold} strokeWidth="1" opacity="0.85">
                   <line x1={p.x} y1={p.y + 18} x2={q.x} y2={q.y + 18} strokeDasharray="5 4" />
                   <line x1={p.x} x2={p.x} y1={p.y + 10} y2={p.y + 26} />
                   <line x1={q.x} x2={q.x} y1={q.y + 10} y2={q.y + 26} />
@@ -77,7 +81,7 @@ function Callouts({ items, points, onPlaced }: { items: Callout[]; points: Point
           })}
       </svg>
       {items.map((it, i) => {
-        const label = { fontFamily: MONO, fontSize: 13, lineHeight: 1.5, color: C.goldSoft, padding: "6px 10px", background: "rgba(16,20,14,0.82)", whiteSpace: "nowrap" as const };
+        const label = { fontFamily: MONO, fontSize: 13, lineHeight: 1.5, color: gold, padding: "6px 10px", background: paper ? "transparent" : "rgba(16,20,14,0.82)", whiteSpace: "nowrap" as const };
         if (it.kind === "dim") {
           const p = points[i]!;
           const q = points[items.length + i]!;
@@ -101,6 +105,48 @@ function Callouts({ items, points, onPlaced }: { items: Callout[]; points: Point
 }
 
 // ---- the hall ----
+
+/** The page's light section: forest ink on warm cream, gold darkened to read on it. */
+const PAPER = { fill: "#f6f2e6", ink: "#1b2418", gold: "#9a7414", sage: "#5d6b4c" };
+
+/** Redraws the hall in ink on cream: each line keeps its strength (a bright line on the
+ *  dark ground becomes a dark one, a faint one stays faint), faces turn cream, gold and
+ *  sage darken. The screens keep their pictures. */
+function onPaper(story: Story) {
+  const ground = new Color(PALETTE.bg).getHSL({ h: 0, s: 0, l: 0 }).l;
+  const brightest = new Color(PALETTE.paper).getHSL({ h: 0, s: 0, l: 0 }).l;
+  const cream = new Color(PAPER.fill);
+  const ink = new Color(PAPER.ink);
+  const near = (c: Color, hex: string) => {
+    const o = new Color(hex);
+    return Math.abs(c.r - o.r) + Math.abs(c.g - o.g) + Math.abs(c.b - o.b) < 0.06;
+  };
+  const map = (c: Color): Color => {
+    if (near(c, PALETTE.gold) || near(c, PALETTE.goldSoft)) return new Color(PAPER.gold);
+    if (near(c, PALETTE.sage)) return new Color(PAPER.sage);
+    const strength = Math.min(1, Math.max(0, (c.getHSL({ h: 0, s: 0, l: 0 }).l - ground) / (brightest - ground)));
+    return cream.clone().lerp(ink, 0.45 + 0.55 * strength);
+  };
+  story.scene.traverse((o) => {
+    if (o instanceof LineSegments2) {
+      const attr = o.geometry.getAttribute("instanceColorStart") as unknown as { data: { array: Float32Array; needsUpdate: boolean } };
+      const arr = attr.data.array;
+      const c = new Color();
+      for (let i = 0; i + 2 < arr.length; i += 3) {
+        const m = map(c.setRGB(arr[i]!, arr[i + 1]!, arr[i + 2]!));
+        arr[i] = m.r;
+        arr[i + 1] = m.g;
+        arr[i + 2] = m.b;
+      }
+      attr.data.needsUpdate = true;
+    } else if (o instanceof Mesh && o.material instanceof MeshLambertMaterial) {
+      // flat cream: on paper the lines draw the form, shading only muddies it
+      const m = o.material;
+      o.material = new MeshBasicMaterial({ color: cream, side: m.side, polygonOffset: m.polygonOffset, polygonOffsetFactor: m.polygonOffsetFactor, polygonOffsetUnits: m.polygonOffsetUnits });
+    }
+  });
+  for (const m of story.hall.materials.outlines) m.uniforms.color!.value = ink.clone();
+}
 
 /** A soft round pool of lamp light on the stage. */
 function lightPool(x: number, z: number): Mesh {
@@ -151,6 +197,7 @@ function Scene({ still }: { still: Still }) {
     const el = canvas.current!;
     const { width: w, height: h } = still;
     const story = new Story(el, { still: true, reduced: true, people: still.people ?? true, transparent: !!still.clip });
+    if (still.paper) onPaper(story);
     if (still.clip) {
       // a prop: the page shows through around it, no fog (it fades toward the dark
       // ground, a haze on any other), and everything outside the box is cut away
@@ -230,7 +277,7 @@ function Scene({ still }: { still: Still }) {
     <div id="still" style={{ position: "relative", width: still.width, height: still.height, overflow: "hidden", background: still.clip ? "transparent" : PALETTE.bg, fontFamily: '"Schibsted Grotesk Variable", system-ui, sans-serif' }}>
       <style>{".hs-line { animation: none !important }"}</style>
       <canvas ref={canvas} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
-      {placed && (still.callouts.length ? <Callouts items={still.callouts} points={placed.points} onPlaced={done} /> : <Ready onReady={done} />)}
+      {placed && (still.callouts.length ? <Callouts items={still.callouts} points={placed.points} paper={!!still.paper} onPlaced={done} /> : <Ready onReady={done} />)}
     </div>
   );
 }
