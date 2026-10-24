@@ -22,6 +22,8 @@ import {
   type Camera,
 } from "three";
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+import { ProjectionScreen } from "../elements/scene/screens";
+import { FONT_SANS } from "../elements/scene/palette";
 import { Story } from "../elements/scene/story";
 import { SCREEN, type Seat } from "../elements/scene/hall";
 import { setClock } from "../elements/scene/room";
@@ -105,6 +107,43 @@ function Callouts({ items, points, paper, onPlaced }: { items: Callout[]; points
 }
 
 // ---- the hall ----
+
+/** The landing page's own slide on the big screen: its heading where the deck's title
+ *  is, the mark and the category line on the card. No live dot and no slide number:
+ *  the page shows a deck, not a session. The mark comes from whoever renders the
+ *  picture (`window.landingMark`, an SVG), since the brand files are not the deck's. */
+async function landingScreen(screen: ProjectionScreen) {
+  const g = screen.canvas.getContext("2d")!;
+  const { W, H } = ProjectionScreen;
+  g.fillStyle = PALETTE.screenBg;
+  g.fillRect(0, 0, W, H);
+  g.fillStyle = PALETTE.text;
+  g.font = `700 128px ${FONT_SANS}`;
+  g.fillText("Present with", 96, 420);
+  g.fillText("the room", 96, 556);
+  g.fillStyle = PALETTE.gold;
+  g.fillRect(96, 588, 520, 10);
+  const x = 1090, y = 280, w = 400, h = 380, size = 150;
+  g.strokeStyle = "#3a4530";
+  g.lineWidth = 3;
+  g.beginPath();
+  g.roundRect(x, y, w, h, 28);
+  g.stroke();
+  const svg = (window as unknown as { landingMark?: string }).landingMark;
+  if (svg) {
+    const mark = new Image();
+    mark.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    await mark.decode();
+    g.drawImage(mark, x + (w - size) / 2, y + 52, size, size);
+  }
+  g.fillStyle = PALETTE.text;
+  g.font = `600 38px ${FONT_SANS}`;
+  g.textAlign = "center";
+  g.fillText("Live, programmable", x + w / 2, y + 270);
+  g.fillText("presentations", x + w / 2, y + 318);
+  g.textAlign = "left";
+  screen.texture.needsUpdate = true;
+}
 
 /** The page's light section: forest ink on warm cream, gold darkened to read on it. */
 const PAPER = { fill: "#f6f2e6", ink: "#1b2418", gold: "#9a7414", sage: "#5d6b4c" };
@@ -224,6 +263,8 @@ function Scene({ still }: { still: Still }) {
       if (gone) return;
       story.refreshText();
       if (still.people === false) story.screen.draw({ kind: "title", joined: 0 }, 1, 9);
+      if (still.screen === "landing") await landingScreen(story.screen);
+      if (gone) return;
 
       const cam = story.camera;
       story.renderer.setPixelRatio(window.devicePixelRatio || 1);

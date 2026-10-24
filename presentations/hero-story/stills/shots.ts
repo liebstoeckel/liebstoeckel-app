@@ -37,6 +37,8 @@ export type Still = {
   paper?: boolean;
   /** false: no glass of water on the lectern */
   glass?: boolean;
+  /** the big screen shows the landing page's own slide instead of the deck's */
+  screen?: "landing";
   callouts: Callout[];
 };
 
@@ -63,25 +65,15 @@ export const PROPS: Still[] = [
 
 export const STILLS: Still[] = [
   {
-    // the phone hero: slide 1's hall, from slide 1's camera, without its words
-    id: "hall",
-    beat: 0,
-    width: 440,
-    height: 480,
-    pos: [12.8, 8.8, 13.8],
-    target: [0.4, 1.9, -3.4],
-    fov: 36,
-    callouts: [],
-  },
-  {
-    // the same hall for wider screens without the deck (tablets, reduced motion)
-    id: "hall-wide",
+    // the hero without the deck: the stage, the big screen carrying the page's heading
+    id: "hero-stage",
     beat: 0,
     width: 880,
-    height: 560,
-    pos: [12.8, 8.8, 13.8],
-    target: [0.2, 2.0, -3.4],
-    fov: 33,
+    height: 500,
+    pos: [0.9, 2.7, 1.2],
+    target: [0.9, 2.9, -9.6],
+    fov: 30,
+    screen: "landing",
     callouts: [],
   },
   {
