@@ -373,7 +373,16 @@ export function buildHall(opts: { life: boolean; people?: boolean }): Hall {
   elbowPivot.add(part(capsule(0.04, 0.24), new Vector3(0, 0.16, 0)));
   armPivot.add(elbowPivot);
   speakerBody.add(armPivot);
-  speakerBody.add(part(capsule(0.045, 0.5), new Vector3(0.27, 0.34, 0.22), new Euler(0.9, 0, -0.25)));
+  // the other arm from its shoulder, bent at the elbow, the hand on the lectern's back edge
+  // (the lectern stands 0.7 in front of the speaker, its top a little below the elbow)
+  const limbPart = (r: number, a: Vector3, b: Vector3) => {
+    const { m, len } = between(a, b);
+    const o = solid(capsule(r, len), speakerOutline);
+    m.decompose(o.position, o.quaternion, o.scale);
+    return o;
+  };
+  const shoulderL = new Vector3(0.2, 0.66, 0), elbowL = new Vector3(0.25, 0.38, 0.12), handL = new Vector3(0.14, 0.26, 0.42);
+  speakerBody.add(limbPart(0.045, shoulderL, elbowL), limbPart(0.04, elbowL, handL));
   const speakerHead = speakerPos.clone().add(new Vector3(0, 1.8, 0));
 
   // lovage in the corner: a pot, a few stems, flat umbels
