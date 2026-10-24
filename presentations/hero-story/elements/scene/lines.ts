@@ -4,10 +4,11 @@
 // hard edges (EdgesGeometry drops the edges between coplanar faces), and many
 // shapes share one draw call.
 
-import { BufferGeometry, Color, EdgesGeometry, Matrix4 } from "three";
+import { BackSide, BufferGeometry, Color, EdgesGeometry, Matrix4, ShaderMaterial, UniformsLib, UniformsUtils, Vector2 } from "three";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
+import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 
 export class EdgeBatch {
   readonly positions: number[] = [];
@@ -70,4 +71,50 @@ export function recolor(lines: LineSegments2, range: [number, number], color: Co
     arr[o + 3] = color.r; arr[o + 4] = color.g; arr[o + 5] = color.b;
   }
   attr.data.needsUpdate = true;
+}
+
+// Round shapes (the people) have no hard edges to draw, so they get an outline
+// instead: their back faces, drawn behind the shape on a copy inflated along its
+// smooth normals by as much as a set width in CSS pixels covers at its distance.
+// A rim shows around the figure and wherever one part crosses another, like a pen
+// line. Inflating in 3D (not pushing each point sideways on screen) keeps the copy
+// one closed shell, so no triangle near the rim flips over and drops out. Sized
+// like the lines (set `uniforms.resolution` to the shown size) and fading into
+// the fog with them.
+export function outlineMaterial(color: Color, width: number): ShaderMaterial {
+  return new ShaderMaterial({
+    uniforms: UniformsUtils.merge([UniformsLib.fog, { color: { value: color }, width: { value: width }, resolution: { value: new Vector2(1280, 720) } }]),
+    vertexShader: /* glsl */ `
+      #include <fog_pars_vertex>
+      uniform float width;
+      uniform vec2 resolution;
+      void main() {
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        // the size of one CSS pixel at this depth, in view space
+        float pixel = 2.0 * -mvPosition.z / (projectionMatrix[1][1] * resolution.y);
+        mvPosition.xyz += normalize(normalMatrix * normal) * width * pixel;
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: /* glsl */ `
+      #include <fog_pars_fragment>
+      uniform vec3 color;
+      void main() {
+        gl_FragColor = vec4(color, 1.0);
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }`,
+    side: BackSide,
+    fog: true,
+  });
+}
+
+/** The geometry an outline needs: corners shared, normals averaged across them. */
+export function hullOf(geometry: BufferGeometry): BufferGeometry {
+  const g = geometry.clone();
+  g.deleteAttribute("normal");
+  if (g.hasAttribute("uv")) g.deleteAttribute("uv");
+  const merged = mergeVertices(g, 1e-4);
+  merged.computeVertexNormals();
+  return merged;
 }

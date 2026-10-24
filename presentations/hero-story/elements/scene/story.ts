@@ -166,6 +166,7 @@ export class Story {
     this.renderer.setPixelRatio((dpr * cssW) / 1280);
     this.renderer.setSize(1280, 720, false);
     for (const m of this.hall.materials.lines) m.resolution.set(cssW, cssH);
+    for (const m of this.hall.materials.outlines) m.uniforms.resolution!.value.set(cssW, cssH);
     if (!this.running) this.frame(performance.now());
   }
 

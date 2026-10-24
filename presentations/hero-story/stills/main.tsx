@@ -285,6 +285,7 @@ function Scene({ still }: { still: Still }) {
       story.renderer.setPixelRatio(window.devicePixelRatio || 1);
       story.renderer.setSize(w, h, false);
       for (const m of story.hall.materials.lines) m.resolution.set(w, h);
+      for (const m of story.hall.materials.outlines) m.uniforms.resolution!.value.set(w, h);
       cam.clearViewOffset();
       cam.aspect = w / h;
       cam.fov = still.fov;
