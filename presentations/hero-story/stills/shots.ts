@@ -74,6 +74,17 @@ export const STILLS: Still[] = [
     callouts: [],
   },
   {
+    // the same hall for wider screens without the deck (tablets, reduced motion)
+    id: "hall-wide",
+    beat: 0,
+    width: 880,
+    height: 560,
+    pos: [12.8, 8.8, 13.8],
+    target: [0.2, 2.0, -3.4],
+    fov: 33,
+    callouts: [],
+  },
+  {
     // opens the install section: over the speaker's shoulder, the laptop and the room
     id: "band-install",
     beat: 0,
