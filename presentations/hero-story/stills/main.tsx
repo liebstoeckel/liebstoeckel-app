@@ -196,7 +196,7 @@ function Scene({ still }: { still: Still }) {
   useLayoutEffect(() => {
     const el = canvas.current!;
     const { width: w, height: h } = still;
-    const story = new Story(el, { still: true, reduced: true, people: still.people ?? true, transparent: !!still.clip });
+    const story = new Story(el, { still: true, reduced: true, people: still.people ?? true, transparent: !!still.clip, glass: still.glass });
     if (still.paper) onPaper(story);
     if (still.clip) {
       // a prop: the page shows through around it, no fog (it fades toward the dark

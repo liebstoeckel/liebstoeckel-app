@@ -35,6 +35,8 @@ export type Still = {
   clip?: { min: Vec; max: Vec };
   /** ink on cream, for the page's light section: dark lines, light faces, darker gold */
   paper?: boolean;
+  /** false: no glass of water on the lectern */
+  glass?: boolean;
   callouts: Callout[];
 };
 
@@ -43,44 +45,6 @@ export type Still = {
 // box and drawn on a transparent ground (written to assets/props/). The box must hold
 // whole objects only: a cut through a merged part leaves half shapes and stray lines.
 export const PROPS: Still[] = [
-  {
-    id: "speaker",
-    beat: 0,
-    width: 420,
-    height: 480,
-    pos: [7.6, 3.3, -3.3],
-    target: [3.45, 1.6, -7.1],
-    fov: 25,
-    // from just above the stage: the speaker and the lectern stand on nothing drawn
-    clip: { min: [2.55, 0.605, -8.3], max: [4.5, 3.4, -6.15] },
-    callouts: [],
-  },
-  {
-    id: "laptop",
-    beat: 0,
-    width: 420,
-    height: 300,
-    pos: [2.95, 2.8, -8.5],
-    target: [3.5, 1.82, -6.72],
-    fov: 19,
-    // no people: the speaker's resting arm reaches over the lectern. The box holds the
-    // lectern's top plate whole, so the laptop and the glass stand on it.
-    people: false,
-    clip: { min: [3.0, 1.6, -7.2], max: [4.0, 2.3, -6.3] },
-    callouts: [],
-  },
-  {
-    id: "poll-screen",
-    beat: 1,
-    width: 560,
-    height: 400,
-    pos: [-4.4, 4.1, 1.2],
-    target: [0.15, 3.55, -9.6],
-    fov: 38,
-    // from the screen's lower edge up: the truss legs would end in mid-air
-    clip: { min: [-4.7, 1.3, -10.0], max: [4.7, 6.7, -9.3] },
-    callouts: [],
-  },
   {
     // the stage as one file: the dimension line under its front edge
     id: "stage",
@@ -98,6 +62,40 @@ export const PROPS: Still[] = [
 ];
 
 export const STILLS: Still[] = [
+  {
+    // the phone hero: slide 1's hall, from slide 1's camera, without its words
+    id: "hall",
+    beat: 0,
+    width: 440,
+    height: 480,
+    pos: [12.8, 8.8, 13.8],
+    target: [0.4, 1.9, -3.4],
+    fov: 36,
+    callouts: [],
+  },
+  {
+    // opens the install section: over the speaker's shoulder, the laptop and the room
+    id: "band-install",
+    beat: 0,
+    width: 1200,
+    height: 360,
+    pos: [2.1, 3.0, -9.45],
+    target: [3.9, 1.8, -5.6],
+    fov: 20,
+    glass: false,
+    callouts: [],
+  },
+  {
+    // opens "Polls are the floor": from the rows, the poll on the big screen
+    id: "band-polls",
+    beat: 1,
+    width: 1200,
+    height: 360,
+    pos: [0.7, 3.0, 5.2],
+    target: [0.1, 3.25, -9.6],
+    fov: 24,
+    callouts: [],
+  },
   {
     id: "empty-hall",
     beat: 0,

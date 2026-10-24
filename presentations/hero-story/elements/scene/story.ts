@@ -7,7 +7,7 @@
 import { Color, DirectionalLight, Fog, HemisphereLight, PerspectiveCamera, Scene, Vector3, WebGLRenderer } from "three";
 import { Packets, QuestionCard } from "./effects";
 import { audienceLife } from "./features";
-import { buildHall, HEAD_DOWN, SCREEN, type Hall, type Seat } from "./hall";
+import { ARM_POSES, buildHall, HEAD_DOWN, SCREEN, type Hall, type Seat } from "./hall";
 import { recolor } from "./lines";
 import { setClock } from "./room";
 import { PALETTE } from "./palette";
@@ -54,12 +54,6 @@ const pick = (w: number[]) => {
 /** `text` typed out over [t0, t1]: the share of characters shown at time t. */
 const typed = (text: string, t: number, t0: number, t1: number) => text.slice(0, Math.round(text.length * Math.min(1, Math.max(0, (t - t0) / (t1 - t0)))));
 
-/** The speaker's pointing arm (Euler x, y, z at the shoulder): hanging down, an open gesture to the room, pointing at the screen. */
-const ARM_POSES: [number, number, number][] = [
-  [0.05, 0, Math.PI - 0.16],
-  [0.95, 0, 0.45],
-  [-0.55, 0, 1.05],
-];
 
 export type Anchor = { x: number; y: number; on: boolean };
 export type Anchors = Record<string, Anchor>;
@@ -117,7 +111,7 @@ export class Story {
 
   constructor(
     readonly canvas: HTMLCanvasElement,
-    private readonly opts: { still: boolean; reduced: boolean; people?: boolean; transparent?: boolean },
+    private readonly opts: { still: boolean; reduced: boolean; people?: boolean; transparent?: boolean; glass?: boolean },
   ) {
     this.live = !opts.reduced && !opts.still;
     this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: !!opts.transparent, preserveDrawingBuffer: opts.still, powerPreference: "high-performance" });
@@ -128,7 +122,7 @@ export class Story {
     sun.position.set(-6, 12, 8);
     this.scene.add(sun);
 
-    this.hall = buildHall({ life: this.live && audienceLife(), people: opts.people ?? true });
+    this.hall = buildHall({ life: this.live && audienceLife(), people: opts.people ?? true, glass: opts.glass });
     this.heads = this.hall.seats.map(() => ({ yaw: 0, pitch: HEAD_DOWN, ty: 0, tp: HEAD_DOWN, until: Math.random() * 6 }));
     this.headBase = this.hall.seats.map((s) => (s.head3d ? s.head3d.position.clone() : new Vector3()));
     this.scene.add(this.hall.group, this.packets.mesh, this.packetsSage.mesh, this.upvotes.mesh, this.card.group);
@@ -530,9 +524,11 @@ export class Story {
       this.armUntil = now + 2 + Math.random() * 3;
     }
     const pose = ARM_POSES[this.armPose]!;
-    const a = sp.arm.rotation;
     const ka = 1 - Math.exp(-dt * 3.5);
-    a.set(a.x + (pose[0] - a.x) * ka, a.y + (pose[1] - a.y) * ka, a.z + (pose[2] - a.z) * ka);
+    for (const [joint, to] of [[sp.arm, pose.shoulder], [sp.elbow, pose.elbow]] as const) {
+      const a = joint.rotation;
+      a.set(a.x + (to[0] - a.x) * ka, a.y + (to[1] - a.y) * ka, a.z + (to[2] - a.z) * ka);
+    }
     const lookYaw = this.armPose === 2 ? 0.75 : Math.sin(t * 0.5) * 0.45;
     const hd = sp.head.rotation;
     hd.set(hd.x + ((this.armPose === 2 ? 0.05 : -0.1) - hd.x) * ka, hd.y + (lookYaw - hd.y) * ka, 0, "YXZ");

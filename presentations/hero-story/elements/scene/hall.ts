@@ -52,7 +52,20 @@ export type Seat = {
 };
 
 /** The speaker, in parts that can move: the whole figure, the upper body, the head and the pointing arm. */
-export type Speaker = { root: Object3D; body: Object3D; head: Object3D; arm: Object3D; home: Vector3 };
+export type Speaker = { root: Object3D; body: Object3D; head: Object3D; arm: Object3D; elbow: Object3D; home: Vector3 };
+
+type Euler3 = [number, number, number];
+/** The speaker's gesturing arm, as rotations at the shoulder and at the elbow (Euler
+ *  x, y, z; the arm hangs along +y from each joint). Every gesture bends at the elbow
+ *  and stays below the shoulder: a straight arm raised forward reads as a salute. */
+export const ARM_POSES: { shoulder: Euler3; elbow: Euler3 }[] = [
+  // hanging down, a little bent
+  { shoulder: [0.05, 0, Math.PI - 0.16], elbow: [0.2, 0, 0] },
+  // an open hand to the room: upper arm down, forearm toward the audience at chest height
+  { shoulder: [-0.3, 0, Math.PI - 0.35], elbow: [1.45, 0, 0] },
+  // at the screen: out to the side and back toward it, the forearm level
+  { shoulder: [0.727, 0, 2.214], elbow: [-0.6, 0, 0] },
+];
 
 export type Hall = {
   group: Group;
@@ -145,7 +158,7 @@ function between(a: Vector3, b: Vector3): { m: Matrix4; len: number } {
   return { m: new Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new Vector3(1, 1, 1)), len };
 }
 
-export function buildHall(opts: { life: boolean; people?: boolean }): Hall {
+export function buildHall(opts: { life: boolean; people?: boolean; glass?: boolean }): Hall {
   const group = new Group();
   const roomMat = lineMaterial(1);
   const structureMat = lineMaterial(1.3);
@@ -348,11 +361,17 @@ export function buildHall(opts: { life: boolean; people?: boolean }): Hall {
   speakerBody.add(part(standing, new Vector3(0, 0, 0)), part(shape("neck:speaker", () => new CylinderGeometry(0.045, 0.05, 0.1, 10, 1)), new Vector3(0, 0.75, 0)));
   const speakerHeadObj = part(shape("head:speaker", () => headShape("short", 0.115)), new Vector3(0, 0.92, 0), new Euler(-0.1, 0, 0, "YXZ"));
   speakerBody.add(speakerHeadObj);
-  // the pointing arm hangs from the shoulder; the other rests on the lectern
+  // the gesturing arm, upper arm and forearm (still pictures show the open hand);
+  // the other rests on the lectern
   const armPivot = new Object3D();
   armPivot.position.set(-0.2, 0.66, 0);
-  armPivot.rotation.set(-0.55, 0, 1.05);
-  armPivot.add(part(capsule(0.045, 0.62), new Vector3(0, 0.36, 0)));
+  armPivot.rotation.set(...ARM_POSES[1]!.shoulder);
+  armPivot.add(part(capsule(0.045, 0.26), new Vector3(0, 0.17, 0)));
+  const elbowPivot = new Object3D();
+  elbowPivot.position.set(0, 0.34, 0);
+  elbowPivot.rotation.set(...ARM_POSES[1]!.elbow);
+  elbowPivot.add(part(capsule(0.04, 0.24), new Vector3(0, 0.16, 0)));
+  armPivot.add(elbowPivot);
   speakerBody.add(armPivot);
   speakerBody.add(part(capsule(0.045, 0.5), new Vector3(0.27, 0.34, 0.22), new Euler(0.9, 0, -0.25)));
   const speakerHead = speakerPos.clone().add(new Vector3(0, 1.8, 0));
@@ -377,7 +396,7 @@ export function buildHall(opts: { life: boolean; people?: boolean }): Hall {
   structure.addSegments(stems, col(PALETTE.sage));
 
   // the room around it all, quieter than the hall
-  const roomParts = buildRoom(group, addSolid);
+  const roomParts = buildRoom(group, addSolid, { glass: opts.glass });
 
   // filled faces: one merged mesh, flat-shaded so the facets read
   const fillMesh = new Mesh(mergeGeometries(fills, false)!, fillMat);
@@ -414,7 +433,7 @@ export function buildHall(opts: { life: boolean; people?: boolean }): Hall {
     laptopScreen,
     screenPlane,
     speakerHead,
-    speaker: { root: speakerRoot, body: speakerBody, head: speakerHeadObj, arm: armPivot, home: speakerPos.clone() },
+    speaker: { root: speakerRoot, body: speakerBody, head: speakerHeadObj, arm: armPivot, elbow: elbowPivot, home: speakerPos.clone() },
     laptop: lidCenter,
     plant,
     room: roomParts,
