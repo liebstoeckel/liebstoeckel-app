@@ -29,7 +29,7 @@ import { SCREEN, type Seat } from "../elements/scene/hall";
 import { setClock } from "../elements/scene/room";
 import { PALETTE } from "../elements/scene/palette";
 import { C, MONO } from "../elements/Overlay";
-import { PROPS, STILLS, type Anchor, type Callout, type Still, type Vec } from "./shots";
+import { CLIPS, PROPS, STILLS, type Anchor, type Callout, type Clip, type Still, type Vec } from "./shots";
 
 const v = (p: Vec) => new Vector3(p[0], p[1], p[2]);
 
@@ -235,7 +235,7 @@ function Scene({ still }: { still: Still }) {
   useLayoutEffect(() => {
     const el = canvas.current!;
     const { width: w, height: h } = still;
-    const story = new Story(el, { still: true, reduced: true, people: still.people ?? true, transparent: !!still.clip, glass: still.glass });
+    const story = new Story(el, { still: true, reduced: true, people: still.people ?? true, transparent: !!still.clip });
     if (still.paper) onPaper(story);
     if (still.clip) {
       // a prop: the page shows through around it, no fog (it fades toward the dark
@@ -328,6 +328,74 @@ function Ready({ onReady }: { onReady: () => void }) {
   return null;
 }
 
-const id = new URLSearchParams(location.search).get("still") ?? STILLS[0]!.id;
-const still = [...STILLS, ...PROPS].find((s) => s.id === id);
-createRoot(document.getElementById("root")!).render(still ? <Scene still={still} /> : <p style={{ color: "#fff" }}>no still named {id}</p>);
+// ---- clips ----
+
+type Recorded = { width: number; height: number; fps: number; poster: string; chunks: { ts: number; key: boolean; data: string }[] };
+
+/** Records a clip with the browser's own VP9 encoder, every frame on the clip's clock
+ *  (the page's clock follows it: `window.__clipTime`, see the recording script), and
+ *  leaves the encoded frames on `window.clip` for the script to put in a file. */
+async function record(clip: Clip) {
+  const { width: w, height: h, fps } = clip;
+  const canvas = document.createElement("canvas");
+  canvas.style.cssText = `display:block;width:${w}px;height:${h}px`;
+  document.getElementById("root")!.append(canvas);
+  // the screen draws its text into a canvas: its faces must be in before the first frame
+  await Promise.all([
+    document.fonts.load('700 128px "Schibsted Grotesk Variable"'),
+    document.fonts.load('600 30px "JetBrains Mono Variable"'),
+  ]).catch(() => undefined);
+  await document.fonts.ready;
+  const story = new Story(canvas, { still: false, reduced: false, record: true });
+  story.resize(w, h);
+  story.refreshText();
+  story.setBeat(clip.beat);
+  story.hold(v(clip.pos), v(clip.target), clip.fov);
+  const at = (t: number) => {
+    (window as unknown as { __clipTime: number }).__clipTime = t * 1000;
+    story.render(t);
+  };
+  // the room settles into the slide before the clip starts
+  for (let t = 0; t < clip.from; t += 0.05) at(t);
+
+  const chunks: Recorded["chunks"] = [];
+  const encoder = new VideoEncoder({
+    output: (c) => {
+      const b = new Uint8Array(c.byteLength);
+      c.copyTo(b);
+      let s = "";
+      for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
+      chunks.push({ ts: c.timestamp, key: c.type === "key", data: btoa(s) });
+    },
+    error: (e) => {
+      throw e;
+    },
+  });
+  encoder.configure({ codec: "vp09.00.10.08", width: w, height: h, bitrate: 2_000_000, framerate: fps, latencyMode: "quality" });
+  let poster = "";
+  const frames = Math.round(clip.seconds * fps);
+  for (let n = 0; n < frames; n++) {
+    at(clip.from + n / fps);
+    if (n === 0) poster = canvas.toDataURL("image/png");
+    const frame = new VideoFrame(canvas, { timestamp: Math.round((n * 1e6) / fps), duration: Math.round(1e6 / fps) });
+    encoder.encode(frame, { keyFrame: n % (fps * 2) === 0 });
+    frame.close();
+    while (encoder.encodeQueueSize > 4) await new Promise((r) => encoder.addEventListener("dequeue", r, { once: true }));
+  }
+  await encoder.flush();
+  story.dispose();
+  (window as unknown as { clip: Recorded }).clip = { width: w, height: h, fps, poster, chunks };
+  document.body.dataset.ready = "1";
+}
+
+const params = new URLSearchParams(location.search);
+const clipId = params.get("clip");
+if (clipId) {
+  const clip = CLIPS.find((c) => c.id === clipId);
+  if (clip) void record(clip);
+  else document.getElementById("root")!.textContent = `no clip named ${clipId}`;
+} else {
+  const id = params.get("still") ?? STILLS[0]!.id;
+  const still = [...STILLS, ...PROPS].find((s) => s.id === id);
+  createRoot(document.getElementById("root")!).render(still ? <Scene still={still} /> : <p style={{ color: "#fff" }}>no still named {id}</p>);
+}

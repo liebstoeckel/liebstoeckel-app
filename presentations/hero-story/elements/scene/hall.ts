@@ -158,7 +158,7 @@ function between(a: Vector3, b: Vector3): { m: Matrix4; len: number } {
   return { m: new Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new Vector3(1, 1, 1)), len };
 }
 
-export function buildHall(opts: { life: boolean; people?: boolean; glass?: boolean }): Hall {
+export function buildHall(opts: { life: boolean; people?: boolean }): Hall {
   const group = new Group();
   const roomMat = lineMaterial(1);
   const structureMat = lineMaterial(1.3);
@@ -396,7 +396,7 @@ export function buildHall(opts: { life: boolean; people?: boolean; glass?: boole
   structure.addSegments(stems, col(PALETTE.sage));
 
   // the room around it all, quieter than the hall
-  const roomParts = buildRoom(group, addSolid, { glass: opts.glass });
+  const roomParts = buildRoom(group, addSolid);
 
   // filled faces: one merged mesh, flat-shaded so the facets read
   const fillMesh = new Mesh(mergeGeometries(fills, false)!, fillMat);

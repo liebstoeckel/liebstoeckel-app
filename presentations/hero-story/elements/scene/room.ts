@@ -38,7 +38,7 @@ const DETAIL = new Color("#4a5241");
 
 const place = (p: Vector3, e = new Euler(), s = 1) => new Matrix4().compose(p, new Quaternion().setFromEuler(e), new Vector3(s, s, s));
 
-export function buildRoom(group: Group, addSolid: AddSolid, opts: { glass?: boolean } = {}): Room {
+export function buildRoom(group: Group, addSolid: AddSolid): Room {
   const env = new EdgeBatch();
   const seg: number[] = [];
   const line = (a: Vector3, b: Vector3) => seg.push(a.x, a.y, a.z, b.x, b.y, b.z);
@@ -136,8 +136,8 @@ export function buildRoom(group: Group, addSolid: AddSolid, opts: { glass?: bool
     addSolid(new BoxGeometry(0.9, h, 0.34), place(v(6.95, h / 2, -6.0 - i * 0.34)), env, DETAIL);
   }
 
-  // a glass of water on the lectern (a picture of the laptop alone leaves it out)
-  if (opts.glass !== false) addSolid(new CylinderGeometry(0.045, 0.038, 0.14, 7, 1), place(v(3.24, 1.79, -6.62)), env, DETAIL);
+  // a glass of water on the lectern
+  addSolid(new CylinderGeometry(0.045, 0.038, 0.14, 7, 1), place(v(3.24, 1.79, -6.62)), env, DETAIL);
 
   env.addSegments(seg, WALL);
 

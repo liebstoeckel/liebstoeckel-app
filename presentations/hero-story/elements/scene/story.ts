@@ -111,10 +111,17 @@ export class Story {
 
   constructor(
     readonly canvas: HTMLCanvasElement,
-    private readonly opts: { still: boolean; reduced: boolean; people?: boolean; transparent?: boolean; glass?: boolean },
+    private readonly opts: {
+      still: boolean;
+      reduced: boolean;
+      people?: boolean;
+      transparent?: boolean;
+      /** a recording: the room lives, but the camera holds still and time is stepped by hand (`render`) */
+      record?: boolean;
+    },
   ) {
     this.live = !opts.reduced && !opts.still;
-    this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: !!opts.transparent, preserveDrawingBuffer: opts.still, powerPreference: "high-performance" });
+    this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: !!opts.transparent, preserveDrawingBuffer: opts.still || !!opts.record, powerPreference: "high-performance" });
     this.renderer.setClearColor(new Color(PALETTE.bg), opts.transparent ? 0 : 1);
     this.scene.fog = this.fog;
     this.scene.add(new HemisphereLight("#e9e6d7", "#10140e", 1.1));
@@ -122,7 +129,7 @@ export class Story {
     sun.position.set(-6, 12, 8);
     this.scene.add(sun);
 
-    this.hall = buildHall({ life: this.live && audienceLife(), people: opts.people ?? true, glass: opts.glass });
+    this.hall = buildHall({ life: this.live && audienceLife(), people: opts.people ?? true });
     this.heads = this.hall.seats.map(() => ({ yaw: 0, pitch: HEAD_DOWN, ty: 0, tp: HEAD_DOWN, until: Math.random() * 6 }));
     this.headBase = this.hall.seats.map((s) => (s.head3d ? s.head3d.position.clone() : new Vector3()));
     this.scene.add(this.hall.group, this.packets.mesh, this.packetsSage.mesh, this.upvotes.mesh, this.card.group);
@@ -150,7 +157,7 @@ export class Story {
     this.flight = this.live ? { at: this.clock, from: [...this.pose], speed: [...this.speed] } : null;
     this.beat = b;
     this.enter(b);
-    if (!this.running) this.frame(performance.now());
+    if (!this.running && !this.opts.record) this.frame(performance.now());
   }
 
   resize(cssW: number, cssH: number) {
@@ -161,7 +168,7 @@ export class Story {
     this.renderer.setSize(1280, 720, false);
     for (const m of this.hall.materials.lines) m.resolution.set(cssW, cssH);
     for (const m of this.hall.materials.outlines) m.uniforms.resolution!.value.set(cssW, cssH);
-    if (!this.running) this.frame(performance.now());
+    if (!this.running && !this.opts.record) this.frame(performance.now());
   }
 
   start() {
@@ -198,7 +205,7 @@ export class Story {
     this.screenDirty = true;
     this.laptop.reset();
     this.laptop.draw(LaptopScreen.TOTAL);
-    if (!this.running) this.frame(performance.now());
+    if (!this.running && !this.opts.record) this.frame(performance.now());
   }
 
   dispose() {
@@ -400,10 +407,27 @@ export class Story {
 
   // ---- camera ----
 
+  private held: number[] | null = null;
+
+  /** Holds the camera on a shot of its own (no lens shift, no drift), for a recording. */
+  hold(pos: Vector3, target: Vector3, fov: number) {
+    this.held = [pos.x, pos.y, pos.z, target.x, target.y, target.z, fov, 0, 0];
+  }
+
+  /** Draws the scene at `seconds` of its own time, for a recording stepped frame by frame. */
+  render(seconds: number) {
+    this.frame(seconds * 1000);
+  }
+
   /** Moves the camera's shot along its flight: a cubic curve that leaves where the
    *  camera was at the speed it had and comes to rest on the slide's shot. Without a
    *  flight (still pictures, reduced motion, arrived) the camera is on the shot. */
   private fly() {
+    if (this.held) {
+      this.pose = [...this.held];
+      this.speed.fill(0);
+      return;
+    }
     const to = poseOf(SHOTS[this.beat]!);
     const f = this.flight;
     const s = f ? Math.min(1, (this.clock - f.at) / FLIGHT) : 1;

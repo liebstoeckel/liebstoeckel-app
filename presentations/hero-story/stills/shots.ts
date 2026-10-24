@@ -35,8 +35,6 @@ export type Still = {
   clip?: { min: Vec; max: Vec };
   /** ink on cream, for the page's light section: dark lines, light faces, darker gold */
   paper?: boolean;
-  /** false: no glass of water on the lectern */
-  glass?: boolean;
   /** the big screen shows the landing page's own slide instead of the deck's */
   screen?: "landing";
   callouts: Callout[];
@@ -77,29 +75,6 @@ export const STILLS: Still[] = [
     callouts: [],
   },
   {
-    // opens the install section: over the speaker's shoulder, the laptop and the room
-    id: "band-install",
-    beat: 0,
-    width: 1200,
-    height: 360,
-    pos: [2.1, 3.0, -9.45],
-    target: [3.9, 1.8, -5.6],
-    fov: 20,
-    glass: false,
-    callouts: [],
-  },
-  {
-    // opens "Polls are the floor": from the rows, the poll on the big screen
-    id: "band-polls",
-    beat: 1,
-    width: 1200,
-    height: 360,
-    pos: [0.7, 3.0, 5.2],
-    target: [0.1, 3.25, -9.6],
-    fov: 24,
-    callouts: [],
-  },
-  {
     id: "empty-hall",
     beat: 0,
     width: 880,
@@ -110,5 +85,25 @@ export const STILLS: Still[] = [
     people: false,
     lights: true,
     callouts: [],
+  },
+];
+
+/** A clip of the hall at work: a slide's scene alive, the camera held still, recorded
+ *  frame by frame on a fixed clock (from `from` seconds into the slide, for `seconds`). */
+export type Clip = { id: string; beat: number; width: number; height: number; pos: Vec; target: Vec; fov: number; from: number; seconds: number; fps: number };
+
+export const CLIPS: Clip[] = [
+  {
+    // the room plays tug of war: phones pull in gold and sage, the rope swings on the screen
+    id: "tug",
+    beat: 3,
+    width: 1280,
+    height: 720,
+    pos: [1.2, 6.2, 8.2],
+    target: [0.2, 2.6, -7.6],
+    fov: 33,
+    from: 4.5,
+    seconds: 8,
+    fps: 30,
   },
 ];
