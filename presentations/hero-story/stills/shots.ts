@@ -37,6 +37,8 @@ export type Still = {
   paper?: boolean;
   /** the big screen shows the landing page's own slide instead of the deck's */
   screen?: "landing";
+  /** the big screen is cut out (transparent), for a page to put its own content behind it */
+  hole?: boolean;
   callouts: Callout[];
 };
 
@@ -62,6 +64,19 @@ export const PROPS: Still[] = [
 ];
 
 export const STILLS: Still[] = [
+  {
+    // the closing section on wide screens: the empty hall, its big screen cut out for the page's slide
+    id: "cta-hall",
+    beat: 0,
+    width: 1600,
+    height: 820,
+    pos: [1.0, 4.3, 9.2],
+    target: [0.35, 3.3, -9.6],
+    fov: 30,
+    people: false,
+    hole: true,
+    callouts: [],
+  },
   {
     // the hero without the deck: the stage, the big screen carrying the page's heading
     id: "hero-stage",

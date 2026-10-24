@@ -14,6 +14,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
+  NoBlending,
   Color,
   Plane,
   PlaneGeometry,
@@ -235,7 +236,14 @@ function Scene({ still }: { still: Still }) {
   useLayoutEffect(() => {
     const el = canvas.current!;
     const { width: w, height: h } = still;
-    const story = new Story(el, { still: true, reduced: true, people: still.people ?? true, transparent: !!still.clip });
+    const story = new Story(el, { still: true, reduced: true, people: still.people ?? true, transparent: !!still.clip || !!still.hole });
+    if (still.hole) {
+      // an opaque hall with one transparent window: the big screen writes nothing but
+      // alpha 0, and whatever stands in front of it (the lectern) still covers it
+      document.body.style.background = "transparent";
+      story.renderer.setClearColor(new Color(PALETTE.bg), 1);
+      story.hall.screenPlane.material = new MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, blending: NoBlending });
+    }
     if (still.paper) onPaper(story);
     if (still.clip) {
       // a prop: the page shows through around it, no fog (it fades toward the dark
@@ -295,6 +303,14 @@ function Scene({ still }: { still: Still }) {
         }
       }
       story.renderer.render(story.scene, cam);
+      if (still.hole) {
+        // where the screen's corners land on the picture, for the page to fit its slide into
+        const { x, y, z } = SCREEN.center;
+        const [hw, hh] = [SCREEN.width / 2, SCREEN.height / 2];
+        (window as unknown as { screenQuad: Point[] }).screenQuad = [
+          new Vector3(x - hw, y + hh, z), new Vector3(x + hw, y + hh, z), new Vector3(x + hw, y - hh, z), new Vector3(x - hw, y - hh, z),
+        ].map((p) => project(p, cam, w, h));
+      }
 
       // where each callout's line starts, on the picture
       const anchor = (a: Anchor): Vector3 => {
@@ -315,7 +331,7 @@ function Scene({ still }: { still: Still }) {
   const done = useCallback(() => requestAnimationFrame(() => requestAnimationFrame(() => (document.body.dataset.ready = "1"))), []);
 
   return (
-    <div id="still" style={{ position: "relative", width: still.width, height: still.height, overflow: "hidden", background: still.clip ? "transparent" : PALETTE.bg, fontFamily: '"Schibsted Grotesk Variable", system-ui, sans-serif' }}>
+    <div id="still" style={{ position: "relative", width: still.width, height: still.height, overflow: "hidden", background: still.clip || still.hole ? "transparent" : PALETTE.bg, fontFamily: '"Schibsted Grotesk Variable", system-ui, sans-serif' }}>
       <style>{".hs-line { animation: none !important }"}</style>
       <canvas ref={canvas} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
       {placed && (still.callouts.length ? <Callouts items={still.callouts} points={placed.points} paper={!!still.paper} onPlaced={done} /> : <Ready onReady={done} />)}
