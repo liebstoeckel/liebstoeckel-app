@@ -117,11 +117,11 @@ export class Story {
 
   constructor(
     readonly canvas: HTMLCanvasElement,
-    private readonly opts: { still: boolean; reduced: boolean; people?: boolean },
+    private readonly opts: { still: boolean; reduced: boolean; people?: boolean; transparent?: boolean },
   ) {
     this.live = !opts.reduced && !opts.still;
-    this.renderer = new WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: opts.still, powerPreference: "high-performance" });
-    this.renderer.setClearColor(new Color(PALETTE.bg), 1);
+    this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: !!opts.transparent, preserveDrawingBuffer: opts.still, powerPreference: "high-performance" });
+    this.renderer.setClearColor(new Color(PALETTE.bg), opts.transparent ? 0 : 1);
     this.scene.fog = this.fog;
     this.scene.add(new HemisphereLight("#e9e6d7", "#10140e", 1.1));
     const sun = new DirectionalLight("#f6ead0", 1.4);

@@ -86,6 +86,7 @@ export function outlineMaterial(color: Color, width: number): ShaderMaterial {
     uniforms: UniformsUtils.merge([UniformsLib.fog, { color: { value: color }, width: { value: width }, resolution: { value: new Vector2(1280, 720) } }]),
     vertexShader: /* glsl */ `
       #include <fog_pars_vertex>
+      #include <clipping_planes_pars_vertex>
       uniform float width;
       uniform vec2 resolution;
       void main() {
@@ -94,18 +95,22 @@ export function outlineMaterial(color: Color, width: number): ShaderMaterial {
         float pixel = 2.0 * -mvPosition.z / (projectionMatrix[1][1] * resolution.y);
         mvPosition.xyz += normalize(normalMatrix * normal) * width * pixel;
         gl_Position = projectionMatrix * mvPosition;
+        #include <clipping_planes_vertex>
         #include <fog_vertex>
       }`,
     fragmentShader: /* glsl */ `
       #include <fog_pars_fragment>
+      #include <clipping_planes_pars_fragment>
       uniform vec3 color;
       void main() {
+        #include <clipping_planes_fragment>
         gl_FragColor = vec4(color, 1.0);
         #include <colorspace_fragment>
         #include <fog_fragment>
       }`,
     side: BackSide,
     fog: true,
+    clipping: true,
   });
 }
 
