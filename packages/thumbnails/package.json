@@ -1,6 +1,6 @@
 {
   "name": "@liebstoeckel/thumbnails",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Slide thumbnail capture for liebstoeckel decks via headless Chromium.",
   "keywords": [
     "liebstoeckel",

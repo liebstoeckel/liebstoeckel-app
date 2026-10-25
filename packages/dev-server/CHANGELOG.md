@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/liebstoeckel/liebstoeckel-app/compare/dev-server-v0.4.0...dev-server-v0.4.1) (2026-10-25)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/build bumped to 0.4.1
+    * @liebstoeckel/live-server bumped to 0.4.1
+  * peerDependencies
+    * @liebstoeckel/cli bumped to 0.4.1
+
 ## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/dev-server-v0.3.2...dev-server-v0.4.0) (2026-10-22)
 
 

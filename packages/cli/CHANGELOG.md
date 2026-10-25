@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.1](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.4.0...cli-v0.4.1) (2026-10-25)
+
+
+### Features
+
+* a slide can set props for the deck's backdrop ([ff57bb8](https://github.com/liebstoeckel/liebstoeckel-app/commit/ff57bb8a4cb73008b5e65cc6cf5e940f0b27a950))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/build bumped to 0.4.1
+    * @liebstoeckel/dev-server bumped to 0.4.1
+    * @liebstoeckel/engine bumped to 0.4.1
+    * @liebstoeckel/live-server bumped to 0.4.1
+    * @liebstoeckel/present-relay bumped to 0.4.1
+    * @liebstoeckel/thumbnails bumped to 0.4.1
+
 ## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/cli-v0.3.12...cli-v0.4.0) (2026-10-22)
 
 

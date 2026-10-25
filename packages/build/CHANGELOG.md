@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.1](https://github.com/liebstoeckel/liebstoeckel-app/compare/build-v0.4.0...build-v0.4.1) (2026-10-25)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/engine bumped to 0.4.1
+
 ## 0.4.0 (2026-10-22)
 
 

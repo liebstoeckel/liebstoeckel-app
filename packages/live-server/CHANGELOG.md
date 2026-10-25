@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.1](https://github.com/liebstoeckel/liebstoeckel-app/compare/live-server-v0.4.0...live-server-v0.4.1) (2026-10-25)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/build bumped to 0.4.1
+    * @liebstoeckel/engine bumped to 0.4.1
+    * @liebstoeckel/thumbnails bumped to 0.4.1
+
 ## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/live-server-v0.3.10...live-server-v0.4.0) (2026-10-22)
 
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.4.0...engine-v0.4.1) (2026-10-25)
+
+
+### Features
+
+* a deck backdrop knows which slide it is drawn behind ([a9b201a](https://github.com/liebstoeckel/liebstoeckel-app/commit/a9b201ae9f3a4d4afd728de8921e94f067ee6808))
+* a slide can set props for the deck's backdrop ([ff57bb8](https://github.com/liebstoeckel/liebstoeckel-app/commit/ff57bb8a4cb73008b5e65cc6cf5e940f0b27a950))
+
 ## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/engine-v0.3.10...engine-v0.4.0) (2026-10-22)
 
 

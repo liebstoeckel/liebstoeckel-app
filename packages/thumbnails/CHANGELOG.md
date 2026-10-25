@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.1](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.4.0...thumbnails-v0.4.1) (2026-10-25)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @liebstoeckel/build bumped to 0.4.1
+    * @liebstoeckel/engine bumped to 0.4.1
+
 ## [0.4.0](https://github.com/liebstoeckel/liebstoeckel-app/compare/thumbnails-v0.3.10...thumbnails-v0.4.0) (2026-10-22)
 
 
