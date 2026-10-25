@@ -119,11 +119,10 @@ async function landingScreen(screen: ProjectionScreen) {
   g.fillStyle = PALETTE.screenBg;
   g.fillRect(0, 0, W, H);
   g.fillStyle = PALETTE.text;
-  g.font = `700 128px ${FONT_SANS}`;
-  g.fillText("Present with", 96, 420);
-  g.fillText("the room", 96, 556);
+  g.font = `700 104px ${FONT_SANS}`;
+  ["Your deck is", "a program.", "Run it with", "the room."].forEach((line, i) => g.fillText(line, 96, 300 + i * 120));
   g.fillStyle = PALETTE.gold;
-  g.fillRect(96, 588, 520, 10);
+  g.fillRect(96, 696, 520, 10);
   const x = 1090, y = 280, w = 400, h = 380, size = 150;
   g.strokeStyle = "#3a4530";
   g.lineWidth = 3;

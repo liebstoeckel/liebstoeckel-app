@@ -14,6 +14,10 @@ import { PALETTE } from "./palette";
 import { LaptopScreen, ProjectionScreen, type EditState, type Editor, type PollState, type Question } from "./screens";
 
 export const BEATS = 6;
+/** The beats by name, in the story's own order. A slide names the beat it is drawn
+ *  over, so the deck can show them in any order. */
+export const SCENES = ["hall", "poll", "ask", "plugin", "together", "file"] as const;
+export type SceneName = (typeof SCENES)[number];
 
 // `shift` slides the picture sideways (a lens shift, as fraction of the width),
 // so the room sits beside the slide's words instead of under them.
