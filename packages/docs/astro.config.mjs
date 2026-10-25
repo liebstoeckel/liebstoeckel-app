@@ -43,7 +43,7 @@ export default defineConfig({
           tag: "meta",
           attrs: {
             property: "og:image:alt",
-            content: "liebstoeckel: AI-driven decks that ship as one self-contained, ejectable HTML file",
+            content: "liebstoeckel: Your deck is a program. Run it with the room. Live, programmable presentations",
           },
         },
         { tag: "meta", attrs: { name: "twitter:image", content: "https://docs.liebstoeckel.app/og-card.png" } },
