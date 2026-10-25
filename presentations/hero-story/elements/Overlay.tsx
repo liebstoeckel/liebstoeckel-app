@@ -284,7 +284,7 @@ function beats(): { items: Item[]; shade: string }[] {
       ],
     },
     {
-      shade: "linear-gradient(90deg, rgba(16,20,14,0.92) 0%, rgba(16,20,14,0.6) 36%, transparent 60%)",
+      shade: "linear-gradient(72deg, rgba(16,20,14,0.95) 0%, rgba(16,20,14,0.86) 42%, rgba(16,20,14,0.45) 56%, transparent 70%)",
       items: [
         { id: "dim", kind: "dim", a: "stageL", b: "stageR", body: <div>deck.html</div> },
         {
