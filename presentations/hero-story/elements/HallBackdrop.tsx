@@ -1,8 +1,8 @@
 // The deck's backdrop: one 3D lecture hall that stays mounted for the whole
-// talk. Slides only carry the words; this component follows the slide it is
-// drawn behind (`slide`, from the engine) and moves the camera through the hall,
-// beat by beat. Which beat a slide shows comes from the deck (`setSceneOrder`), so
-// the slides can be reordered without touching the story.
+// talk. Slides only carry the words; each one names its beat of the story
+// (`export const backdropProps = { scene }`), which the engine hands to this
+// component wherever it is drawn behind that slide, and the camera moves through
+// the hall to it. So the slides can be reordered without touching the story.
 //
 // On still surfaces (thumbnails, the overview, print, presenter previews) it
 // renders its slide's shot once, keeps the picture as an image and lets the 3D
@@ -15,19 +15,15 @@
 // Where the browser gives no WebGL, the words stay on a plain ground.
 
 import { useEffect, useRef, useState } from "react";
-import { Story, type Anchors } from "./scene/story";
+import { SCENES, Story, type Anchors, type SceneName } from "./scene/story";
 import { Overlay } from "./Overlay";
 import { isVisible, markReady, onVisibility, reportSlide } from "./bridge";
 
-let order: number[] = [];
+/** What a slide sets for the hall: the beat of the story it is drawn over. */
+export type HallProps = { scene?: SceneName };
 
-/** The story beat behind each slide, by slide index. */
-export function setSceneOrder(beats: number[]) {
-  order = beats;
-}
-
-export function HallBackdrop({ still = false, slide = 0 }: { still?: boolean; slide?: number }) {
-  const beat = order[slide] ?? slide;
+export function HallBackdrop({ still = false, slide = 0, scene = "hall" }: HallProps & { still?: boolean; slide?: number }) {
+  const beat = SCENES.indexOf(scene);
   const canvas = useRef<HTMLCanvasElement>(null);
   const story = useRef<Story | null>(null);
   const place = useRef<((a: Anchors) => void) | null>(null);

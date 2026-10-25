@@ -1,10 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
 import { MONO } from "../elements/Overlay";
 import { Text } from "./_Text";
-import type { SceneName } from "../elements/scene/story";
+import type { HallProps } from "../elements/HallBackdrop";
 
 export const notes = "The whole room, pulled back: the talk is one HTML file, and the file turns back into the project it came from.";
-export const scene: SceneName = "file";
+export const backdropProps: HallProps = { scene: "file" };
 
 // Between the two terminals, what they do to the files: the deck's 21 source files
 // go into one deck.html, and eject brings the same 21 back. (21 is what ejecting

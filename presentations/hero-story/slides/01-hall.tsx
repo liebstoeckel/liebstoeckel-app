@@ -1,9 +1,9 @@
 import { Text } from "./_Text";
 import { framed } from "../elements/bridge";
-import type { SceneName } from "../elements/scene/story";
+import type { HallProps } from "../elements/HallBackdrop";
 
 export const notes = "The hall behind the words is one 3D scene that stays on screen for the whole deck. Each slide moves its camera.";
-export const scene: SceneName = "hall";
+export const backdropProps: HallProps = { scene: "hall" };
 
 export default function Hall() {
   // in a page's frame the page around it says how to take over, so the hint

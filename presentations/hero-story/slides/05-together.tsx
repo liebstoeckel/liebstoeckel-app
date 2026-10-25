@@ -1,8 +1,8 @@
 import { Text } from "./_Text";
-import type { SceneName } from "../elements/scene/story";
+import type { HallProps } from "../elements/HallBackdrop";
 
 export const notes = "Three people work on the same slide at once: a colleague in the browser, a developer in the editor, an agent in the terminal.";
-export const scene: SceneName = "together";
+export const backdropProps: HallProps = { scene: "together" };
 
 export default function Together() {
   return (
