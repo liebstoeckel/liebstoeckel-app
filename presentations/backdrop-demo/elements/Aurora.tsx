@@ -12,14 +12,37 @@
 // The engine passes `still` on capture, print, thumbnail, and presenter
 // preview surfaces; rendering motionless there keeps screenshots
 // deterministic. prefers-reduced-motion is honored in the CSS itself.
+//
+// It also follows the talk. `slide` (the index of the slide it is drawn
+// behind) lifts the moon one step per slide, and a slide can set the sky's
+// `palette` itself with `export const backdropProps = { palette: "ember" }`.
+// Both reach thumbnails and print too, so each one shows its own slide's sky.
+// The moon moves by transform and the palettes crossfade by opacity, so
+// following the talk costs nothing either.
+
+import type { BackdropComponent } from "@liebstoeckel/engine";
+
+/** What a slide can set for the sky. */
+export type AuroraProps = { palette?: "polar" | "ember" };
 
 const SKY = "radial-gradient(130% 100% at 50% 100%, #0a1626 0%, #050b14 55%, #02060c 100%)";
 
 const CURTAINS = [
-  { className: "aurora-sway-a", left: "2%", width: "40%", color: "rgba(61, 233, 179, 0.30)", tilt: "-14deg" },
-  { className: "aurora-sway-b", left: "30%", width: "46%", color: "rgba(74, 222, 128, 0.22)", tilt: "-8deg" },
-  { className: "aurora-sway-c", left: "58%", width: "40%", color: "rgba(167, 139, 250, 0.24)", tilt: "-18deg" },
+  { className: "aurora-sway-a", left: "2%", width: "40%", tilt: "-14deg" },
+  { className: "aurora-sway-b", left: "30%", width: "46%", tilt: "-8deg" },
+  { className: "aurora-sway-c", left: "58%", width: "40%", tilt: "-18deg" },
 ] as const;
+
+// One color per curtain, for each palette.
+const PALETTES = {
+  polar: ["rgba(61, 233, 179, 0.30)", "rgba(74, 222, 128, 0.22)", "rgba(167, 139, 250, 0.24)"],
+  ember: ["rgba(251, 191, 36, 0.36)", "rgba(251, 113, 133, 0.32)", "rgba(249, 115, 22, 0.32)"],
+} as const;
+
+// The moon starts low and climbs this far with every slide, up to MOON_TOP steps,
+// so a long deck keeps it on screen.
+const MOON_STEP = 46;
+const MOON_TOP = 8;
 
 // Two star layers drawn once as box-shadow dots; twinkle is an opacity
 // breath on each whole layer, phase-shifted so it never pulses in sync.
@@ -71,12 +94,15 @@ const AURORA_CSS = `
 .aurora-sway-c { animation: aurora-sway-c 30s ease-in-out infinite, aurora-breathe 17s ease-in-out -4s infinite }
 .aurora-twinkle-a { animation: aurora-twinkle-a 7s ease-in-out infinite }
 .aurora-twinkle-b { animation: aurora-twinkle-b 9s ease-in-out -3s infinite }
+.aurora-moon { transition: transform 1.6s cubic-bezier(0.22, 0.61, 0.27, 1) }
+.aurora-palette { transition: opacity 1.4s ease-in-out }
 @media (prefers-reduced-motion: reduce) {
   .aurora-sway-a, .aurora-sway-b, .aurora-sway-c, .aurora-twinkle-a, .aurora-twinkle-b { animation: none }
+  .aurora-moon, .aurora-palette { transition: none }
 }
 `;
 
-export function Aurora({ still = false }: { still?: boolean }) {
+export const Aurora: BackdropComponent<AuroraProps> = ({ still = false, slide = 0, palette = "polar" }) => {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={{ background: SKY }}>
       {!still && <style>{AURORA_CSS}</style>}
@@ -89,24 +115,48 @@ export function Aurora({ still = false }: { still?: boolean }) {
         className={still ? "" : "aurora-twinkle-b"}
         style={{ position: "absolute", top: 0, left: 0, width: 1, height: 1, borderRadius: "50%", boxShadow: STARS_B }}
       />
-      {/* aurora curtains: soft edges are gradient falloff, motion is transform-only */}
-      {CURTAINS.map((c, i) => (
+      {/* the moon: one transform per slide, eased by a compositor-only transition */}
+      <div
+        className={still ? "" : "aurora-moon"}
+        style={{
+          position: "absolute",
+          // in the right margin, clear of every slide's content column
+          top: 470,
+          right: 30,
+          width: 50,
+          height: 50,
+          borderRadius: "50%",
+          background: "radial-gradient(circle at 38% 36%, #f4f1e4 0%, #d9d4c0 58%, #b8b29c 100%)",
+          boxShadow: "0 0 40px 10px rgba(226, 240, 255, 0.16)",
+          transform: `translateY(${-Math.min(slide, MOON_TOP) * MOON_STEP}px)`,
+        }}
+      />
+      {/* aurora curtains, one set per palette: the slide's palette fades in, the other out */}
+      {(Object.keys(PALETTES) as (keyof typeof PALETTES)[]).map((name) => (
         <div
-          key={i}
-          className={still ? "" : c.className}
-          style={{
-            position: "absolute",
-            top: "-12%",
-            bottom: "30%",
-            left: c.left,
-            width: c.width,
-            transform: still ? `skewX(${c.tilt})` : undefined,
-            transformOrigin: "50% 0%",
-            // A soft ellipse fading out in every direction: the wispy edge is
-            // pure gradient falloff, cheap to paint and free to move.
-            background: `radial-gradient(50% 85% at 50% 18%, ${c.color} 0%, transparent 72%)`,
-          }}
-        />
+          key={name}
+          className={still ? "" : "aurora-palette"}
+          style={{ position: "absolute", inset: 0, opacity: name === palette ? 1 : 0 }}
+        >
+          {CURTAINS.map((c, i) => (
+            <div
+              key={i}
+              className={still ? "" : c.className}
+              style={{
+                position: "absolute",
+                top: "-12%",
+                bottom: "30%",
+                left: c.left,
+                width: c.width,
+                transform: still ? `skewX(${c.tilt})` : undefined,
+                transformOrigin: "50% 0%",
+                // A soft ellipse fading out in every direction: the wispy edge is
+                // pure gradient falloff, cheap to paint and free to move.
+                background: `radial-gradient(50% 85% at 50% 18%, ${PALETTES[name][i]} 0%, transparent 72%)`,
+              }}
+            />
+          ))}
+        </div>
       ))}
       {/* horizon glow + vignette keep text legible over the bright bands */}
       <div
@@ -119,4 +169,4 @@ export function Aurora({ still = false }: { still?: boolean }) {
       />
     </div>
   );
-}
+};
