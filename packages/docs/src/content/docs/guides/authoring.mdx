@@ -103,4 +103,53 @@ On **mobile** (touch / coarse pointer) transitions are **off by default**. The s
 <Present slides={[...]} transition="slide" mobileTransitions />
 ```
 
+## The deck's backdrop
+
+Behind every slide sits the deck's **backdrop**, rendered once per view behind the transition stack, so a slide change crossfades the content over a stable background. Omit the `backdrop` prop on `Present` for the default atmosphere, pass `null` for a flat background, or pass your own component:
+
+```tsx title="main.tsx"
+<Present slides={[...]} backdrop={Sky} />
+```
+
+The engine hands it three kinds of props:
+
+- **`still`** is set on thumbnails, the overview, print, capture and the presenter's previews. Render a motionless, deterministic frame there.
+- **`slide`** is the 0-based index of the slide it is drawn behind: the current slide in the deck, the shown slide in a thumbnail or preview. Use it for what follows the talk's progress.
+- **Its own props**, which a slide sets with `export const backdropProps`. They reach the backdrop wherever it is drawn behind that slide, in the deck and on every still surface, and they stay with the slide when you reorder the deck.
+
+```tsx title="elements/Sky.tsx"
+import type { BackdropComponent } from "@liebstoeckel/engine";
+
+export type SkyProps = { palette?: "night" | "dusk" };
+
+// motionless, so it needs nothing from `still`
+export const Sky: BackdropComponent<SkyProps> = ({ slide = 0, palette = "night" }) => (
+  <div className="absolute inset-0" style={{ background: palette === "dusk" ? "#2a1408" : "#06121f" }}>
+    {/* the moon climbs one step per slide */}
+    <div
+      className="absolute right-24 top-[460px] size-12 rounded-full bg-[#f4f1e4]"
+      style={{ transform: `translateY(${-slide * 40}px)` }}
+    />
+  </div>
+);
+```
+
+```tsx title="a slide"
+import type { SkyProps } from "../elements/Sky";
+
+export const backdropProps: SkyProps = { palette: "dusk" };   // this slide only
+```
+
+```tsx title="main.tsx"
+import * as dusk from "./slides/05-dusk";   // a namespace import carries backdropProps
+
+<Present slides={[intro, dusk, outro]} backdrop={Sky} />
+```
+
+The engine reads `backdropProps` from the slide's module, as it reads `notes` and `transition`, so import that slide as a namespace (`import * as`). A default import passes only the component, and the export is dropped without a warning. Annotate the export with the backdrop's props type, as above: the engine can't check a slide's values against the backdrop for you.
+
+Every prop of your own must be optional, since a slide without `backdropProps` passes none. The values are static: the engine reads them with the slide, so a slide can't change them while it runs. In the deck, the backdrop gets the next slide's props as soon as the slide changes, while the old slide is still fading out; if the change should be gradual, animate it in the backdrop (a CSS transition on `transform` or `opacity` costs nothing per frame).
+
+The repository's `presentations/backdrop-demo` deck is a complete example: an aurora that animates at near-zero CPU, a moon that climbs with `slide`, and a slide that warms the sky through `backdropProps`.
+
 <LinkCard title="Animated code" href="/guides/animated-code/" description="The signature feature for technical decks." />

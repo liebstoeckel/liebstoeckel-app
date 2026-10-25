@@ -128,7 +128,7 @@ export function Present(props: DeckProps) {
 
   if (capture)
     return (
-      <BackdropProvider backdrop={props.backdrop}>
+      <BackdropProvider backdrop={props.backdrop} slides={props.slides}>
         {brandStyle}
         <CaptureView {...props} />
       </BackdropProvider>
@@ -136,7 +136,7 @@ export function Present(props: DeckProps) {
 
   if (print)
     return (
-      <BackdropProvider backdrop={props.backdrop}>
+      <BackdropProvider backdrop={props.backdrop} slides={props.slides}>
         {brandStyle}
         <PrintView {...props} />
       </BackdropProvider>
@@ -147,7 +147,7 @@ export function Present(props: DeckProps) {
   const view = isPresenterWindow ? <PresenterView {...props} /> : <Deck {...props} />;
   return (
     <LiveProvider value={value}>
-      <BackdropProvider backdrop={props.backdrop}>
+      <BackdropProvider backdrop={props.backdrop} slides={props.slides}>
         {brandStyle}
         {view}
       </BackdropProvider>

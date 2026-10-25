@@ -476,7 +476,7 @@ export function Deck({ slides, persistent = [], brands = DEFAULT_BRANDS, brandTh
     <MDXProvider components={mdxComponents}>
      <JoinCardPresence.Provider value={registerJoinCard}>
      <PhoneViewContext.Provider value={phoneView}>
-     <BackdropProvider backdrop={backdrop}>
+     <BackdropProvider backdrop={backdrop} slides={slides}>
       <PersistentProvider>
        {/* 100dvh (dynamic viewport), NOT 100vh: on mobile the browser's address
            bar makes 100vh taller than the visible area, which would push the slide

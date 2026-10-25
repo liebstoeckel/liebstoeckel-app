@@ -45,8 +45,10 @@ Use Tailwind classes and the brand tokens (`text-text`, `bg-surface`, `text-acce
 ## Wiring a slide into the deck (required)
 
 A new slide file does nothing until it's listed in `main.tsx`. Add an import and put
-it in the `slides` array **in display order**. To include a slide's `notes`, import it
-as a namespace; for component-only, a default import is fine:
+it in the `slides` array **in display order**. To include a slide's `notes`,
+`transition` or `backdropProps`, import it as a namespace; a default import passes
+only the component and silently drops those exports. A default import is fine only
+for a slide that exports nothing else:
 
 ```tsx
 // main.tsx
@@ -84,6 +86,21 @@ component and token follows. Don't hard-code hex colors — use tokens / `useBra
 
 To **create a custom brand** (typed `defineTheme` in `brands/<name>.ts` wired via
 `brandThemes`) and bundle its fonts, see `references/brands.md`.
+
+## Backdrop
+
+`<Present backdrop={Sky} />` sets the decoration behind every slide (omit it for
+the default atmosphere, `null` for a flat background). A backdrop component gets
+`still` (thumbnails, overview, print, capture, presenter previews: render a
+motionless frame), `slide` (0-based index of the slide it is drawn behind) and its
+own props, which a slide sets with `export const backdropProps = { palette: "dusk" }`.
+Type it as `BackdropComponent<SkyProps>` from `@liebstoeckel/engine`, every own
+prop optional, and annotate the slide's export (`export const backdropProps: SkyProps`),
+since nothing else checks it. The slide must be imported as a namespace
+(`import * as dusk from "./slides/05-dusk"`) or the export is dropped. Use `backdropProps` for anything tied to a slide (a palette, a
+scene): it moves with the slide when the deck is reordered. Use `slide` only for
+progress. Animate only `transform` and `opacity` (CSS keyframes or transitions).
+Full example: the authoring guide in the docs, "The deck's backdrop".
 
 ## MDX slides
 
