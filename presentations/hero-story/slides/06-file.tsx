@@ -34,7 +34,7 @@ const CSS = `
 .fl-in { animation: fl-in 500ms cubic-bezier(.16,1,.3,1) both }
 .fl-type { animation: fl-type 400ms steps(20) both }
 .fl-draw { stroke-dasharray: 1; animation: fl-draw 600ms ease-out both }
-.fl-bundle { opacity: 0; animation: fl-bundle 600ms cubic-bezier(.55,0,.75,.4) both }
+.fl-bundle { opacity: 0; animation: fl-bundle 600ms cubic-bezier(.55,0,.75,.4) forwards }
 .fl-eject { animation: fl-eject 600ms cubic-bezier(.2,.6,.3,1) both }
 .fl-pop { transform-origin: center; animation: fl-pop 500ms cubic-bezier(.34,1.56,.64,1) both }
 @media (prefers-reduced-motion: reduce) { .fl-in, .fl-type, .fl-draw, .fl-bundle, .fl-eject, .fl-pop { animation: none } }
