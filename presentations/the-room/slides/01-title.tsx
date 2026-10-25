@@ -14,8 +14,10 @@ export default function Title() {
         <span className="h-px w-8 bg-accent" />
         liebstoeckel, live
       </div>
-      <h1 className="font-heading text-[96px] font-semibold leading-[0.95] tracking-[-0.03em] text-text">
-        Present with the room
+      <h1 className="font-heading text-[84px] font-semibold leading-[0.98] tracking-[-0.03em] text-text">
+        Your deck is a program.
+        <br />
+        Run it with the room.
       </h1>
       <div className="mt-10 space-y-4 font-body text-2xl text-muted">
         <Step>Take out your phone and scan the code.</Step>
