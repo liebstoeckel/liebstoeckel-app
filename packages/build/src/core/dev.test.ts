@@ -3,7 +3,7 @@
 // generated, and a stylesheet is regenerated only when one of its files changed or
 // Tailwind's output did.
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { esbuild as native } from "../esbuild-native.ts";
 import { deckTree } from "../profile.ts";
@@ -200,3 +200,31 @@ describe("the stylesheet lane", () => {
     expect(r.styles).toEqual([]);
   });
 });
+
+describe("a removed module", () => {
+  let r: Rig;
+  beforeEach(async () => {
+    r = await rig();
+  });
+
+  test("its own problems go, its importer names the missing import, and it clears once the file is back", async () => {
+    // Broken first, so it has problems of its own to leave behind.
+    await r.core.change([r.edit("slide.tsx", "export default function Slide() {\n  return <div>\n}\n")]);
+    expect(r.core.problems().some((m) => m.file?.endsWith("/slide.tsx"))).toBe(true);
+    const slide = r.edit("slide.tsx", "");
+    unlinkSync(join(r.dir, "slide.tsx"));
+    const removed = await r.core.change([slide]);
+    expect(types(removed)).toContain("error");
+    const problems = r.core.problems();
+    expect(problems.some((m) => m.file?.endsWith("/slide.tsx"))).toBe(false);
+    const missing = problems.find((m) => m.file?.endsWith("/main.tsx"));
+    expect(missing?.text).toContain("./slide.tsx");
+    expect(missing?.line).toBe(1);
+    // The file comes back: the importer is tried again, and nothing is left.
+    const back = await r.core.change([r.edit("slide.tsx", SLIDE("Back"))]);
+    await r.core.settled();
+    expect(r.core.problems()).toEqual([]);
+    expect(types(back)).toContain("ok");
+  });
+});
+

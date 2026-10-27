@@ -499,7 +499,11 @@ export class DevCore {
     let reload: string | null = null;
     let errorsChanged = false;
     const sourceChanged: string[] = [];
-    for (const path of paths) {
+    // A file that appears may be the one a broken import was missing: the modules that
+    // failed are tried again with it.
+    const appeared = paths.some((p) => SOURCE_OR_CODE.test(p) && !this.modules.has(p) && !this.loaded.has(p) && this.files.stat(p) === "file");
+    const retry = appeared ? [...this.errors.keys()].filter((p) => !paths.includes(p) && SOURCE_OR_CODE.test(p) && this.files.stat(p) === "file") : [];
+    for (const path of [...paths, ...retry]) {
       if (path === this.html) {
         reload = "index.html changed";
         continue;
@@ -513,8 +517,17 @@ export class DevCore {
       const known = this.modules.has(path) || this.loaded.has(path);
       if (!known) continue;
       if (this.files.stat(path) !== "file") {
-        // A module the page uses is gone: its importers can only fail now.
+        // A module the page uses is gone: its own problems go with it, and its
+        // importers can only fail now, so they are transformed again to say which
+        // import is missing (their text did not change, their resolution did).
         this.modules.delete(path);
+        if (this.setErrors(path, null)) errorsChanged = true;
+        for (const up of this.importers.get(path) ?? []) {
+          if (paths.includes(up) || (!this.modules.has(up) && !this.loaded.has(up))) continue;
+          this.modules.delete(up);
+          await this.module(up).catch(() => null);
+          errorsChanged = true;
+        }
         if (this.loaded.has(path)) reload = `${path} was removed`;
         continue;
       }
