@@ -76,6 +76,9 @@
         "shiki": "^3.23.0",
         "tailwindcss": "^4.3.0",
       },
+      "devDependencies": {
+        "esbuild-wasm": "0.28.2",
+      },
     },
     "packages/ci-poller": {
       "name": "@liebstoeckel/ci-poller",

@@ -75,6 +75,8 @@ export interface LoadContext {
   files: Files;
   resolver: Resolver;
   mode: Mode;
+  /** The deck's folder (virtual path): its files outside node_modules are the deck's own code. */
+  deck?: string;
   /** Candidates for Tailwind roots. Undefined while scanning: roots then load empty. */
   candidates?: () => Iterable<string>;
   /** Called with every source text (after MDX), for candidate collection. */

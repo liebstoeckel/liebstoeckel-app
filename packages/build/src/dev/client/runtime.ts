@@ -142,6 +142,9 @@ function connect(): void {
     } catch {
       return;
     }
+    // A stylesheet applies on arrival, not behind a hot update still importing its
+    // modules: the update's new classes then find their rules already in place.
+    if (m.type === "css") return style(m.id, m.text);
     chain = chain.then(() => apply(m));
   };
   ws.onclose = () => {

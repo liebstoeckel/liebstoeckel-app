@@ -17,6 +17,20 @@ The scaffolded deck's `build` script runs the same command, so `bun run build` i
 
 Nothing of the deck runs while it builds. `.code.md` files and the deprecated `codeStory` macro are highlighted by the build itself (see [Animated code](/guides/animated-code/)), and Tailwind gets no JavaScript plugins. Only the thumbnails step opens the built file in a headless browser.
 
+### Images and other files
+
+Import a file and use the URL the import gives you. The build inlines the file, and the dev server serves it while you work:
+
+```tsx
+import logo from "./logo.svg";
+
+export default function Title() {
+  return <img src={logo} alt="" />;
+}
+```
+
+`new URL("./logo.svg", import.meta.url)`, the way some bundlers point at a file next to a module, is a build error in the deck's own code. A built deck is one file with no folder beside it, so the URL would lead nowhere. `dev`, `build` and `build --check` name the file and, where they can place it exactly, the line; the import above is the way out. Packages the deck installs keep the pattern: the check reads only the deck's own files, and only real code, so a slide that shows the pattern in a code sample builds.
+
 ## Decks from before 0.4
 
 Decks scaffolded before 0.4 carry three files that the CLI does the work of now: a `bunfig.toml` (plugins for Bun's dev server), a `server.ts` and a `build.ts`, with `package.json` scripts that run them. `liebstoeckel dev` removes the ones still exactly as they were scaffolded and points the scripts at `liebstoeckel dev` and `liebstoeckel build`. A file you changed stays, and `dev` and [`doctor`](/reference/cli/#doctor) say what to do with it. Nothing breaks while they are there: the CLI never runs them.

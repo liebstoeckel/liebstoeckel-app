@@ -44,6 +44,7 @@ Bun.serve({ fetch: async (req, server) => (await deck.fetch(req, server)) ?? new
 |---|---|
 | `@liebstoeckel/build` | `bundleDeck`, `checkDeck`, `collectDeckLicenses`, `buildPluginManifest`, `buildServerBundle`, the `local` profile, `bunfigProblems` |
 | `@liebstoeckel/build/dev` | `createDeckDev(options)`: the dev server (`fetch`, `websocket`, `notify`, `ready`, `close`) and `prebuildDeps` |
+| `@liebstoeckel/build/core` | Experimental, for hosts: the dev server's module core with no Bun or Node API, for a host such as a browser worker on `esbuild-wasm`. `DevCore`, `MemoryFiles`, `hostedTree` and their types |
 | `@liebstoeckel/build/check` | static checks on deck source: `macroProblems`, `codeBlocks` |
 
 ## What the build does
@@ -51,9 +52,11 @@ Bun.serve({ fetch: async (req, server) => (await deck.fetch(req, server)) ?? new
 - **Reads the deck's `index.html`**, resolves every module itself (package `exports`, `imports`, `browser`, symlinked installs) and loads it through one pipeline: MDX, `.code.md` code files and the deprecated `codeStory` macro (highlighted with Shiki at build time; nothing of the deck runs), and Tailwind v4 (the classes come from the module graph).
 - **Bundles in two passes**: the first collects Tailwind's candidates, the second bundles with the generated stylesheet, minifies, and inlines everything into the HTML.
 - **Paths are relative to the project** that holds the deck, so the same source builds to the same bytes on every machine and from any folder.
-- A deck's own Bun plugins (`bunfig.toml`), other macros and Tailwind's `@plugin`/`@config` are errors that name the file.
+- A deck's own Bun plugins (`bunfig.toml`), other macros and Tailwind's `@plugin`/`@config` are errors that name the file. So is `new URL(..., import.meta.url)` in the deck's own code: import the file instead.
 
-The dev server transforms each module on its own, prebuilds the deck's dependencies once (cached in `.liebstoeckel/cache/deps/`) and serves them through an import map, pushes changes to the page over a WebSocket, and keeps component state with React Fast Refresh. A build error shows as an overlay in the page.
+The dev server transforms each module on its own, prebuilds the deck's dependencies once (cached in `.liebstoeckel/cache/deps/`) and serves them through an import map, pushes changes to the page over a WebSocket, and keeps component state with React Fast Refresh. Stylesheets are regenerated in a lane of their own, and only when one of their files changed or Tailwind's output did; an edit that brings a new utility sends its stylesheet before the update, so the new classes never show unstyled. A build error shows as an overlay in the page.
+
+The same dev core runs on `esbuild-wasm` (`@liebstoeckel/build/core`); the tests check that every in-repo deck's modules come out byte for byte the same on both.
 
 ## Architecture
 

@@ -14,6 +14,12 @@
 // accepts itself (`import.meta.hot.accept()`, the deck's main.tsx); the page
 // re-imports that boundary. Unchanged modules keep their URL, so the browser keeps
 // their instances. Components the refresh pass registered keep their state.
+//
+// Stylesheets run in a lane of their own: `change()` answers with the module
+// messages, and the stylesheets an edit touches are regenerated after it, without
+// holding up the next module update (an esbuild pass over a Tailwind stylesheet
+// takes about 90 ms in esbuild-wasm). Most edits need none: the stylesheet is only
+// regenerated when one of its files changed or Tailwind's output did.
 import type { Esbuild } from "./esbuild.ts";
 import { readText, type Files } from "./files.ts";
 import { htmlEntries } from "./html.ts";
@@ -23,6 +29,7 @@ import { dirname, extname, join, virtualDir } from "./path.ts";
 import { NS, resolveFor } from "./plugin.ts";
 import { refreshFooter } from "./refresh.ts";
 import { Resolver, type ResolverOptions } from "./resolve.ts";
+import { importMetaUrlError } from "./url-check.ts";
 
 /** What the host prebuilt for the dev loop. URLs are relative to `<base>/@deps/`. */
 export interface DepsManifest {
@@ -75,6 +82,9 @@ export interface DevCoreOptions {
   deps: DepsManifest;
   /** A notice for the author (a deprecation), once per file and message. */
   onNotice?: (n: Notice) => void;
+  /** Messages from the stylesheet lane, after `change()` answered: `css` for a
+   *  regenerated stylesheet, and `error` or `ok` when the problems changed. */
+  onStyles?: (messages: DevMessage[]) => void;
 }
 
 export class DevCore {
@@ -100,6 +110,19 @@ export class DevCore {
   private cssLoaded = new Set<string>();
   /** stylesheets (and Tailwind dependencies) each stylesheet module pulled in */
   private cssDeps = new Map<string, Set<string>>();
+  /** the candidates each stylesheet module was last generated from */
+  private cssCandidates = new Map<string, Set<string>>();
+  /** Tailwind's output per root, as the stylesheets were last generated with it */
+  private tailwindOut = new Map<string, string>();
+  /** stylesheet modules `change()` left for the lane to regenerate */
+  private restyleQueue = new Set<string>();
+  /** an `ok` held back until the lane has run, so an edit never shows `ok` and then a stylesheet's error */
+  private statusPending = false;
+  /** the problems the page was last told about */
+  private lastStatus = "[]";
+  private lane: Promise<void> | null = null;
+  /** `change()` calls under way; the lane lets them go first */
+  private inflight = new Set<Promise<unknown>>();
   /** paths the graph handed out a URL for: the only ones served from @fs */
   private allowed = new Set<string>();
   /** bare specifiers seen that the prebuilt dependencies lack */
@@ -118,6 +141,7 @@ export class DevCore {
     this.deckDir = dirname(opts.html);
     this.resolver = new Resolver(opts.files, opts.resolver);
     this.ctx = newLoadContext(opts.files, this.resolver, "development");
+    this.ctx.deck = this.deckDir;
     this.ctx.onNotice = (n) => {
       const key = `${n.file}\0${n.message}`;
       if (this.notified.has(key)) return;
@@ -289,6 +313,8 @@ export class DevCore {
                   return { errors: [{ text: err instanceof Error ? err.message : String(err), location: { file: args.path } }] };
                 }
                 if (!loaded) return { errors: [{ text: `Could not read ${args.path}` }] };
+                const urlError = await importMetaUrlError(ctx, build.esbuild, args.path, loaded);
+                if (urlError) return { errors: [urlError] };
                 // The code step and code files already ran in loadModule; assets are served by URL.
                 return { contents: loaded.contents, loader: loaded.loader === "dataurl" ? "file" : loaded.loader, resolveDir: dirname(args.path) };
               });
@@ -422,6 +448,14 @@ export class DevCore {
     const root = await this.ctx.tailwindRoots.get(path)?.catch(() => null);
     for (const d of root?.dependencies ?? []) deps.add(d);
     this.cssDeps.set(path, deps);
+    // What this stylesheet was generated from, for the lane's test whether an edit
+    // changes it. The compiler is incremental: building again for the same
+    // candidates returns its last output at once.
+    this.cssCandidates.set(path, all);
+    for (const d of deps) {
+      const compiled = await this.ctx.tailwindRoots.get(d)?.catch(() => null);
+      if (compiled) this.tailwindOut.set(d, compiled.build(all));
+    }
     const css = result.outputFiles?.find((f) => f.path.endsWith(".css"))?.text ?? "";
     this.cssCache.set(path, css);
     return css;
@@ -434,8 +468,32 @@ export class DevCore {
   }
 
   /** Apply changed files (virtual paths; the tree already holds the new content)
-   *  and work out the messages for the page. */
-  async change(paths: string[]): Promise<DevMessage[]> {
+   *  and work out the messages for the page: the build's problems (`error`, or
+   *  `ok`), the hot update or a reload. The stylesheets the change touches are
+   *  regenerated afterwards, in the stylesheet lane, and reach `onStyles`; an `ok`
+   *  waits for that lane, so the page never hears `ok` and then a stylesheet's
+   *  error for one edit. */
+  change(paths: string[]): Promise<DevMessage[]> {
+    const run = this.applyChange(paths);
+    this.inflight.add(run);
+    const done = () => {
+      this.inflight.delete(run);
+    };
+    run.then(done, done);
+    return run;
+  }
+
+  /** Resolves once no change is being applied and the stylesheet lane has nothing
+   *  left to do: the problems are then final for every change so far. */
+  async settled(): Promise<void> {
+    for (;;) {
+      if (this.inflight.size) await Promise.allSettled([...this.inflight]);
+      else if (this.lane) await this.lane;
+      else return;
+    }
+  }
+
+  private async applyChange(paths: string[]): Promise<DevMessage[]> {
     const messages: DevMessage[] = [];
     const boundaries = new Set<string>();
     let reload: string | null = null;
@@ -484,32 +542,129 @@ export class DevCore {
         else queue.push(...up);
       }
     }
-    if (errorsChanged || paths.some((p) => this.errors.has(p))) {
+    // The loaded stylesheets this change makes stale, for the lane: one that pulls in
+    // an edited file, or one whose Tailwind output the edited sources change. Asking
+    // Tailwind's incremental compiler is cheap; the esbuild pass over the stylesheet
+    // is the lane's. A reload loads every stylesheet again anyway.
+    const cssTouched = paths.filter((p) => extname(p) === ".css");
+    const restyle: string[] = [];
+    if (!reload) {
+      let now: Set<string> | null = null;
+      for (const id of [...this.cssLoaded]) {
+        const deps = this.cssDeps.get(id) ?? new Set([id]);
+        if (cssTouched.some((p) => deps.has(p))) {
+          this.ctx.tailwindRoots.delete(id);
+          restyle.push(id);
+        } else if (sourceChanged.length && (await this.tailwindChanged(id, deps, (now ??= this.candidates())))) restyle.push(id);
+      }
+    }
+    // A stylesheet's own problems are the lane's to report.
+    if (errorsChanged || paths.some((p) => extname(p) !== ".css" && this.errors.has(p))) {
       const list = this.problems();
-      messages.push(list.length ? { type: "error", errors: list } : { type: "ok" });
+      if (list.length || restyle.length === 0) {
+        messages.push(list.length ? { type: "error", errors: list } : { type: "ok" });
+        this.lastStatus = JSON.stringify(list);
+      } else this.statusPending = true;
     }
     if (reload) {
       messages.push({ type: "reload", reason: reload });
       return messages;
     }
     if (boundaries.size) messages.push({ type: "update", boundaries: [...boundaries].map((b) => this.url(b)) });
-    // Stylesheets: an edited stylesheet (or one it pulls in), and Tailwind's output
-    // for new candidates from the edited sources.
-    const cssTouched = paths.filter((p) => extname(p) === ".css");
-    for (const id of this.cssLoaded) {
-      const deps = this.cssDeps.get(id) ?? new Set([id]);
-      const touched = cssTouched.some((p) => deps.has(p));
-      if (touched) this.ctx.tailwindRoots.delete(id);
-      if (!touched && sourceChanged.length === 0) continue;
-      const before = this.cssCache.get(id);
-      const after = await this.cssText(id).catch(() => null);
-      if (after === null) {
-        messages.push({ type: "error", errors: this.problems() });
-        continue;
-      }
-      if (after !== before) messages.push({ type: "css", id, text: after });
+    if (restyle.length) {
+      for (const id of restyle) this.restyleQueue.add(id);
+      this.startLane();
     }
     return messages;
+  }
+
+  /** Whether a stylesheet is being regenerated, or queued to be, for a change that
+   *  has answered. A host can wait for `settled()` before it sends that change's
+   *  update, so the update's new classes render with their rules in place. */
+  get stylesPending(): boolean {
+    return this.restyleQueue.size > 0 || this.lane !== null;
+  }
+
+  private hasStyleWork(): boolean {
+    return this.restyleQueue.size > 0 || this.statusPending;
+  }
+
+  private startLane(): void {
+    if (this.lane) return;
+    this.lane = (async () => {
+      try {
+        await this.runLane();
+      } finally {
+        this.lane = null;
+      }
+      // Work queued while the lane was winding down.
+      if (this.hasStyleWork()) this.startLane();
+    })();
+  }
+
+  /** The stylesheet lane: one pass at a time, after any change under way, taking
+   *  every stylesheet queued since the last pass. */
+  private async runLane(): Promise<void> {
+    while (this.hasStyleWork()) {
+      while (this.inflight.size) await Promise.allSettled([...this.inflight]);
+      const ids = [...this.restyleQueue];
+      this.restyleQueue = new Set();
+      const messages: DevMessage[] = [];
+      for (const id of ids) {
+        if (!this.cssLoaded.has(id)) continue;
+        const before = this.cssCache.get(id);
+        // A stylesheet that fails records its problem, reported below.
+        const after = await this.cssText(id).catch(() => null);
+        if (after !== null && after !== before) messages.push({ type: "css", id, text: after });
+      }
+      const list = this.problems();
+      const key = JSON.stringify(list);
+      if (this.statusPending || key !== this.lastStatus) {
+        // An `ok` waits while more stylesheet work is queued; an error goes at once.
+        if (list.length === 0 && this.restyleQueue.size > 0) this.statusPending = true;
+        else {
+          this.statusPending = false;
+          this.lastStatus = key;
+          messages.unshift(list.length ? { type: "error", errors: list } : { type: "ok" });
+        }
+      }
+      if (messages.length) {
+        try {
+          this.opts.onStyles?.(messages);
+        } catch {
+          // the host's to handle; the lane goes on
+        }
+      }
+    }
+  }
+
+  /** Whether Tailwind now generates something else for a stylesheet. Not when no
+   *  candidate is new since it was generated; otherwise when one of its Tailwind
+   *  roots, built for the new candidates, gives another output. The extractor takes
+   *  every word as a candidate, so most text edits bring new candidates and no new
+   *  utility, and the compiler is incremental, so asking it is cheap; the esbuild
+   *  pass over the stylesheet is what this saves. */
+  private async tailwindChanged(id: string, deps: Set<string>, now: Set<string>): Promise<boolean> {
+    const used = this.cssCandidates.get(id);
+    if (!used) return true;
+    let fresh = false;
+    for (const c of now)
+      if (!used.has(c)) {
+        fresh = true;
+        break;
+      }
+    if (!fresh) return false;
+    let changed = false;
+    for (const d of deps) {
+      const root = this.ctx.tailwindRoots.get(d);
+      if (!root) continue;
+      const compiled = await root.catch(() => null);
+      if (!compiled) return true;
+      if (compiled.build(now) !== this.tailwindOut.get(d)) changed = true;
+    }
+    // The same output for these candidates: compare against them from now on.
+    if (!changed) this.cssCandidates.set(id, now);
+    return changed;
   }
 }
 

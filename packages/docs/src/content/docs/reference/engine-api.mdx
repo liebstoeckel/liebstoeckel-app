@@ -72,6 +72,7 @@ Everything below is from `@liebstoeckel/engine` unless noted.
 | --- | --- |
 | `@liebstoeckel/build` | `bundleDeck` (the browser-free single-file build), `checkDeck` (does it build? structured diagnostics), `collectDeckLicenses`, `buildPluginManifest`, `buildServerBundle`. Options as before, plus `profile` and `log` |
 | `@liebstoeckel/build/dev` | `createDeckDev({ deckDir, base })`: the dev server as a `fetch` handler plus a WebSocket handler for `Bun.serve`, the one `liebstoeckel dev` mounts |
+| `@liebstoeckel/build/core` | **experimental, for hosts, not decks**: the dev server's module core for a host that is neither Bun nor Node, such as a browser worker on `esbuild-wasm`. `DevCore` (esbuild and the files are passed in; `change()` answers with the module update, and stylesheets follow through `onStyles`), `MemoryFiles`, `hostedTree` (the hosted rules over a file tree), and their types. No Bun or Node API on this path |
 | `@liebstoeckel/engine/build` | **deprecated**: the Bun pipeline `bundleDeck`, `checkDeck`, `collectDeckLicenses` (`Bun.build` with Bun plugins), kept one release for a `build.ts` that calls it. Use `@liebstoeckel/build` |
 | `@liebstoeckel/engine/code` (macro) | **deprecated**: `codeStory`, `code` (import `with { type: "macro" }`); the build reads their literal arguments. Use a [code file](/guides/animated-code/) |
 | `@liebstoeckel/engine/build/thumbnails` | `embedThumbnails`, `extractThumbnails`, `stripThumbnails` (the manifest format) |

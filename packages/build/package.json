@@ -37,6 +37,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./dev": "./src/dev/index.ts",
+    "./core": "./src/core/index.ts",
     "./check": "./src/check.ts"
   },
   "dependencies": {
@@ -48,5 +49,8 @@
     "react-refresh": "^0.18.0",
     "shiki": "^3.23.0",
     "tailwindcss": "^4.3.0"
+  },
+  "devDependencies": {
+    "esbuild-wasm": "0.28.2"
   }
 }

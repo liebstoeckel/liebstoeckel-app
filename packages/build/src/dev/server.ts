@@ -100,6 +100,10 @@ export async function createDeckDev(opts: DeckDevOptions): Promise<DeckDev> {
     resolver: tree.resolver,
     deps: EMPTY_DEPS,
     onNotice: (n) => opts.onNotice?.(`${relative(deckDir, tree.disk.real(n.file)).split(sep).join("/")}: ${n.message}`),
+    // Stylesheets come after the module update, from the core's lane.
+    onStyles: (messages) => {
+      for (const m of messages) broadcast(m);
+    },
   });
   const sockets = new Set<ServerWebSocket<WsData>>();
   let depsDir = "";
@@ -189,8 +193,15 @@ export async function createDeckDev(opts: DeckDevOptions): Promise<DeckDev> {
         reportProblems();
         return;
       }
+      // An edit that brings a new Tailwind utility: its stylesheet goes first (the
+      // lane sends it), so the update renders with the new rules in place instead of
+      // showing the element unstyled for the length of the stylesheet pass. Other
+      // edits need no stylesheet and go out at once.
+      if (core.stylesPending) await core.settled();
       for (const m of messages) broadcast(m);
-      reportProblems();
+      // The problems count once the stylesheets are done too, so a reader never sees
+      // the build pass and then fail on one edit.
+      void core.settled().then(reportProblems);
     });
   };
   const queue = (virtualPaths: string[]) => {
@@ -202,6 +213,7 @@ export async function createDeckDev(opts: DeckDevOptions): Promise<DeckDev> {
     queue(v);
     await new Promise((r) => setTimeout(r, 30));
     await running;
+    await core.settled();
   };
 
   // The deck folder itself without recursion, and each of its subfolders

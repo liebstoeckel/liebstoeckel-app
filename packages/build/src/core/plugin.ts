@@ -7,6 +7,7 @@ import { loadModule, type LoadContext } from "./load.ts";
 import { MacroError } from "./macro.ts";
 import { dirname, virtualDir } from "./path.ts";
 import { CSS_RESOLVE, JS_RESOLVE, type ResolveOptions } from "./resolve.ts";
+import { importMetaUrlError } from "./url-check.ts";
 
 export const NS = "vfs";
 
@@ -83,6 +84,8 @@ export function vfsPlugin(ctx: LoadContext, opts: VfsPluginOptions = {}): Plugin
           return { errors: [{ text, location: { file: args.path, ...at } }] };
         }
         if (!result) return { errors: [{ text: `Could not read ${args.path}` }] };
+        const urlError = await importMetaUrlError(ctx, build.esbuild, args.path, result);
+        if (urlError) return { errors: [urlError] };
         opts.onLoaded?.(args.path);
         return { contents: result.contents, loader: result.loader, resolveDir: dirname(args.path) };
       });

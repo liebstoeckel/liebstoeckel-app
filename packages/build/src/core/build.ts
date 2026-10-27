@@ -135,6 +135,7 @@ export async function buildDeck(opts: DeckBuildOptions): Promise<DeckBuildResult
 
   const resolver = new Resolver(opts.files, opts.resolver);
   const ctx: LoadContext = newLoadContext(opts.files, resolver, "production");
+  ctx.deck = deckDir;
   const sources = new Map<string, string>();
   const notices = new Map<string, Notice>();
   ctx.onSource = (path, text) => sources.set(path, text);

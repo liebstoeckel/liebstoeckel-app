@@ -26,6 +26,10 @@ Loop: run it, fix each `diagnostic` (use `file`/`line`/`message`), re-run until
 - **Element type is invalid / undefined component** — usually a wrong import name
   (default vs named) or a chart used before `add`. Confirm the export name from
   `registry view`.
+- **`new URL(..., import.meta.url) does not work in a deck`** — the deck's own code
+  points at a file next to a module, which a single-file deck does not have. Import
+  the file instead and use the URL it gives you:
+  `import logo from "./logo.svg"`, then `<img src={logo} />`.
 - **A blank or mis-laid-out slide** — author to the 1280×720 canvas; don't rely on
   `vh`/`vw` for layout, and give charts a sized container or explicit `width`/`height`.
 

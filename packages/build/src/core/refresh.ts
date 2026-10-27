@@ -22,7 +22,7 @@ const HOOK = /(?<![\w$])(use[A-Z][\w$]*)\s*\(/g;
 
 /** Skip a string, template, comment or regex literal starting at `i`; the index
  *  after it, or -1 when `i` starts none of them. */
-function skipLiteral(src: string, i: number, prev: string): number {
+export function skipLiteral(src: string, i: number, prev: string): number {
   const c = src[i];
   if (c === '"' || c === "'") {
     for (let j = i + 1; j < src.length; j++) {

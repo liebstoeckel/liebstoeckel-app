@@ -10,8 +10,8 @@
 //   not redirect imports (`exports`, `imports`, `browser`).
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cssProblem } from "./core/css-gate.ts";
-import { gatedFiles, type Files } from "./core/files.ts";
+import type { Files } from "./core/files.ts";
+import { hostedTree } from "./core/hosted.ts";
 import type { ResolverOptions } from "./core/resolve.ts";
 import { DiskFiles, projectRoot } from "./disk.ts";
 
@@ -47,17 +47,12 @@ export function deckTree(deckDir: string, profile: Profile = LOCAL, root = proje
     if (out === null) throw new Error(`${p} is outside ${root}`);
     return out;
   };
-  const deckRoot = v(profile.deckRoot);
-  const packagesRoot = profile.packagesRoot ? v(profile.packagesRoot) : undefined;
-  const files = gatedFiles(disk, {
-    deckRoot,
+  const hosted = hostedTree(disk, {
+    deckRoot: v(profile.deckRoot),
     trustedRoots: profile.trustedRoots.map(v),
-    packagesRoot,
-    cssProblem: (css, file, scope) => cssProblem(disk, css, file, scope),
+    packagesRoot: profile.packagesRoot ? v(profile.packagesRoot) : undefined,
   });
-  // The deck's own package.json (and any under it outside node_modules) cannot redirect.
-  const inDeck = (dir: string) => (dir === deckRoot || dir.startsWith(deckRoot + "/")) && !dir.includes("/node_modules/") && !(packagesRoot && dir.startsWith(packagesRoot + "/"));
-  return { disk, files, resolver: { redirects: (dir) => !inDeck(dir) }, deck };
+  return { disk, files: hosted.files, resolver: hosted.resolver, deck };
 }
 
 /** The bundler plugins a scaffolded deck used to list in bunfig.toml, for Bun's
