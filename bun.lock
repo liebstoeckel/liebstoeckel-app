@@ -192,6 +192,7 @@
         "@liebstoeckel/control-api": "workspace:*",
         "@liebstoeckel/control-core": "workspace:*",
         "@liebstoeckel/corporate-design": "workspace:*",
+        "@liebstoeckel/deck-sync": "workspace:*",
         "@liebstoeckel/dev-server": "workspace:*",
         "@liebstoeckel/plugin-sdk": "workspace:*",
         "@simplewebauthn/browser": "13.3.0",

@@ -442,6 +442,20 @@ assistant changes the deck. It is told who changed which file, and it never repl
 file someone changed since it last read it: it reads your version first and builds on it.
 Its progress list shows it, for example *Noticed Anna's edit to slide 3*.
 
+**The preview.** Next to the editor (and next to the assistant's chat) the deck runs as you
+edit it, on the slide and step you are on. For a deck that uses only the packages liebstoeckel
+provides (the engine, the components, the plugins, React, Motion, the visx charts and the four
+bundled fonts), the preview is built in your own browser: an edit shows in a fraction of a
+second, without a reload. This needs WebAssembly. Where it is turned off, as in Apple's Lockdown
+Mode or a company policy, or where it starts too slowly, as in Microsoft Edge's enhanced
+security mode, the preview is built on our side instead, and edits take a few seconds to show.
+A deck that declares packages of its own in its `package.json` (a chart library, a brand font
+from the catalog beyond the four bundled ones) always uses the preview built on our side.
+Build errors are listed under the preview; the deck stays on screen in its last working state
+until the error is fixed. The preview built in your browser runs deck code in an isolated
+frame that loads nothing from the network, so data a deck fetches while it runs does not show
+there.
+
 **Which files sync.** Text sources only, and never files your Git ignores or files named
 like credentials (`.env*`, `*.pem`, `*.key`, `*secret*`, `*credential*`, SSH keys,
 `.npmrc`). The CLI prints the ones it left out.
