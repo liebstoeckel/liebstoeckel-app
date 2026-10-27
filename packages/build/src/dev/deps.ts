@@ -94,8 +94,17 @@ export function cjsExports(tree: DeckTree, resolver: Resolver, path: string, see
   return names;
 }
 
-function keyOf(specs: string[], mode: string): string {
-  return createHash("sha256").update(JSON.stringify({ FORMAT, specs, mode, esbuild: esbuild.version, build: BUILD_VERSION })).digest("hex").slice(0, 16);
+function keyOf(specs: string[], mode: string, external: string[]): string {
+  const key: Record<string, unknown> = { FORMAT, specs, mode, esbuild: esbuild.version, build: BUILD_VERSION };
+  if (external.length) key.external = external;
+  return createHash("sha256").update(JSON.stringify(key)).digest("hex").slice(0, 16);
+}
+
+export interface PrebuildOptions {
+  /** Bare specifiers left as they are, for an import map that another prebuild
+   *  fills: a second set of dependencies that imports `react` then uses the page's
+   *  React instead of bundling a copy of its own. Exact specifiers, not patterns. */
+  external?: readonly string[];
 }
 
 function stillValid(tree: DeckTree, m: CacheManifest): boolean {
@@ -112,10 +121,20 @@ function stillValid(tree: DeckTree, m: CacheManifest): boolean {
 
 /** Prebuild (or load from the cache) the dependencies for a set of bare specifiers
  *  a deck imports. Reads through the tree's Files, so the hosted gate holds here too. */
-export async function prebuildDeps(tree: DeckTree, specs: string[], cacheDir: string, mode: "development" | "production" = "development"): Promise<Prebuilt> {
+export async function prebuildDeps(
+  tree: DeckTree,
+  specs: string[],
+  cacheDir: string,
+  mode: "development" | "production" = "development",
+  options: PrebuildOptions = {},
+): Promise<Prebuilt> {
   const t0 = performance.now();
   const sorted = [...new Set(specs)].sort();
-  const key = keyOf(sorted, mode);
+  const entries = new Set(sorted);
+  // A specifier prebuilt here is never also left to someone else's import map.
+  const external = [...new Set(options.external ?? [])].filter((s) => !entries.has(s)).sort();
+  const externals = new Set(external);
+  const key = keyOf(sorted, mode, external);
   const dir = join(cacheDir, key);
   const manifestFile = join(dir, "manifest.json");
   const resolver = new Resolver(tree.files, tree.resolver);
@@ -187,6 +206,7 @@ export async function prebuildDeps(tree: DeckTree, specs: string[], cacheDir: st
         setup(build) {
           build.onResolve({ filter: /^lst-dep:/ }, (args) => ({ path: args.path.slice("lst-dep:".length), namespace: "lst-dep" }));
           build.onLoad({ filter: /.*/, namespace: "lst-dep" }, (args) => ({ contents: entryCode.get(args.path)!, loader: "js", resolveDir: tree.deck }));
+          if (externals.size) build.onResolve({ filter: /^[^./]/ }, (args) => (externals.has(args.path) ? { path: args.path, external: true } : undefined));
         },
       },
       vfsPlugin(ctx),

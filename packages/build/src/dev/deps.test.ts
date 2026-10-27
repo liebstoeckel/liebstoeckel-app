@@ -31,6 +31,31 @@ describe("the dependency prebuild", () => {
   });
 });
 
+describe("a prebuild beside another", () => {
+  test("leaves the other prebuild's specifiers to the import map instead of bundling them", async () => {
+    const deck = join(root, "deck-external");
+    const mod = (name: string, code: string) => {
+      mkdirSync(join(deck, "node_modules", name), { recursive: true });
+      writeFileSync(join(deck, "node_modules", name, "package.json"), JSON.stringify({ name, version: "1.0.0", type: "module", main: "index.js" }));
+      writeFileSync(join(deck, "node_modules", name, "index.js"), code);
+    };
+    mkdirSync(deck, { recursive: true });
+    writeFileSync(join(deck, "package.json"), JSON.stringify({ name: "d", private: true, type: "module" }));
+    mod("shared-lib", "export const shared = 'the one copy';\n");
+    mod("icons", "import { shared } from 'shared-lib';\nexport const icon = () => shared;\n");
+    const cache = join(root, "cache-external");
+    const alone = await prebuildDeps(deckTree(deck), ["icons"], cache);
+    const aloneCode = await Bun.file(join(alone.dir, alone.manifest.imports.icons!)).text();
+    expect(aloneCode).toContain("the one copy");
+
+    const beside = await prebuildDeps(deckTree(deck), ["icons"], cache, "development", { external: ["shared-lib", "icons"] });
+    expect(beside.dir).not.toBe(alone.dir);
+    const code = await Bun.file(join(beside.dir, beside.manifest.imports.icons!)).text();
+    expect(code).not.toContain("the one copy");
+    expect(code).toMatch(/from\s*"shared-lib"/);
+  });
+});
+
 describe("hasDefaultExport", () => {
   test("sees a default re-export the way plugin packages write it", async () => {
     const { hasDefaultExport } = await import("./deps.ts");
