@@ -437,6 +437,11 @@ members edit them together in the dashboard (**Edit sources**), the assistant wo
 them, and a developer mirrors them into their own folder with `liebstoeckel dev --live`
 (or merges with `pull`). See the [CLI reference](/reference/cli/#pull-and-sync).
 
+**Editing while the assistant works.** You and your team can keep editing while the
+assistant changes the deck. It is told who changed which file, and it never replaces a whole
+file someone changed since it last read it: it reads your version first and builds on it.
+Its progress list shows it, for example *Noticed Anna's edit to slide 3*.
+
 **Which files sync.** Text sources only, and never files your Git ignores or files named
 like credentials (`.env*`, `*.pem`, `*.key`, `*secret*`, `*credential*`, SSH keys,
 `.npmrc`). The CLI prints the ones it left out.
