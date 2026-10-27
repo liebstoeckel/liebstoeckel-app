@@ -442,6 +442,17 @@ assistant changes the deck. It is told who changed which file, and it never repl
 file someone changed since it last read it: it reads your version first and builds on it.
 Its progress list shows it, for example *Noticed Anna's edit to slide 3*.
 
+**How the assistant checks its work.** While it works, the assistant builds the deck to find
+mistakes. With the preview open next to its chat or in the editor, your browser answers: the
+progress list says *Checked in your browser*, and the assistant also learns how the slides look,
+for example text running off a slide. With no preview open, or one that does not answer within
+about half a minute, the deck is built on our side instead (*Checked on our side*), and the
+assistant cannot see the slides. A teammate's open preview can answer with build results, never
+with what their screen shows. When the assistant is done, the deck is built once more on our side
+for its page, the version share links and the deck list show. If that build fails, your changes
+are still saved: the chat says why and offers to update the page again or to ask the assistant to
+fix it.
+
 **The preview.** Next to the editor (and next to the assistant's chat) the deck runs as you
 edit it, on the slide and step you are on. For a deck that uses only the packages liebstoeckel
 provides (the engine, the components, the plugins, React, Motion, the visx charts and the four
