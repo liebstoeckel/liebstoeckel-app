@@ -106,10 +106,15 @@ function memoized(ctx: LoadContext, key: string, text: string, run: () => Promis
 
 /** Built decks have no hot runtime; a small inert object stands in for
  *  `import.meta.hot`, so `import.meta.hot.data.root ??= createRoot(...)` and
- *  `accept()` still work and do nothing (Bun erased them; the effect is the same). */
+ *  `accept()` still work and do nothing (Bun erased them; the effect is the same).
+ *  It is a hoisted function appended after the source, so every line keeps its
+ *  number in the build's messages. */
 export function shimHot(source: string): string {
   if (!source.includes("import.meta.hot")) return source;
-  return "const __lstHot = { data: {}, accept() {}, dispose() {}, decline() {}, invalidate() {}, on() {}, off() {} };\n" + source.replaceAll("import.meta.hot", "__lstHot");
+  return (
+    source.replaceAll("import.meta.hot", "__lstHot()") +
+    "\nfunction __lstHot() { return (__lstHot.o ??= { data: {}, accept() {}, dispose() {}, decline() {}, invalidate() {}, on() {}, off() {} }); }\n"
+  );
 }
 
 export const CODE_STORY_NOTICE =
