@@ -724,6 +724,20 @@
         "yjs": "^13.6.31",
       },
     },
+    "packages/preview-spike": {
+      "name": "@liebstoeckel/preview-spike",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liebstoeckel/build": "workspace:*",
+        "@liebstoeckel/deck-sync": "workspace:*",
+        "@liebstoeckel/release-tests": "workspace:*",
+        "esbuild": "0.28.2",
+        "esbuild-wasm": "0.28.2",
+        "playwright-core": "1.60.0",
+        "react-refresh": "^0.18.0",
+        "yjs": "^13.6.31",
+      },
+    },
     "packages/registry": {
       "name": "@liebstoeckel/registry",
       "version": "0.4.0",
@@ -1456,6 +1470,8 @@
     "@liebstoeckel/poll-demo": ["@liebstoeckel/poll-demo@workspace:presentations/poll-demo"],
 
     "@liebstoeckel/present-relay": ["@liebstoeckel/present-relay@workspace:packages/present-relay"],
+
+    "@liebstoeckel/preview-spike": ["@liebstoeckel/preview-spike@workspace:packages/preview-spike"],
 
     "@liebstoeckel/registry": ["@liebstoeckel/registry@workspace:packages/registry"],
 
@@ -2514,6 +2530,8 @@
     "esast-util-from-js": ["esast-util-from-js@2.0.1", "", { "dependencies": { "@types/estree-jsx": "^1.0.0", "acorn": "^8.0.0", "esast-util-from-estree": "^2.0.0", "vfile-message": "^4.0.0" } }, "sha512-8Ja+rNJ0Lt56Pcf3TAmpBZjmx8ZcK5Ts4cAzIOjsjevg9oSXJnl6SUQ2EevU8tv3h6ZLWmoKL5H4fgWvdvfETw=="],
 
     "esbuild": ["esbuild@0.28.2", "", { "optionalDependencies": { "@esbuild/aix-ppc64": "0.28.2", "@esbuild/android-arm": "0.28.2", "@esbuild/android-arm64": "0.28.2", "@esbuild/android-x64": "0.28.2", "@esbuild/darwin-arm64": "0.28.2", "@esbuild/darwin-x64": "0.28.2", "@esbuild/freebsd-arm64": "0.28.2", "@esbuild/freebsd-x64": "0.28.2", "@esbuild/linux-arm": "0.28.2", "@esbuild/linux-arm64": "0.28.2", "@esbuild/linux-ia32": "0.28.2", "@esbuild/linux-loong64": "0.28.2", "@esbuild/linux-mips64el": "0.28.2", "@esbuild/linux-ppc64": "0.28.2", "@esbuild/linux-riscv64": "0.28.2", "@esbuild/linux-s390x": "0.28.2", "@esbuild/linux-x64": "0.28.2", "@esbuild/netbsd-arm64": "0.28.2", "@esbuild/netbsd-x64": "0.28.2", "@esbuild/openbsd-arm64": "0.28.2", "@esbuild/openbsd-x64": "0.28.2", "@esbuild/openharmony-arm64": "0.28.2", "@esbuild/sunos-x64": "0.28.2", "@esbuild/win32-arm64": "0.28.2", "@esbuild/win32-ia32": "0.28.2", "@esbuild/win32-x64": "0.28.2" }, "bin": { "esbuild": "bin/esbuild" } }, "sha512-HKVLS8dvII+xoKW9kmqxbRKrnWEXfJJr/FZhhJmiqIB0e053QNYFqOBouTMO/k5sID4MvCiUCvv8b9M4h32wIA=="],
+
+    "esbuild-wasm": ["esbuild-wasm@0.28.2", "", { "bin": { "esbuild": "bin/esbuild" } }, "sha512-GccVwhv3mmOUVQHCQm2Ox/rby8n/EqUwvZxE6Pjfikrq/lWw9g9WX/u9EykWnpot3Ko6j426DgQdea2xWKIAQA=="],
 
     "escalade": ["escalade@3.2.0", "", {}, "sha512-WUj2qlxaQtO4g6Pq5c29GTcWGDyd8itL8zTlipgECz3JesAiiOKotd8JU6otB3PACgG6xkJUyVhboMS+bje/jA=="],
 
