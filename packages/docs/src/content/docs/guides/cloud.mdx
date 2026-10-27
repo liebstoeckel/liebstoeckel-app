@@ -449,10 +449,18 @@ bundled fonts), the preview is built in your own browser: an edit shows in a fra
 second, without a reload. This needs WebAssembly. Where it is turned off, as in Apple's Lockdown
 Mode or a company policy, or where it starts too slowly, as in Microsoft Edge's enhanced
 security mode, the preview is built on our side instead, and edits take a few seconds to show.
-A deck that declares packages of its own in its `package.json` (a chart library, a brand font
-from the catalog beyond the four bundled ones) always uses the preview built on our side.
+A deck that declares packages of its own in its `package.json` (a library from the hosted
+package list, a brand font from the catalog beyond the four bundled ones) is built in your
+browser too, once its packages are prepared on our side. The first time a combination of
+packages is used this can take up to a minute, and the preview says *Preparing* with the
+package names meanwhile; after that the same packages are ready at once, also for other decks.
+If they cannot be prepared, the preview is built on our side instead. Packages keep the
+versions they were first resolved to until the deck's `package.json` changes them.
 Build errors are listed under the preview; the deck stays on screen in its last working state
-until the error is fixed. The preview built in your browser runs deck code in an isolated
+until the error is fixed. A deck the hosted preview cannot build at all (a package that is not
+on the hosted list, a build-time macro, a `tsconfig.json` that maps import paths) shows why in
+place of the preview, each reason with its file and line; if the deck was already showing, it
+stays on screen and the reasons are listed under it. The preview built in your browser runs deck code in an isolated
 frame that loads nothing from the network, so data a deck fetches while it runs does not show
 there.
 
