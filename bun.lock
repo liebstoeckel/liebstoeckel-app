@@ -731,20 +731,6 @@
         "yjs": "^13.6.31",
       },
     },
-    "packages/preview-spike": {
-      "name": "@liebstoeckel/preview-spike",
-      "version": "0.0.0",
-      "dependencies": {
-        "@liebstoeckel/build": "workspace:*",
-        "@liebstoeckel/deck-sync": "workspace:*",
-        "@liebstoeckel/release-tests": "workspace:*",
-        "esbuild": "0.28.2",
-        "esbuild-wasm": "0.28.2",
-        "playwright-core": "1.60.0",
-        "react-refresh": "^0.18.0",
-        "yjs": "^13.6.31",
-      },
-    },
     "packages/registry": {
       "name": "@liebstoeckel/registry",
       "version": "0.4.0",
@@ -1477,8 +1463,6 @@
     "@liebstoeckel/poll-demo": ["@liebstoeckel/poll-demo@workspace:presentations/poll-demo"],
 
     "@liebstoeckel/present-relay": ["@liebstoeckel/present-relay@workspace:packages/present-relay"],
-
-    "@liebstoeckel/preview-spike": ["@liebstoeckel/preview-spike@workspace:packages/preview-spike"],
 
     "@liebstoeckel/registry": ["@liebstoeckel/registry@workspace:packages/registry"],
 
