@@ -41,7 +41,7 @@ jobs:
         # the Bun installer hands new users today. Bun 1.4.0 shipped a Windows
         # event-loop regression that made the CLI a silent no-op, and it went
         # out invisibly because no tier ran the Bun that end users install.
-        bun: [1.4.3, latest]
+        bun: [1.4.4, latest]
     runs-on: ${{ matrix.os }}
     # The pinned cells gate the release. The latest-Bun cells are informational:
     # they exist to SURFACE regressions in the Bun that end users install, which

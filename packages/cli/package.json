@@ -65,12 +65,12 @@
     "citty": "^0.2.2"
   },
   "optionalDependencies": {
-    "@oven/bun-darwin-aarch64": "1.4.3",
-    "@oven/bun-darwin-x64": "1.4.3",
-    "@oven/bun-linux-aarch64": "1.4.3",
-    "@oven/bun-linux-x64": "1.4.3",
-    "@oven/bun-windows-aarch64": "1.4.3",
-    "@oven/bun-windows-x64": "1.4.3"
+    "@oven/bun-darwin-aarch64": "1.4.4",
+    "@oven/bun-darwin-x64": "1.4.4",
+    "@oven/bun-linux-aarch64": "1.4.4",
+    "@oven/bun-linux-x64": "1.4.4",
+    "@oven/bun-windows-aarch64": "1.4.4",
+    "@oven/bun-windows-x64": "1.4.4"
   },
   "peerDependencies": {
     "react": "^19.2.7",

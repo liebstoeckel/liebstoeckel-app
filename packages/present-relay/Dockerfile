@@ -31,7 +31,7 @@
 # builder makes this matter twice: its native snapshotter copies the whole
 # tree for every layer and walks the whole image on export, so a small tree is
 # a fast build as well as a small image.
-FROM oven/bun:1.4.3 AS manifests
+FROM oven/bun:1.4.4 AS manifests
 WORKDIR /src
 COPY . .
 RUN mkdir -p /manifests \
@@ -40,7 +40,7 @@ RUN mkdir -p /manifests \
     | tar --null --files-from=- -cf - \
     | tar -xf - -C /manifests
 
-FROM oven/bun:1.4.3
+FROM oven/bun:1.4.4
 WORKDIR /app
 COPY --from=manifests /manifests/ ./
 # Retried: a single npm tarball download now and then fails mid-transfer, and

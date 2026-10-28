@@ -58,7 +58,7 @@ jobs:
           ref: ${{ inputs.ref || 'main' }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.4
       # Pack the way the internal release publishes, or the bytes differ. bun
       # writes `workspace:^` ranges from the versions in bun.lock, which the
       # release commit leaves at the previous release (only package.json is
@@ -99,7 +99,7 @@ jobs:
           ref: ${{ inputs.ref || 'main' }}
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.4
       - uses: ./.github/actions/release-env
         with:
           chrome: "true"
@@ -232,7 +232,7 @@ jobs:
       # puts a failing `bun` first on PATH for every command it starts.
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.4
       - uses: ./.github/actions/release-env
         with:
           chrome: "true"
@@ -397,7 +397,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         if: success() || failure()
         with:
-          bun-version: 1.4.3
+          bun-version: 1.4.4
       - name: bunx with Bun 1.4
         if: success() || failure()
         run: node packages/release-tests/matrix/variant.mjs bunx
